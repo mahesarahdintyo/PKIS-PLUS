@@ -55,11 +55,6 @@ export async function proxy(request: NextRequest) {
     if (path.startsWith('/admin') && userRole !== 'admin') {
       return NextResponse.redirect(new URL('/operator', request.url))
     }
-
-    // Jika admin mencoba akses /operator, kembalikan ke /admin
-    if (path.startsWith('/operator') && userRole === 'admin') {
-       return NextResponse.redirect(new URL('/admin', request.url))
-    }
   }
 
   return supabaseResponse
