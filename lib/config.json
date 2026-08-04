@@ -1,0 +1,97 @@
+{
+  "app": {
+    "title": "Pusat Dokumen PT ABC",
+    "logo": "logo.png",
+    "theme": {
+      "primaryColor": "#2563EB",
+      "backgroundColor": "#F5F5F5",
+      "cardColor": "#FFFFFF",
+      "textColor": "#222222",
+      "fontFamily": "Arial"
+    }
+  },
+  "settings": {
+    "search": true,
+    "categories": true,
+    "grid": false,
+    "itemsPerPage": 20
+  },
+  "categories": [
+    {
+      "id": "all",
+      "name": "Semua"
+    },
+    {
+      "id": "sop",
+      "name": "SOP"
+    },
+    {
+      "id": "manual",
+      "name": "Manual"
+    },
+    {
+      "id": "form",
+      "name": "Form"
+    },
+    {
+      "id": "lainnya",
+      "name": "Lainnya"
+    }
+  ],
+  "documents": [
+    {
+      "id": 1,
+      "title": "SOP Keselamatan Kerja",
+      "description": "Panduan keselamatan area produksi.",
+      "category": "sop",
+      "type": "pdf",
+      "thumbnail": "images/pdf-icon.png",
+      "file": "files/sop-keselamatan.pdf"
+    },
+    {
+      "id": 2,
+      "title": "Layout Mesin Produksi",
+      "description": "Denah mesin produksi terbaru.",
+      "category": "manual",
+      "type": "jpg",
+      "thumbnail": "images/layout-mesin.jpg",
+      "file": "files/layout-mesin.jpg"
+    },
+    {
+      "id": 3,
+      "title": "Form Pemeriksaan Harian",
+      "description": "Checklist harian mesin.",
+      "category": "form",
+      "type": "pdf",
+      "thumbnail": "images/pdf-icon.png",
+      "file": "files/form-checklist.pdf"
+    },
+    {
+      "id": 4,
+      "title": "Manual Operator Mesin",
+      "description": "Panduan lengkap mengoperasikan mesin produksi.",
+      "category": "manual",
+      "type": "pdf",
+      "thumbnail": "images/pdf-icon.png",
+      "file": "files/manual-operator.pdf"
+    },
+    {
+      "id": 5,
+      "title": "SOP Maintenance",
+      "description": "Prosedur pemeliharaan rutin mesin.",
+      "category": "sop",
+      "type": "pdf",
+      "thumbnail": "images/pdf-icon.png",
+      "file": "files/sop-maintenance.pdf"
+    },
+    {
+      "id": 6,
+      "title": "Kebijakan Cuti Karyawan",
+      "description": "Peraturan dan tata cara pengajuan cuti.",
+      "category": "lainnya",
+      "type": "pdf",
+      "thumbnail": "images/pdf-icon.png",
+      "file": "files/kebijakan-cuti.pdf"
+    }
+  ]
+}
