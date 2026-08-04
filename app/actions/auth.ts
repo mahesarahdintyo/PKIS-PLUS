@@ -49,7 +49,7 @@ export async function login(state: any, formData: FormData) {
 
   const role = profile.role;
   const landId = profile.land_id ?? null;
-  const redirectUrl = role === "admin" ? "/admin" : "/operator";
+  const redirectUrl = role === "admin" ? "/" : "/operator";
 
   return { success: true, redirectUrl, role, landId };
 }
