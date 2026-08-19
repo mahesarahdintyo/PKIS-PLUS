@@ -1,0 +1,285 @@
+"use client";
+
+import React, { useState, useEffect, useCallback } from "react";
+import HeaderNav from "@/components/HeaderNav";
+import { supabase } from "@/lib/supabaseClient";
+import { Profile } from "@/types/database";
+import { useAndonAlerts, useAndonLeaders, andonSubscribePush, AndonCall } from "@/hooks/useAndon";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Select } from "@/components/ui/select";
+import { toast } from "sonner";
+
+const MESIN_LABELS: Record<string, string> = {
+  blanking: "Blanking",
+  pc200t: "PC200t",
+  tandem: "Tandem",
+  transfer_2000t: "Transfer 2000t",
+  transfer_800t: "Transfer 800t",
+};
+
+const MESIN_OPTIONS: [string, string][] = [
+  ["blanking", "Blanking"],
+  ["pc200t", "PC200t"],
+  ["tandem", "Tandem"],
+  ["transfer_2000t", "Transfer 2000t"],
+  ["transfer_800t", "Transfer 800t"],
+];
+
+function fmtClock(iso: string | null | undefined): string {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  return d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+export default function AndonSettingsPage() {
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const isLeaderOrAdmin = profile && ["admin", "leader"].includes(profile.role || "");
+
+  const { activeCalls, acknowledgeCall } = useAndonAlerts(!!isLeaderOrAdmin);
+  const { myLeaders, daftarLeader, hapusLeader } = useAndonLeaders(profile?.id || null);
+  const [leaderForm, setLeaderForm] = useState<{ mesin: string; tier: 1 | 2 }>({ mesin: "tandem", tier: 1 });
+
+  const handleDaftarLeader = async () => {
+    const { error } = await daftarLeader(leaderForm.mesin, leaderForm.tier);
+    if (error) toast.error(`Gagal: ${error}`);
+    else toast.success("Berhasil didaftarkan sebagai leader.");
+  };
+
+  const [loadingPush, setLoadingPush] = useState(false);
+
+  const handleDaftarkanHp = async () => {
+    if (!profile) return;
+    setLoadingPush(true);
+    const result = await andonSubscribePush(profile.id);
+    if (result.ok) {
+      toast.success(result.message);
+    } else {
+      toast.error(result.message);
+    }
+    setLoadingPush(false);
+  };
+
+  const [history, setHistory] = useState<AndonCall[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+
+  const fetchHistory = useCallback(async () => {
+    setLoadingHistory(true);
+    const { data } = await supabase
+      .from("andon_calls")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    setHistory((data as AndonCall[]) || []);
+    setLoadingHistory(false);
+  }, []);
+
+  useEffect(() => {
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { window.location.href = "/login"; return; }
+      const { data } = await supabase.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
+      if (data) setProfile(data as Profile);
+    };
+    init();
+  }, []);
+
+  useEffect(() => {
+    if (isLeaderOrAdmin) fetchHistory();
+  }, [isLeaderOrAdmin, fetchHistory]);
+
+  // Refresh riwayat setiap ada panggilan aktif berubah (baru masuk / diselesaikan)
+  useEffect(() => {
+    if (isLeaderOrAdmin) fetchHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCalls.length]);
+
+  return (
+    <HeaderNav activeTitle="Andon">
+      <div className="page-header">
+        <h1 className="page-title">
+          <span className="eyebrow">Andon</span>
+          Panggilan Leader
+        </h1>
+      </div>
+
+      {profile && !isLeaderOrAdmin && (
+        <div className="error-msg">Halaman ini khusus admin/leader.</div>
+      )}
+
+      {isLeaderOrAdmin && (
+        <div>
+          <Card className="dash-panel card-glow-info">
+            <p className="dash-panel-title">1. Aktifkan Notifikasi di HP ini</p>
+            <p className="hint" style={{ marginBottom: 14 }}>
+              Wajib dilakukan di TIAP HP yang mau menerima panggilan Andon (getar + bunyi walau app tertutup).
+              Kalau ganti HP, ulangi langkah ini di HP yang baru.
+            </p>
+            <Button type="button" onClick={handleDaftarkanHp} disabled={loadingPush}>
+              {loadingPush ? "Mendaftarkan..." : "🔔 Aktifkan Notifikasi di HP ini"}
+            </Button>
+          </Card>
+
+          <Card className="dash-panel card-glow-info">
+            <p className="dash-panel-title">2. Line yang Saya Lead</p>
+            <p className="hint" style={{ marginBottom: 14 }}>
+              Pilih line yang Anda tanggung jawab. <b>Tier 1</b> = dipanggil pertama kali.
+              <b> Tier 2</b> = eskalasi, dipanggil kalau tier 1 tidak merespon dalam 5 menit.
+            </p>
+            <div className="form-grid">
+              <div className="field">
+                <label>Line</label>
+                                <Select
+                  value={leaderForm.mesin}
+                  onChange={(e) => setLeaderForm((f) => ({ ...f, mesin: e.target.value }))}
+                >
+                  {MESIN_OPTIONS.map(([key, label]) => (
+                    <option key={key} value={key}>{label}</option>
+                  ))}
+                </Select>
+              </div>
+              <div className="field">
+                <label>Tier</label>
+                                <Select
+                  value={leaderForm.tier}
+                  onChange={(e) => setLeaderForm((f) => ({ ...f, tier: Number(e.target.value) as 1 | 2 }))}
+                >
+                  <option value={1}>Tier 1 (utama)</option>
+                  <option value={2}>Tier 2 (eskalasi)</option>
+                </Select>
+              </div>
+            </div>
+            <div className="form-actions">
+              <Button type="button" onClick={handleDaftarLeader}>
+                Tambah Pendaftaran
+              </Button>
+            </div>
+
+            <div className="table-wrap" style={{ marginTop: 16 }}>
+              <table>
+                <thead>
+                  <tr><th>Line</th><th>Tier</th><th>Aksi</th></tr>
+                </thead>
+                <tbody>
+                  {myLeaders.map((r) => (
+                    <tr key={r.id}>
+                      <td>{MESIN_LABELS[r.mesin] || r.mesin}</td>
+                      <td><span className="badge">Tier {r.tier}</span></td>
+                      <td>
+                        <Button variant="destructive" size="sm" onClick={() => hapusLeader(r.id)}>Hapus</Button>
+                      </td>
+                    </tr>
+                  ))}
+                  {myLeaders.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="empty-state">Belum terdaftar sebagai leader line manapun.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          <Card className="dash-panel card-glow-info">
+            <p className="dash-panel-title">
+              Panggilan Aktif <span className="count">{activeCalls.length} baris</span>
+            </p>
+            <p className="hint" style={{ marginBottom: 12 }}>
+              Notifikasi realtime muncul otomatis di semua halaman selama app terbuka.
+              Push notification browser (saat app tertutup) belum aktif.
+            </p>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Waktu</th>
+                    <th>Mesin</th>
+                    <th>Stasiun</th>
+                    <th>Alasan</th>
+                    <th>Status</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeCalls.map((c) => (
+                    <tr key={c.id}>
+                      <td className="mono">{new Date(c.created_at).toLocaleString("id-ID")}</td>
+                      <td>{MESIN_LABELS[c.mesin] || c.mesin}</td>
+                      <td>{c.stasiun || "-"}</td>
+                      <td>{c.alasan || "-"}</td>
+                      <td>
+                        <span className={`badge ${c.status === "escalated" ? "role-admin" : ""}`}>
+                          {c.status === "escalated" ? "Eskalasi" : "Menunggu"}
+                        </span>
+                      </td>
+                      <td>
+                        <Button
+                          size="sm"
+                          onClick={() => acknowledgeCall(c.id, profile?.id)}
+                        >
+                          Terima
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                  {activeCalls.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="empty-state">
+                        Tidak ada panggilan aktif. 👍
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          <Card className="dash-panel card-glow-info">
+            <p className="dash-panel-title">
+              Riwayat Panggilan <span className="count">{history.length} baris</span>
+            </p>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Waktu</th>
+                    <th>Mesin</th>
+                    <th>Stasiun</th>
+                    <th>Alasan</th>
+                    <th>Status</th>
+                    <th>Diterima</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.map((c) => (
+                    <tr key={c.id}>
+                      <td className="mono">{new Date(c.created_at).toLocaleString("id-ID")}</td>
+                      <td>{MESIN_LABELS[c.mesin] || c.mesin}</td>
+                      <td>{c.stasiun || "-"}</td>
+                      <td>{c.alasan || "-"}</td>
+                      <td>
+                        <span className={`badge ${c.status !== "acknowledged" ? "role-admin" : ""}`}>
+                          {c.status === "pending" ? "Menunggu" : c.status === "escalated" ? "Eskalasi" : "Diterima"}
+                        </span>
+                      </td>
+                      <td className="mono">
+                        {c.acknowledged_at ? new Date(c.acknowledged_at).toLocaleString("id-ID") : "-"}
+                      </td>
+                    </tr>
+                  ))}
+                  {!loadingHistory && history.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="empty-state">
+                        Belum ada riwayat panggilan.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      )}
+    </HeaderNav>
+  );
+}
