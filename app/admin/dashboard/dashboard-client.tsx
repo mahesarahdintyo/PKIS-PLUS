@@ -1707,11 +1707,11 @@ export default function DashboardClient() {
         </div>
         <div className="flex items-center gap-2 text-xs flex-wrap">
           <Link href="/admin" className="px-3 py-1 rounded border border-border hover:bg-accent hover:text-accent-foreground font-semibold transition text-muted-foreground">← Workspace</Link>
-          <Link href="/admin/produksi/safety" className="px-3 py-1 rounded border border-border hover:bg-accent hover:text-accent-foreground font-semibold transition">Safety</Link>
-          <Link href="/admin/produksi/productivity" className="px-3 py-1 rounded border border-border hover:bg-accent hover:text-accent-foreground font-semibold transition">Earned Hours</Link>
-          <Link href="/admin/produksi/scrap" className="px-3 py-1 rounded border border-border hover:bg-accent hover:text-accent-foreground font-semibold transition">Scrap</Link>
-          <Link href="/admin/produksi/attendance" className="px-3 py-1 rounded border border-border hover:bg-accent hover:text-accent-foreground font-semibold transition">Attendance</Link>
-          <Link href="/admin/produksi/andon-settings" className="px-3 py-1 rounded border border-border hover:bg-accent hover:text-accent-foreground font-semibold transition">Andon</Link>
+          <Link href="/admin/dashboard/safety" className="px-3 py-1 rounded border border-border hover:bg-accent hover:text-accent-foreground font-semibold transition">Safety</Link>
+          <Link href="/admin/dashboard/productivity" className="px-3 py-1 rounded border border-border hover:bg-accent hover:text-accent-foreground font-semibold transition">Earned Hours</Link>
+          <Link href="/admin/dashboard/scrap" className="px-3 py-1 rounded border border-border hover:bg-accent hover:text-accent-foreground font-semibold transition">Scrap</Link>
+          <Link href="/admin/dashboard/attendance" className="px-3 py-1 rounded border border-border hover:bg-accent hover:text-accent-foreground font-semibold transition">Attendance</Link>
+          <Link href="/admin/dashboard/andon-settings" className="px-3 py-1 rounded border border-border hover:bg-accent hover:text-accent-foreground font-semibold transition">Andon</Link>
         </div>
       </header>
 

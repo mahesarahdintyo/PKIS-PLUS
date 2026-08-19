@@ -19,13 +19,13 @@ import { getLands, type Land } from '@/lib/services/land'
 import ProductionReportsDashboard from '@/components/admin/ProductionReportsDashboard'
 import AdminPartNumbersPanel from '@/components/admin/AdminPartNumbersPanel'
 import AdminNgCategoriesPanel from '@/components/admin/AdminNgCategoriesPanel'
-import InputSafetyClient from '@/app/admin/produksi/safety/input-safety-client'
-import InputProductivityClient from '@/app/admin/produksi/productivity/input-productivity-client'
-import InputScrapClient from '@/app/admin/produksi/scrap/input-scrap-client'
-import InputAttendanceClient from '@/app/admin/produksi/attendance/input-attendance-client'
-import AndonSettingsClient from '@/app/admin/produksi/andon-settings/andon-settings-client'
+import InputSafetyClient from '@/app/admin/dashboard/safety/input-safety-client'
+import InputProductivityClient from '@/app/admin/dashboard/productivity/input-productivity-client'
+import InputScrapClient from '@/app/admin/dashboard/scrap/input-scrap-client'
+import InputAttendanceClient from '@/app/admin/dashboard/attendance/input-attendance-client'
+import AndonSettingsClient from '@/app/admin/dashboard/andon-settings/andon-settings-client'
 import { createClient } from '@/lib/supabase/client'
-import '@/app/admin/produksi/produksi.css'
+import '@/app/admin/dashboard/produksi.css'
 
 interface Document {
   id: string
@@ -431,7 +431,7 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
             </div>
             <nav className="mt-6 flex-1 overflow-y-auto space-y-1" aria-label="Navigasi utama">
               <SidebarButton icon={FolderKanban} label="Workspace" active={activeView === 'workspace'} onClick={() => selectView('workspace')} />
-              <SidebarLink href="/admin/produksi" icon={LayoutDashboard} label="Dashboard" />
+              <SidebarLink href="/admin/dashboard" icon={LayoutDashboard} label="Dashboard" />
               <SidebarButton icon={FileText} label="Laporan Produksi" active={activeView === 'reports'} onClick={() => selectView('reports')} />
               <SidebarButton icon={Tags} label="Part Number" active={activeView === 'part-numbers'} onClick={() => selectView('part-numbers')} />
               <SidebarButton icon={Tags} label="Kategori NG" active={activeView === 'ng-categories'} onClick={() => selectView('ng-categories')} />
@@ -469,7 +469,7 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
         </div>
         <nav className="mt-6 flex-1 overflow-y-auto space-y-1" aria-label="Navigasi utama">
           <SidebarButton icon={FolderKanban} label="Workspace" active={activeView === 'workspace'} onClick={() => selectView('workspace')} />
-          <SidebarLink href="/admin/produksi" icon={LayoutDashboard} label="Dashboard" />
+          <SidebarLink href="/admin/dashboard" icon={LayoutDashboard} label="Dashboard" />
           <SidebarButton icon={FileText} label="Laporan Produksi" active={activeView === 'reports'} onClick={() => selectView('reports')} />
           <SidebarButton icon={Tags} label="Part Number" active={activeView === 'part-numbers'} onClick={() => selectView('part-numbers')} />
           <SidebarButton icon={Tags} label="Kategori NG" active={activeView === 'ng-categories'} onClick={() => selectView('ng-categories')} />

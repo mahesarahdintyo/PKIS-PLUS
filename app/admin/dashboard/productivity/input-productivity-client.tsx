@@ -188,7 +188,7 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
     <div className="app-shell">
       <main className="main">
         <nav className="flex gap-1 text-xs text-muted-foreground mb-2">
-          <Link href="/admin/produksi" className="hover:underline">Dashboard Produksi</Link>
+          <Link href="/admin/dashboard" className="hover:underline">Dashboard Produksi</Link>
           <span>/</span>
           <span>Input Earned Hours</span>
         </nav>

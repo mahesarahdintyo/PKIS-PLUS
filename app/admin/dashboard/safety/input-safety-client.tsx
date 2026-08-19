@@ -181,7 +181,7 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
       <main className="main">
         {/* Breadcrumb nav */}
         <nav className="flex gap-1 text-xs text-muted-foreground mb-2">
-          <Link href="/admin/produksi" className="hover:underline">Dashboard Produksi</Link>
+          <Link href="/admin/dashboard" className="hover:underline">Dashboard Produksi</Link>
           <span>/</span>
           <span>Input Safety</span>
         </nav>
