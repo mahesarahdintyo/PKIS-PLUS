@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, FileText, FolderKanban, Menu, Tags, Trash2, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, FileText, FolderKanban, LayoutDashboard, Menu, Tags, Trash2, X } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -405,6 +405,7 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
             </div>
             <nav className="mt-6 flex-1 overflow-y-auto space-y-1" aria-label="Navigasi utama">
               <SidebarButton icon={FolderKanban} label="Workspace" active={activeView === 'workspace'} onClick={() => selectView('workspace')} />
+              <SidebarLink href="/admin/produksi" icon={LayoutDashboard} label="Dashboard" />
               <SidebarButton icon={FileText} label="Laporan Produksi" active={activeView === 'reports'} onClick={() => selectView('reports')} />
               <SidebarButton icon={Tags} label="Part Number" active={activeView === 'part-numbers'} onClick={() => selectView('part-numbers')} />
               <SidebarButton icon={Tags} label="Kategori NG" active={activeView === 'ng-categories'} onClick={() => selectView('ng-categories')} />
@@ -434,6 +435,7 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
         </div>
         <nav className="mt-6 flex-1 overflow-y-auto space-y-1" aria-label="Navigasi utama">
           <SidebarButton icon={FolderKanban} label="Workspace" active={activeView === 'workspace'} onClick={() => selectView('workspace')} />
+          <SidebarLink href="/admin/produksi" icon={LayoutDashboard} label="Dashboard" />
           <SidebarButton icon={FileText} label="Laporan Produksi" active={activeView === 'reports'} onClick={() => selectView('reports')} />
           <SidebarButton icon={Tags} label="Part Number" active={activeView === 'part-numbers'} onClick={() => selectView('part-numbers')} />
           <SidebarButton icon={Tags} label="Kategori NG" active={activeView === 'ng-categories'} onClick={() => selectView('ng-categories')} />
@@ -711,6 +713,18 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
 
 function SidebarButton({ icon: Icon, label, active, onClick }: { icon: typeof FolderKanban; label: string; active: boolean; onClick: () => void }) {
   return <button onClick={onClick} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-colors duration-200 ${active ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}><Icon className="h-5 w-5" />{label}</button>
+}
+
+function SidebarLink({ href, icon: Icon, label }: { href: string; icon: typeof FolderKanban; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-colors duration-200 text-muted-foreground hover:bg-muted hover:text-foreground"
+    >
+      <Icon className="h-5 w-5" />
+      {label}
+    </Link>
+  )
 }
 
 function FolderCardSkeleton() {
