@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 import { ProdProfile } from "@/types/produksi";
 import Chart from "chart.js/auto";
 import { registerInternalVizPlugins } from "@/lib/produksi/chartPlugins";
-import { Sun, Moon, AlertTriangle, ShieldCheck } from "lucide-react";
+import { Sun, Moon, AlertTriangle, ShieldCheck, Home, Maximize, Minimize } from "lucide-react";
 
 const MACHINES = [
   { key: "tandem",         label: "Tandem",         shortLabel: "Tandem",    slug: "tandem"         },
@@ -114,6 +114,39 @@ export default function DashboardClient() {
 
   const theme = useThemeListener();
   const [vizMode, setVizMode] = useState<"umum" | "internal">("umum");
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+  };
+
+  useEffect(() => {
+    // Otomatis full screen saat masuk ke dashboard
+    const enterFullscreen = async () => {
+      try {
+        if (!document.fullscreenElement) {
+          await document.documentElement.requestFullscreen();
+        }
+      } catch (err) {
+        console.warn("Fullscreen auto-trigger ignored by browser policy:", err);
+      }
+    };
+    enterFullscreen();
+
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
 
   const hourlyCanvasRef   = useRef<HTMLCanvasElement | null>(null);
   const fleetCanvasRef    = useRef<HTMLCanvasElement | null>(null);
@@ -1698,30 +1731,24 @@ export default function DashboardClient() {
   const statusLabel = (d: any) => d.status === "OFFLINE" ? "OFF" : d.oee >= 75 ? "GOOD" : d.oee >= 50 ? "FAIR" : "POOR";
 
   return (
-    <div className="app-shell flex flex-col min-h-screen">
-      {/* Top Header Navigation */}
-      <header className="border-b border-border bg-card px-6 py-3 flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <ShieldCheck className="h-6 w-6 text-primary" />
-          <span className="font-bold text-base tracking-tight">System Dashboard Produksi Stamping</span>
-        </div>
-        <div className="flex items-center gap-2 text-xs flex-wrap">
-          <Link href="/admin" className="px-3 py-1 rounded border border-border hover:bg-accent hover:text-accent-foreground font-semibold transition text-muted-foreground">← Workspace</Link>
-          <Link href="/admin/dashboard/safety" className="px-3 py-1 rounded border border-border hover:bg-accent hover:text-accent-foreground font-semibold transition">Safety</Link>
-          <Link href="/admin/dashboard/productivity" className="px-3 py-1 rounded border border-border hover:bg-accent hover:text-accent-foreground font-semibold transition">Earned Hours</Link>
-          <Link href="/admin/dashboard/scrap" className="px-3 py-1 rounded border border-border hover:bg-accent hover:text-accent-foreground font-semibold transition">Scrap</Link>
-          <Link href="/admin/dashboard/attendance" className="px-3 py-1 rounded border border-border hover:bg-accent hover:text-accent-foreground font-semibold transition">Attendance</Link>
-          <Link href="/admin/dashboard/andon-settings" className="px-3 py-1 rounded border border-border hover:bg-accent hover:text-accent-foreground font-semibold transition">Andon</Link>
-        </div>
-      </header>
-
+    <div className="app-shell app-shell-dashboard flex flex-col min-h-screen">
       {/* Main Content Area */}
-      <main className="main">
+      <main className="main main-dashboard">
         {/* Topbar ──────────────────────────────────────────── */}
         <div className="dash-topbar">
-          <div className="dash-title-block">
-            <h1>STAMPING PRODUCTION PERFORMANCE</h1>
-            <p>Monitoring &amp; Management Control</p>
+          <div className="dash-title-block flex items-center gap-3">
+            <Link
+              href="/admin"
+              className="chip flex items-center gap-1.5 text-xs font-semibold py-1.5 px-3 rounded-lg border border-border hover:bg-accent hover:text-accent-foreground transition cursor-pointer"
+              title="Kembali ke Home (Admin Workspace)"
+            >
+              <Home size={15} />
+              <span>Home</span>
+            </Link>
+            <div>
+              <h1>STAMPING PRODUCTION PERFORMANCE</h1>
+              <p>Monitoring &amp; Management Control</p>
+            </div>
           </div>
           <div className="dash-controls">
             <div className="perf-toggle-row" style={{ margin: 0 }}>
@@ -1750,6 +1777,14 @@ export default function DashboardClient() {
             {(periodMode === "bulanan" || periodMode === "tahunan") && (
               <Input type="number" min="2000" max="2100" className="h-9 w-20 text-xs" value={tahunPilih} onChange={(e) => setTahunPilih(Number(e.target.value))} />
             )}
+
+            <button
+              className="theme-toggle"
+              onClick={toggleFullscreen}
+              title={isFullscreen ? "Exit Fullscreen (F11)" : "Fullscreen (F11)"}
+            >
+              {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+            </button>
 
             <button className="theme-toggle" onClick={toggleTheme} title={theme === "dark" ? "Light mode" : "Dark mode"}>
               {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
