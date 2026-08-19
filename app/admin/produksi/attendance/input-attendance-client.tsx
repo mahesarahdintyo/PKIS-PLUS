@@ -18,9 +18,10 @@ function fmtNum(n: number | null | undefined): string {
 
 interface Props {
   userId: string;
+  embedded?: boolean;
 }
 
-export default function InputAttendanceClient({ userId }: Props) {
+export default function InputAttendanceClient({ userId, embedded }: Props) {
   const supabase = createClient();
   const [rows, setRows] = useState<ProdAttendanceRecord[]>([]);
   const [editId, setEditId] = useState<string | null>(null);
@@ -98,6 +99,122 @@ export default function InputAttendanceClient({ userId }: Props) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const innerContent = (
+    <div>
+      <Card className="dash-panel card-glow-info">
+        <p className="dash-panel-title">
+          {editId ? "Edit Absensi" : "Form Absensi"}
+          {editId && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="ml-auto"
+              onClick={() => { setEditId(null); setForm({ tanggal: today, shift: 1, total_orang: 0, hadir: 0, cuti: 0, absen: 0, overtime_jam: 0 }); }}
+            >
+              ✕ Batal Edit
+            </Button>
+          )}
+        </p>
+        <div className="form-grid">
+          <div className="field">
+            <label>Tanggal</label>
+            <Input type="date" value={form.tanggal} onChange={(e) => setForm({ ...form, tanggal: e.target.value })} />
+          </div>
+          <div className="field">
+            <label>Shift</label>
+            <Select value={form.shift} onChange={(e) => setForm({ ...form, shift: Number(e.target.value) })}>
+              <option value={1}>Shift 1</option>
+              <option value={2}>Shift 2</option>
+            </Select>
+          </div>
+          <div className="field">
+            <label>Total Orang</label>
+            <Input type="number" value={form.total_orang} onChange={(e) => setForm({ ...form, total_orang: Number(e.target.value) })} />
+          </div>
+          <div className="field">
+            <label>Hadir</label>
+            <Input type="number" value={form.hadir} onChange={(e) => setForm({ ...form, hadir: Number(e.target.value) })} />
+          </div>
+          <div className="field">
+            <label>Cuti</label>
+            <Input type="number" value={form.cuti} onChange={(e) => setForm({ ...form, cuti: Number(e.target.value) })} />
+          </div>
+          <div className="field">
+            <label>Absen</label>
+            <Input type="number" value={form.absen} onChange={(e) => setForm({ ...form, absen: Number(e.target.value) })} />
+          </div>
+          <div className="field">
+            <label>Overtime (jam)</label>
+            <Input type="number" step="0.5" value={form.overtime_jam} onChange={(e) => setForm({ ...form, overtime_jam: Number(e.target.value) })} />
+          </div>
+        </div>
+        <div className="form-actions">
+          <Button type="button" onClick={save}>
+            {editId ? "Update Absensi" : "Simpan Absensi"}
+          </Button>
+        </div>
+      </Card>
+
+      <Card className="dash-panel card-glow-info">
+        <p className="dash-panel-title">
+          Riwayat Absensi{" "}
+          <span className="count">{rows.length} baris</span>
+        </p>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Tanggal</th>
+                <th>Shift</th>
+                <th>Total</th>
+                <th>Hadir</th>
+                <th>Cuti</th>
+                <th>Absen</th>
+                <th>OT (jam)</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id}>
+                  <td className="mono">{r.tanggal}</td>
+                  <td>Shift {r.shift}</td>
+                  <td className="mono">{fmtNum(r.total_orang)}</td>
+                  <td className="mono">{fmtNum(r.hadir)}</td>
+                  <td className="mono">{fmtNum(r.cuti)}</td>
+                  <td className="mono">{fmtNum(r.absen)}</td>
+                  <td className="mono">{fmtNum(r.overtime_jam)}</td>
+                  <td>
+                    <Button variant="secondary" size="sm" onClick={() => edit(r)}>Edit</Button>
+                  </td>
+                </tr>
+              ))}
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="empty-state">Belum ada data absensi.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+
+  if (embedded) {
+    return (
+      <div className="main" style={{ minHeight: 0 }}>
+        <div className="page-header">
+          <h1 className="page-title">
+            <span className="eyebrow">Input</span>
+            Attendance Harian
+          </h1>
+        </div>
+        {innerContent}
+      </div>
+    );
+  }
+
   return (
     <div className="app-shell">
       <main className="main">
@@ -114,105 +231,7 @@ export default function InputAttendanceClient({ userId }: Props) {
           </h1>
         </div>
 
-        <div>
-          <Card className="dash-panel card-glow-info">
-            <p className="dash-panel-title">
-              {editId ? "Edit Absensi" : "Form Absensi"}
-              {editId && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="ml-auto"
-                  onClick={() => { setEditId(null); setForm({ tanggal: today, shift: 1, total_orang: 0, hadir: 0, cuti: 0, absen: 0, overtime_jam: 0 }); }}
-                >
-                  ✕ Batal Edit
-                </Button>
-              )}
-            </p>
-            <div className="form-grid">
-              <div className="field">
-                <label>Tanggal</label>
-                <Input type="date" value={form.tanggal} onChange={(e) => setForm({ ...form, tanggal: e.target.value })} />
-              </div>
-              <div className="field">
-                <label>Shift</label>
-                <Select value={form.shift} onChange={(e) => setForm({ ...form, shift: Number(e.target.value) })}>
-                  <option value={1}>Shift 1</option>
-                  <option value={2}>Shift 2</option>
-                </Select>
-              </div>
-              <div className="field">
-                <label>Total Orang</label>
-                <Input type="number" value={form.total_orang} onChange={(e) => setForm({ ...form, total_orang: Number(e.target.value) })} />
-              </div>
-              <div className="field">
-                <label>Hadir</label>
-                <Input type="number" value={form.hadir} onChange={(e) => setForm({ ...form, hadir: Number(e.target.value) })} />
-              </div>
-              <div className="field">
-                <label>Cuti</label>
-                <Input type="number" value={form.cuti} onChange={(e) => setForm({ ...form, cuti: Number(e.target.value) })} />
-              </div>
-              <div className="field">
-                <label>Absen</label>
-                <Input type="number" value={form.absen} onChange={(e) => setForm({ ...form, absen: Number(e.target.value) })} />
-              </div>
-              <div className="field">
-                <label>Overtime (jam)</label>
-                <Input type="number" step="0.5" value={form.overtime_jam} onChange={(e) => setForm({ ...form, overtime_jam: Number(e.target.value) })} />
-              </div>
-            </div>
-            <div className="form-actions">
-              <Button type="button" onClick={save}>
-                {editId ? "Update Absensi" : "Simpan Absensi"}
-              </Button>
-            </div>
-          </Card>
-
-          <Card className="dash-panel card-glow-info">
-            <p className="dash-panel-title">
-              Riwayat Absensi{" "}
-              <span className="count">{rows.length} baris</span>
-            </p>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Tanggal</th>
-                    <th>Shift</th>
-                    <th>Total</th>
-                    <th>Hadir</th>
-                    <th>Cuti</th>
-                    <th>Absen</th>
-                    <th>OT (jam)</th>
-                    <th>Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r) => (
-                    <tr key={r.id}>
-                      <td className="mono">{r.tanggal}</td>
-                      <td>Shift {r.shift}</td>
-                      <td className="mono">{fmtNum(r.total_orang)}</td>
-                      <td className="mono">{fmtNum(r.hadir)}</td>
-                      <td className="mono">{fmtNum(r.cuti)}</td>
-                      <td className="mono">{fmtNum(r.absen)}</td>
-                      <td className="mono">{fmtNum(r.overtime_jam)}</td>
-                      <td>
-                        <Button variant="secondary" size="sm" onClick={() => edit(r)}>Edit</Button>
-                      </td>
-                    </tr>
-                  ))}
-                  {rows.length === 0 && (
-                    <tr>
-                      <td colSpan={8} className="empty-state">Belum ada data absensi.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </div>
+        {innerContent}
       </main>
     </div>
   );

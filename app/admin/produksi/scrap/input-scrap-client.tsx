@@ -21,7 +21,7 @@ const BULAN_OPTIONS = [
   "Juli","Agustus","September","Oktober","November","Desember"
 ];
 
-export default function InputScrapClient() {
+export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
   const supabase = createClient();
   const [rows, setRows] = useState<ProdScrapRecord[]>([]);
   const [editId, setEditId] = useState<string | null>(null);
@@ -101,6 +101,120 @@ export default function InputScrapClient() {
     fetchRows();
   };
 
+  const content = (
+    <>
+      <div className="page-header">
+        <h1 className="page-title">
+          <span className="eyebrow">Input</span>
+          Scrap Top End (Bulanan)
+        </h1>
+      </div>
+
+      <div>
+        <Card className="dash-panel card-glow-info">
+          <p className="dash-panel-title">
+            {editId ? "Edit Scrap" : "Form Scrap Top End"}
+            {editId && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-auto"
+                onClick={() => { setEditId(null); setForm({ tahun: now.getFullYear(), bulan: now.getMonth() + 1, scrap_value_kidr: 0, total_value_kidr: 0, target_rasio: 0.0046 }); }}
+              >
+                ✕ Batal Edit
+              </Button>
+            )}
+          </p>
+          <p className="hint" style={{ marginBottom: 12 }}>
+            Satuan mengikuti laporan asli: <b>K IDR</b> (ribuan Rupiah).
+          </p>
+          <div className="form-grid">
+            <div className="field">
+              <label>Tahun</label>
+              <Input type="number" min="2000" max="2100" value={form.tahun} onChange={(e) => setForm({ ...form, tahun: Number(e.target.value) })} />
+            </div>
+            <div className="field">
+              <label>Bulan</label>
+              <Select value={form.bulan} onChange={(e) => setForm({ ...form, bulan: Number(e.target.value) })}>
+                {BULAN_OPTIONS.map((b, idx) => (
+                  <option key={b} value={idx + 1}>{b}</option>
+                ))}
+              </Select>
+            </div>
+            <div className="field">
+              <label>Scrap Value (K IDR)</label>
+              <Input type="number" step="0.001" value={form.scrap_value_kidr} onChange={(e) => setForm({ ...form, scrap_value_kidr: Number(e.target.value) })} />
+            </div>
+            <div className="field">
+              <label>Total Value (K IDR)</label>
+              <Input type="number" step="0.001" value={form.total_value_kidr} onChange={(e) => setForm({ ...form, total_value_kidr: Number(e.target.value) })} />
+            </div>
+            <div className="field">
+              <label>Target Rasio (mis. 0.0046)</label>
+              <Input type="number" step="0.0001" value={form.target_rasio} onChange={(e) => setForm({ ...form, target_rasio: Number(e.target.value) })} />
+            </div>
+          </div>
+          <div className="form-actions">
+            <Button type="button" onClick={save}>
+              {editId ? "Update Scrap" : "Simpan Scrap"}
+            </Button>
+          </div>
+        </Card>
+
+        <Card className="dash-panel card-glow-info">
+          <p className="dash-panel-title">
+            Riwayat Scrap{" "}
+            <span className="count">{rows.length} baris</span>
+          </p>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Periode</th>
+                  <th>Scrap (K IDR)</th>
+                  <th>Total (K IDR)</th>
+                  <th>Rasio</th>
+                  <th>Target</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.id}>
+                    <td className="mono">{r.tahun}-{String(r.bulan).padStart(2, "0")}</td>
+                    <td className="mono">{fmtNum(r.scrap_value_kidr)}</td>
+                    <td className="mono">{fmtNum(r.total_value_kidr)}</td>
+                    <td className="mono">
+                      {(r.total_value_kidr || 0) > 0
+                        ? fmtNum(((r.scrap_value_kidr || 0) / r.total_value_kidr!) * 100) + "%"
+                        : "-"}
+                    </td>
+                    <td className="mono">{fmtNum((r.target_rasio || 0) * 100)}%</td>
+                    <td>
+                      <div className="row-actions flex gap-1">
+                        <Button variant="secondary" size="sm" onClick={() => edit(r)}>Edit</Button>
+                        <Button variant="destructive" size="sm" onClick={() => hapus(r.id!)}>Hapus</Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {rows.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="empty-state">Belum ada data scrap.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </div>
+    </>
+  );
+
+  if (embedded) {
+    return <div className="main" style={{ minHeight: 0 }}>{content}</div>;
+  }
+
   return (
     <div className="app-shell">
       <main className="main">
@@ -109,112 +223,7 @@ export default function InputScrapClient() {
           <span>/</span>
           <span>Input Scrap</span>
         </nav>
-
-        <div className="page-header">
-          <h1 className="page-title">
-            <span className="eyebrow">Input</span>
-            Scrap Top End (Bulanan)
-          </h1>
-        </div>
-
-        <div>
-          <Card className="dash-panel card-glow-info">
-            <p className="dash-panel-title">
-              {editId ? "Edit Scrap" : "Form Scrap Top End"}
-              {editId && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="ml-auto"
-                  onClick={() => { setEditId(null); setForm({ tahun: now.getFullYear(), bulan: now.getMonth() + 1, scrap_value_kidr: 0, total_value_kidr: 0, target_rasio: 0.0046 }); }}
-                >
-                  ✕ Batal Edit
-                </Button>
-              )}
-            </p>
-            <p className="hint" style={{ marginBottom: 12 }}>
-              Satuan mengikuti laporan asli: <b>K IDR</b> (ribuan Rupiah).
-            </p>
-            <div className="form-grid">
-              <div className="field">
-                <label>Tahun</label>
-                <Input type="number" min="2000" max="2100" value={form.tahun} onChange={(e) => setForm({ ...form, tahun: Number(e.target.value) })} />
-              </div>
-              <div className="field">
-                <label>Bulan</label>
-                <Select value={form.bulan} onChange={(e) => setForm({ ...form, bulan: Number(e.target.value) })}>
-                  {BULAN_OPTIONS.map((b, idx) => (
-                    <option key={b} value={idx + 1}>{b}</option>
-                  ))}
-                </Select>
-              </div>
-              <div className="field">
-                <label>Scrap Value (K IDR)</label>
-                <Input type="number" step="0.001" value={form.scrap_value_kidr} onChange={(e) => setForm({ ...form, scrap_value_kidr: Number(e.target.value) })} />
-              </div>
-              <div className="field">
-                <label>Total Value (K IDR)</label>
-                <Input type="number" step="0.001" value={form.total_value_kidr} onChange={(e) => setForm({ ...form, total_value_kidr: Number(e.target.value) })} />
-              </div>
-              <div className="field">
-                <label>Target Rasio (mis. 0.0046)</label>
-                <Input type="number" step="0.0001" value={form.target_rasio} onChange={(e) => setForm({ ...form, target_rasio: Number(e.target.value) })} />
-              </div>
-            </div>
-            <div className="form-actions">
-              <Button type="button" onClick={save}>
-                {editId ? "Update Scrap" : "Simpan Scrap"}
-              </Button>
-            </div>
-          </Card>
-
-          <Card className="dash-panel card-glow-info">
-            <p className="dash-panel-title">
-              Riwayat Scrap{" "}
-              <span className="count">{rows.length} baris</span>
-            </p>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Periode</th>
-                    <th>Scrap (K IDR)</th>
-                    <th>Total (K IDR)</th>
-                    <th>Rasio</th>
-                    <th>Target</th>
-                    <th>Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r) => (
-                    <tr key={r.id}>
-                      <td className="mono">{r.tahun}-{String(r.bulan).padStart(2, "0")}</td>
-                      <td className="mono">{fmtNum(r.scrap_value_kidr)}</td>
-                      <td className="mono">{fmtNum(r.total_value_kidr)}</td>
-                      <td className="mono">
-                        {(r.total_value_kidr || 0) > 0
-                          ? fmtNum(((r.scrap_value_kidr || 0) / r.total_value_kidr!) * 100) + "%"
-                          : "-"}
-                      </td>
-                      <td className="mono">{fmtNum((r.target_rasio || 0) * 100)}%</td>
-                      <td>
-                        <div className="row-actions flex gap-1">
-                          <Button variant="secondary" size="sm" onClick={() => edit(r)}>Edit</Button>
-                          <Button variant="destructive" size="sm" onClick={() => hapus(r.id!)}>Hapus</Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {rows.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="empty-state">Belum ada data scrap.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </div>
+        {content}
       </main>
     </div>
   );
