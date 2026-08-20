@@ -1,14 +1,11 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { useRouter } from "next/navigation";
 import { AppHeader } from "@/components/ui/app-header";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LogoutButton } from "@/components/ui/logout-button";
-import { createClient } from "@/lib/supabase/client";
 import "@/app/admin/dashboard/produksi.css";
-
-const MACHINE_STORAGE_KEY = "futaba.operator.selectedMachine";
 
 const MACHINE_CARDS = [
   { slug: "tandem", label: "Tandem", hint: "PA-1 s/d PA-10", icon: "⚙️" },
@@ -20,28 +17,8 @@ const MACHINE_CARDS = [
 
 export default function MachinePickerClient() {
   const router = useRouter();
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-
-  // Fetch fresh user on mount — never trust props from server for auth decisions
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setCurrentUserId(user.id);
-    });
-  }, []);
 
   const handleSelectMachine = (slug: string) => {
-    if (!currentUserId) {
-      // Not authenticated — go to login
-      window.location.href = "/";
-      return;
-    }
-    try {
-      localStorage.setItem(
-        MACHINE_STORAGE_KEY,
-        JSON.stringify({ userId: currentUserId, machineSlug: slug })
-      );
-    } catch {}
     router.push(`/operator/machines/${slug}`);
   };
 
