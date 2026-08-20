@@ -124,7 +124,16 @@ export function usePanggilLeader(params: {
       else {
         onDone?.("Leader sudah dipanggil.", false);
         if (callId) {
-          supabase.functions.invoke("send-andon-push", { body: { call_id: callId, tier: 1 } }).catch(() => {});
+          supabase.functions
+            .invoke("send-andon-push", { body: { call_id: callId, tier: 1 } })
+            .then(({ error: fnError }) => {
+              if (fnError) {
+                console.error("Gagal mengirim notifikasi push andon (edge function error):", fnError);
+              }
+            })
+            .catch((err) => {
+              console.error("Error memanggil edge function send-andon-push:", err);
+            });
         }
       }
     },
