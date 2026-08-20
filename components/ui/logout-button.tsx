@@ -13,6 +13,11 @@ export function LogoutButton({ className = "", variant = "default" }: LogoutButt
   const [isPending, startTransition] = useTransition();
 
   const handleLogout = () => {
+    try {
+      localStorage.removeItem("futaba.operator.selectedMachine");
+      localStorage.removeItem("futaba.operator.location");
+    } catch {}
+
     startTransition(async () => {
       try {
         await logout();
