@@ -78,6 +78,63 @@ export interface AndonLeader {
   created_at: string;
 }
 
+// Insert panggilan Andon baru — dipakai dari halaman mesin lewat tombol "🔔 Panggil Leader".
+export async function panggilLeaderAndon(params: {
+  mesin: string;
+  stasiun?: string | null;
+  alasan?: string;
+  triggeredBy?: string | null;
+}): Promise<{ error: string | null; callId: string | null }> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("andon_calls" as any)
+    .insert({
+      mesin: params.mesin,
+      stasiun: params.stasiun || null,
+      alasan: params.alasan || null,
+      triggered_by: params.triggeredBy || null,
+    })
+    .select("id")
+    .single();
+  return { error: error ? error.message : null, callId: (data as any)?.id || null };
+}
+
+// Hook untuk halaman mesin: state andonCalling + fungsi panggilLeader().
+export function usePanggilLeader(params: {
+  mesin: string;
+  stasiun?: string | null;
+  triggeredBy?: string | null;
+  onDone?: (msg: string, isError: boolean) => void;
+}) {
+  const supabase = createClient();
+  const [andonCalling, setAndonCalling] = useState(false);
+  const { mesin, stasiun, triggeredBy, onDone } = params;
+
+  const panggilLeader = useCallback(
+    async (alasan: string) => {
+      setAndonCalling(true);
+      const { error, callId } = await panggilLeaderAndon({
+        mesin,
+        stasiun,
+        alasan,
+        triggeredBy,
+      });
+      setAndonCalling(false);
+      if (error) onDone?.(`Gagal memanggil leader: ${error}`, true);
+      else {
+        onDone?.("Leader sudah dipanggil.", false);
+        if (callId) {
+          supabase.functions.invoke("send-andon-push", { body: { call_id: callId, tier: 1 } }).catch(() => {});
+        }
+      }
+    },
+    [mesin, stasiun, triggeredBy, onDone]
+  );
+
+  return { andonCalling, panggilLeader };
+}
+
+
 // Hook untuk halaman andon-settings: daftar panggilan aktif (realtime).
 export function useAndonAlerts(enabled: boolean) {
   const supabase = createClient();

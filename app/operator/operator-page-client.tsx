@@ -1,14 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import OperatorHeader from "@/components/operator/OperatorHeader";
 import LandSelector from "@/components/operator/LandSelector";
 import SearchBar from "@/components/operator/SearchBar";
 import DocumentList from "@/components/operator/DocumentList";
 import ProductionReportForm from "@/components/operator/ProductionReportForm";
+import MachineDetailClient, { MACHINE_CONFIGS } from "@/components/produksi/machines/MachineDetailClient";
+import "@/app/admin/dashboard/produksi.css";
 import { getDocuments, type Document } from "@/lib/services/document";
 import { getFolders, type Folder } from "@/lib/services/folder";
 import { getLands, type Land } from "@/lib/services/land";
-import { ClipboardList, Tv } from "lucide-react";
+import { ClipboardList, Tv, Factory } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const LAND_STORAGE_KEY = "futaba.operator.selectedLand";
@@ -53,6 +56,7 @@ function readOperatorLocation(): OperatorLocationState | null {
 }
 
 interface OperatorPageProps {
+  machineSlug: string;
   userRole?: string;
   userLandId?: string | null;
   initialLands?: Land[];
@@ -61,6 +65,7 @@ interface OperatorPageProps {
 }
 
 export default function OperatorPage({
+  machineSlug,
   userRole = "operator",
   userLandId,
   initialLands = [],
@@ -83,7 +88,7 @@ export default function OperatorPage({
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(initialLands.length === 0);
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState<"display" | "report">("display");
+  const [activeTab, setActiveTab] = useState<"display" | "report" | "machine">("display");
   const [documentListKey, setDocumentListKey] = useState(0);
   const workspaceRequestIdRef = useRef(0);
   const landsRequestIdRef = useRef(0);
@@ -392,6 +397,22 @@ export default function OperatorPage({
       <OperatorHeader selectedLand={selectedLand?.name ?? ""} />
 
       <div className="mx-auto max-w-5xl space-y-4 sm:space-y-6 p-3 sm:p-6">
+        {/* Active Machine & Ganti Mesin Link */}
+        <div className="flex items-center justify-between text-xs text-muted-foreground bg-card/60 border border-border px-3.5 py-2 rounded-xl shadow-xs">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-muted-foreground uppercase tracking-wide text-[11px]">Mesin Aktif:</span>
+            <span className="font-bold text-foreground font-mono">
+              {MACHINE_CONFIGS[machineSlug]?.label || machineSlug}
+            </span>
+          </div>
+          <Link
+            href="/operator/machines"
+            className="text-primary hover:underline font-semibold text-xs flex items-center gap-1 transition-colors"
+          >
+            Ganti Mesin &rarr;
+          </Link>
+        </div>
+
         {userRole === "admin" && (
           <LandSelector
             value={selectedLand}
@@ -404,10 +425,11 @@ export default function OperatorPage({
         <div className="flex border-b border-border overflow-x-auto">
           <button
             onClick={() => setActiveTab("display")}
-            className={`flex items-center gap-1.5 border-b-2 px-4 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.97] focus:outline-none cursor-pointer whitespace-nowrap flex-shrink-0 ${activeTab === "display"
+            className={`flex items-center gap-1.5 border-b-2 px-4 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.97] focus:outline-none cursor-pointer whitespace-nowrap flex-shrink-0 ${
+              activeTab === "display"
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
+            }`}
             type="button"
           >
             <Tv className="h-4 w-4" />
@@ -415,18 +437,31 @@ export default function OperatorPage({
           </button>
           <button
             onClick={() => setActiveTab("report")}
-            className={`flex items-center gap-1.5 border-b-2 px-4 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.97] focus:outline-none cursor-pointer whitespace-nowrap flex-shrink-0 ${activeTab === "report"
+            className={`flex items-center gap-1.5 border-b-2 px-4 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.97] focus:outline-none cursor-pointer whitespace-nowrap flex-shrink-0 ${
+              activeTab === "report"
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
+            }`}
             type="button"
           >
             <ClipboardList className="h-4 w-4" />
             Laporan Produksi
           </button>
+          <button
+            onClick={() => setActiveTab("machine")}
+            className={`flex items-center gap-1.5 border-b-2 px-4 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.97] focus:outline-none cursor-pointer whitespace-nowrap flex-shrink-0 ${
+              activeTab === "machine"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+            type="button"
+          >
+            <Factory className="h-4 w-4" />
+            Produksi
+          </button>
         </div>
 
-        {activeTab === "display" ? (
+        {activeTab === "display" && (
           <div className="space-y-6">
             <SearchBar value={searchQuery} onChange={setSearchQuery} />
 
@@ -467,7 +502,9 @@ export default function OperatorPage({
               onEnterFolder={handleEnterFolder}
             />
           </div>
-        ) : (
+        )}
+
+        {activeTab === "report" && (
           selectedLand ? (
             <div>
               <ProductionReportForm landId={selectedLand.id} />
@@ -477,6 +514,12 @@ export default function OperatorPage({
               Silakan pilih Line terlebih dahulu untuk mengisi laporan produksi.
             </div>
           )
+        )}
+
+        {activeTab === "machine" && (
+          <div className="space-y-6">
+            <MachineDetailClient machineSlug={machineSlug} />
+          </div>
         )}
       </div>
     </main>
