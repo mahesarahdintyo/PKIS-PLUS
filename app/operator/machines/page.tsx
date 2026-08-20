@@ -7,12 +7,13 @@ export const dynamic = "force-dynamic";
 export default async function MachinePickerPage() {
   try {
     const profile = await getCurrentUserProfile();
-    if (!profile) {
+    if (!profile?.user) {
       redirect("/");
     }
   } catch {
     redirect("/");
   }
 
+  // MachinePickerClient fetches fresh user itself — no userId prop needed
   return <MachinePickerClient />;
 }
