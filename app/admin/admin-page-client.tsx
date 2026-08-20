@@ -136,11 +136,16 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
   // Fetch logged-in user for components that need userId/role
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       if (data.user) {
         setUserId(data.user.id)
-        const role = (data.user.user_metadata?.role as string) || 'operator'
-        setUserRole(role)
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .maybeSingle()
+        const role = (prof?.role || data.user.user_metadata?.role || data.user.app_metadata?.role || 'operator') as string
+        setUserRole(role.trim().toLowerCase())
       }
     })
   }, [])
