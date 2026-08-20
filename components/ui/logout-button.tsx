@@ -1,8 +1,8 @@
 "use client";
 
-import { useTransition } from "react";
-import { logout } from "@/app/actions/auth";
+import { useState } from "react";
 import { LogOut, Loader2 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 interface LogoutButtonProps {
   className?: string;
@@ -10,22 +10,23 @@ interface LogoutButtonProps {
 }
 
 export function LogoutButton({ className = "", variant = "default" }: LogoutButtonProps) {
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    setIsPending(true);
     try {
       localStorage.removeItem("futaba.operator.selectedMachine");
       localStorage.removeItem("futaba.operator.location");
     } catch {}
 
-    startTransition(async () => {
-      try {
-        await logout();
-      } catch (err) {
-        // Next.js redirect throws an error, which is caught here, but the browser will handle the redirect.
-        console.log("Redirecting...");
-      }
-    });
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error("SignOut error:", err);
+    } finally {
+      window.location.href = "/";
+    }
   };
 
   if (variant === "header") {

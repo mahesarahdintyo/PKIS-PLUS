@@ -41,15 +41,18 @@ export async function login(state: any, formData: FormData) {
     .from("profiles")
     .select("role, land_id")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
-  if (profileError || !profile) {
-    return { success: true, redirectUrl: "/operator", role: "operator", landId: null };
+  if (profileError) {
+    console.error("Login profile query error:", profileError);
   }
 
-  const role = profile.role;
-  const landId = profile.land_id ?? null;
-  const redirectUrl = role === "admin" ? "/" : "/operator";
+  const rawRole = (profile?.role || user.user_metadata?.role || user.app_metadata?.role || "operator") as string;
+  const role = rawRole.trim().toLowerCase();
+  const landId = profile?.land_id ?? user.user_metadata?.land_id ?? null;
+
+  const isAdminOrLeader = role === "admin" || role === "leader";
+  const redirectUrl = isAdminOrLeader ? "/admin" : "/operator";
 
   return { success: true, redirectUrl, role, landId };
 }

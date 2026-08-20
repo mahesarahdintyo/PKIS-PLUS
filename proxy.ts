@@ -42,15 +42,16 @@ export async function proxy(request: NextRequest) {
 
   // 3. Pengecekan Role (RBAC) jika user sudah login
   if (user) {
-    // Ambil role dari tabel profiles
+    // Ambil role dari tabel profiles atau user metadata
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
 
-    const userRole = profile?.role
-    const isAdminOrLeader = userRole === 'admin' || userRole === 'leader'
+    const rawRole = (profile?.role || user.user_metadata?.role || user.app_metadata?.role || '') as string
+    const cleanRole = typeof rawRole === 'string' ? rawRole.trim().toLowerCase() : ''
+    const isAdminOrLeader = cleanRole === 'admin' || cleanRole === 'leader'
 
     // Jika mencoba akses /admin tapi bukan admin atau leader
     if (path.startsWith('/admin') && !isAdminOrLeader) {
