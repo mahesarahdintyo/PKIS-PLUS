@@ -1186,9 +1186,331 @@ table.table-compact .badge {
   padding: 2px 6px;
 }
 
+/* ---------- Status mesin ---------- */
+.status-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.status-running {
+  background: var(--status-good-bg);
+  color: var(--status-good);
+}
+
+.status-warn {
+  background: var(--status-warn-bg);
+  color: var(--status-warn);
+}
+
+.status-stop {
+  background: var(--status-bad-bg);
+  color: var(--status-bad);
+}
+
+.status-idle {
+  background: var(--status-info-bg);
+  color: var(--status-info);
+}
+
+.badge-historis {
+  background: var(--panel-2);
+  color: var(--muted);
+}
+
+.badge-live {
+  background: var(--status-good-bg);
+  color: var(--status-good);
+}
+
 table.table-compact .status-badge {
   font-size: 9px;
   padding: 2px 7px;
+}
+
+/* ---------- Performance dashboard ---------- */
+.perf-toggle-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+/* ---------- Productivity mode Harian: ringkasan 1 hari ---------- */
+.productivity-today { padding: 4px 0; flex: 1; display: flex; flex-direction: column; }
+
+.productivity-today-main {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.productivity-today-value {
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+
+.productivity-today-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.productivity-today-stat {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: center;
+  text-align: center;
+}
+
+.productivity-today-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.productivity-today-num {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* ---------- Toggle Visualisasi Umum / Internal ---------- */
+.viz-mode-toggle {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.viz-mode-btn {
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.viz-mode-btn:hover { border-color: var(--primary); color: var(--text); }
+
+.viz-mode-btn.viz-mode-active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+/* ---------- Layout mode Visualisasi Internal ---------- */
+.internal-viz {
+  display: flex;
+  flex-direction: column;
+  gap: var(--row-gap, 20px);
+}
+
+/* Tinggi chart tetap/pasti, tidak bergantung ke flex ambient dari .dash-panel,
+   supaya Chart.js selalu punya tinggi jelas dan tidak overflow ke baris lain. */
+.internal-viz .dash-chart-sm {
+  flex: none;
+  height: 220px;
+  min-height: 0;
+}
+.internal-viz .internal-row-productivity .dash-chart-sm { height: 260px; }
+.internal-viz .dash-panel { min-height: 0; }
+.internal-viz .internal-row-worst .table-wrap { flex: none; max-height: 260px; overflow-y: auto; }
+
+/* Row 1: Availability | GSPH per Line */
+.internal-row-1 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+/* Row Productivity: Capaian Hari Ini | Per Tanggal | Akumulasi */
+.internal-row-productivity {
+  display: grid;
+  grid-template-columns: 0.9fr 1.05fr 1.05fr;
+  gap: 14px;
+}
+
+/* Row 3: Downtime per Line | per Kategori | per Kategori x Line */
+.internal-row-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
+}
+
+/* Row Worst: satu kartu per mesin, auto-fit */
+.internal-row-worst {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+}
+
+/* ---------- Attendance dual metric ---------- */
+.attendance-dual-metric {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2px;
+}
+
+.attendance-dual-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.attendance-dual-item:last-child {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.attendance-dual-item .sqcpm-metric-value {
+  font-size: 22px;
+}
+
+.attendance-dual-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ---------- Cost split (NG Inline vs Scrap Top End) ---------- */
+.cost-split {
+  margin-top: 2px;
+}
+
+.cost-split-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+
+.cost-split-label {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.cost-split-value {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.cost-split-bar {
+  height: 5px;
+  background: var(--panel-2);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.cost-split-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.4s ease;
+}
+
+.cost-fill-ng {
+  background: var(--status-bad);
+}
+
+.cost-fill-scrap {
+  background: var(--status-info);
+}
+
+/* ---------- Chip aktif: hijau + teks putih (estetika) ---------- */
+.chip-active,
+.chip.chip-active {
+  background: var(--status-good-bg) !important;
+  border-color: var(--status-good) !important;
+  color: var(--status-good) !important;
+  box-shadow: 0 1px 3px rgba(52, 211, 153, 0.28);
+}
+
+.chip {
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.chip:not(.chip-active):hover {
+  border-color: var(--status-good);
+  color: var(--status-good);
+}
+
+/* ---------- moral-summary rows ---------- */
+.moral-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+.moral-summary-2col { grid-template-columns: repeat(2, 1fr); }
+
+.moral-summary-item {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.moral-summary-value {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.moral-summary-label {
+  font-size: 9px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ---------- avg-tag inline badge ---------- */
+.avg-tag {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 1px 5px;
+  background: color-mix(in srgb, var(--teal, #2dd4bf) 15%, transparent);
+  color: var(--teal, #2dd4bf);
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  vertical-align: middle;
+  letter-spacing: 0.04em;
 }
 
 /* ---------- Mode TV 55" ---------- */
@@ -1243,6 +1565,8 @@ table.table-compact .status-badge {
   .sqcpm-col-icon { width: 26px; height: 26px; font-size: 14px; }
   .sqcpm-col-title { font-size: 11px; }
   .sqcpm-metric-value { font-size: 21px; }
+  .attendance-dual-item .sqcpm-metric-value { font-size: 18px; }
+  .attendance-dual-metric { margin-bottom: 1px; }
   .sqcpm-chart { height: 40px; padding-top: 2px; flex-shrink: 0; }
   .sqcpm-chart-tall { height: 40px; }
   .sqcpm-chart-title { margin-top: 2px; font-size: 8px; }
