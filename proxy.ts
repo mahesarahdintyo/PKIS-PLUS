@@ -50,9 +50,10 @@ export async function proxy(request: NextRequest) {
       .single()
 
     const userRole = profile?.role
+    const isAdminOrLeader = userRole === 'admin' || userRole === 'leader'
 
-    // Jika mencoba akses /admin tapi bukan admin
-    if (path.startsWith('/admin') && userRole !== 'admin') {
+    // Jika mencoba akses /admin tapi bukan admin atau leader
+    if (path.startsWith('/admin') && !isAdminOrLeader) {
       return NextResponse.redirect(new URL('/operator', request.url))
     }
   }
