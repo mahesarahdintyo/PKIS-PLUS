@@ -126,6 +126,13 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
     setIsSidebarOpen(false)
   }
 
+  // Pastikan keluar dari mode fullscreen saat berada di halaman admin
+  useEffect(() => {
+    if (typeof document !== 'undefined' && document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(() => {});
+    }
+  }, []);
+
   // Fetch logged-in user for components that need userId/role
   useEffect(() => {
     const supabase = createClient()

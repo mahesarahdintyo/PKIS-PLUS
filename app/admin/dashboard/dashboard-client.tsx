@@ -14,11 +14,11 @@ import { registerInternalVizPlugins } from "@/lib/produksi/chartPlugins";
 import { Sun, Moon, AlertTriangle, ShieldCheck, Home, Maximize, Minimize } from "lucide-react";
 
 const MACHINES = [
-  { key: "tandem",         label: "Tandem",         shortLabel: "Tandem",    slug: "tandem"         },
-  { key: "blanking",       label: "Blanking",       shortLabel: "Blanking",  slug: "blanking"       },
-  { key: "transfer_2000t", label: "Transfer 2000t", shortLabel: "TR 2000t",  slug: "transfer-2000t" },
-  { key: "transfer_800t",  label: "Transfer 800t",  shortLabel: "TR 800t",   slug: "transfer-800t"  },
-  { key: "pc200t",         label: "PC200t",         shortLabel: "PC200t",    slug: "pc200t"         },
+  { key: "tandem", label: "Tandem", shortLabel: "Tandem", slug: "tandem" },
+  { key: "blanking", label: "Blanking", shortLabel: "Blanking", slug: "blanking" },
+  { key: "transfer_2000t", label: "Transfer 2000t", shortLabel: "TR 2000t", slug: "transfer-2000t" },
+  { key: "transfer_800t", label: "Transfer 800t", shortLabel: "TR 800t", slug: "transfer-800t" },
+  { key: "pc200t", label: "PC200t", shortLabel: "PC200t", slug: "pc200t" },
 ];
 
 const KIJUN_PEFF = 0.775471310201421;
@@ -29,20 +29,20 @@ function localDateStr(d: Date): string {
 
 export default function DashboardClient() {
   const supabase = createClient();
-  const [loading,      setLoading]      = useState(true);
-  const [periodMode,   setPeriodMode]   = useState<"harian" | "bulanan" | "tahunan">("harian");
-  const [tanggal,      setTanggal]      = useState(new Date().toISOString().split("T")[0]);
-  const [bulanPilih,   setBulanPilih]   = useState(new Date().getMonth());
-  const [tahunPilih,   setTahunPilih]   = useState(new Date().getFullYear());
-  const [shiftFilter,  setShiftFilter]  = useState("all");
+  const [loading, setLoading] = useState(true);
+  const [periodMode, setPeriodMode] = useState<"harian" | "bulanan" | "tahunan">("harian");
+  const [tanggal, setTanggal] = useState(new Date().toISOString().split("T")[0]);
+  const [bulanPilih, setBulanPilih] = useState(new Date().getMonth());
+  const [tahunPilih, setTahunPilih] = useState(new Date().getFullYear());
+  const [shiftFilter, setShiftFilter] = useState("all");
 
-  const [, setProfile]                  = useState<ProdProfile | null>(null);
-  const [paretoDowntime,   setParetoDowntime]   = useState<any[]>([]);
-  const [fleetTop10,       setFleetTop10]       = useState<any[]>([]);
+  const [, setProfile] = useState<ProdProfile | null>(null);
+  const [paretoDowntime, setParetoDowntime] = useState<any[]>([]);
+  const [fleetTop10, setFleetTop10] = useState<any[]>([]);
   // worst-5 downtime per mesin: { mesinKey -> { kategori, problem, menit }[] }
-  const [worstPerMachine,  setWorstPerMachine]  = useState<Record<string, { kategori: string; problem: string; menit: number }[]>>({});
-  const [machineDataMap,   setMachineDataMap]   = useState<Record<string, any>>({});
-  const [dtByCategoryMap,  setDtByCategoryMap]  = useState<Record<string, Record<string, number>>>({});
+  const [worstPerMachine, setWorstPerMachine] = useState<Record<string, { kategori: string; problem: string; menit: number }[]>>({});
+  const [machineDataMap, setMachineDataMap] = useState<Record<string, any>>({});
+  const [dtByCategoryMap, setDtByCategoryMap] = useState<Record<string, Record<string, number>>>({});
 
   const [totals, setTotals] = useState({
     gsph: 0, targetGsph: 0, performanceFactor: 0,
@@ -81,11 +81,11 @@ export default function DashboardClient() {
     open: boolean; loading: boolean; title: string; rows: any[];
   }>({ open: false, loading: false, title: "", rows: [] });
 
-  const [safety,      setSafety]      = useState({ hariTanpaAccident: 0, accident: 0 });
+  const [safety, setSafety] = useState({ hariTanpaAccident: 0, accident: 0 });
   const [scrapValueRp, setScrapValueRp] = useState(0);
-  const [scrapRasio,   setScrapRasio]   = useState(0);
+  const [scrapRasio, setScrapRasio] = useState(0);
   const [scrapTargetRasio, setScrapTargetRasio] = useState(0);
-  const [attendance,  setAttendance]  = useState({
+  const [attendance, setAttendance] = useState({
     pctExclCuti: 0, pctExclCutiFromDenom: 0, total_orang: 0, hadir: 0, cuti: 0, absen: 0, overtime_jam: 0,
     totalHadir: 0, totalCuti: 0, totalAbsen: 0, totalOvertimeJam: 0,
   });
@@ -118,10 +118,10 @@ export default function DashboardClient() {
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {});
+      document.documentElement.requestFullscreen().catch(() => { });
     } else {
       if (document.exitFullscreen) {
-        document.exitFullscreen().catch(() => {});
+        document.exitFullscreen().catch(() => { });
       }
     }
   };
@@ -145,24 +145,27 @@ export default function DashboardClient() {
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => { });
+      }
     };
   }, []);
 
-  const hourlyCanvasRef   = useRef<HTMLCanvasElement | null>(null);
-  const fleetCanvasRef    = useRef<HTMLCanvasElement | null>(null);
-  const categoryPieRef    = useRef<HTMLCanvasElement | null>(null);
-  const donutAvailRef     = useRef<HTMLCanvasElement | null>(null);
-  const donutPerfRef      = useRef<HTMLCanvasElement | null>(null);
-  const donutQualRef      = useRef<HTMLCanvasElement | null>(null);
+  const hourlyCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const fleetCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const categoryPieRef = useRef<HTMLCanvasElement | null>(null);
+  const donutAvailRef = useRef<HTMLCanvasElement | null>(null);
+  const donutPerfRef = useRef<HTMLCanvasElement | null>(null);
+  const donutQualRef = useRef<HTMLCanvasElement | null>(null);
   const internalProdTrendRef = useRef<HTMLCanvasElement | null>(null);
-  const internalProdCumRef   = useRef<HTMLCanvasElement | null>(null);
-  const internalAvailRef     = useRef<HTMLCanvasElement | null>(null);
-  const internalGsphRef      = useRef<HTMLCanvasElement | null>(null);
+  const internalProdCumRef = useRef<HTMLCanvasElement | null>(null);
+  const internalAvailRef = useRef<HTMLCanvasElement | null>(null);
+  const internalGsphRef = useRef<HTMLCanvasElement | null>(null);
   const internalDowntimeLineRef = useRef<HTMLCanvasElement | null>(null);
-  const internalCategoryPieRef  = useRef<HTMLCanvasElement | null>(null);
+  const internalCategoryPieRef = useRef<HTMLCanvasElement | null>(null);
   const internalCategoryLineRef = useRef<HTMLCanvasElement | null>(null);
-  const chartInstances    = useRef<Record<string, any>>({});
-  
+  const chartInstances = useRef<Record<string, any>>({});
+
   const destroyChartOnCanvas = (canvas: HTMLCanvasElement | null) => {
     if (!canvas) return;
     Chart.getChart(canvas)?.destroy();
@@ -249,7 +252,7 @@ export default function DashboardClient() {
       const y = d.getFullYear();
       start = new Date(y, 0, 1); end = new Date(y + 1, 0, 1);
       bucket = "month";
-      labels = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+      labels = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
       keyOf = (dt: Date) => dt.getMonth();
     }
 
@@ -300,7 +303,7 @@ export default function DashboardClient() {
       const y = tahunPilih;
       start = new Date(y, 0, 1); end = new Date(y + 1, 0, 1);
       bucket = "month";
-      labels = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+      labels = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
       keyOf = (d) => d.getMonth();
     }
 
@@ -367,14 +370,14 @@ export default function DashboardClient() {
       setProductivityToday(
         dayRow
           ? {
-              ehJam: (Number(dayRow.eh_menit) || 0) / 60,
-              whJam: (Number(dayRow.wh_menit) || 0) / 60,
-              totalManHoursJam: (Number(dayRow.total_man_hours_menit) || 0) / 60,
-              gapJam: (Number(dayRow.gap_menit) || 0) / 60,
-              peff: Number(dayRow.peff) || 0,
-              productivity: KIJUN_PEFF > 0 ? ((Number(dayRow.peff) || 0) / KIJUN_PEFF) * 100 : 0,
-              sumber: dayRow.sumber,
-            }
+            ehJam: (Number(dayRow.eh_menit) || 0) / 60,
+            whJam: (Number(dayRow.wh_menit) || 0) / 60,
+            totalManHoursJam: (Number(dayRow.total_man_hours_menit) || 0) / 60,
+            gapJam: (Number(dayRow.gap_menit) || 0) / 60,
+            peff: Number(dayRow.peff) || 0,
+            productivity: KIJUN_PEFF > 0 ? ((Number(dayRow.peff) || 0) / KIJUN_PEFF) * 100 : 0,
+            sumber: dayRow.sumber,
+          }
           : null
       );
     } catch (e) {
@@ -395,11 +398,11 @@ export default function DashboardClient() {
         start = new Date(y, 0, 1); end = new Date(y + 1, 0, 1); label = String(y);
       } else if (periodMode === "bulanan") {
         start = new Date(base.getFullYear(), bulanPilih - i, 1);
-        end   = new Date(base.getFullYear(), bulanPilih - i + 1, 1);
+        end = new Date(base.getFullYear(), bulanPilih - i + 1, 1);
         label = start.toLocaleDateString("id-ID", { month: "short" });
       } else {
         start = new Date(base.getFullYear(), base.getMonth(), base.getDate() - i);
-        end   = new Date(base.getFullYear(), base.getMonth(), base.getDate() - i + 1);
+        end = new Date(base.getFullYear(), base.getMonth(), base.getDate() - i + 1);
         label = start.toLocaleDateString("id-ID", { day: "2-digit", month: "short" });
       }
       periods.push({ start, end, label });
@@ -415,10 +418,10 @@ export default function DashboardClient() {
         const sIso = p.start.toISOString(), eIso = p.end.toISOString();
         const sDate = localDateStr(p.start), eDate = localDateStr(p.end);
 
-        const safetyRpcP  = Promise.resolve(supabase.rpc("prod_safety_summary",         { p_start: sDate, p_end: eDate })).catch(() => ({ data: null, error: true }));
-        const attRpcP     = Promise.resolve(supabase.rpc("prod_attendance_summary",      { p_start: sDate, p_end: eDate })).catch(() => ({ data: null, error: true }));
-        const scrapRpcP   = Promise.resolve(supabase.rpc("prod_scrap_top_end_summary",   { p_start: sDate, p_end: eDate })).catch(() => ({ data: null, error: true }));
-        const aggAllP     = Promise.all(MACHINES.map((m) =>
+        const safetyRpcP = Promise.resolve(supabase.rpc("prod_safety_summary", { p_start: sDate, p_end: eDate })).catch(() => ({ data: null, error: true }));
+        const attRpcP = Promise.resolve(supabase.rpc("prod_attendance_summary", { p_start: sDate, p_end: eDate })).catch(() => ({ data: null, error: true }));
+        const scrapRpcP = Promise.resolve(supabase.rpc("prod_scrap_top_end_summary", { p_start: sDate, p_end: eDate })).catch(() => ({ data: null, error: true }));
+        const aggAllP = Promise.all(MACHINES.map((m) =>
           supabase.rpc("prod_performance_aggregate", { p_mesin: m.key, p_stasiun_list: null, p_start: sIso, p_end: eIso })
         ));
         const [aggAll, safetyRes, attRes, scrapRes] = await Promise.all([
@@ -431,8 +434,8 @@ export default function DashboardClient() {
         let stroke = 0, ng = 0, ngValue = 0, whMenit = 0;
         aggAll.forEach((r: any) => {
           const row = (r.data && r.data[0]) || {};
-          stroke  += Number(row.stroke) || 0;
-          ng      += Number(row.ng) || 0;
+          stroke += Number(row.stroke) || 0;
+          ng += Number(row.ng) || 0;
           ngValue += Number(row.ng_value) || 0;
           whMenit += Number(row.wh_menit) || 0;
         });
@@ -446,11 +449,11 @@ export default function DashboardClient() {
         const hadir = Number(aRow.hadir) || 0;
 
         return {
-          safety:       Number(sRow.accident_count) || 0,
-          quality:      stroke > 0 ? Number(((ng / stroke) * 100).toFixed(3)) : 0,
+          safety: Number(sRow.accident_count) || 0,
+          quality: stroke > 0 ? Number(((ng / stroke) * 100).toFixed(3)) : 0,
           productivity: Number(gsph.toFixed(1)),
-          cost:         Number((((ngValue) + (Number(scRow.scrap_value_kidr) || 0) * 1000) / 1e6).toFixed(2)),
-          moral:        totalSlot > 0 ? Number(((hadir / totalSlot) * 100).toFixed(1)) : 0,
+          cost: Number((((ngValue) + (Number(scRow.scrap_value_kidr) || 0) * 1000) / 1e6).toFixed(2)),
+          moral: totalSlot > 0 ? Number(((hadir / totalSlot) * 100).toFixed(1)) : 0,
         };
       }));
 
@@ -498,15 +501,15 @@ export default function DashboardClient() {
       }
 
       let startDate = tanggal;
-      let endDate   = tanggal;
+      let endDate = tanggal;
       if (periodMode === "bulanan") {
         const yr = tahunPilih, mo = bulanPilih;
         startDate = `${yr}-${String(mo + 1).padStart(2, "0")}-01`;
         const lastDay = new Date(yr, mo + 1, 0).getDate();
-        endDate   = `${yr}-${String(mo + 1).padStart(2, "0")}-${lastDay}`;
+        endDate = `${yr}-${String(mo + 1).padStart(2, "0")}-${lastDay}`;
       } else if (periodMode === "tahunan") {
         startDate = `${tahunPilih}-01-01`;
-        endDate   = `${tahunPilih}-12-31`;
+        endDate = `${tahunPilih}-12-31`;
       }
 
       const { start: rangeStart, end: rangeEnd } = bounds();
@@ -544,12 +547,12 @@ export default function DashboardClient() {
 
       MACHINES.forEach((m, idx) => {
         const row = (aggResults[idx].data && aggResults[idx].data[0]) || {};
-        const stroke       = Number(row.stroke) || 0;
-        const ng            = Number(row.ng) || 0;
-        const ngValue        = Number(row.ng_value) || 0;
+        const stroke = Number(row.stroke) || 0;
+        const ng = Number(row.ng) || 0;
+        const ngValue = Number(row.ng_value) || 0;
         const downtimeMenit = Math.round(Number(row.downtime_menit) || 0);
-        const dandoriMenit  = Math.round(Number(row.dandori_menit) || 0);
-        const whJam          = (Number(row.wh_menit) || 0) / 60;
+        const dandoriMenit = Math.round(Number(row.dandori_menit) || 0);
+        const whJam = (Number(row.wh_menit) || 0) / 60;
         const targetStdMenit = Number(row.target_std_menit) || 0;
 
         const settings = settingsMap[m.key];
@@ -565,11 +568,11 @@ export default function DashboardClient() {
           }
         }
 
-        const gsph              = whJam > 0 ? stroke / whJam : 0;
-        const availability      = whJam > 0 ? Math.max(0, (whJam * 60 - downtimeMenit) / (whJam * 60)) * 100 : 0;
+        const gsph = whJam > 0 ? stroke / whJam : 0;
+        const availability = whJam > 0 ? Math.max(0, (whJam * 60 - downtimeMenit) / (whJam * 60)) * 100 : 0;
         const performanceFactor = targetGsph > 0 ? Math.min(100, (gsph / targetGsph) * 100) : 0;
-        const quality           = stroke > 0 ? Math.max(0, ((stroke - ng) / stroke) * 100) : 100;
-        const oee               = (availability / 100) * (performanceFactor / 100) * (quality / 100) * 100;
+        const quality = stroke > 0 ? Math.max(0, ((stroke - ng) / stroke) * 100) : 100;
+        const oee = (availability / 100) * (performanceFactor / 100) * (quality / 100) * 100;
 
         perMachineMap[m.key] = {
           stroke, ok: stroke - ng, ng, downtime: downtimeMenit,
@@ -660,8 +663,8 @@ export default function DashboardClient() {
           .slice(0, 5)
           .map((r: any) => ({
             kategori: r.kategori || "MESIN",
-            problem:  r.problem  || "-",
-            menit:    Math.round(Number(r.total_menit) || 0),
+            problem: r.problem || "-",
+            menit: Math.round(Number(r.total_menit) || 0),
           }));
       });
 
@@ -695,7 +698,7 @@ export default function DashboardClient() {
           scrapRasioResult = Number(row.rasio) || 0;
           scrapTargetRasioResult = Number(row.target_rasio) || 0;
         } else {
-          const scrapYear  = periodMode === "tahunan" ? tahunPilih : new Date(endDate).getFullYear();
+          const scrapYear = periodMode === "tahunan" ? tahunPilih : new Date(endDate).getFullYear();
           const scrapMonth = periodMode === "tahunan" ? new Date().getMonth() + 1 : new Date(endDate).getMonth() + 1;
           const sr = await supabase.from("prod_scrap_top_end").select("*").eq("tahun", scrapYear).eq("bulan", scrapMonth).maybeSingle();
           scrapValueRpResult = sr.data ? (sr.data.scrap_value_kidr || 0) * 1000 : 0;
@@ -710,22 +713,22 @@ export default function DashboardClient() {
         if (!attRpc.error && attRpc.data && attRpc.data[0]) {
           const row = attRpc.data[0];
           const totalSlot = Number(row.total_orang) || 0;
-          const hadir     = Number(row.hadir)       || 0;
-          const cuti      = Number(row.cuti)        || 0;
-          const absen     = Number(row.absen)       || 0;
-          const hari      = Math.max(1, Number(row.jumlah_hari) || 1);
-          const isRata    = periodMode !== "harian";
+          const hadir = Number(row.hadir) || 0;
+          const cuti = Number(row.cuti) || 0;
+          const absen = Number(row.absen) || 0;
+          const hari = Math.max(1, Number(row.jumlah_hari) || 1);
+          const isRata = periodMode !== "harian";
           attendanceResult = {
-            total_orang:     isRata ? Math.round(totalSlot / hari) : totalSlot,
-            hadir:           isRata ? Math.round(hadir / hari)     : hadir,
-            cuti:            isRata ? Math.round(cuti / hari)      : cuti,
-            absen:           isRata ? Math.round(absen / hari)     : absen,
-            overtime_jam:    isRata ? Number((Number(row.overtime_jam) || 0) / hari) : (Number(row.overtime_jam) || 0),
-            pctExclCuti:     totalSlot > 0 ? (hadir / totalSlot) * 100 : 0,
+            total_orang: isRata ? Math.round(totalSlot / hari) : totalSlot,
+            hadir: isRata ? Math.round(hadir / hari) : hadir,
+            cuti: isRata ? Math.round(cuti / hari) : cuti,
+            absen: isRata ? Math.round(absen / hari) : absen,
+            overtime_jam: isRata ? Number((Number(row.overtime_jam) || 0) / hari) : (Number(row.overtime_jam) || 0),
+            pctExclCuti: totalSlot > 0 ? (hadir / totalSlot) * 100 : 0,
             pctExclCutiFromDenom: (totalSlot - cuti) > 0 ? (hadir / (totalSlot - cuti)) * 100 : 0,
-            totalHadir:      hadir,
-            totalCuti:       cuti,
-            totalAbsen:      absen,
+            totalHadir: hadir,
+            totalCuti: cuti,
+            totalAbsen: absen,
             totalOvertimeJam: Number(row.overtime_jam) || 0,
           };
           attendanceByShiftResult = periodMode === "harian"
@@ -745,26 +748,28 @@ export default function DashboardClient() {
 
         if (attList.length > 0) {
           const totOrang = attList.reduce((s: number, a: any) => s + (a.total_orang || 0), 0);
-          const totHadir = attList.reduce((s: number, a: any) => s + (a.hadir        || 0), 0);
-          const totCuti  = attList.reduce((s: number, a: any) => s + (a.cuti         || 0), 0);
-          const totAbsen = attList.reduce((s: number, a: any) => s + (a.absen        || 0), 0);
-          const totOT    = attList.reduce((s: number, a: any) => s + (a.overtime_jam || 0), 0);
+          const totHadir = attList.reduce((s: number, a: any) => s + (a.hadir || 0), 0);
+          const totCuti = attList.reduce((s: number, a: any) => s + (a.cuti || 0), 0);
+          const totAbsen = attList.reduce((s: number, a: any) => s + (a.absen || 0), 0);
+          const totOT = attList.reduce((s: number, a: any) => s + (a.overtime_jam || 0), 0);
           const pctInclCuti = totOrang > 0 ? Math.min(100, Math.round((totHadir / totOrang) * 1000) / 10) : 0;
           const pctExclDenom = (totOrang - totCuti) > 0 ? Math.min(100, Math.round((totHadir / (totOrang - totCuti)) * 1000) / 10) : 0;
-          const n   = attList.length;
+          const n = attList.length;
           attendanceResult = {
-            pctExclCuti:     pctInclCuti,
+            pctExclCuti: pctInclCuti,
             pctExclCutiFromDenom: pctExclDenom,
-            total_orang:     periodMode === "harian" ? totOrang : Math.round(totOrang / n),
-            hadir:           periodMode === "harian" ? totHadir : Math.round(totHadir / n),
-            cuti:            periodMode === "harian" ? totCuti  : Math.round(totCuti  / n),
-            absen:           periodMode === "harian" ? totAbsen : Math.round(totAbsen / n),
-            overtime_jam:    periodMode === "harian" ? totOT    : Math.round(totOT    / n * 10) / 10,
+            total_orang: periodMode === "harian" ? totOrang : Math.round(totOrang / n),
+            hadir: periodMode === "harian" ? totHadir : Math.round(totHadir / n),
+            cuti: periodMode === "harian" ? totCuti : Math.round(totCuti / n),
+            absen: periodMode === "harian" ? totAbsen : Math.round(totAbsen / n),
+            overtime_jam: periodMode === "harian" ? totOT : Math.round(totOT / n * 10) / 10,
             totalHadir: totHadir, totalCuti: totCuti, totalAbsen: totAbsen, totalOvertimeJam: totOT,
           };
         } else {
-          attendanceResult = { pctExclCuti: 0, pctExclCutiFromDenom: 0, total_orang: 0, hadir: 0, cuti: 0, absen: 0, overtime_jam: 0,
-            totalHadir: 0, totalCuti: 0, totalAbsen: 0, totalOvertimeJam: 0 };
+          attendanceResult = {
+            pctExclCuti: 0, pctExclCutiFromDenom: 0, total_orang: 0, hadir: 0, cuti: 0, absen: 0, overtime_jam: 0,
+            totalHadir: 0, totalCuti: 0, totalAbsen: 0, totalOvertimeJam: 0
+          };
         }
         attendanceByShiftResult = undefined;
       }
@@ -1075,17 +1080,17 @@ export default function DashboardClient() {
       });
     };
 
-    renderDonut(donutAvailRef.current, "donutAvail", totals.availability,      getCssVar("--chart-2")  || "#38bdf8", "Availability");
-    renderDonut(donutPerfRef.current,  "donutPerf",  totals.performanceFactor, getCssVar("--chart-1") || "#34d399", "Performance");
-    renderDonut(donutQualRef.current,  "donutQual",  totals.stroke > 0 ? Math.max(0, 100 - ngRatePct) : 100, getCssVar("--chart-3") || "#a78bfa", "Quality");
+    renderDonut(donutAvailRef.current, "donutAvail", totals.availability, getCssVar("--chart-2") || "#38bdf8", "Availability");
+    renderDonut(donutPerfRef.current, "donutPerf", totals.performanceFactor, getCssVar("--chart-1") || "#34d399", "Performance");
+    renderDonut(donutQualRef.current, "donutQual", totals.stroke > 0 ? Math.max(0, 100 - ngRatePct) : 100, getCssVar("--chart-3") || "#a78bfa", "Quality");
 
     return () => {
-      try { chartInstances.current.hourly?.destroy(); } catch {}
-      try { chartInstances.current.fleet?.destroy(); } catch {}
-      try { chartInstances.current.categoryPie?.destroy(); } catch {}
-      try { chartInstances.current.donutAvail?.destroy(); } catch {}
-      try { chartInstances.current.donutPerf?.destroy(); } catch {}
-      try { chartInstances.current.donutQual?.destroy(); } catch {}
+      try { chartInstances.current.hourly?.destroy(); } catch { }
+      try { chartInstances.current.fleet?.destroy(); } catch { }
+      try { chartInstances.current.categoryPie?.destroy(); } catch { }
+      try { chartInstances.current.donutAvail?.destroy(); } catch { }
+      try { chartInstances.current.donutPerf?.destroy(); } catch { }
+      try { chartInstances.current.donutQual?.destroy(); } catch { }
     };
   }, [loading, vizMode, totals, ngRatePct, dtByCategoryMap, hourlyData, lineTrend, periodMode, theme, openDowntimeDetail]);
 
@@ -1693,13 +1698,13 @@ export default function DashboardClient() {
     }
 
     return () => {
-      try { chartInstances.current.internalProdTrend?.destroy(); } catch {}
-      try { chartInstances.current.internalProdCum?.destroy(); } catch {}
-      try { chartInstances.current.internalAvailability?.destroy(); } catch {}
-      try { chartInstances.current.internalGsph?.destroy(); } catch {}
-      try { chartInstances.current.internalDowntimeLine?.destroy(); } catch {}
-      try { chartInstances.current.internalCategoryPie?.destroy(); } catch {}
-      try { chartInstances.current.internalCategoryLine?.destroy(); } catch {}
+      try { chartInstances.current.internalProdTrend?.destroy(); } catch { }
+      try { chartInstances.current.internalProdCum?.destroy(); } catch { }
+      try { chartInstances.current.internalAvailability?.destroy(); } catch { }
+      try { chartInstances.current.internalGsph?.destroy(); } catch { }
+      try { chartInstances.current.internalDowntimeLine?.destroy(); } catch { }
+      try { chartInstances.current.internalCategoryPie?.destroy(); } catch { }
+      try { chartInstances.current.internalCategoryLine?.destroy(); } catch { }
     };
   }, [loading, vizMode, productivityTrend, totals, machineDataMap, dtByCategoryMap, openDowntimeDetail, theme]);
 
@@ -1715,9 +1720,9 @@ export default function DashboardClient() {
     const oee = totals.oee;
     if (oee === 0 && a === 0 && p === 0) return "Belum ada data produksi pada periode ini.";
     const faktor = [
-      { nama: "Availability",  val: a, saran: "kurangi downtime & dandori" },
-      { nama: "Performance",   val: p, saran: "kejar GSPH mendekati target" },
-      { nama: "Quality",       val: q, saran: "tekan angka NG" },
+      { nama: "Availability", val: a, saran: "kurangi downtime & dandori" },
+      { nama: "Performance", val: p, saran: "kejar GSPH mendekati target" },
+      { nama: "Quality", val: q, saran: "tekan angka NG" },
     ];
     const terlemah = faktor.reduce((acc, cur) => (cur.val < acc.val ? cur : acc));
     const level = oee >= 75 ? "baik" : oee >= 50 ? "cukup" : "perlu perhatian";
@@ -1752,7 +1757,7 @@ export default function DashboardClient() {
           </div>
           <div className="dash-controls">
             <div className="perf-toggle-row" style={{ margin: 0 }}>
-              <button type="button" className={`chip ${periodMode === "harian"  ? "chip-active" : ""}`} onClick={() => setPeriodMode("harian")}>Harian</button>
+              <button type="button" className={`chip ${periodMode === "harian" ? "chip-active" : ""}`} onClick={() => setPeriodMode("harian")}>Harian</button>
               <button type="button" className={`chip ${periodMode === "bulanan" ? "chip-active" : ""}`} onClick={() => setPeriodMode("bulanan")}>Bulanan</button>
               <button type="button" className={`chip ${periodMode === "tahunan" ? "chip-active" : ""}`} onClick={() => setPeriodMode("tahunan")}>Tahunan</button>
             </div>
@@ -1769,7 +1774,7 @@ export default function DashboardClient() {
             )}
             {periodMode === "bulanan" && (
               <select value={bulanPilih} onChange={(e) => setBulanPilih(Number(e.target.value))}>
-                {["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"].map((m, i) => (
+                {["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"].map((m, i) => (
                   <option key={m} value={i}>{m}</option>
                 ))}
               </select>
@@ -1817,8 +1822,8 @@ export default function DashboardClient() {
               <div className="error-msg" style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem" }}>
                 <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: 2 }} />
                 <span><b>Target GSPH belum diisi</b> untuk: {machinesTanpaTarget.join(", ")}.
-                Akibatnya <b>Performance &amp; OEE tampil 0%</b>. Isi dulu di halaman mesin
-                → tab <b>Master Data</b> → panel <b>Target GSPH &amp; Availability</b> (khusus admin/leader).</span>
+                  Akibatnya <b>Performance &amp; OEE tampil 0%</b>. Isi dulu di halaman mesin
+                  → tab <b>Master Data</b> → panel <b>Target GSPH &amp; Availability</b> (khusus admin/leader).</span>
               </div>
             )}
 
@@ -1986,169 +1991,169 @@ export default function DashboardClient() {
                 </div>
               </div>
             ) : (
-            /* ═══ TV Grid ═══ */
-            <div className="tv-grid">
+              /* ═══ TV Grid ═══ */
+              <div className="tv-grid">
 
-              {/* Row 1: Trend GSPH | OEE Breakdown | Line Status */}
-              <div className="dash-main-grid tv-row-1">
+                {/* Row 1: Trend GSPH | OEE Breakdown | Line Status */}
+                <div className="dash-main-grid tv-row-1">
 
-                {/* Trend GSPH */}
-                <Card className="dash-panel dash-panel-fit card-glow-info">
-                  <p className="dash-panel-title">
-                    TREND GSPH PER {periodMode === "harian" ? "JAM" : periodMode === "bulanan" ? "HARI" : "BULAN"}
-                  </p>
-                  <div className="dash-chart-sm">
-                    <canvas ref={hourlyCanvasRef} />
-                  </div>
-                </Card>
-
-                {/* OEE Breakdown */}
-                <Card className="dash-panel dash-panel-fit card-glow-info">
-                  <p className="dash-panel-title">OEE BREAKDOWN</p>
-                  <div className="oee-donut-row oee-donut-row-3">
-                    <div className="oee-donut-item">
-                      <div className="oee-donut-wrap"><canvas ref={donutAvailRef} /></div>
-                      <div className="oee-donut-label">Availability</div>
+                  {/* Trend GSPH */}
+                  <Card className="dash-panel dash-panel-fit card-glow-info">
+                    <p className="dash-panel-title">
+                      TREND GSPH PER {periodMode === "harian" ? "JAM" : periodMode === "bulanan" ? "HARI" : "BULAN"}
+                    </p>
+                    <div className="dash-chart-sm">
+                      <canvas ref={hourlyCanvasRef} />
                     </div>
-                    <div className="oee-donut-item">
-                      <div className="oee-donut-wrap"><canvas ref={donutPerfRef} /></div>
-                      <div className="oee-donut-label">Performance</div>
+                  </Card>
+
+                  {/* OEE Breakdown */}
+                  <Card className="dash-panel dash-panel-fit card-glow-info">
+                    <p className="dash-panel-title">OEE BREAKDOWN</p>
+                    <div className="oee-donut-row oee-donut-row-3">
+                      <div className="oee-donut-item">
+                        <div className="oee-donut-wrap"><canvas ref={donutAvailRef} /></div>
+                        <div className="oee-donut-label">Availability</div>
+                      </div>
+                      <div className="oee-donut-item">
+                        <div className="oee-donut-wrap"><canvas ref={donutPerfRef} /></div>
+                        <div className="oee-donut-label">Performance</div>
+                      </div>
+                      <div className="oee-donut-item">
+                        <div className="oee-donut-wrap"><canvas ref={donutQualRef} /></div>
+                        <div className="oee-donut-label">Quality</div>
+                      </div>
                     </div>
-                    <div className="oee-donut-item">
-                      <div className="oee-donut-wrap"><canvas ref={donutQualRef} /></div>
-                      <div className="oee-donut-label">Quality</div>
+                    <div className="oee-total-big">
+                      <span className="oee-total-big-value">{fmtNum(totals.oee)}%</span>
+                      <span className="oee-total-big-label">OEE Keseluruhan</span>
                     </div>
-                  </div>
-                  <div className="oee-total-big">
-                    <span className="oee-total-big-value">{fmtNum(totals.oee)}%</span>
-                    <span className="oee-total-big-label">OEE Keseluruhan</span>
-                  </div>
-                  <p className="oee-kesimpulan">{oeeKesimpulan()}</p>
-                </Card>
+                    <p className="oee-kesimpulan">{oeeKesimpulan()}</p>
+                  </Card>
 
-                {/* Line Status */}
-                <Card className="dash-panel card-glow-info">
-                  <p className="dash-panel-title">LINE STATUS</p>
-                  <div className="table-wrap">
-                    <table className="table-compact">
-                      <thead>
-                        <tr>
-                          <th>LINE</th>
-                          <th>STROKE</th>
-                          <th>TARGET</th>
-                          <th>ACTUAL</th>
-                          <th>PERF</th>
-                          <th>OEE</th>
-                          <th>DT</th>
-                          <th>STATUS</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {MACHINES.map((m) => {
-                          const d = machineDataMap[m.key] || {
-                            stroke: 0, gsph: 0, ng: 0, downtime: 0, status: "OFFLINE",
-                            targetGsph: 0, performanceFactor: 0, oee: 0,
-                          };
-                          return (
-                            <tr key={m.key}>
-                              <td>
-                                <span style={{ fontWeight: 700, color: "var(--text)" }}>
-                                  {m.shortLabel}
-                                </span>
-                              </td>
-                              <td className="mono">{fmtNum(d.stroke)}</td>
-                              <td className="mono">{fmtNum(d.targetGsph)}</td>
-                              <td className="mono">{fmtNum(d.gsph)}</td>
-                              <td className="mono">{fmtNum(d.performanceFactor)}%</td>
-                              <td className="mono">{fmtNum(d.oee)}%</td>
-                              <td className="mono">{fmtNum(d.downtime)}</td>
-                              <td><span className={`status-badge ${statusClass(d)}`}>{statusLabel(d)}</span></td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </Card>
-              </div>
-
-              {/* Row 2: Pie Kategori | Fleet Bar | Top 10 DT | Pareto */}
-              <div className="dash-main-grid tv-row-4">
-
-                {/* Downtime per Kategori (Pie) */}
-                <Card className="dash-panel dash-panel-fit card-glow-info">
-                  <p className="dash-panel-title">DOWNTIME PER KATEGORI</p>
-                  <div className="dash-chart-sm">
-                    <canvas ref={categoryPieRef} />
-                  </div>
-                </Card>
-
-                {/* Downtime per Kategori × Line (Stacked Bar) */}
-                <Card className="dash-panel dash-panel-fit card-glow-info">
-                  <p className="dash-panel-title">DOWNTIME PER KATEGORI × LINE</p>
-                  <div className="dash-chart-sm">
-                    <canvas ref={fleetCanvasRef} />
-                  </div>
-                </Card>
-
-                {/* 10 Downtime Terburuk */}
-                <Card className="dash-panel card-glow-info" style={{ display: "flex", flexDirection: "column" }}>
-                  <p className="dash-panel-title">10 DOWNTIME TERBURUK</p>
-                  <div className="table-wrap" style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-                    <table className="table-compact" style={{ width: "100%", height: "100%" }}>
-                      <thead>
-                        <tr>
-                          <th style={{ width: "22%" }}>LINE</th>
-                          <th style={{ width: "25%" }}>KATEGORI</th>
-                          <th style={{ width: "38%" }}>PROBLEM</th>
-                          <th style={{ width: "15%" }}>MENIT</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {fleetTop10.length > 0 ? (
-                          fleetTop10.map((row, idx) => (
-                            <tr key={idx}>
-                              <td title={row.mesinLabel}><span className="badge">{row.mesinLabel}</span></td>
-                              <td title={row.kategori}>{row.kategori}</td>
-                              <td title={row.problem} style={{ minWidth: 120, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.problem}</td>
-                              <td className="mono">{fmtNum(row.menit)}</td>
-                            </tr>
-                          ))
-                        ) : (
+                  {/* Line Status */}
+                  <Card className="dash-panel card-glow-info">
+                    <p className="dash-panel-title">LINE STATUS</p>
+                    <div className="table-wrap">
+                      <table className="table-compact">
+                        <thead>
                           <tr>
-                            <td colSpan={4} className="empty-state" style={{ padding: "40px 10px", verticalAlign: "middle", textAlign: "center", borderBottom: "1px solid var(--border)" }}>
-                              Tidak ada downtime.
-                            </td>
+                            <th>LINE</th>
+                            <th>STROKE</th>
+                            <th>TARGET</th>
+                            <th>ACTUAL</th>
+                            <th>PERF</th>
+                            <th>OEE</th>
+                            <th>DT</th>
+                            <th>STATUS</th>
                           </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </Card>
+                        </thead>
+                        <tbody>
+                          {MACHINES.map((m) => {
+                            const d = machineDataMap[m.key] || {
+                              stroke: 0, gsph: 0, ng: 0, downtime: 0, status: "OFFLINE",
+                              targetGsph: 0, performanceFactor: 0, oee: 0,
+                            };
+                            return (
+                              <tr key={m.key}>
+                                <td>
+                                  <span style={{ fontWeight: 700, color: "var(--text)" }}>
+                                    {m.shortLabel}
+                                  </span>
+                                </td>
+                                <td className="mono">{fmtNum(d.stroke)}</td>
+                                <td className="mono">{fmtNum(d.targetGsph)}</td>
+                                <td className="mono">{fmtNum(d.gsph)}</td>
+                                <td className="mono">{fmtNum(d.performanceFactor)}%</td>
+                                <td className="mono">{fmtNum(d.oee)}%</td>
+                                <td className="mono">{fmtNum(d.downtime)}</td>
+                                <td><span className={`status-badge ${statusClass(d)}`}>{statusLabel(d)}</span></td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </Card>
+                </div>
 
-                {/* Pareto Downtime */}
-                <Card className="dash-panel card-glow-info">
-                  <p className="dash-panel-title">PARETO DOWNTIME (MENIT)</p>
-                  {paretoDowntime.length > 0 ? (
-                    <div style={{ flex: 1 }}>
-                      {paretoDowntime.map((row) => (
-                        <div className="pareto-row" key={row.problem}>
-                          <span className="pareto-label" title={row.problem}>{row.problem}</span>
-                          <div className="pareto-bar-track">
-                            <div className="pareto-bar-fill" style={{ width: `${row.barPct}%` }} />
+                {/* Row 2: Pie Kategori | Fleet Bar | Top 10 DT | Pareto */}
+                <div className="dash-main-grid tv-row-4">
+
+                  {/* Downtime per Kategori (Pie) */}
+                  <Card className="dash-panel dash-panel-fit card-glow-info">
+                    <p className="dash-panel-title">DOWNTIME PER KATEGORI</p>
+                    <div className="dash-chart-sm">
+                      <canvas ref={categoryPieRef} />
+                    </div>
+                  </Card>
+
+                  {/* Downtime per Kategori × Line (Stacked Bar) */}
+                  <Card className="dash-panel dash-panel-fit card-glow-info">
+                    <p className="dash-panel-title">DOWNTIME PER KATEGORI × LINE</p>
+                    <div className="dash-chart-sm">
+                      <canvas ref={fleetCanvasRef} />
+                    </div>
+                  </Card>
+
+                  {/* 10 Downtime Terburuk */}
+                  <Card className="dash-panel card-glow-info" style={{ display: "flex", flexDirection: "column" }}>
+                    <p className="dash-panel-title">10 DOWNTIME TERBURUK</p>
+                    <div className="table-wrap" style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                      <table className="table-compact" style={{ width: "100%", height: "100%" }}>
+                        <thead>
+                          <tr>
+                            <th style={{ width: "22%" }}>LINE</th>
+                            <th style={{ width: "25%" }}>KATEGORI</th>
+                            <th style={{ width: "38%" }}>PROBLEM</th>
+                            <th style={{ width: "15%" }}>MENIT</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {fleetTop10.length > 0 ? (
+                            fleetTop10.map((row, idx) => (
+                              <tr key={idx}>
+                                <td title={row.mesinLabel}><span className="badge">{row.mesinLabel}</span></td>
+                                <td title={row.kategori}>{row.kategori}</td>
+                                <td title={row.problem} style={{ minWidth: 120, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.problem}</td>
+                                <td className="mono">{fmtNum(row.menit)}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={4} className="empty-state" style={{ padding: "40px 10px", verticalAlign: "middle", textAlign: "center", borderBottom: "1px solid var(--border)" }}>
+                                Tidak ada downtime.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </Card>
+
+                  {/* Pareto Downtime */}
+                  <Card className="dash-panel card-glow-info">
+                    <p className="dash-panel-title">PARETO DOWNTIME (MENIT)</p>
+                    {paretoDowntime.length > 0 ? (
+                      <div style={{ flex: 1 }}>
+                        {paretoDowntime.map((row) => (
+                          <div className="pareto-row" key={row.problem}>
+                            <span className="pareto-label" title={row.problem}>{row.problem}</span>
+                            <div className="pareto-bar-track">
+                              <div className="pareto-bar-fill" style={{ width: `${row.barPct}%` }} />
+                            </div>
+                            <span className="pareto-val">{fmtNum(row.menit)} ({fmtNum(row.pct)}%)</span>
                           </div>
-                          <span className="pareto-val">{fmtNum(row.menit)} ({fmtNum(row.pct)}%)</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="dash-empty-center">
-                      <span>Tidak ada downtime.</span>
-                    </div>
-                  )}
-                </Card>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="dash-empty-center">
+                        <span>Tidak ada downtime.</span>
+                      </div>
+                    )}
+                  </Card>
+                </div>
               </div>
-            </div>
             )}
           </div>
         )}
