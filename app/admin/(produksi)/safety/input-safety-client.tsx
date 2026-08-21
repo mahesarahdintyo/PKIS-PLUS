@@ -188,13 +188,6 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
           Kembali ke Admin
         </Link>
 
-        {/* Breadcrumb nav */}
-        <nav className="flex gap-1 text-xs text-muted-foreground mb-2">
-          <Link href="/admin/dashboard" className="hover:underline">Dashboard Produksi</Link>
-          <span>/</span>
-          <span>Input Safety</span>
-        </nav>
-
         <div className="page-header">
           <h1 className="page-title">
             <span className="eyebrow">Input</span>

@@ -228,11 +228,6 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
           Kembali ke Admin
         </Link>
 
-        <nav className="flex gap-1 text-xs text-muted-foreground mb-2">
-          <Link href="/admin/dashboard" className="hover:underline">Dashboard Produksi</Link>
-          <span>/</span>
-          <span>Input Scrap</span>
-        </nav>
         {content}
       </main>
     </div>
