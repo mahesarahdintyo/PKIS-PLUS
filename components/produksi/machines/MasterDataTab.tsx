@@ -13,6 +13,7 @@ import type {
 
 interface MasterDataTabProps {
   config: ProdMachineConfig;
+  isLeaderOrAdmin: boolean;
   mesinSettingsDraft: {
     gsph_target_mode: "fixed" | "per_part";
     gsph_target_fixed: number | "";
@@ -80,6 +81,7 @@ interface MasterDataTabProps {
 
 export default function MasterDataTab({
   config,
+  isLeaderOrAdmin,
   mesinSettingsDraft,
   setMesinSettingsDraft,
   handleSaveMesinSettings,
@@ -126,7 +128,9 @@ export default function MasterDataTab({
       <Card className="dash-panel card-glow-info">
         <h3 className="dash-panel-title font-bold text-base mb-1">Target GSPH & Availability</h3>
         <p className="text-xs text-muted-foreground mb-4">
-          Garis target di grafik Performance. Operator cuma bisa lihat, admin/leader yang bisa atur.
+          {isLeaderOrAdmin
+            ? "Atur garis target yang ditampilkan di grafik Performance."
+            : "Garis target di grafik Performance. Hanya admin/leader yang dapat mengubah nilai ini."}
         </p>
 
         <div className="form-grid mb-4">
@@ -135,10 +139,12 @@ export default function MasterDataTab({
             <div className="chip-row flex gap-2 mt-1">
               <button
                 type="button"
+                disabled={!isLeaderOrAdmin}
                 className={`chip ${
                   mesinSettingsDraft.gsph_target_mode === "fixed" ? "chip-active" : ""
-                }`}
+                } ${!isLeaderOrAdmin ? "opacity-60 cursor-not-allowed" : ""}`}
                 onClick={() =>
+                  isLeaderOrAdmin &&
                   setMesinSettingsDraft({ ...mesinSettingsDraft, gsph_target_mode: "fixed" })
                 }
               >
@@ -146,10 +152,12 @@ export default function MasterDataTab({
               </button>
               <button
                 type="button"
+                disabled={!isLeaderOrAdmin}
                 className={`chip ${
                   mesinSettingsDraft.gsph_target_mode === "per_part" ? "chip-active" : ""
-                }`}
+                } ${!isLeaderOrAdmin ? "opacity-60 cursor-not-allowed" : ""}`}
                 onClick={() =>
+                  isLeaderOrAdmin &&
                   setMesinSettingsDraft({ ...mesinSettingsDraft, gsph_target_mode: "per_part" })
                 }
               >
@@ -163,6 +171,7 @@ export default function MasterDataTab({
               <label>Angka Target GSPH</label>
               <Input
                 type="number"
+                disabled={!isLeaderOrAdmin}
                 value={mesinSettingsDraft.gsph_target_fixed}
                 onChange={(e) =>
                   setMesinSettingsDraft({
@@ -180,6 +189,7 @@ export default function MasterDataTab({
               type="number"
               min={0}
               max={100}
+              disabled={!isLeaderOrAdmin}
               value={mesinSettingsDraft.target_availability}
               onChange={(e) =>
                 setMesinSettingsDraft({
@@ -191,11 +201,13 @@ export default function MasterDataTab({
           </div>
         </div>
 
-        <div className="form-actions">
-          <Button type="button" onClick={handleSaveMesinSettings}>
-            Simpan Target
-          </Button>
-        </div>
+        {isLeaderOrAdmin && (
+          <div className="form-actions">
+            <Button type="button" onClick={handleSaveMesinSettings}>
+              Simpan Target
+            </Button>
+          </div>
+        )}
       </Card>
 
       {/* Panel 2: CRUD Part Number */}

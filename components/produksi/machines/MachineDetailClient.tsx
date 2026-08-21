@@ -1730,16 +1730,14 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
           >
             Downtime
           </Button>
-          {isLeaderOrAdmin && (
-            <Button
-              type="button"
-              variant={activeTab === "master_data" ? "default" : "secondary"}
-              size="sm"
-              onClick={() => setActiveTab("master_data")}
-            >
-              Master Data
-            </Button>
-          )}
+          <Button
+            type="button"
+            variant={activeTab === "master_data" ? "default" : "secondary"}
+            size="sm"
+            onClick={() => setActiveTab("master_data")}
+          >
+            Master Data
+          </Button>
 
           <Button
             type="button"
@@ -1875,9 +1873,10 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
             />
           )}
 
-          {activeTab === "master_data" && isLeaderOrAdmin && (
+          {activeTab === "master_data" && (
             <MasterDataTab
               config={config}
+              isLeaderOrAdmin={isLeaderOrAdmin}
               mesinSettingsDraft={mesinSettingsDraft}
               setMesinSettingsDraft={setMesinSettingsDraft}
               handleSaveMesinSettings={handleSaveMesinSettings}
