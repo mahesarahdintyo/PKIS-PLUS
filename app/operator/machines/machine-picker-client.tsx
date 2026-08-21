@@ -54,19 +54,19 @@ export default function MachinePickerClient() {
           </p>
         </div>
 
-        <div className="machine-cards-grid">
+        <div className="machine-cards-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
           {MACHINE_CARDS.map((m) => (
             <button
               key={m.slug}
               type="button"
               onClick={() => handleSelectMachine(m.slug)}
-              className="machine-card card-glow-info text-left cursor-pointer w-full"
+              className="machine-card card-glow-info text-left cursor-pointer w-full min-h-[90px] sm:min-h-[100px] p-4 sm:p-5 rounded-xl sm:rounded-2xl transition-all duration-200 active:scale-[0.98] touch-manipulation"
             >
-              <div className="machine-card-top">
-                <span className="machine-card-name">{m.label}</span>
-                <span style={{ fontSize: 22 }}>{m.icon}</span>
+              <div className="machine-card-top flex items-center justify-between gap-2 mb-2">
+                <span className="machine-card-name text-base sm:text-lg font-bold">{m.label}</span>
+                <span className="text-2xl sm:text-3xl shrink-0">{m.icon}</span>
               </div>
-              <div className="hint text-xs text-muted-foreground">{m.hint}</div>
+              <div className="hint text-xs sm:text-sm text-muted-foreground">{m.hint}</div>
             </button>
           ))}
         </div>
