@@ -174,14 +174,14 @@ export default function SQCDMPPanel({
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          layout: { padding: { top: 8, right: 4, bottom: 2 } },
+          layout: { padding: { top: 6, right: 6, bottom: 8, left: 2 } },
           plugins: {
             legend: { display: false },
             tooltip: { enabled: true },
           },
           scales: {
             x: {
-              ticks: { color: cv("--chart-tick") || "#64748b", font: { size: 8 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 4 },
+              ticks: { color: cv("--chart-tick") || "#64748b", font: { size: 8 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 4, padding: 2 },
               grid: { display: false },
               border: { display: false },
             },
