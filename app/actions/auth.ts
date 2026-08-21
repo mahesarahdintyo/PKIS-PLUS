@@ -51,8 +51,7 @@ export async function login(state: any, formData: FormData) {
   const role = rawRole.trim().toLowerCase();
   const landId = profile?.land_id ?? user.user_metadata?.land_id ?? null;
 
-  const isAdminOrLeader = role === "admin" || role === "leader";
-  const redirectUrl = isAdminOrLeader ? "/admin" : "/operator";
+  const redirectUrl = "/";
 
   return { success: true, redirectUrl, role, landId };
 }
