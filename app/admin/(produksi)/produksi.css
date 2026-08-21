@@ -2350,6 +2350,26 @@ table.table-compact .status-badge {
   table.table-compact th,
   table.table-compact td { padding: 5px 8px; font-size: 11px; }
   table.table-compact th { font-size: 9px; }
+
+  .internal-viz {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: 1fr 1fr 1fr 1fr;
+    gap: var(--row-gap);
+  }
+
+  .internal-viz > * {
+    min-height: 0;
+  }
+
+  .internal-row-1,
+  .internal-row-productivity,
+  .internal-row-3,
+  .internal-row-worst {
+    gap: 10px;
+    min-height: 0;
+  }
 }
 
 /* ---------- Responsive Adjustments ---------- */
