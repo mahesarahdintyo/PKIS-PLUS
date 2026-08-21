@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { Bell, ChevronLeft, ChevronRight, FileText, FolderKanban, LayoutDashboard, Menu, Shield, Tags, Trash2, Users, Wrench, X, Zap } from 'lucide-react'
+import { Bell, ChevronLeft, ChevronRight, Database, FileText, FolderKanban, History, LayoutDashboard, Menu, Shield, Tags, Trash2, Users, Wrench, X, Zap } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -424,6 +424,11 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
                 <SidebarLink href="/admin/attendance" icon={Users} label="Input Attendance" />
                 <SidebarLink href="/admin/andon-settings" icon={Bell} label="Panggilan Andon" />
               </div>
+              <div className="pt-2">
+                <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Monitoring Produksi</p>
+                <SidebarLink href="/admin/master-data" icon={Database} label="Master Data Produksi" />
+                <SidebarLink href="/admin/downtime-log" icon={History} label="Downtime Log" />
+              </div>
             </nav>
             <div className="mt-auto space-y-3 border-t border-border pt-4">
               <Link href="/admin/recycle-bin" className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground"><Trash2 className="h-5 w-5" />Tempat Sampah</Link>
@@ -461,6 +466,11 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
             <SidebarLink href="/admin/scrap" icon={Wrench} label="Input Scrap" />
             <SidebarLink href="/admin/attendance" icon={Users} label="Input Attendance" />
             <SidebarLink href="/admin/andon-settings" icon={Bell} label="Panggilan Andon" />
+          </div>
+          <div className="pt-2">
+            <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Monitoring Produksi</p>
+            <SidebarLink href="/admin/master-data" icon={Database} label="Master Data Produksi" />
+            <SidebarLink href="/admin/downtime-log" icon={History} label="Downtime Log" />
           </div>
         </nav>
         <div className="mt-auto space-y-3 border-t border-border pt-4">
