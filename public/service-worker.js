@@ -1,4 +1,4 @@
-const CACHE_NAME = 'futaba-pkis-v1';
+const CACHE_NAME = 'futaba-pkis-v2';
 const STATIC_ASSETS = [
   '/',
   '/offline',

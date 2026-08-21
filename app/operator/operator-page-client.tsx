@@ -394,7 +394,7 @@ export default function OperatorPage({
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <OperatorHeader selectedLand={selectedLand?.name ?? ""} />
+      <OperatorHeader selectedLand={selectedLand?.name ?? ""} userRole={userRole} />
 
       <div className="mx-auto max-w-5xl space-y-4 sm:space-y-6 p-3 sm:p-6">
         {/* Active Machine & Ganti Mesin Link */}
