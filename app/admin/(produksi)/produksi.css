@@ -2407,6 +2407,43 @@ table.table-compact .status-badge {
   .form-grid { grid-template-columns: 1fr; }
 }
 
+/* ---------- Machine Selection Cards ---------- */
+.machine-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.machine-card {
+  display: block;
+  padding: 16px;
+  border-radius: var(--radius, 12px);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--primary, #3b82f6);
+  background: var(--card, #ffffff);
+  text-decoration: none;
+  color: var(--foreground, #0f172a);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.machine-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.machine-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.machine-card-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16px;
+}
+
 /* ---------- Touch & Tablet Optimization (Halaman Operator) ---------- */
 
 /* General touch optimizations for operator area */
@@ -2473,8 +2510,8 @@ table.table-compact .status-badge {
   gap: 10px;
 }
 
-/* Breakpoint Tablet (max-width: 1024px) */
-@media (max-width: 1024px) {
+/* Breakpoint Tablet (max-width: 1100px) — Covers Galaxy Tab A9 Landscape & Portrait */
+@media (max-width: 1100px) {
   /* 1. Tombol tab dan tombol interaktif minimal 48px */
   .machine-hub-container button,
   .machine-hub-container [data-slot="button"],
@@ -2585,6 +2622,7 @@ table.table-compact .status-badge {
   .machine-hub-container table th {
     padding: 12px 14px;
     font-size: 13px;
+    white-space: nowrap;
   }
 
   .machine-hub-container table td {
@@ -2609,7 +2647,7 @@ table.table-compact .status-badge {
 
   /* Kartu pemilihan mesin */
   .machine-card {
-    min-height: 88px;
+    min-height: 90px;
     padding: 18px 20px;
   }
 
@@ -2618,6 +2656,7 @@ table.table-compact .status-badge {
   }
 }
 
+/* Breakpoint Ponsel / Portrait Sempit (max-width: 640px) */
 @media (max-width: 640px) {
   .sqcpm-columns {
     grid-template-columns: repeat(2, 1fr);
@@ -2631,6 +2670,10 @@ table.table-compact .status-badge {
   .machine-hub-container .btn-panggil-leader {
     width: 100%;
     justify-content: center;
+  }
+
+  .machine-cards-grid {
+    grid-template-columns: 1fr;
   }
 }
 

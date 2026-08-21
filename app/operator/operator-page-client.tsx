@@ -397,16 +397,16 @@ export default function OperatorPage({
 
       <div className="mx-auto max-w-5xl space-y-4 sm:space-y-6 p-3 sm:p-6">
         {/* Active Machine & Ganti Mesin Link */}
-        <div className="flex items-center justify-between text-xs text-muted-foreground bg-card/60 border border-border px-3.5 py-2 rounded-xl shadow-xs">
+        <div className="flex items-center justify-between text-xs sm:text-sm text-muted-foreground bg-card/60 border border-border px-4 py-2.5 rounded-xl shadow-xs">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-muted-foreground uppercase tracking-wide text-[11px]">Mesin Aktif:</span>
-            <span className="font-bold text-foreground font-mono">
+            <span className="font-semibold text-muted-foreground uppercase tracking-wide text-[11px] sm:text-xs">Mesin Aktif:</span>
+            <span className="font-bold text-foreground font-mono text-xs sm:text-sm">
               {MACHINE_CONFIGS[machineSlug]?.label || machineSlug}
             </span>
           </div>
           <Link
             href="/operator/machines"
-            className="text-primary hover:underline font-semibold text-xs flex items-center gap-1 transition-colors"
+            className="text-primary hover:underline font-bold text-xs sm:text-sm flex items-center gap-1 transition-colors min-h-[36px] sm:min-h-[40px] px-2 py-1 items-center touch-manipulation"
           >
             Ganti Mesin &rarr;
           </Link>
@@ -421,29 +421,29 @@ export default function OperatorPage({
         )}
 
         {/* Menu Tabs Switcher */}
-        <div className="flex border-b border-border overflow-x-auto">
+        <div className="flex border-b border-border overflow-x-auto gap-2">
           <button
             onClick={() => setActiveTab("display")}
-            className={`flex items-center gap-1.5 border-b-2 px-4 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.97] focus:outline-none cursor-pointer whitespace-nowrap flex-shrink-0 ${
+            className={`flex items-center gap-2 border-b-2 px-4 sm:px-6 py-3 min-h-[48px] text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.97] focus:outline-none cursor-pointer whitespace-nowrap flex-shrink-0 touch-manipulation ${
               activeTab === "display"
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
             type="button"
           >
-            <Tv className="h-4 w-4" />
+            <Tv className="h-4 w-4 shrink-0" />
             Display TV
           </button>
           <button
             onClick={() => setActiveTab("machine")}
-            className={`flex items-center gap-1.5 border-b-2 px-4 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.97] focus:outline-none cursor-pointer whitespace-nowrap flex-shrink-0 ${
+            className={`flex items-center gap-2 border-b-2 px-4 sm:px-6 py-3 min-h-[48px] text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.97] focus:outline-none cursor-pointer whitespace-nowrap flex-shrink-0 touch-manipulation ${
               activeTab === "machine"
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
             type="button"
           >
-            <Factory className="h-4 w-4" />
+            <Factory className="h-4 w-4 shrink-0" />
             Produksi
           </button>
         </div>
