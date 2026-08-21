@@ -893,7 +893,7 @@ td.mono,
 .sqcpm-mini-label b { color: var(--text); }
 
 .sqcpm-chart {
-  height: 65px;
+  height: 80px;
   position: relative;
   margin-top: auto;
   padding-top: 4px;
