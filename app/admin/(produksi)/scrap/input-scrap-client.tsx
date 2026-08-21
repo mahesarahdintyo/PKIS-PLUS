@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { ProdScrapRecord } from "@/types/produksi";
 import { enqueueOffline, isNetworkError } from "@/lib/produksi/offlineQueue";
@@ -218,6 +219,15 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
   return (
     <div className="app-shell">
       <main className="main">
+        {/* Tombol Kembali ke Admin */}
+        <Link
+          href="/admin"
+          className="inline-flex items-center gap-1.5 min-h-[44px] px-3 py-2 mb-3 text-xs font-semibold rounded-lg border border-border bg-card text-foreground hover:bg-muted transition-colors touch-manipulation"
+        >
+          <ArrowLeft className="h-4 w-4 shrink-0" />
+          Kembali ke Admin
+        </Link>
+
         <nav className="flex gap-1 text-xs text-muted-foreground mb-2">
           <Link href="/admin/dashboard" className="hover:underline">Dashboard Produksi</Link>
           <span>/</span>
