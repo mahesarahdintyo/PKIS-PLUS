@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { AppHeader } from "@/components/ui/app-header";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LogoutButton } from "@/components/ui/logout-button";
-import "@/app/admin/dashboard/produksi.css";
+import "@/app/admin/(produksi)/produksi.css";
 
 const MACHINE_CARDS = [
   { slug: "tandem", label: "Tandem", hint: "PA-1 s/d PA-10", icon: "⚙️" },
