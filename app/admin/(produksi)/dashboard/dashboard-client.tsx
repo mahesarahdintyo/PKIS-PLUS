@@ -2045,7 +2045,6 @@ export default function DashboardClient() {
                             <th>PERF</th>
                             <th>OEE</th>
                             <th>DT</th>
-                            <th>STATUS</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -2067,7 +2066,6 @@ export default function DashboardClient() {
                                 <td className="mono">{fmtNum(d.performanceFactor)}%</td>
                                 <td className="mono">{fmtNum(d.oee)}%</td>
                                 <td className="mono">{fmtNum(d.downtime)}</td>
-                                <td><span className={`status-badge ${statusClass(d)}`}>{statusLabel(d)}</span></td>
                               </tr>
                             );
                           })}

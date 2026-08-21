@@ -116,14 +116,16 @@ export default function SQCDMPPanel({
   const prodStatus = cardStatus(performanceFactor, 95, 80);
   const productivityColClass = `col-${prodStatus} card-glow-${prodStatus}`;
 
-  // Cost: if scrap target set, compare rasio; else warn
-  const costStatus = scrapTargetRasio > 0 && scrapRasio > 0
+  // Cost: if scrap target set, compare rasio; if no scrap (0), it is good; else warn
+  const costStatus = scrapTargetRasio > 0
     ? (scrapRasio <= scrapTargetRasio ? "good" : "bad")
-    : "warn";
+    : (scrapRasio === 0 ? "good" : "warn");
   const costColClass = `col-${costStatus} card-glow-${costStatus}`;
 
-  // Moral: attendance % vs 95/85
-  const moralStatus = cardStatus(attendance.pctExclCuti, 95, 85);
+  // Moral: attendance % vs 95/85; if no attendance logged yet, default to warn (oranye)
+  const moralStatus = attendance.total_orang === 0
+    ? "warn"
+    : cardStatus(attendance.pctExclCuti, 95, 85);
   const moralColClass = `col-${moralStatus} card-glow-${moralStatus}`;
 
   const unitLabel = periodMode === "harian" ? "Orang" : "/hari";
