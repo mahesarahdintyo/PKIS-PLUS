@@ -2406,3 +2406,231 @@ table.table-compact .status-badge {
 
   .form-grid { grid-template-columns: 1fr; }
 }
+
+/* ---------- Touch & Tablet Optimization (Halaman Operator) ---------- */
+
+/* General touch optimizations for operator area */
+.machine-hub-container,
+.machine-cards-grid,
+.modal-field-grid {
+  touch-action: manipulation;
+}
+
+.machine-hub-container button,
+.machine-hub-container a,
+.machine-hub-container input,
+.machine-hub-container select,
+.machine-hub-container textarea,
+.machine-card,
+.machine-tabs-bar button,
+.theme-toggle,
+.chip,
+.modal-field-grid input,
+.modal-field-grid select,
+.modal-field-grid textarea,
+.form-actions button {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Active tactile touch feedback */
+.machine-hub-container button:active,
+.machine-hub-container [data-slot="button"]:active,
+.machine-tabs-bar button:active,
+.machine-card:active,
+.btn-finish:active,
+.planning-item:active,
+.chip:active,
+.form-actions button:active {
+  transform: scale(0.97);
+  transition: transform 0.08s ease, filter 0.08s ease;
+  filter: brightness(0.92);
+}
+
+/* Tombol Panggil Leader darurat — Lebih menonjol dan paling besar */
+.btn-panggil-leader,
+.machine-hub-container .btn-panggil-leader {
+  min-height: 52px;
+  padding: 12px 20px !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.02em;
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.45);
+  border: 1px solid rgba(239, 68, 68, 0.65) !important;
+}
+
+.btn-panggil-leader:active,
+.machine-hub-container .btn-panggil-leader:active {
+  transform: scale(0.96);
+  box-shadow: 0 0 4px rgba(239, 68, 68, 0.6);
+}
+
+/* Tab bar gap & flex wrapping */
+.machine-tabs-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Breakpoint Tablet (max-width: 1024px) */
+@media (max-width: 1024px) {
+  /* 1. Tombol tab dan tombol interaktif minimal 48px */
+  .machine-hub-container button,
+  .machine-hub-container [data-slot="button"],
+  .machine-hub-container .btn,
+  .machine-tabs-bar button,
+  .machine-tabs-bar [data-slot="button"],
+  .form-actions button,
+  .form-actions [data-slot="button"] {
+    min-height: 48px;
+    padding: 12px 18px;
+    font-size: 15px;
+  }
+
+  /* 2. Tombol Panggil Leader khusus di tablet */
+  .machine-hub-container .btn-panggil-leader {
+    min-height: 52px;
+    padding: 12px 20px !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+  }
+
+  .machine-hub-container .theme-toggle {
+    min-width: 48px;
+    min-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Manpower chips tap target */
+  .chip-row .chip {
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  /* 3. Form controls minimal 48px dengan padding 12px */
+  .machine-hub-container .field input,
+  .machine-hub-container .field select,
+  .machine-hub-container .field textarea,
+  .machine-hub-container input[type="text"],
+  .machine-hub-container input[type="number"],
+  .machine-hub-container input[type="datetime-local"],
+  .machine-hub-container select,
+  .machine-hub-container .combo input,
+  .machine-hub-container .master-add-row input,
+  .modal-field-grid input,
+  .modal-field-grid select,
+  .modal-field-grid textarea {
+    min-height: 48px;
+    padding: 12px 14px;
+    font-size: 15px;
+  }
+
+  .machine-hub-container .combo-item {
+    min-height: 48px;
+    padding: 12px 16px;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* 4. Font size & keterbacaan tablet */
+  .machine-hub-container .field label,
+  .modal-field-grid .field label {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .machine-hub-container .dash-panel-title {
+    font-size: 17px;
+  }
+
+  .machine-hub-container .panel-subtitle {
+    font-size: 14px;
+  }
+
+  .machine-hub-container .classification-title {
+    font-size: 15px;
+  }
+
+  .machine-hub-container .station-card-title {
+    font-size: 16px;
+  }
+
+  .machine-hub-container .master-value {
+    font-size: 14px;
+  }
+
+  .machine-hub-container .next-process-display {
+    font-size: 14px;
+  }
+
+  .machine-hub-container .planning-item {
+    font-size: 14px;
+    padding: 12px 14px;
+  }
+
+  /* 5. Tabel riwayat, downtime, master data dengan padding vertikal minimal 12px */
+  .machine-hub-container .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+  }
+
+  .machine-hub-container table th {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+
+  .machine-hub-container table td {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+
+  /* Tombol Edit & Hapus di tabel berukuran tap-friendly minimal 40px */
+  .machine-hub-container table td button,
+  .machine-hub-container table td [data-slot="button"] {
+    min-height: 40px;
+    min-width: 44px;
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+
+  /* Grid SQCDMP di tablet dibuat 3 kolom */
+  .sqcpm-columns {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  /* Kartu pemilihan mesin */
+  .machine-card {
+    min-height: 88px;
+    padding: 18px 20px;
+  }
+
+  .machine-card-name {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 640px) {
+  .sqcpm-columns {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .machine-tabs-bar {
+    gap: 8px;
+  }
+
+  .machine-hub-container .btn-panggil-leader {
+    width: 100%;
+    justify-content: center;
+  }
+}
+

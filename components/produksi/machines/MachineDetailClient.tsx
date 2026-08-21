@@ -1697,7 +1697,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
           </h1>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="machine-tabs-bar flex items-center gap-2.5 flex-wrap">
           <Button
             type="button"
             variant={activeTab === "produksi" ? "default" : "secondary"}
@@ -1745,6 +1745,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
             type="button"
             variant="destructive"
             size="sm"
+            className="btn-panggil-leader"
             onClick={() => {
               const alasan = prompt("Alasan panggilan (opsional):");
               if (alasan === null) return;
@@ -1752,7 +1753,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
             }}
             disabled={andonCalling}
           >
-            <Bell size={15} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} /> Panggil Leader
+            <Bell size={16} style={{ display: "inline", verticalAlign: "middle", marginRight: 6 }} /> Panggil Leader
           </Button>
           <button
             type="button"
