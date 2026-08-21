@@ -1,12 +1,18 @@
+import Link from "next/link";
 import { AppHeader } from "@/components/ui/app-header";
 import { LogoutButton } from "@/components/ui/logout-button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { buttonVariants } from "@/components/ui/button";
+import { Home } from "lucide-react";
 
 interface OperatorHeaderProps {
   selectedLand: string;
+  userRole?: string;
 }
 
-export default function OperatorHeader({ selectedLand }: OperatorHeaderProps) {
+export default function OperatorHeader({ selectedLand, userRole }: OperatorHeaderProps) {
+  const isAdmin = userRole === "admin" || userRole === "leader";
+
   return (
     <AppHeader
       disableLogoLink
@@ -21,6 +27,12 @@ export default function OperatorHeader({ selectedLand }: OperatorHeaderProps) {
         </div>
       }
     >
+      {isAdmin && (
+        <Link href="/" className={buttonVariants({ variant: "outline", size: "sm" })}>
+          <Home className="h-4 w-4 mr-1.5" />
+          <span className="hidden sm:inline">Halaman Utama</span>
+        </Link>
+      )}
       <ThemeToggle variant="icon" />
       <LogoutButton variant="header" />
     </AppHeader>
