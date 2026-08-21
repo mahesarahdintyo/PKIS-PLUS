@@ -7,7 +7,7 @@ import SearchBar from "@/components/operator/SearchBar";
 import DocumentList from "@/components/operator/DocumentList";
 import ProductionReportForm from "@/components/operator/ProductionReportForm";
 import MachineDetailClient, { MACHINE_CONFIGS } from "@/components/produksi/machines/MachineDetailClient";
-import "@/app/admin/dashboard/produksi.css";
+import "@/app/admin/(produksi)/produksi.css";
 import { getDocuments, type Document } from "@/lib/services/document";
 import { getFolders, type Folder } from "@/lib/services/folder";
 import { getLands, type Land } from "@/lib/services/land";

@@ -1,5 +1,5 @@
 // =========================================================
-// useAndon — hooks untuk halaman /admin/dashboard/andon-settings
+// useAndon — hooks untuk halaman /admin/andon-settings
 // Porting dari project-experiment/hooks/useAndon.ts
 // Import supabase diganti ke pola PKIS-PLUS (@/lib/supabase/client)
 // Tabel andon_calls/andon_leaders/push_subscriptions TIDAK diprefiks prod_

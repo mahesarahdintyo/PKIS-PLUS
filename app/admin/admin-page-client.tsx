@@ -418,11 +418,11 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
               <SidebarButton icon={Tags} label="Kategori NG" active={activeView === 'ng-categories'} onClick={() => selectView('ng-categories')} />
               <div className="pt-2">
                 <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Input Produksi</p>
-                <SidebarLink href="/admin/dashboard/safety" icon={Shield} label="Input Safety" />
-                <SidebarLink href="/admin/dashboard/productivity" icon={Zap} label="Input Earned Hours" />
-                <SidebarLink href="/admin/dashboard/scrap" icon={Wrench} label="Input Scrap" />
-                <SidebarLink href="/admin/dashboard/attendance" icon={Users} label="Input Attendance" />
-                <SidebarLink href="/admin/dashboard/andon-settings" icon={Bell} label="Panggilan Andon" />
+                <SidebarLink href="/admin/safety" icon={Shield} label="Input Safety" />
+                <SidebarLink href="/admin/productivity" icon={Zap} label="Input Earned Hours" />
+                <SidebarLink href="/admin/scrap" icon={Wrench} label="Input Scrap" />
+                <SidebarLink href="/admin/attendance" icon={Users} label="Input Attendance" />
+                <SidebarLink href="/admin/andon-settings" icon={Bell} label="Panggilan Andon" />
               </div>
             </nav>
             <div className="mt-auto space-y-3 border-t border-border pt-4">
@@ -456,11 +456,11 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
           <SidebarButton icon={Tags} label="Kategori NG" active={activeView === 'ng-categories'} onClick={() => selectView('ng-categories')} />
           <div className="pt-2">
             <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Input Produksi</p>
-            <SidebarLink href="/admin/dashboard/safety" icon={Shield} label="Input Safety" />
-            <SidebarLink href="/admin/dashboard/productivity" icon={Zap} label="Input Earned Hours" />
-            <SidebarLink href="/admin/dashboard/scrap" icon={Wrench} label="Input Scrap" />
-            <SidebarLink href="/admin/dashboard/attendance" icon={Users} label="Input Attendance" />
-            <SidebarLink href="/admin/dashboard/andon-settings" icon={Bell} label="Panggilan Andon" />
+            <SidebarLink href="/admin/safety" icon={Shield} label="Input Safety" />
+            <SidebarLink href="/admin/productivity" icon={Zap} label="Input Earned Hours" />
+            <SidebarLink href="/admin/scrap" icon={Wrench} label="Input Scrap" />
+            <SidebarLink href="/admin/attendance" icon={Users} label="Input Attendance" />
+            <SidebarLink href="/admin/andon-settings" icon={Bell} label="Panggilan Andon" />
           </div>
         </nav>
         <div className="mt-auto space-y-3 border-t border-border pt-4">
