@@ -1235,7 +1235,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
           options: {
             responsive: true, maintainAspectRatio: false, indexAxis: "y",
             plugins: {
-              legend: { display: true, position: "top", align: "end", labels: { color: getCssVar("--muted") || "#94a3b8", boxWidth: 8, boxHeight: 8, usePointStyle: true, font: { size: 10 } } },
+              legend: { display: true, position: "top", align: "end", labels: { color: getCssVar("--muted-foreground") || "#94a3b8", boxWidth: 8, boxHeight: 8, usePointStyle: true, font: { size: 10 } } },
               tooltip: { backgroundColor: getCssVar("--panel") || "#1e293b", titleColor: getCssVar("--text") || "#f1f5f9", bodyColor: getCssVar("--text") || "#f1f5f9", borderColor: getCssVar("--border") || "#334155", borderWidth: 1, padding: 10 },
             },
             scales: {
@@ -1266,7 +1266,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
             responsive: true, maintainAspectRatio: false,
             layout: { padding: { top: 28, right: 8 } },
             plugins: {
-              legend: { display: true, position: "top", align: "end", labels: { color: getCssVar("--muted") || "#94a3b8", boxWidth: 8, boxHeight: 8, usePointStyle: true, font: { size: 10 } } },
+              legend: { display: true, position: "top", align: "end", labels: { color: getCssVar("--muted-foreground") || "#94a3b8", boxWidth: 8, boxHeight: 8, usePointStyle: true, font: { size: 10 } } },
               tooltip: { backgroundColor: getCssVar("--panel") || "#1e293b", titleColor: getCssVar("--text") || "#f1f5f9", bodyColor: getCssVar("--text") || "#f1f5f9", borderColor: getCssVar("--border") || "#334155", borderWidth: 1, padding: 10 },
             },
             scales: {
@@ -1314,7 +1314,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
               legend: {
                 position: "right",
                 labels: {
-                  color: getCssVar("--muted") || "#94a3b8",
+                  color: getCssVar("--muted-foreground") || "#94a3b8",
                   boxWidth: 8,
                   boxHeight: 8,
                   usePointStyle: true,
@@ -1322,7 +1322,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
                   generateLabels: (chart: any) => {
                     const dataset = chart.data.datasets[0];
                     const total = (dataset.data as number[]).reduce((a: number, b: number) => a + b, 0);
-                    const legendTextColor = getCssVar("--muted") || "#94a3b8";
+                    const legendTextColor = getCssVar("--muted-foreground") || "#94a3b8";
                     return (chart.data.labels as string[]).map((label: string, i: number) => {
                       const val = (dataset.data as number[])[i] || 0;
                       const pct = total > 0 ? Math.round((val / total) * 100) : 0;
@@ -1927,7 +1927,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
             <DialogHeader>
               <DialogTitle>Hapus Baris Riwayat</DialogTitle>
             </DialogHeader>
-            <p className="text-sm text-[var(--muted)] mb-4">
+            <p className="text-sm text-muted-foreground mb-4">
               Yakin ingin menghapus baris ini?{" "}
               <span className="font-semibold text-[var(--text)]">
                 {riwayatDeleteTarget.jenis === "produksi"

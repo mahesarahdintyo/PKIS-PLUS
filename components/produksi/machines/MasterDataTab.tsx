@@ -125,7 +125,7 @@ export default function MasterDataTab({
       {/* Panel 1: Target GSPH & Availability */}
       <Card className="dash-panel card-glow-info">
         <h3 className="dash-panel-title font-bold text-base mb-1">Target GSPH & Availability</h3>
-        <p className="text-xs text-[var(--muted)] mb-4">
+        <p className="text-xs text-muted-foreground mb-4">
           Garis target di grafik Performance. Operator cuma bisa lihat, admin/leader yang bisa atur.
         </p>
 
@@ -203,9 +203,9 @@ export default function MasterDataTab({
         <div className="flex justify-between items-center mb-4">
           <div>
             <h3 className="dash-panel-title font-bold text-base">
-              Daftar Part Number <span className="text-xs font-mono text-[var(--muted)]">({masterParts.length} item)</span>
+              Daftar Part Number <span className="text-xs font-mono text-muted-foreground">({masterParts.length} item)</span>
             </h3>
-            <p className="text-xs text-[var(--muted)]">
+            <p className="text-xs text-muted-foreground">
               Kelola master part number, cycle time, next process, dan harga per pcs.
             </p>
           </div>
@@ -332,7 +332,7 @@ export default function MasterDataTab({
                           }
                         />
                       </td>
-                      <td className="mono text-xs text-[var(--muted)]">
+                      <td className="mono text-xs text-muted-foreground">
                         {editPartForm.std_ct && Number(editPartForm.std_ct) > 0
                           ? (1 / Number(editPartForm.std_ct)).toFixed(2)
                           : "-"}
@@ -414,7 +414,7 @@ export default function MasterDataTab({
               })}
               {masterParts.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="text-center text-[var(--muted)] py-6">
+                  <td colSpan={7} className="text-center text-muted-foreground py-6">
                     Belum ada data Part Number untuk mesin ini.
                   </td>
                 </tr>
@@ -428,7 +428,7 @@ export default function MasterDataTab({
       <Card className="dash-panel card-glow-info">
         <h3 className="dash-panel-title font-bold text-base">
           Daftar Problem Downtime{" "}
-          <span className="text-xs font-mono text-[var(--muted)]">({problemList.length} item)</span>
+          <span className="text-xs font-mono text-muted-foreground">({problemList.length} item)</span>
         </h3>
         <div className="master-add-row flex gap-2 mb-4 mt-3">
           <Input
@@ -489,9 +489,9 @@ export default function MasterDataTab({
       <Card className="dash-panel card-glow-info">
         <h3 className="dash-panel-title font-bold text-base">
           Daftar Jenis Non-Produksi{" "}
-          <span className="text-xs font-mono text-[var(--muted)]">({nonProduksiTypes.length} item)</span>
+          <span className="text-xs font-mono text-muted-foreground">({nonProduksiTypes.length} item)</span>
         </h3>
-        <p className="text-xs text-[var(--muted)] mb-4">
+        <p className="text-xs text-muted-foreground mb-4">
           Meeting Awal Shift, Watari, 5S, TPM, dll — dipilih operator saat klasifikasi jeda.
         </p>
 

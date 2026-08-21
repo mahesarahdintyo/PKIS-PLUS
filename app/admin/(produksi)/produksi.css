@@ -928,6 +928,22 @@ td.mono,
   gap: 4px;
 }
 
+.manpower-grid-5 .manpower-box {
+  padding: 5px 2px;
+}
+
+.manpower-grid-5 .manpower-value {
+  font-size: 14px;
+}
+
+.manpower-grid-5 .manpower-label {
+  font-size: 7px;
+}
+
+.manpower-grid-5 .manpower-unit {
+  font-size: 7px;
+}
+
 .manpower-box {
   background: var(--panel-2);
   border: 1px solid var(--border);

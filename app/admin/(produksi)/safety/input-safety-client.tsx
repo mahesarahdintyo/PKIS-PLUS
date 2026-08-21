@@ -79,7 +79,7 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
   const badgeKategori = (k: string) => {
     if (k === "ACCIDENT") return { background: "rgba(209,69,75,0.12)", color: "var(--red, #d1454b)" };
     if (k === "NEAR_MISS") return { background: "rgba(201,130,15,0.12)", color: "var(--amber, #c9820f)" };
-    return { background: "var(--panel-2, #f8fafc)", color: "var(--muted, #64748b)" };
+    return { background: "var(--panel-2, #f8fafc)", color: "var(--muted-foreground, #64748b)" };
   };
 
   if (embedded) {

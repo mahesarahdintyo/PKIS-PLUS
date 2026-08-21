@@ -125,7 +125,7 @@ export default function PerformanceTab({
                 <Card className={`perf-card perf-card-oee ${perfData.data.oee >= 75 ? "card-glow-good" : perfData.data.oee >= 50 ? "card-glow-warn" : "card-glow-bad"}`}>
                   <span className="perf-label">OEE</span>
                   <span className="perf-value perf-value-xl">{fmtNum(perfData.data.oee)}%</span>
-                  <span className="perf-oee-breakdown text-xs text-[var(--muted)] block mt-1">
+                  <span className="perf-oee-breakdown text-xs text-muted-foreground block mt-1">
                     A <b>{fmtNum(perfData.data.availability)}</b>% · P <b>{fmtNum(perfData.data.performanceFactor)}</b>% · Q <b>{fmtNum(perfData.data.quality)}</b>%
                   </span>
                 </Card>
@@ -179,7 +179,7 @@ export default function PerformanceTab({
                     </div>
                     <div className="perf-daily-list">
                       <p className="panel-subtitle font-bold text-xs mb-2">
-                        Produksi Hari Itu <span className="count font-mono text-[var(--muted)]">({perfDayRows.length} baris)</span>
+                        Produksi Hari Itu <span className="count font-mono text-muted-foreground">({perfDayRows.length} baris)</span>
                       </p>
                       <div className="table-wrap" style={{ maxHeight: 230 }}>
                         <table className="table-compact text-xs">
@@ -264,13 +264,13 @@ export default function PerformanceTab({
               <div className="perf-lower-col">
                 <p className="panel-subtitle font-bold text-xs mb-2">
                   Downtime per Kategori
-                  <span className="ml-1 text-[var(--muted)] font-mono font-normal">({config.kategoriOptions.join(" / ")})</span>
+                  <span className="ml-1 text-muted-foreground font-mono font-normal">({config.kategoriOptions.join(" / ")})</span>
                 </p>
                 <div className="perf-pie-wrap">
                   <canvas ref={perfPieRef} />
                 </div>
                 {perfData.byCategory.length > 0 && (
-                  <p className="perf-pie-summary text-xs text-[var(--muted)] mt-2">
+                  <p className="perf-pie-summary text-xs text-muted-foreground mt-2">
                     {downtimeKesimpulan()}
                   </p>
                 )}
