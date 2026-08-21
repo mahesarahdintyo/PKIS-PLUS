@@ -1848,6 +1848,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
           {activeTab === "downtime" && (
             <DowntimeTab
               config={config}
+              isLeaderOrAdmin={isLeaderOrAdmin}
               dtState={dtState}
               dtStart={dtStart}
               dtEnd={dtEnd}

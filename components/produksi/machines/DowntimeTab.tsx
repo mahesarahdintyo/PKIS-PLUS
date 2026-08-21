@@ -66,6 +66,7 @@ function ProblemCombobox({
 
 interface DowntimeTabProps {
   config: ProdMachineConfig;
+  isLeaderOrAdmin: boolean;
   dtState: "idle" | "running" | "stopped";
   dtStart: string | null;
   dtEnd: string | null;
@@ -106,6 +107,7 @@ interface DowntimeTabProps {
 
 export default function DowntimeTab({
   config,
+  isLeaderOrAdmin,
   dtState,
   dtStart,
   dtEnd,
@@ -268,10 +270,12 @@ export default function DowntimeTab({
                   <td title={row.penyebab || "-"}>{row.penyebab || "-"}</td>
                   <td title={row.countermeasure || "-"}>{row.countermeasure || "-"}</td>
                   <td>
-                    <div className="flex gap-1">
-                      <Button type="button" variant="ghost" size="sm" onClick={() => editDowntime(row)}>Edit</Button>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => deleteDowntime(row.id)}>Hapus</Button>
-                    </div>
+                    {isLeaderOrAdmin && (
+                      <div className="flex gap-1">
+                        <Button type="button" variant="ghost" size="sm" onClick={() => editDowntime(row)}>Edit</Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => deleteDowntime(row.id)}>Hapus</Button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}
