@@ -118,7 +118,7 @@ export default function ProduksiTab({
               </div>
             </Card>
           ) : (
-            <p className="hint text-xs text-[var(--muted)] mb-4">
+            <p className="hint text-xs text-muted-foreground mb-4">
               Line aktif: <b>{tandemVariant === "lama" ? "TDM Lama (PA-1 s/d PA-5)" : "TDM Baru (PA-6 s/d PA-10)"}</b>
               {" — "}
               <a
@@ -182,12 +182,12 @@ export default function ProduksiTab({
                       <span><Timer size={13} style={{ display: "inline", verticalAlign: "middle" }} /></span> Ada jeda sebelum ini — jenis non-produksi apa?
                     </p>
                     {line.gapInfo && (
-                      <p className="text-[11px] font-mono text-[var(--muted)]">
+                      <p className="text-[11px] font-mono text-muted-foreground">
                         Jeda: {fmtClock(line.gapInfo.gapStart)} → {fmtClock(line.gapInfo.gapEnd)}
                       </p>
                     )}
                     <div className="field">
-                      <label className="text-[11px] block text-[var(--muted)] mb-1">Jenis Non-Produksi</label>
+                      <label className="text-[11px] block text-muted-foreground mb-1">Jenis Non-Produksi</label>
                       <Select
                         className="text-xs h-8"
                         value={line.gapForm.nonproduksi_nama}
@@ -267,7 +267,7 @@ export default function ProduksiTab({
                     </p>
                     {stPlanning.length > 0 && (
                       <div className="space-y-1.5">
-                        <p className="text-[11px] text-[var(--muted)]">Rencana produksi:</p>
+                        <p className="text-[11px] text-muted-foreground">Rencana produksi:</p>
                         <div className="flex flex-wrap gap-1.5">
                           {stPlanning.map((plan) => (
                             <button
@@ -283,12 +283,12 @@ export default function ProduksiTab({
                         </div>
                       </div>
                     )}
-                    <p className="text-[11px] text-[var(--muted)]">
+                    <p className="text-[11px] text-muted-foreground">
                       Pilih dari Planning kalau ada, atau pilih Part Number lain di bawah.
                     </p>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="field col-span-2">
-                        <label className="text-[11px] block text-[var(--muted)] mb-1">Part Number</label>
+                        <label className="text-[11px] block text-muted-foreground mb-1">Part Number</label>
                         <Select
                           className="text-xs h-8"
                           value={line.form.part_number}
@@ -306,7 +306,7 @@ export default function ProduksiTab({
                         </Select>
                       </div>
                       <div className="field">
-                        <label className="text-[11px] block text-[var(--muted)] mb-1">Qty</label>
+                        <label className="text-[11px] block text-muted-foreground mb-1">Qty</label>
                         <Input
                           type="number"
                           className="h-8 text-xs"
@@ -315,7 +315,7 @@ export default function ProduksiTab({
                         />
                       </div>
                       <div className="field">
-                        <label className="text-[11px] block text-[var(--muted)] mb-1">Jumlah MP</label>
+                        <label className="text-[11px] block text-muted-foreground mb-1">Jumlah MP</label>
                         <Input
                           type="number"
                           className="h-8 text-xs"
@@ -325,7 +325,7 @@ export default function ProduksiTab({
                       </div>
                       {config.extraFields.map((f) => (
                         <div className="field" key={f.key}>
-                          <label className="text-[11px] block text-[var(--muted)] mb-1">{f.label}</label>
+                          <label className="text-[11px] block text-muted-foreground mb-1">{f.label}</label>
                           <Input
                             type={f.type}
                             className="h-8 text-xs"
@@ -398,7 +398,7 @@ export default function ProduksiTab({
                       <span><Timer size={13} style={{ display: "inline", verticalAlign: "middle" }} /></span> Non-Produksi sejak {fmtClock(line.nonProdActiveStart)}
                     </p>
                     <div className="field">
-                      <label className="text-[11px] block text-[var(--muted)] mb-1">Jenis</label>
+                      <label className="text-[11px] block text-muted-foreground mb-1">Jenis</label>
                       <Select
                         className="text-xs h-8"
                         value={line.nonProdForm.nama}
@@ -412,7 +412,7 @@ export default function ProduksiTab({
                         ))}
                       </Select>
                     </div>
-                    <p className="text-[11px] text-[var(--muted)]">
+                    <p className="text-[11px] text-muted-foreground">
                       &quot;Mulai Produksi&quot; kalau part berikutnya mau dikerjakan sekarang (otomatis menutup non-produksi ini). &quot;Selesai (Tutup Shift)&quot; kalau mesin memang berhenti beroperasi sampai shift berikutnya.
                     </p>
                     <div className="flex gap-2 pt-1">
@@ -527,7 +527,7 @@ export default function ProduksiTab({
                         className={`planning-item ${p.status === "selesai" ? "planning-done" : ""}`}
                       >
                         <span className="font-semibold">{p.part_number}</span>
-                        <span className="hint text-xs text-[var(--muted)]">
+                        <span className="hint text-xs text-muted-foreground">
                           {p.qty_rencana ? `${p.qty_rencana}pcs` : "-"} · {fmtClock(p.jam_rencana_mulai)}-{fmtClock(p.jam_rencana_selesai)}
                         </span>
                         {isLeaderOrAdmin && p.id && (
@@ -544,7 +544,7 @@ export default function ProduksiTab({
                       </div>
                     ))}
                     {stPlanning.length === 0 && (
-                      <p className="empty-state text-xs text-[var(--muted)] py-4 text-center">
+                      <p className="empty-state text-xs text-muted-foreground py-4 text-center">
                         Belum ada rencana.
                       </p>
                     )}
@@ -568,7 +568,7 @@ export default function ProduksiTab({
                     {stActualToday.map((r, idx) => (
                       <div key={r.id || idx} className="planning-item">
                         <span className="font-semibold">{r.part_number}</span>
-                        <span className="hint text-xs text-[var(--muted)]">
+                        <span className="hint text-xs text-muted-foreground">
                           {r.qty ?? "-"}pcs · {fmtClock(r.waktu_awal)}-{fmtClock(r.waktu_akhir)}
                         </span>
                       </div>
@@ -586,7 +586,7 @@ export default function ProduksiTab({
         <p className="dash-panel-title font-bold text-base mb-1">
           Riwayat Hari Ini <span className="count">{riwayatHariIni.length} baris</span>
         </p>
-        <p className="hint text-xs text-[var(--muted)] mb-3">
+        <p className="hint text-xs text-muted-foreground mb-3">
           Riwayat lengkap semua tanggal ada di tab &quot;Riwayat Produksi&quot;.
         </p>
         <div className="table-wrap">

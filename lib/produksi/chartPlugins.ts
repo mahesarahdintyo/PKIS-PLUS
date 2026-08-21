@@ -44,7 +44,7 @@ const pieCenterText = {
     ctx.textBaseline = "middle";
 
     const mainColor = resolveColor(opts.color, "--text", "#f1f5f9");
-    const labelColor = resolveColor(opts.labelColor, "--muted", "#94a3b8");
+    const labelColor = resolveColor(opts.labelColor, "--muted-foreground", "#94a3b8");
 
     const size = Math.min(chartArea.right - chartArea.left, chartArea.bottom - chartArea.top);
     const fontSizeVal = Math.max(12, Math.min(18, Math.round(size * 0.16)));

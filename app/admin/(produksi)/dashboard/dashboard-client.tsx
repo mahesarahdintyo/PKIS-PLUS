@@ -883,7 +883,7 @@ export default function DashboardClient() {
           plugins: {
             legend: {
               display: true, position: "top", align: "end",
-              labels: { color: getCssVar("--muted") || "#94a3b8", boxWidth: 6, boxHeight: 6, usePointStyle: true, pointStyle: "circle", font: { size: 9 }, padding: 6 },
+              labels: { color: getCssVar("--muted-foreground") || "#94a3b8", boxWidth: 6, boxHeight: 6, usePointStyle: true, pointStyle: "circle", font: { size: 9 }, padding: 6 },
             },
             tooltip: { backgroundColor: getCssVar("--panel") || "#1e293b", titleColor: getCssVar("--text") || "#f1f5f9", bodyColor: getCssVar("--text") || "#f1f5f9", borderColor: getCssVar("--border") || "#334155", borderWidth: 1, padding: 8, displayColors: false },
           },
@@ -926,7 +926,7 @@ export default function DashboardClient() {
             if (evt.native?.target) evt.native.target.style.cursor = elements.length ? "pointer" : "default";
           },
           plugins: {
-            legend: { position: "top", align: "end", labels: { color: getCssVar("--muted") || "#94a3b8", boxWidth: 6, boxHeight: 6, usePointStyle: true, pointStyle: "circle", font: { size: 9 }, padding: 6 } },
+            legend: { position: "top", align: "end", labels: { color: getCssVar("--muted-foreground") || "#94a3b8", boxWidth: 6, boxHeight: 6, usePointStyle: true, pointStyle: "circle", font: { size: 9 }, padding: 6 } },
             tooltip: { backgroundColor: getCssVar("--panel") || "#1e293b", titleColor: getCssVar("--text") || "#f1f5f9", bodyColor: getCssVar("--text") || "#f1f5f9", borderColor: getCssVar("--border") || "#334155", borderWidth: 1, padding: 8, displayColors: false },
             barValueLabels: { enabled: true, fmt: (v: any) => fmtNum(v), color: () => getCssVar("--text") || "#f1f5f9", minHeight: 14 },
           } as any,
@@ -969,7 +969,7 @@ export default function DashboardClient() {
             legend: {
               position: "bottom",
               labels: {
-                color: getCssVar("--muted") || "#94a3b8",
+                color: getCssVar("--muted-foreground") || "#94a3b8",
                 boxWidth: 6,
                 boxHeight: 6,
                 usePointStyle: true,
@@ -979,7 +979,7 @@ export default function DashboardClient() {
                 generateLabels: (chart: any) => {
                   const dataset = chart.data.datasets[0];
                   const total = (dataset.data as number[]).reduce((a: number, b: number) => a + b, 0);
-                  const legendTextColor = getCssVar("--muted") || "#94a3b8";
+                  const legendTextColor = getCssVar("--muted-foreground") || "#94a3b8";
                   return (chart.data.labels as string[]).map((label: string, i: number) => {
                     const val = (dataset.data as number[])[i] || 0;
                     const pct = total > 0 ? Math.round((val / total) * 100) : 0;
@@ -1000,7 +1000,7 @@ export default function DashboardClient() {
               value: fmtNum(grandTotal),
               label: "Menit DT",
               color: () => getCssVar("--text") || "#f1f5f9",
-              labelColor: () => getCssVar("--muted") || "#94a3b8",
+              labelColor: () => getCssVar("--muted-foreground") || "#94a3b8",
             },
             sliceLabels: { enabled: true, color: () => getCssVar("--text") || "#f1f5f9" },
             tooltip: {
@@ -1153,7 +1153,7 @@ export default function DashboardClient() {
               position: "top",
               align: "end",
               labels: {
-                color: getCssVar("--muted") || "#94a3b8",
+                color: getCssVar("--muted-foreground") || "#94a3b8",
                 boxWidth: 8,
                 boxHeight: 8,
                 usePointStyle: true,
@@ -1243,7 +1243,7 @@ export default function DashboardClient() {
               position: "top",
               align: "end",
               labels: {
-                color: getCssVar("--muted") || "#94a3b8",
+                color: getCssVar("--muted-foreground") || "#94a3b8",
                 boxWidth: 8,
                 boxHeight: 8,
                 usePointStyle: true,
@@ -1331,7 +1331,7 @@ export default function DashboardClient() {
               position: "top",
               align: "end",
               labels: {
-                color: getCssVar("--muted") || "#94a3b8",
+                color: getCssVar("--muted-foreground") || "#94a3b8",
                 boxWidth: 8,
                 boxHeight: 8,
                 usePointStyle: true,
@@ -1417,7 +1417,7 @@ export default function DashboardClient() {
               position: "top",
               align: "end",
               labels: {
-                color: getCssVar("--muted") || "#94a3b8",
+                color: getCssVar("--muted-foreground") || "#94a3b8",
                 boxWidth: 8,
                 boxHeight: 8,
                 usePointStyle: true,
@@ -1558,7 +1558,7 @@ export default function DashboardClient() {
             legend: {
               position: "bottom",
               labels: {
-                color: getCssVar("--muted") || "#94a3b8",
+                color: getCssVar("--muted-foreground") || "#94a3b8",
                 boxWidth: 8,
                 boxHeight: 8,
                 usePointStyle: true,
@@ -1568,7 +1568,7 @@ export default function DashboardClient() {
                 generateLabels: (chart: any) => {
                   const dataset = chart.data.datasets[0];
                   const total = (dataset.data as number[]).reduce((a: number, b: number) => a + b, 0);
-                  const legendTextColor = getCssVar("--muted") || "#94a3b8";
+                  const legendTextColor = getCssVar("--muted-foreground") || "#94a3b8";
                   return (chart.data.labels as string[]).map((label: string, i: number) => {
                     const val = (dataset.data as number[])[i] || 0;
                     const pct = total > 0 ? Math.round((val / total) * 100) : 0;
@@ -1589,7 +1589,7 @@ export default function DashboardClient() {
               value: fmtNum(grandTotal),
               label: "Menit Downtime",
               color: () => getCssVar("--text") || "#f1f5f9",
-              labelColor: () => getCssVar("--muted") || "#94a3b8",
+              labelColor: () => getCssVar("--muted-foreground") || "#94a3b8",
             },
             sliceLabels: { enabled: true, color: () => getCssVar("--text") || "#f1f5f9" },
             tooltip: {
@@ -1660,7 +1660,7 @@ export default function DashboardClient() {
               position: "top",
               align: "end",
               labels: {
-                color: getCssVar("--muted") || "#94a3b8",
+                color: getCssVar("--muted-foreground") || "#94a3b8",
                 boxWidth: 8,
                 boxHeight: 8,
                 usePointStyle: true,

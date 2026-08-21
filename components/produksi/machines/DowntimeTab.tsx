@@ -159,7 +159,7 @@ export default function DowntimeTab({
           </div>
         )}
 
-        <p className="hint text-xs text-[var(--muted)] mt-3">
+        <p className="hint text-xs text-muted-foreground mt-3">
           Waktu downtime harus pas di dalam satu baris produksi (tidak boleh melintasi 2 part) — sistem akan menolak otomatis kalau tidak cocok.
         </p>
 
@@ -233,7 +233,7 @@ export default function DowntimeTab({
             Riwayat Downtime <span className="count">{downtimeRowsFiltered().length} baris</span>
           </h3>
           {downtimeFilterProductionId && (
-            <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span>Filter aktif: <b className="text-[var(--text)]">{downtimeFilterLabel}</b></span>
               <Button type="button" variant="ghost" size="sm" onClick={clearDowntimeFilter}>
                 <FilterX size={13} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} /> Hapus Filter
@@ -277,7 +277,7 @@ export default function DowntimeTab({
               ))}
               {downtimeRowsFiltered().length === 0 && (
                 <tr>
-                  <td colSpan={config.stationConfig.mode !== "none" ? 9 : 8} className="text-center text-[var(--muted)] py-6">
+                  <td colSpan={config.stationConfig.mode !== "none" ? 9 : 8} className="text-center text-muted-foreground py-6">
                     {downtimeFilterProductionId
                       ? "Tidak ada catatan downtime untuk baris produksi ini."
                       : "Belum ada catatan downtime."}
