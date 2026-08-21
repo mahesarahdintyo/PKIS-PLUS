@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, FileText, FolderKanban, LayoutDashboard, Menu, Shield, Tags, Trash2, Users, Wrench, X, Zap } from 'lucide-react'
+import { Bell, ChevronLeft, ChevronRight, FileText, FolderKanban, LayoutDashboard, Menu, Shield, Tags, Trash2, Users, Wrench, X, Zap } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -19,13 +19,6 @@ import { getLands, type Land } from '@/lib/services/land'
 import ProductionReportsDashboard from '@/components/admin/ProductionReportsDashboard'
 import AdminPartNumbersPanel from '@/components/admin/AdminPartNumbersPanel'
 import AdminNgCategoriesPanel from '@/components/admin/AdminNgCategoriesPanel'
-import InputSafetyClient from '@/app/admin/dashboard/safety/input-safety-client'
-import InputProductivityClient from '@/app/admin/dashboard/productivity/input-productivity-client'
-import InputScrapClient from '@/app/admin/dashboard/scrap/input-scrap-client'
-import InputAttendanceClient from '@/app/admin/dashboard/attendance/input-attendance-client'
-import AndonSettingsClient from '@/app/admin/dashboard/andon-settings/andon-settings-client'
-import { createClient } from '@/lib/supabase/client'
-import '@/app/admin/dashboard/produksi.css'
 
 interface Document {
   id: string
@@ -103,22 +96,15 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
   const [folderPathHistory, setFolderPathHistory] = useState<BreadcrumbItem[]>([])
   const [isLoading, setIsLoading] = useState(initialLands.length === 0)
   const [error, setError] = useState('')
-  const [activeView, setActiveView] = useState<'workspace' | 'reports' | 'part-numbers' | 'ng-categories' | 'prod-safety' | 'prod-earned-hours' | 'prod-scrap' | 'prod-attendance' | 'prod-andon'>('workspace')
+  const [activeView, setActiveView] = useState<'workspace' | 'reports' | 'part-numbers' | 'ng-categories'>('workspace')
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(false)
   const [isAnyDialogOpen, setIsAnyDialogOpen] = useState(false)
-  const [userId, setUserId] = useState('')
-  const [userRole, setUserRole] = useState('operator')
   const pageTitle = {
     workspace: 'Workspace',
     reports: 'Laporan Produksi',
     'part-numbers': 'Part Number',
     'ng-categories': 'Kategori NG',
-    'prod-safety': 'Input Safety',
-    'prod-earned-hours': 'Input Earned Hours',
-    'prod-scrap': 'Input Scrap',
-    'prod-attendance': 'Input Attendance',
-    'prod-andon': 'Andon',
   }[activeView]
 
   const selectView = (view: typeof activeView) => {
@@ -132,23 +118,6 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
       document.exitFullscreen().catch(() => {});
     }
   }, []);
-
-  // Fetch logged-in user for components that need userId/role
-  useEffect(() => {
-    const supabase = createClient()
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (data.user) {
-        setUserId(data.user.id)
-        const { data: prof } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', data.user.id)
-          .maybeSingle()
-        const role = (prof?.role || data.user.user_metadata?.role || data.user.app_metadata?.role || 'operator') as string
-        setUserRole(role.trim().toLowerCase())
-      }
-    })
-  }, [])
   const persistAdminLocation = (land: Land, history: BreadcrumbItem[]) => {
     window.localStorage.setItem(
       ADMIN_LOCATION_STORAGE_KEY,
@@ -449,11 +418,11 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
               <SidebarButton icon={Tags} label="Kategori NG" active={activeView === 'ng-categories'} onClick={() => selectView('ng-categories')} />
               <div className="pt-2">
                 <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Input Produksi</p>
-                <SidebarButton icon={Shield} label="Safety" active={activeView === 'prod-safety'} onClick={() => selectView('prod-safety')} />
-                <SidebarButton icon={Zap} label="Earned Hours" active={activeView === 'prod-earned-hours'} onClick={() => selectView('prod-earned-hours')} />
-                <SidebarButton icon={Wrench} label="Scrap" active={activeView === 'prod-scrap'} onClick={() => selectView('prod-scrap')} />
-                <SidebarButton icon={Users} label="Attendance" active={activeView === 'prod-attendance'} onClick={() => selectView('prod-attendance')} />
-                <SidebarButton icon={LayoutDashboard} label="Andon" active={activeView === 'prod-andon'} onClick={() => selectView('prod-andon')} />
+                <SidebarLink href="/admin/dashboard/safety" icon={Shield} label="Input Safety" />
+                <SidebarLink href="/admin/dashboard/productivity" icon={Zap} label="Input Earned Hours" />
+                <SidebarLink href="/admin/dashboard/scrap" icon={Wrench} label="Input Scrap" />
+                <SidebarLink href="/admin/dashboard/attendance" icon={Users} label="Input Attendance" />
+                <SidebarLink href="/admin/dashboard/andon-settings" icon={Bell} label="Panggilan Andon" />
               </div>
             </nav>
             <div className="mt-auto space-y-3 border-t border-border pt-4">
@@ -487,11 +456,11 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
           <SidebarButton icon={Tags} label="Kategori NG" active={activeView === 'ng-categories'} onClick={() => selectView('ng-categories')} />
           <div className="pt-2">
             <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Input Produksi</p>
-            <SidebarButton icon={Shield} label="Safety" active={activeView === 'prod-safety'} onClick={() => selectView('prod-safety')} />
-            <SidebarButton icon={Zap} label="Earned Hours" active={activeView === 'prod-earned-hours'} onClick={() => selectView('prod-earned-hours')} />
-            <SidebarButton icon={Wrench} label="Scrap" active={activeView === 'prod-scrap'} onClick={() => selectView('prod-scrap')} />
-            <SidebarButton icon={Users} label="Attendance" active={activeView === 'prod-attendance'} onClick={() => selectView('prod-attendance')} />
-            <SidebarButton icon={LayoutDashboard} label="Andon" active={activeView === 'prod-andon'} onClick={() => selectView('prod-andon')} />
+            <SidebarLink href="/admin/dashboard/safety" icon={Shield} label="Input Safety" />
+            <SidebarLink href="/admin/dashboard/productivity" icon={Zap} label="Input Earned Hours" />
+            <SidebarLink href="/admin/dashboard/scrap" icon={Wrench} label="Input Scrap" />
+            <SidebarLink href="/admin/dashboard/attendance" icon={Users} label="Input Attendance" />
+            <SidebarLink href="/admin/dashboard/andon-settings" icon={Bell} label="Panggilan Andon" />
           </div>
         </nav>
         <div className="mt-auto space-y-3 border-t border-border pt-4">
@@ -521,16 +490,6 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
             <AdminPartNumbersPanel />
           ) : activeView === 'ng-categories' ? (
             <AdminNgCategoriesPanel />
-          ) : activeView === 'prod-safety' ? (
-            <InputSafetyClient embedded />
-          ) : activeView === 'prod-earned-hours' ? (
-            <InputProductivityClient embedded />
-          ) : activeView === 'prod-scrap' ? (
-            <InputScrapClient embedded />
-          ) : activeView === 'prod-attendance' ? (
-            <InputAttendanceClient embedded userId={userId} />
-          ) : activeView === 'prod-andon' ? (
-            <AndonSettingsClient embedded userId={userId} role={userRole} />
           ) : (
             <>
               {/* Search Bar */}
