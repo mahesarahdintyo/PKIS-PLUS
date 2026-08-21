@@ -5,13 +5,12 @@ import OperatorHeader from "@/components/operator/OperatorHeader";
 import LandSelector from "@/components/operator/LandSelector";
 import SearchBar from "@/components/operator/SearchBar";
 import DocumentList from "@/components/operator/DocumentList";
-import ProductionReportForm from "@/components/operator/ProductionReportForm";
 import MachineDetailClient, { MACHINE_CONFIGS } from "@/components/produksi/machines/MachineDetailClient";
 import "@/app/admin/(produksi)/produksi.css";
 import { getDocuments, type Document } from "@/lib/services/document";
 import { getFolders, type Folder } from "@/lib/services/folder";
 import { getLands, type Land } from "@/lib/services/land";
-import { ClipboardList, Tv, Factory } from "lucide-react";
+import { Tv, Factory } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const LAND_STORAGE_KEY = "futaba.operator.selectedLand";
@@ -88,7 +87,7 @@ export default function OperatorPage({
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(initialLands.length === 0);
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState<"display" | "report" | "machine">("display");
+  const [activeTab, setActiveTab] = useState<"display" | "machine">("display");
   const [documentListKey, setDocumentListKey] = useState(0);
   const workspaceRequestIdRef = useRef(0);
   const landsRequestIdRef = useRef(0);
@@ -436,18 +435,6 @@ export default function OperatorPage({
             Display TV
           </button>
           <button
-            onClick={() => setActiveTab("report")}
-            className={`flex items-center gap-1.5 border-b-2 px-4 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.97] focus:outline-none cursor-pointer whitespace-nowrap flex-shrink-0 ${
-              activeTab === "report"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-            type="button"
-          >
-            <ClipboardList className="h-4 w-4" />
-            Laporan Produksi
-          </button>
-          <button
             onClick={() => setActiveTab("machine")}
             className={`flex items-center gap-1.5 border-b-2 px-4 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.97] focus:outline-none cursor-pointer whitespace-nowrap flex-shrink-0 ${
               activeTab === "machine"
@@ -502,18 +489,6 @@ export default function OperatorPage({
               onEnterFolder={handleEnterFolder}
             />
           </div>
-        )}
-
-        {activeTab === "report" && (
-          selectedLand ? (
-            <div>
-              <ProductionReportForm landId={selectedLand.id} />
-            </div>
-          ) : (
-            <div className="rounded-xl border border-border bg-card p-10 text-center text-muted-foreground shadow-sm">
-              Silakan pilih Line terlebih dahulu untuk mengisi laporan produksi.
-            </div>
-          )
         )}
 
         {activeTab === "machine" && (
