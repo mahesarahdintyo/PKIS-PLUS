@@ -413,7 +413,6 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
             <nav className="mt-6 flex-1 overflow-y-auto space-y-1" aria-label="Navigasi utama">
               <SidebarButton icon={FolderKanban} label="Workspace" active={activeView === 'workspace'} onClick={() => selectView('workspace')} />
               <SidebarLink href="/admin/dashboard" icon={LayoutDashboard} label="Dashboard" />
-              <SidebarButton icon={FileText} label="Laporan Produksi" active={activeView === 'reports'} onClick={() => selectView('reports')} />
               <SidebarButton icon={Tags} label="Part Number" active={activeView === 'part-numbers'} onClick={() => selectView('part-numbers')} />
               <SidebarButton icon={Tags} label="Kategori NG" active={activeView === 'ng-categories'} onClick={() => selectView('ng-categories')} />
               <div className="pt-2">
@@ -426,6 +425,7 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
               </div>
               <div className="pt-2">
                 <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Monitoring Produksi</p>
+                <SidebarButton icon={FileText} label="Laporan Produksi" active={activeView === 'reports'} onClick={() => selectView('reports')} />
                 <SidebarLink href="/admin/master-data" icon={Database} label="Master Data Produksi" />
                 <SidebarLink href="/admin/downtime-log" icon={History} label="Downtime Log" />
               </div>
@@ -456,7 +456,6 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
         <nav className="mt-6 flex-1 overflow-y-auto space-y-1" aria-label="Navigasi utama">
           <SidebarButton icon={FolderKanban} label="Workspace" active={activeView === 'workspace'} onClick={() => selectView('workspace')} />
           <SidebarLink href="/admin/dashboard" icon={LayoutDashboard} label="Dashboard" />
-          <SidebarButton icon={FileText} label="Laporan Produksi" active={activeView === 'reports'} onClick={() => selectView('reports')} />
           <SidebarButton icon={Tags} label="Part Number" active={activeView === 'part-numbers'} onClick={() => selectView('part-numbers')} />
           <SidebarButton icon={Tags} label="Kategori NG" active={activeView === 'ng-categories'} onClick={() => selectView('ng-categories')} />
           <div className="pt-2">
@@ -469,6 +468,7 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
           </div>
           <div className="pt-2">
             <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Monitoring Produksi</p>
+            <SidebarButton icon={FileText} label="Laporan Produksi" active={activeView === 'reports'} onClick={() => selectView('reports')} />
             <SidebarLink href="/admin/master-data" icon={Database} label="Master Data Produksi" />
             <SidebarLink href="/admin/downtime-log" icon={History} label="Downtime Log" />
           </div>
