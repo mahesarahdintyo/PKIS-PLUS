@@ -5,7 +5,6 @@ export interface Line {
   is_active: boolean;
   hidden_from_operator?: boolean;
   document_count?: number;
-  machine_type?: string | null;
 }
 
 interface LineQuery {
