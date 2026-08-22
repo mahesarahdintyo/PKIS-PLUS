@@ -8,9 +8,10 @@ interface AppHeaderProps {
   children?: ReactNode
   logoAside?: ReactNode
   disableLogoLink?: boolean
+  forceRow?: boolean
 }
 
-export function AppHeader({ children, logoAside, disableLogoLink = false }: AppHeaderProps) {
+export function AppHeader({ children, logoAside, disableLogoLink = false, forceRow = false }: AppHeaderProps) {
   const logo = (
     <Image
       src="/pkis-logo-wordmark(final).png"
@@ -25,8 +26,8 @@ export function AppHeader({ children, logoAside, disableLogoLink = false }: AppH
   return (
     <header className="bg-card border-b border-border shadow-sm">
       <div className="w-full px-4 sm:px-6 lg:px-8 py-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+        <div className={forceRow ? "flex flex-row items-center justify-between gap-4" : "flex flex-col sm:flex-row sm:items-center justify-between gap-4"}>
+          <div className={forceRow ? "flex flex-row items-center gap-2 sm:gap-4" : "flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4"}>
             {disableLogoLink ? (
               <div className="inline-flex w-fit" aria-label="FUTABA Logo">
                 {logo}
@@ -44,7 +45,7 @@ export function AppHeader({ children, logoAside, disableLogoLink = false }: AppH
           </div>
 
           {children && (
-            <div className="w-full sm:w-auto flex flex-col sm:flex-row items-start gap-2">
+            <div className={forceRow ? "w-auto flex flex-row items-center gap-2" : "w-full sm:w-auto flex flex-col sm:flex-row items-start gap-2"}>
               {children}
             </div>
           )}
