@@ -2513,6 +2513,7 @@ table.table-compact .status-badge {
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
+  margin-bottom: 20px;
 }
 
 /* Breakpoint Tablet (max-width: 1100px) — Covers Galaxy Tab A9 Landscape & Portrait */
