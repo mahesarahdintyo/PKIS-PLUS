@@ -159,6 +159,7 @@ function saveToLocalStorage(machineKey: string, tandemVariant: string | null, li
 // =========================================================
 
 export interface CommitPayload {
+  line_id?: string | null;
   mesin: string;
   stasiun: string | null;
   waktu_awal: string;
@@ -174,6 +175,7 @@ export interface CommitPayload {
 }
 
 export interface UpdatePayload {
+  line_id?: string | null;
   waktu_awal: string;
   waktu_akhir: string;
   part_number: string | null;
@@ -186,6 +188,7 @@ export interface UpdatePayload {
 }
 
 export interface NonProdPayload {
+  line_id?: string | null;
   mesin: string;
   stasiun: string | null;
   waktu_awal: string;

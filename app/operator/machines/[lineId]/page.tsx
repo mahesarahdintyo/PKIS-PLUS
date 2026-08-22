@@ -9,17 +9,12 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const VALID_SLUGS = ["tandem", "blanking", "transfer-2000t", "transfer-800t", "pc200t"];
-
 interface PageProps {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ lineId: string }>;
 }
 
 export default async function MachineHubPage({ params }: PageProps) {
-  const { slug } = await params;
-  if (!VALID_SLUGS.includes(slug)) {
-    redirect("/operator/machines");
-  }
+  const { lineId } = await params;
 
   let profile;
   try {
@@ -32,24 +27,23 @@ export default async function MachineHubPage({ params }: PageProps) {
   }
 
   const initialLines = await getInitialLines();
-  
-  const activeLine =
-    profile.role === "operator" && profile.lineId
-      ? initialLines.find(
-          (l) => String(l.id).trim().toLowerCase() === String(profile.lineId).trim().toLowerCase()
-        ) ?? initialLines[0] ?? null
-      : initialLines[0] ?? null;
+  const activeLine = initialLines.find(
+    (l) => String(l.id).trim().toLowerCase() === String(lineId).trim().toLowerCase()
+  );
 
-  const [initialFolders, initialDocuments] = activeLine
-    ? await Promise.all([
-        getInitialFolders(activeLine.id),
-        getInitialDocuments(activeLine.id),
-      ])
-    : [[], []];
+  if (!activeLine) {
+    redirect("/operator/machines");
+  }
+
+  const [initialFolders, initialDocuments] = await Promise.all([
+    getInitialFolders(activeLine.id),
+    getInitialDocuments(activeLine.id),
+  ]);
 
   return (
     <OperatorPageClient
-      machineSlug={slug}
+      lineId={activeLine.id}
+      selectedLineName={activeLine.name}
       userRole={profile.role ?? "operator"}
       userLineId={profile.lineId}
       initialLines={initialLines}
