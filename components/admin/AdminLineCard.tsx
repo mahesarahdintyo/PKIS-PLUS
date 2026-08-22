@@ -223,22 +223,24 @@ export function AdminLineCard({
             <div className="flex-shrink-0 w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
               <Folder className="w-5 h-5 text-primary" />
             </div>
-            <div className="min-w-0">
-              <h3 className="text-lg font-semibold text-foreground truncate">
-                {line.name}
-              </h3>
-              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                {line.description || 'Klik untuk membuka'}
-              </p>
-              <p className="mt-3 text-xs font-medium text-muted-foreground">Total Dokumen: {line.document_count ?? 0}</p>
+              <div className="min-w-0">
+                <h3 className="text-lg font-semibold text-foreground truncate">
+                  {line.name}
+                </h3>
+                <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                  {line.description || 'Klik untuk membuka'}
+                </p>
+                <p className="mt-3 text-xs font-medium text-muted-foreground">Total Dokumen: {line.document_count ?? 0}</p>
 
-              {isHiddenFromOperator && (
-                <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
-                  <EyeOff className="h-3.5 w-3.5" />
-                  Disembunyikan dari operator
-                </span>
-              )}
-            </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {isHiddenFromOperator && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+                      <EyeOff className="h-3.5 w-3.5" />
+                      Disembunyikan dari operator
+                    </span>
+                  )}
+                </div>
+              </div>
           </div>
 
           <div ref={menuRef} className="relative flex-shrink-0" onClick={(event) => event.stopPropagation()}>
