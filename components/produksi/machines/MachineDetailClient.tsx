@@ -363,6 +363,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
         .from("prod_part_numbers" as any)
         .select("*")
         .eq("mesin", config.key)
+        .eq("is_active", true)
         .order("value");
 
       if (!pNumErr && pNumData) {
@@ -388,6 +389,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
         .from("prod_production_log" as any)
         .select("*")
         .eq("mesin", config.key)
+        .eq("is_active", true)
         .order("waktu_awal", { ascending: false })
         .limit(500);
       if (pRows) setProductionRows(pRows as ProdProductionLogRow[]);
@@ -397,6 +399,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
         .from("prod_downtime_log" as any)
         .select("*")
         .eq("mesin", config.key)
+        .eq("is_active", true)
         .order("waktu_awal", { ascending: false })
         .limit(500);
       if (dt) setDowntimeList(dt as ProdDowntimeLogRow[]);
@@ -406,6 +409,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
         .from("prod_downtime_problems" as any)
         .select("*")
         .eq("mesin", config.key)
+        .eq("is_active", true)
         .order("value", { ascending: true });
       if (probs) setProblemList(probs as ProdDowntimeProblem[]);
 
@@ -414,6 +418,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
         .from("prod_dandori_log" as any)
         .select("*")
         .eq("mesin", config.key)
+        .eq("is_active", true)
         .order("waktu_awal", { ascending: false })
         .limit(500);
       if (dRows) setNonProduksiRows(dRows as ProdDandoriLogRow[]);
@@ -423,6 +428,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
         .from("prod_nonproduksi_types" as any)
         .select("*")
         .eq("mesin", config.key)
+        .eq("is_active", true)
         .order("nama", { ascending: true });
       if (npTypes) setNonProduksiTypes(npTypes as ProdNonProduksiType[]);
 
@@ -431,6 +437,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
         .from("prod_production_planning" as any)
         .select("*")
         .eq("mesin", config.key)
+        .eq("is_active", true)
         .order("jam_rencana_mulai", { ascending: true });
       if (planData) setPlanningList(planData as ProdProductionPlanning[]);
     } catch (err: any) {
@@ -452,12 +459,12 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
 
   const fetchGabunganRange = useCallback(
     async (waktuDari: string | null, waktuSampai: string | null, partNumberFilter: string) => {
-      let productionQuery = supabase.from("prod_production_log" as any).select("*").eq("mesin", config.key);
+      let productionQuery = supabase.from("prod_production_log" as any).select("*").eq("mesin", config.key).eq("is_active", true);
       if (waktuDari) productionQuery = productionQuery.gte("waktu_awal", waktuDari);
       if (waktuSampai) productionQuery = productionQuery.lte("waktu_awal", waktuSampai);
       if (partNumberFilter) productionQuery = productionQuery.eq("part_number", partNumberFilter);
 
-      let nonProduksiQuery = supabase.from("prod_dandori_log" as any).select("*").eq("mesin", config.key);
+      let nonProduksiQuery = supabase.from("prod_dandori_log" as any).select("*").eq("mesin", config.key).eq("is_active", true);
       if (waktuDari) nonProduksiQuery = nonProduksiQuery.gte("waktu_awal", waktuDari);
       if (waktuSampai) nonProduksiQuery = nonProduksiQuery.lte("waktu_awal", waktuSampai);
       if (partNumberFilter) nonProduksiQuery = nonProduksiQuery.or(`part_dari.eq.${partNumberFilter},part_ke.eq.${partNumberFilter}`);
@@ -574,7 +581,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
 
     try {
       setIsDeletingRiwayat(true);
-      const { error } = await supabase.from(table as any).delete().eq("id", row.data.id);
+      const { error } = await supabase.from(table as any).update({ is_active: false }).eq("id", row.data.id);
       if (error) throw error;
       setRiwayatDeleteTarget(null);
       await fetchRiwayatGabungan();
@@ -762,7 +769,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
   const handleDeletePlanning = async (id: string) => {
     if (!confirm("Hapus rencana produksi ini?")) return;
     try {
-      const { error } = await supabase.from("prod_production_planning" as any).delete().eq("id", id);
+      const { error } = await supabase.from("prod_production_planning" as any).update({ is_active: false }).eq("id", id);
       if (error) throw error;
       flash("Rencana produksi dihapus.");
       loadData();
@@ -860,7 +867,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
   const handleDeletePartNumber = async (id: string) => {
     if (!confirm("Hapus part number ini?")) return;
     try {
-      const { error } = await supabase.from("prod_part_numbers" as any).delete().eq("id", id);
+      const { error } = await supabase.from("prod_part_numbers" as any).update({ is_active: false }).eq("id", id);
       if (error) throw error;
       flash("Part Number berhasil dihapus!");
       loadData();
@@ -886,7 +893,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
   const handleDeleteNonProduksiType = async (id: string) => {
     if (!confirm("Hapus jenis ini?")) return;
     try {
-      const { error } = await supabase.from("prod_nonproduksi_types" as any).delete().eq("id", id);
+      const { error } = await supabase.from("prod_nonproduksi_types" as any).update({ is_active: false }).eq("id", id);
       if (error) throw error;
       loadData();
     } catch (err: any) {
@@ -945,7 +952,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
   const handleDeleteProblem = async (id: string) => {
     if (!confirm("Hapus problem ini?")) return;
     try {
-      const { error } = await supabase.from("prod_downtime_problems" as any).delete().eq("id", id);
+      const { error } = await supabase.from("prod_downtime_problems" as any).update({ is_active: false }).eq("id", id);
       if (error) throw error;
       setProblemList((prev) => prev.filter((p) => p.id !== id));
     } catch (err: any) {
@@ -1053,7 +1060,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
             whJam = (Number(row.wh_menit) || 0) / 60;
             targetStdMenit = Number(row.target_std_menit) || 0;
           } else {
-            let pq = supabase.from("prod_production_log" as any).select("*").eq("mesin", config.key).gte("waktu_awal", pStartIso).lt("waktu_awal", pEndIso);
+            let pq = supabase.from("prod_production_log" as any).select("*").eq("mesin", config.key).eq("is_active", true).gte("waktu_awal", pStartIso).lt("waktu_awal", pEndIso);
             if (stasiunList && stasiunList.length > 0) pq = pq.in("stasiun", stasiunList);
             const pr = await pq;
             const prods = pr.data || [];
@@ -1069,7 +1076,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
               if (ct) targetStdMenit += okQty * ct;
             });
 
-            let dq = supabase.from("prod_downtime_log" as any).select("*").eq("mesin", config.key).gte("waktu_awal", pStartIso).lt("waktu_awal", pEndIso);
+            let dq = supabase.from("prod_downtime_log" as any).select("*").eq("mesin", config.key).eq("is_active", true).gte("waktu_awal", pStartIso).lt("waktu_awal", pEndIso);
             if (stasiunList && stasiunList.length > 0) dq = dq.in("stasiun", stasiunList);
             const dr = await dq;
             (dr.data || []).forEach((r: any) => {
@@ -1184,6 +1191,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
           .from("prod_production_log" as any)
           .select("*")
           .eq("mesin", config.key)
+          .eq("is_active", true)
           .eq("tanggal", perfDate);
         setPerfDayRows(rows || []);
       } else {
@@ -1449,7 +1457,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
   const deleteDowntime = async (id: string) => {
     if (!confirm("Hapus data downtime ini?")) return;
     try {
-      const { error } = await supabase.from("prod_downtime_log" as any).delete().eq("id", id);
+      const { error } = await supabase.from("prod_downtime_log" as any).update({ is_active: false }).eq("id", id);
       if (error) throw error;
       await loadData();
     } catch (err: any) {

@@ -93,6 +93,7 @@ export default function DowntimeLogClient() {
       let q = supabase
         .from("prod_downtime_log" as any)
         .select("*")
+        .eq("is_active", true)
         .order("waktu_awal", { ascending: false })
         .range(from, to);
 

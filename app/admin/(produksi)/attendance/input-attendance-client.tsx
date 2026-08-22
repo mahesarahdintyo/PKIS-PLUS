@@ -56,6 +56,7 @@ export default function InputAttendanceClient({ userId: initialUserId, embedded 
     const res = await supabase
       .from("prod_attendance_log")
       .select("*")
+      .eq("is_active", true)
       .order("tanggal", { ascending: false })
       .range(from, to);
     if (res.data) {
@@ -85,6 +86,7 @@ export default function InputAttendanceClient({ userId: initialUserId, embedded 
       absen: Number(form.absen),
       overtime_jam: Number(form.overtime_jam),
       updated_by: userId,
+      is_active: true,
     };
 
     try {
@@ -120,7 +122,7 @@ export default function InputAttendanceClient({ userId: initialUserId, embedded 
 
   const hapus = async (tanggal: string, shift?: number) => {
     if (!confirm("Hapus data absensi ini?")) return;
-    let q = supabase.from("prod_attendance_log").delete().eq("tanggal", tanggal);
+    let q = supabase.from("prod_attendance_log").update({ is_active: false }).eq("tanggal", tanggal);
     if (shift !== undefined) {
       q = q.eq("shift", shift);
     }

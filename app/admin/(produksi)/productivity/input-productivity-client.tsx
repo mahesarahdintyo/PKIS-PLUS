@@ -49,6 +49,7 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
     const { data } = await supabase
       .from("productivity_daily_reference")
       .select("tanggal, eh_jam")
+      .eq("is_active", true)
       .order("tanggal", { ascending: false })
       .range(from, to);
     if (data) {
@@ -80,6 +81,7 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
         {
           tanggal: form.tanggal,
           eh_jam: Number(form.eh_jam),
+          is_active: true,
         },
         { onConflict: "tanggal" }
       );
@@ -102,7 +104,7 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
   };
 
   const hapusRow = async (tanggal: string) => {
-    await supabase.from("productivity_daily_reference").delete().eq("tanggal", tanggal);
+    await supabase.from("productivity_daily_reference").update({ is_active: false }).eq("tanggal", tanggal);
     await fetchRows(0);
   };
 

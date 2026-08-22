@@ -2,6 +2,22 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
+// All production tables that support soft-delete via is_active
+const PROD_LOG_TABLES: Record<string, string> = {
+  attendance_log: "prod_attendance_log",
+  productivity_ref: "productivity_daily_reference",
+  scrap: "prod_scrap_top_end",
+  safety_log: "prod_safety_log",
+  production_log: "prod_production_log",
+  downtime_log: "prod_downtime_log",
+  dandori_log: "prod_dandori_log",
+  production_planning: "prod_production_planning",
+  andon_leader: "andon_leaders",
+  part_number: "prod_part_numbers",
+  nonproduksi_type: "prod_nonproduksi_types",
+  downtime_problem: "prod_downtime_problems",
+};
+
 // DELETE - Delete single item permanently or empty the whole Recycle Bin
 export async function DELETE(request: Request) {
   try {
@@ -66,7 +82,7 @@ export async function DELETE(request: Request) {
         if (docIds.length > 0) {
           await supabase.from("display_documents").delete().in("document_id", docIds);
           for (const dId of docIds) {
-            await supabase.from("display_documents").delete().eq("document->>id", dId);
+            await supabase.from("display_documents").delete().eq("document->id", dId);
           }
           await supabase.from("documents").delete().in("id", docIds);
         }
@@ -124,7 +140,7 @@ export async function DELETE(request: Request) {
           const docIds = docs.map((d) => d.id);
           await supabase.from("display_documents").delete().in("document_id", docIds);
           for (const dId of docIds) {
-            await supabase.from("display_documents").delete().eq("document->>id", dId);
+            await supabase.from("display_documents").delete().eq("document->id", dId);
           }
           await supabase.from("documents").delete().in("id", docIds);
         }
@@ -150,7 +166,7 @@ export async function DELETE(request: Request) {
         }
 
         await supabase.from("display_documents").delete().eq("document_id", id);
-        await supabase.from("display_documents").delete().eq("document->>id", id);
+        await supabase.from("display_documents").delete().eq("document->id", id);
 
         const { error } = await supabase.from("documents").delete().eq("id", id);
         if (error) {
@@ -171,6 +187,14 @@ export async function DELETE(request: Request) {
           success: true,
           message: "Laporan produksi berhasil dihapus secara permanen.",
         });
+      } else if (PROD_LOG_TABLES[type]) {
+        // Hard-delete a single production module record
+        const tableName = PROD_LOG_TABLES[type];
+        const { error } = await supabase.from(tableName as any).delete().eq("id", id);
+        if (error) {
+          return NextResponse.json({ error: error.message }, { status: 500 });
+        }
+        return NextResponse.json({ success: true, message: "Data berhasil dihapus secara permanen." });
       } else {
         return NextResponse.json({ error: "Invalid type specified" }, { status: 400 });
       }
@@ -242,7 +266,7 @@ export async function DELETE(request: Request) {
       // Clear references in display_documents for these documents
       await supabase.from("display_documents").delete().in("document_id", docIds);
       for (const docId of docIds) {
-        await supabase.from("display_documents").delete().eq("document->>id", docId);
+        await supabase.from("display_documents").delete().eq("document->id", docId);
       }
     }
 
@@ -308,6 +332,16 @@ export async function DELETE(request: Request) {
       deletedLands = count ?? 0;
     }
 
+    // 7. Delete all inactive production module records
+    let deletedProdLogs = 0;
+    for (const tableName of Object.values(PROD_LOG_TABLES)) {
+      const { count } = await supabase
+        .from(tableName as any)
+        .delete({ count: "exact" })
+        .eq("is_active", false);
+      deletedProdLogs += count ?? 0;
+    }
+
     return NextResponse.json({
       success: true,
       message: "Tempat sampah berhasil dikosongkan secara permanen.",
@@ -316,6 +350,7 @@ export async function DELETE(request: Request) {
         folders: deletedFolders,
         documents: deletedDocuments,
         productionReports: deletedProductionReports,
+        prodLogs: deletedProdLogs,
       },
     });
   } catch (error) {
@@ -334,7 +369,7 @@ export async function POST(request: Request) {
 
     if (!type || !id) {
       return NextResponse.json(
-        { error: "Type ('land' | 'folder' | 'document' | 'production_report') and ID are required" },
+        { error: "Type and ID are required" },
         { status: 400 }
       );
     }
@@ -456,6 +491,10 @@ export async function POST(request: Request) {
           }
         }
       }
+    } else if (PROD_LOG_TABLES[type]) {
+      // Restore a production module record
+      const tableName = PROD_LOG_TABLES[type];
+      await supabase.from(tableName as any).update({ is_active: true }).eq("id", id);
     } else {
       return NextResponse.json({ error: "Invalid type specified" }, { status: 400 });
     }
@@ -463,6 +502,80 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, message: "Item berhasil dipulihkan." });
   } catch (error) {
     console.error("Recycle Bin restore error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+// GET - Fetch trashed (is_active = false) production module records
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const group = searchParams.get("group"); // "log_produksi" | "master_data" | "andon"
+
+    const supabase = createAdminClient();
+
+    if (group === "log_produksi") {
+      const tables = [
+        { key: "attendance_log", table: "prod_attendance_log", label: "Absensi" },
+        { key: "productivity_ref", table: "productivity_daily_reference", label: "Earned Hours" },
+        { key: "scrap", table: "prod_scrap_top_end", label: "Scrap" },
+        { key: "safety_log", table: "prod_safety_log", label: "Safety" },
+        { key: "production_log", table: "prod_production_log", label: "Produksi" },
+        { key: "downtime_log", table: "prod_downtime_log", label: "Downtime" },
+        { key: "dandori_log", table: "prod_dandori_log", label: "Non-Produksi" },
+        { key: "production_planning", table: "prod_production_planning", label: "Planning" },
+      ];
+
+      const results: any[] = [];
+      for (const t of tables) {
+        const { data } = await supabase
+          .from(t.table as any)
+          .select("*")
+          .eq("is_active", false)
+          .order("created_at", { ascending: false })
+          .limit(200);
+        if (data) {
+          results.push(...data.map((r: any) => ({ ...r, _type: t.key, _label: t.label })));
+        }
+      }
+      return NextResponse.json(results);
+    }
+
+    if (group === "master_data") {
+      const tables = [
+        { key: "part_number", table: "prod_part_numbers", label: "Part Number" },
+        { key: "nonproduksi_type", table: "prod_nonproduksi_types", label: "Jenis Non-Produksi" },
+        { key: "downtime_problem", table: "prod_downtime_problems", label: "Problem Downtime" },
+      ];
+
+      const results: any[] = [];
+      for (const t of tables) {
+        const { data } = await supabase
+          .from(t.table as any)
+          .select("*")
+          .eq("is_active", false)
+          .order("created_at", { ascending: false })
+          .limit(200);
+        if (data) {
+          results.push(...data.map((r: any) => ({ ...r, _type: t.key, _label: t.label })));
+        }
+      }
+      return NextResponse.json(results);
+    }
+
+    if (group === "andon") {
+      const { data } = await supabase
+        .from("andon_leaders" as any)
+        .select("*, profiles(full_name, email)")
+        .eq("is_active", false)
+        .order("created_at", { ascending: false })
+        .limit(200);
+      return NextResponse.json(data ?? []);
+    }
+
+    return NextResponse.json({ error: "group parameter required" }, { status: 400 });
+  } catch (error) {
+    console.error("Recycle Bin GET error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
