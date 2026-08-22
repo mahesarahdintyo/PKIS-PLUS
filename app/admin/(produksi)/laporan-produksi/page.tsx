@@ -1,0 +1,26 @@
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import LaporanProduksiClient from "./laporan-produksi-client";
+
+export const dynamic = "force-dynamic";
+
+export default async function AdminLaporanProduksiPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile || (profile.role !== "admin" && profile.role !== "leader")) {
+    redirect("/operator");
+  }
+
+  return <LaporanProduksiClient />;
+}
