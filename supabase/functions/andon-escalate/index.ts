@@ -1,8 +1,4 @@
-// supabase/functions/andon-escalate/index.ts
-// Dijalankan otomatis tiap 1 menit lewat pg_cron (bikin dulu schedule-nya
-// lewat Supabase Dashboard > Database > Cron Jobs, panggil URL function ini).
-// Cari panggilan yang masih 'pending' lebih dari ESCALATE_AFTER_MINUTES,
-// tandai 'escalated', lalu kirim push ke leader tier 2.
+/// <reference path="../deno.d.ts" />
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -18,7 +14,7 @@ function sbHeaders(extra: Record<string, string> = {}) {
   return { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, ...extra };
 }
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
   const cutoff = new Date(Date.now() - ESCALATE_AFTER_MINUTES * 60000).toISOString();
   const res = await fetch(
@@ -43,3 +39,5 @@ Deno.serve(async (req) => {
   }
   return new Response(JSON.stringify({ escalated }), { headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
 });
+
+export {};
