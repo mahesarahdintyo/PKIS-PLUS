@@ -2502,6 +2502,11 @@ table.table-compact .status-badge {
   box-shadow: 0 0 4px rgba(239, 68, 68, 0.6);
 }
 
+/* Panggil Leader container row */
+.panggil-leader-row {
+  margin-bottom: 14px;
+}
+
 /* Tab bar gap & flex wrapping */
 .machine-tabs-bar {
   display: flex;

@@ -17,6 +17,7 @@ export default function OperatorHeader({ selectedLand, userRole }: OperatorHeade
   return (
     <AppHeader
       disableLogoLink
+      forceRow
       logoAside={
         <div className="flex flex-col border-slate-200 sm:border-l sm:pl-4 min-w-0">
           <span className="text-[11px] sm:text-xs font-semibold uppercase tracking-wide text-slate-500">

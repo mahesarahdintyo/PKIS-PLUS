@@ -1687,64 +1687,66 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
             {config.label}
           </h1>
         </div>
+      </div>
 
-        <div className="machine-tabs-bar flex items-center gap-2.5 flex-wrap">
-          <Button
-            type="button"
-            variant={activeTab === "produksi" ? "default" : "secondary"}
-            size="sm"
-            onClick={() => setActiveTab("produksi")}
-          >
-            Input Produksi
-          </Button>
-          <Button
-            type="button"
-            variant={activeTab === "riwayat" ? "default" : "secondary"}
-            size="sm"
-            onClick={() => setActiveTab("riwayat")}
-          >
-            Riwayat
-          </Button>
-          <Button
-            type="button"
-            variant={activeTab === "performance" ? "default" : "secondary"}
-            size="sm"
-            onClick={() => setActiveTab("performance")}
-          >
-            Performance
-          </Button>
-          <Button
-            type="button"
-            variant={activeTab === "downtime" ? "default" : "secondary"}
-            size="sm"
-            onClick={() => setActiveTab("downtime")}
-          >
-            Downtime
-          </Button>
-          <Button
-            type="button"
-            variant={activeTab === "master_data" ? "default" : "secondary"}
-            size="sm"
-            onClick={() => setActiveTab("master_data")}
-          >
-            Master Data
-          </Button>
+      <div className="panggil-leader-row">
+        <Button
+          type="button"
+          variant="destructive"
+          size="sm"
+          className="btn-panggil-leader w-full"
+          onClick={() => {
+            const alasan = prompt("Alasan panggilan (opsional):");
+            if (alasan === null) return;
+            panggilLeader(alasan);
+          }}
+          disabled={andonCalling}
+        >
+          <Bell size={16} style={{ display: "inline", verticalAlign: "middle", marginRight: 6 }} /> Panggil Leader
+        </Button>
+      </div>
 
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            className="btn-panggil-leader"
-            onClick={() => {
-              const alasan = prompt("Alasan panggilan (opsional):");
-              if (alasan === null) return;
-              panggilLeader(alasan);
-            }}
-            disabled={andonCalling}
-          >
-            <Bell size={16} style={{ display: "inline", verticalAlign: "middle", marginRight: 6 }} /> Panggil Leader
-          </Button>
-        </div>
+      <div className="machine-tabs-bar flex items-center gap-2.5 flex-wrap">
+        <Button
+          type="button"
+          variant={activeTab === "produksi" ? "default" : "secondary"}
+          size="sm"
+          onClick={() => setActiveTab("produksi")}
+        >
+          Input Produksi
+        </Button>
+        <Button
+          type="button"
+          variant={activeTab === "riwayat" ? "default" : "secondary"}
+          size="sm"
+          onClick={() => setActiveTab("riwayat")}
+        >
+          Riwayat
+        </Button>
+        <Button
+          type="button"
+          variant={activeTab === "performance" ? "default" : "secondary"}
+          size="sm"
+          onClick={() => setActiveTab("performance")}
+        >
+          Performance
+        </Button>
+        <Button
+          type="button"
+          variant={activeTab === "downtime" ? "default" : "secondary"}
+          size="sm"
+          onClick={() => setActiveTab("downtime")}
+        >
+          Downtime
+        </Button>
+        <Button
+          type="button"
+          variant={activeTab === "master_data" ? "default" : "secondary"}
+          size="sm"
+          onClick={() => setActiveTab("master_data")}
+        >
+          Master Data
+        </Button>
       </div>
 
       {loading ? (
