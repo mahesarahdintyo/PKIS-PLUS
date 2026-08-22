@@ -10,13 +10,13 @@ export async function GET(request: Request) {
     const folderIdStr = searchParams.get("folderId");
     const folderId = folderIdStr ? parseInt(folderIdStr) : null;
 
-    const reqLandId = searchParams.get("landId");
+    const reqLineId = searchParams.get("lineId");
     const searchQuery = searchParams.get("search")?.trim();
     const includeHidden = searchParams.get("includeHidden") === "true";
     const showTrash = searchParams.get("trash") === "true";
 
     const userProfile = await getCurrentUserProfile();
-    const landId = userProfile.role === "operator" && userProfile.landId ? userProfile.landId : reqLandId;
+    const lineId = userProfile.role === "operator" && userProfile.lineId ? userProfile.lineId : reqLineId;
 
     const supabase = await createClient();
 
@@ -34,11 +34,11 @@ export async function GET(request: Request) {
         hidden_from_operator,
         created_at,
         folder_id,
-        land_id,
+        line_id,
         folders (
           id,
           name,
-          land_id
+          line_id
         )
       `);
 
@@ -82,22 +82,22 @@ export async function GET(request: Request) {
       );
     }
 
-    // Filter land di sisi server (sementara)
-    const documents = landId
+    // Filter line di sisi server
+    const documents = lineId
       ? data.filter((doc: any) => {
         // Kalau dokumen ada di dalam folder
         if (doc.folder_id) {
-          return doc.folders?.land_id === landId
+          return doc.folders?.line_id === lineId
         }
 
-        // Kalau dokumen berada di root Land
-        return doc.land_id === landId
+        // Kalau dokumen berada di root Line
+        return doc.line_id === lineId
       })
       : data
 
     const transformedDocuments = documents.map((doc: any) => ({
       id: doc.id,
-      landId: doc.land_id ?? doc.folders?.land_id ?? undefined,
+      lineId: doc.line_id ?? doc.folders?.line_id ?? undefined,
       title: doc.title,
       description: doc.description,
       category: "Lainnya",

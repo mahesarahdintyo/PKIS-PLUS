@@ -1,17 +1,17 @@
-import type { Land } from "@/lib/services/land";
+import type { Line } from "@/lib/services/line";
 import { MonitorUp } from "lucide-react";
 
-interface LandSelectorProps {
-  value: Land | null;
-  lands: Land[];
-  onChange: (value: Land) => void;
+interface LineSelectorProps {
+  value: Line | null;
+  lines: Line[];
+  onChange: (value: Line) => void;
 }
 
-export default function LandSelector({
+export default function LineSelector({
   value,
-  lands,
+  lines,
   onChange,
-}: LandSelectorProps) {
+}: LineSelectorProps) {
   return (
     <div className="rounded-xl border border-border bg-card p-3.5 sm:p-4 shadow-sm text-foreground">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 sm:gap-3">
@@ -33,27 +33,27 @@ export default function LandSelector({
       </div>
 
       <div className="flex flex-wrap gap-2 sm:gap-2.5">
-        {lands.length === 0 ? (
+        {lines.length === 0 ? (
           <p className="rounded-lg border border-border bg-muted px-4 py-3 text-sm font-medium text-muted-foreground">
             Belum ada line tersedia
           </p>
         ) : (
-          lands.map((land) => {
-            const isSelected = value?.id === land.id;
+          lines.map((line) => {
+            const isSelected = value?.id === line.id;
 
             return (
               <button
-                key={land.id}
+                key={line.id}
                 type="button"
                 aria-pressed={isSelected}
-                onClick={() => onChange(land)}
+                onClick={() => onChange(line)}
                 className={`rounded-xl border min-h-[44px] sm:min-h-[48px] px-3.5 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-bold shadow-sm transition-all duration-200 active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-primary/20 touch-manipulation cursor-pointer ${
                   isSelected
                     ? "border-primary bg-primary text-primary-foreground hover:bg-primary/95 shadow-md"
                     : "border-border bg-card text-muted-foreground hover:border-primary hover:bg-muted hover:text-foreground"
                 }`}
               >
-                {land.name}
+                {line.name}
               </button>
             );
           })

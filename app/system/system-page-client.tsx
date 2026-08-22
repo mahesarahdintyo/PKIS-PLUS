@@ -117,7 +117,7 @@ export default function SystemPageClient() {
     if (!health) return alerts;
 
     if (!health.database.connected) {
-      alerts.push("Database Supabase Terputus: Aplikasi tidak dapat membaca/menyimpan data lands, folders, dan documents.");
+      alerts.push("Database Supabase Terputus: Aplikasi tidak dapat membaca/menyimpan data lines, folders, dan documents.");
     }
 
     if (!health.storage.connected) {
@@ -126,7 +126,7 @@ export default function SystemPageClient() {
 
     const offlineDisplays = health.displays.filter((d) => !d.online).map((d) => d.name);
     if (offlineDisplays.length > 0) {
-      alerts.push(`TV Display Offline: Layar TV pada Land [ ${offlineDisplays.join(", ")} ] terdeteksi tidak aktif.`);
+      alerts.push(`TV Display Offline: Layar TV pada Line [ ${offlineDisplays.join(", ")} ] terdeteksi tidak aktif.`);
     }
 
     return alerts;

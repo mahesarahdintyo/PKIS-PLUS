@@ -7,11 +7,11 @@ import { cn } from "@/lib/utils";
 import { Home } from "lucide-react";
 
 interface OperatorHeaderProps {
-  selectedLand: string;
+  selectedLine: string;
   userRole?: string;
 }
 
-export default function OperatorHeader({ selectedLand, userRole }: OperatorHeaderProps) {
+export default function OperatorHeader({ selectedLine, userRole }: OperatorHeaderProps) {
   const isAdmin = userRole === "admin" || userRole === "leader";
 
   return (
@@ -24,7 +24,7 @@ export default function OperatorHeader({ selectedLand, userRole }: OperatorHeade
             Line Operator
           </span>
           <span className="text-sm sm:text-base font-bold text-emerald-700 truncate max-w-[180px] sm:max-w-none">
-            {selectedLand}
+            {selectedLine}
           </span>
         </div>
       }

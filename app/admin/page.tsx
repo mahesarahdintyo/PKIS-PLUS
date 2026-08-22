@@ -1,10 +1,10 @@
 import AdminPageClient from "@/app/admin/admin-page-client";
-import { getInitialLands } from "@/lib/services/workspace-server";
+import { getInitialLines } from "@/lib/services/workspace-server";
 
 export const dynamic = "force-dynamic";
 
 export default async function Page() {
-  const initialLands = await getInitialLands();
+  const initialLines = await getInitialLines();
 
-  return <AdminPageClient initialLands={initialLands} />;
+  return <AdminPageClient initialLines={initialLines} />;
 }

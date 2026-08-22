@@ -6,19 +6,19 @@ export const dynamic = 'force-dynamic'
 const DISPLAY_ONLINE_THRESHOLD_MS = 20_000
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? 'v1.0.0'
 
-interface LandRow {
+interface LineRow {
   id: string
   name: string
 }
 
 interface HeartbeatRow {
-  land_id: string
+  line_id: string
   last_seen_at: string
 }
 
 declare global {
   // eslint-disable-next-line no-var
-  var futabaDisplayHeartbeatsByLand: Record<string, string> | undefined
+  var futabaDisplayHeartbeatsByLine: Record<string, string> | undefined
 }
 
 function isMissingHeartbeatTableError(error: { code?: string; message?: string } | null) {
@@ -42,18 +42,18 @@ export async function GET() {
   const supabase = await createClient()
   let databaseConnected = false
   let storageConnected = false
-  let lands: LandRow[] = []
+  let lines: LineRow[] = []
   let heartbeats: HeartbeatRow[] = []
 
-  const { data: landData, error: landError } = await supabase
-    .from('lands')
+  const { data: lineData, error: lineError } = await supabase
+    .from('lines')
     .select('id, name')
     .eq('is_active', true)
     .order('name', { ascending: true })
 
-  if (!landError) {
+  if (!lineError) {
     databaseConnected = true
-    lands = landData ?? []
+    lines = lineData ?? []
   }
 
   const { error: storageError } = await supabase.storage
@@ -67,7 +67,7 @@ export async function GET() {
   if (databaseConnected) {
     const { data: heartbeatData, error: heartbeatError } = await supabase
       .from('display_heartbeats')
-      .select('land_id, last_seen_at')
+      .select('line_id, last_seen_at')
 
     if (!heartbeatError) {
       heartbeats = heartbeatData ?? []
@@ -76,25 +76,25 @@ export async function GET() {
     }
   }
 
-  const memoryHeartbeats = globalThis.futabaDisplayHeartbeatsByLand ?? {}
-  const heartbeatByLand = new Map<string, string>()
+  const memoryHeartbeats = globalThis.futabaDisplayHeartbeatsByLine ?? {}
+  const heartbeatByLine = new Map<string, string>()
 
   for (const heartbeat of heartbeats) {
-    heartbeatByLand.set(heartbeat.land_id, heartbeat.last_seen_at)
+    heartbeatByLine.set(heartbeat.line_id, heartbeat.last_seen_at)
   }
 
-  for (const [landId, lastSeenAt] of Object.entries(memoryHeartbeats)) {
-    if (!heartbeatByLand.has(landId)) {
-      heartbeatByLand.set(landId, lastSeenAt)
+  for (const [lineId, lastSeenAt] of Object.entries(memoryHeartbeats)) {
+    if (!heartbeatByLine.has(lineId)) {
+      heartbeatByLine.set(lineId, lastSeenAt)
     }
   }
 
-  const displays = lands.map((land) => {
-    const lastSeenAt = heartbeatByLand.get(land.id)
+  const displays = lines.map((line) => {
+    const lastSeenAt = heartbeatByLine.get(line.id)
 
     return {
-      id: land.id,
-      name: land.name,
+      id: line.id,
+      name: line.name,
       online: isOnline(lastSeenAt),
       lastSeenAt: lastSeenAt ?? null,
     }
@@ -105,7 +105,7 @@ export async function GET() {
     version: APP_VERSION,
     database: {
       connected: databaseConnected,
-      error: landError?.message ?? null,
+      error: lineError?.message ?? null,
     },
     storage: {
       connected: storageConnected,

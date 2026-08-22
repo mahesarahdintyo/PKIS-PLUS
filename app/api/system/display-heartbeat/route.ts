@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 
 declare global {
   // eslint-disable-next-line no-var
-  var futabaDisplayHeartbeatsByLand: Record<string, string> | undefined
+  var futabaDisplayHeartbeatsByLine: Record<string, string> | undefined
 }
 
 function isMissingHeartbeatTableError(error: { code?: string; message?: string } | null) {
@@ -13,34 +13,35 @@ function isMissingHeartbeatTableError(error: { code?: string; message?: string }
   )
 }
 
-function setMemoryHeartbeat(landId: string, lastSeenAt: string) {
-  globalThis.futabaDisplayHeartbeatsByLand = {
-    ...(globalThis.futabaDisplayHeartbeatsByLand ?? {}),
-    [landId]: lastSeenAt,
+function setMemoryHeartbeat(lineId: string, lastSeenAt: string) {
+  globalThis.futabaDisplayHeartbeatsByLine = {
+    ...(globalThis.futabaDisplayHeartbeatsByLine ?? {}),
+    [lineId]: lastSeenAt,
   }
 }
 
-function clearMemoryHeartbeat(landId: string) {
-  const currentHeartbeats = { ...(globalThis.futabaDisplayHeartbeatsByLand ?? {}) }
-  delete currentHeartbeats[landId]
-  globalThis.futabaDisplayHeartbeatsByLand = currentHeartbeats
+function clearMemoryHeartbeat(lineId: string) {
+  const currentHeartbeats = { ...(globalThis.futabaDisplayHeartbeatsByLine ?? {}) }
+  delete currentHeartbeats[lineId]
+  globalThis.futabaDisplayHeartbeatsByLine = currentHeartbeats
 }
 
-function getLandId(value: unknown) {
+function getLineId(value: unknown) {
   if (!value || typeof value !== 'object') return ''
 
-  const body = value as { landId?: unknown }
-  return typeof body.landId === 'string' ? body.landId.trim() : ''
+  const body = value as { lineId?: unknown; landId?: unknown }
+  const val = body.lineId ?? body.landId
+  return typeof val === 'string' ? val.trim() : ''
 }
 
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => null)
-    const landId = getLandId(body)
+    const lineId = getLineId(body)
 
-    if (!landId) {
+    if (!lineId) {
       return NextResponse.json(
-        { error: 'Land ID is required' },
+        { error: 'Line ID is required' },
         { status: 400 }
       )
     }
@@ -52,24 +53,24 @@ export async function POST(request: Request) {
       .from('display_heartbeats')
       .upsert(
         {
-          land_id: landId,
+          line_id: lineId,
           last_seen_at: lastSeenAt,
         },
         {
-          onConflict: 'land_id',
+          onConflict: 'line_id',
         }
       )
 
     if (error) {
       if (isMissingHeartbeatTableError(error)) {
-        setMemoryHeartbeat(landId, lastSeenAt)
+        setMemoryHeartbeat(lineId, lastSeenAt)
         return NextResponse.json({ success: true, hasDatabase: false })
       }
 
       throw error
     }
 
-    setMemoryHeartbeat(landId, lastSeenAt)
+    setMemoryHeartbeat(lineId, lastSeenAt)
     return NextResponse.json({ success: true, hasDatabase: true })
   } catch (error) {
     console.error('Display heartbeat POST error:', error)
@@ -84,11 +85,11 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const landId = searchParams.get('landId')?.trim()
+    const lineId = (searchParams.get('lineId') ?? searchParams.get('landId'))?.trim()
 
-    if (!landId) {
+    if (!lineId) {
       return NextResponse.json(
-        { error: 'Land ID is required' },
+        { error: 'Line ID is required' },
         { status: 400 }
       )
     }
@@ -98,13 +99,13 @@ export async function DELETE(request: Request) {
     const { error } = await supabase
       .from('display_heartbeats')
       .delete()
-      .eq('land_id', landId)
+      .or(`line_id.eq.${lineId},land_id.eq.${lineId}`)
 
     if (error && !isMissingHeartbeatTableError(error)) {
       throw error
     }
 
-    clearMemoryHeartbeat(landId)
+    clearMemoryHeartbeat(lineId)
 
     return NextResponse.json({ success: true })
   } catch (error) {

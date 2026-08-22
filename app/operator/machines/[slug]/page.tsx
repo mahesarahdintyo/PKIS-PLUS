@@ -4,7 +4,7 @@ import { getCurrentUserProfile } from "@/lib/services/auth-server";
 import {
   getInitialDocuments,
   getInitialFolders,
-  getInitialLands,
+  getInitialLines,
 } from "@/lib/services/workspace-server";
 
 export const dynamic = "force-dynamic";
@@ -31,19 +31,19 @@ export default async function MachineHubPage({ params }: PageProps) {
     redirect("/");
   }
 
-  const initialLands = await getInitialLands();
+  const initialLines = await getInitialLines();
   
-  const activeLand =
-    profile.role === "operator" && profile.landId
-      ? initialLands.find(
-          (l) => String(l.id).trim().toLowerCase() === String(profile.landId).trim().toLowerCase()
-        ) ?? initialLands[0] ?? null
-      : initialLands[0] ?? null;
+  const activeLine =
+    profile.role === "operator" && profile.lineId
+      ? initialLines.find(
+          (l) => String(l.id).trim().toLowerCase() === String(profile.lineId).trim().toLowerCase()
+        ) ?? initialLines[0] ?? null
+      : initialLines[0] ?? null;
 
-  const [initialFolders, initialDocuments] = activeLand
+  const [initialFolders, initialDocuments] = activeLine
     ? await Promise.all([
-        getInitialFolders(activeLand.id),
-        getInitialDocuments(activeLand.id),
+        getInitialFolders(activeLine.id),
+        getInitialDocuments(activeLine.id),
       ])
     : [[], []];
 
@@ -51,8 +51,8 @@ export default async function MachineHubPage({ params }: PageProps) {
     <OperatorPageClient
       machineSlug={slug}
       userRole={profile.role ?? "operator"}
-      userLandId={profile.landId}
-      initialLands={initialLands}
+      userLineId={profile.lineId}
+      initialLines={initialLines}
       initialFolders={initialFolders}
       initialDocuments={initialDocuments}
     />

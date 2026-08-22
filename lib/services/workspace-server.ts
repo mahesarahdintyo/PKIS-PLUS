@@ -2,19 +2,19 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentUserProfile } from "@/lib/services/auth-server";
 import type { Document } from "@/lib/services/document";
 import type { Folder } from "@/lib/services/folder";
-import type { Land } from "@/lib/services/land";
+import type { Line } from "@/lib/services/line";
 
-export async function getInitialLands(): Promise<Land[]> {
+export async function getInitialLines(): Promise<Line[]> {
   const userProfile = await getCurrentUserProfile();
   const supabase = await createClient();
 
   let query = supabase
-    .from("lands")
+    .from("lines")
     .select("*")
     .or("is_active.eq.true,is_active.is.null");
 
-  if (userProfile.role === "operator" && userProfile.landId) {
-    query = query.eq("id", userProfile.landId);
+  if (userProfile.role === "operator" && userProfile.lineId) {
+    query = query.eq("id", userProfile.lineId);
   } else {
     query = query.eq("hidden_from_operator", false);
   }
@@ -22,26 +22,26 @@ export async function getInitialLands(): Promise<Land[]> {
   const { data, error } = await query.order("name", { ascending: true });
 
   if (error) {
-    console.error("Initial lands error:", error);
+    console.error("Initial lines error:", error);
     return [];
   }
 
   return data ?? [];
 }
 
-export async function getInitialFolders(landId: string): Promise<Folder[]> {
+export async function getInitialFolders(lineId: string): Promise<Folder[]> {
   const userProfile = await getCurrentUserProfile();
-  const effectiveLandId =
-    userProfile.role === "operator" && userProfile.landId
-      ? userProfile.landId
-      : landId;
+  const effectiveLineId =
+    userProfile.role === "operator" && userProfile.lineId
+      ? userProfile.lineId
+      : lineId;
 
   const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("folders")
     .select("*")
-    .eq("land_id", effectiveLandId)
+    .eq("line_id", effectiveLineId)
     .is("parent_id", null)
     .or("is_active.eq.true,is_active.is.null")
     .order("name", { ascending: true });
@@ -54,12 +54,12 @@ export async function getInitialFolders(landId: string): Promise<Folder[]> {
   return data ?? [];
 }
 
-export async function getInitialDocuments(landId: string): Promise<Document[]> {
+export async function getInitialDocuments(lineId: string): Promise<Document[]> {
   const userProfile = await getCurrentUserProfile();
-  const effectiveLandId =
-    userProfile.role === "operator" && userProfile.landId
-      ? userProfile.landId
-      : landId;
+  const effectiveLineId =
+    userProfile.role === "operator" && userProfile.lineId
+      ? userProfile.lineId
+      : lineId;
 
   const supabase = await createClient();
 
@@ -78,16 +78,16 @@ export async function getInitialDocuments(landId: string): Promise<Document[]> {
         hidden_from_operator,
         created_at,
         folder_id,
-        land_id,
+        line_id,
         folders (
           id,
           name,
-          land_id
+          line_id
         )
       `
     )
     .is("folder_id", null)
-    .eq("land_id", effectiveLandId)
+    .eq("line_id", effectiveLineId)
     .eq("hidden_from_operator", false)
     .or("is_active.eq.true,is_active.is.null")
     .order("created_at", { ascending: false });
@@ -99,7 +99,7 @@ export async function getInitialDocuments(landId: string): Promise<Document[]> {
 
   return (data ?? []).map((doc: any) => ({
     id: doc.id,
-    landId: doc.land_id ?? doc.folders?.land_id ?? undefined,
+    lineId: doc.line_id ?? doc.folders?.line_id ?? undefined,
     title: doc.title,
     description: doc.description,
     category: "Lainnya",

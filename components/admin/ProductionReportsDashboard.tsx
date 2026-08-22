@@ -19,7 +19,7 @@ import {
   Copy,
   Check,
 } from "lucide-react";
-import { getLands, type Land } from "@/lib/services/land";
+import { getLines, type Line } from "@/lib/services/line";
 import {
   getProductionReports,
   deleteProductionReport,
@@ -33,12 +33,12 @@ const PRODUCTION_REPORT_REFRESH_INTERVAL_MS = 3000;
 
 export default function ProductionReportsDashboard() {
   const [reports, setReports] = useState<ProductionReport[]>([]);
-  const [lands, setLands] = useState<Land[]>([]);
+  const [lines, setLines] = useState<Line[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
   // Filters state
-  const [selectedLandId, setSelectedLandId] = useState("all");
+  const [selectedLineId, setSelectedLineId] = useState("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [selectedShift, setSelectedShift] = useState("all");
@@ -86,7 +86,7 @@ export default function ProductionReportsDashboard() {
         setError("");
 
         const query = {
-          landId: selectedLandId !== "all" ? selectedLandId : undefined,
+          lineId: selectedLineId !== "all" ? selectedLineId : undefined,
           startDate: startDate || undefined,
           endDate: endDate || undefined,
         };
@@ -104,22 +104,21 @@ export default function ProductionReportsDashboard() {
         }
       }
     },
-    [endDate, selectedLandId, startDate]
+    [endDate, selectedLineId, startDate]
   );
 
-  // Load lands once for the filter options
+  // Load lines once for the filter options
   useEffect(() => {
-    async function loadLands() {
+    async function loadLines() {
       try {
-        const landsData = await getLands({ includeHidden: true });
-        setLands(landsData);
+        const linesData = await getLines({ includeHidden: true });
+        setLines(linesData);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Gagal memuat data line");
-        console.error(err);
+        console.error("Gagal memuat line produksi:", err);
       }
     }
 
-    void loadLands();
+    void loadLines();
   }, []);
 
   const handleRefresh = () => {
@@ -164,7 +163,7 @@ export default function ProductionReportsDashboard() {
   }, [loadReports]);
 
   const handleResetFilters = () => {
-    setSelectedLandId("all");
+    setSelectedLineId("all");
     setStartDate("");
     setEndDate("");
     setSelectedShift("all");
@@ -184,8 +183,8 @@ export default function ProductionReportsDashboard() {
         const query = searchQuery.toLowerCase();
         const matchesOperator = report.operator_name.toLowerCase().includes(query);
         const matchesPartNumber = report.part_number.toLowerCase().includes(query);
-        const matchesLandName = (report.land?.name ?? "").toLowerCase().includes(query);
-        if (!matchesOperator && !matchesPartNumber && !matchesLandName) {
+        const matchesLineName = (report.line?.name ?? "").toLowerCase().includes(query);
+        if (!matchesOperator && !matchesPartNumber && !matchesLineName) {
           return false;
         }
       }
@@ -205,7 +204,7 @@ export default function ProductionReportsDashboard() {
       totalQty += report.qty;
       totalNgQty += report.ng_qty;
       totalBreak += report.break_minutes;
-      uniqueLines.add(report.land_id);
+      uniqueLines.add(report.line_id);
     });
 
     const totalOkQty = totalQty - totalNgQty;
@@ -245,11 +244,11 @@ export default function ProductionReportsDashboard() {
     filteredReports.forEach((report) => {
       const okQty = report.qty - report.ng_qty;
       const ngRate = report.qty > 0 ? ((report.ng_qty / report.qty) * 100).toFixed(1) : "0.0";
-      const landName = report.land?.name ?? "Unknown Line";
+      const lineName = report.line?.name ?? "Unknown Line";
 
       const values = [
         report.report_date,
-        landName,
+        lineName,
         report.operator_name,
         report.shift,
         report.part_number,
@@ -370,7 +369,7 @@ export default function ProductionReportsDashboard() {
   // Copy receipt text to clipboard
   const handleCopyDetail = async () => {
     if (!detailReport) return;
-    const landName = detailReport.land?.name ?? "Unknown Line";
+    const lineName = detailReport.line?.name ?? "Unknown Line";
     const breakMin = detailReport.break_minutes > 0 ? `${detailReport.break_minutes} Menit` : "-";
     const ngCat = detailReport.ng_category ?? "-";
 
@@ -379,7 +378,7 @@ LAPORAN PRODUKSI
 -----------------------------------
 Tanggal: ${formatDateIndo(detailReport.report_date)}
 Operator: ${detailReport.operator_name}
-Line: ${landName}
+Line: ${lineName}
 Shift: ${detailReport.shift}
 Part Number: ${detailReport.part_number}
 Qty Total: ${detailReport.qty}
@@ -535,21 +534,21 @@ Istirahat: ${breakMin}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
-          {/* Land Selection */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">
-              Line (Card)
+          {/* Line Selection */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+              Line Produksi
             </label>
-            <div className="relative rounded border border-slate-300 bg-white hover:border-slate-400 transition-colors duration-200">
+            <div className="relative">
               <select
-                value={selectedLandId}
-                onChange={(e) => setSelectedLandId(e.target.value)}
-                className="h-10 w-full appearance-none bg-transparent px-3 pr-9 text-sm font-medium text-slate-700 outline-none"
+                value={selectedLineId}
+                onChange={(e) => setSelectedLineId(e.target.value)}
+                className="w-full pl-3 pr-8 py-2 text-sm border border-slate-200 bg-slate-50/50 rounded-xl text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 appearance-none font-medium transition cursor-pointer"
               >
                 <option value="all">Semua Line</option>
-                {lands.map((land) => (
-                  <option key={land.id} value={land.id}>
-                    {land.name}
+                {lines.map((line) => (
+                  <option key={line.id} value={line.id}>
+                    {line.name}
                   </option>
                 ))}
               </select>
@@ -631,7 +630,7 @@ Istirahat: ${breakMin}
           <p className="text-xs font-medium text-slate-500">
             Menampilkan <span className="font-semibold text-slate-800">{filteredReports.length}</span> laporan produksi.
           </p>
-          {(selectedLandId !== "all" || startDate || endDate || selectedShift !== "all" || searchQuery) && (
+          {(selectedLineId !== "all" || startDate || endDate || selectedShift !== "all" || searchQuery) && (
             <button
               onClick={handleResetFilters}
               className="text-xs font-semibold text-red-600 hover:text-red-700 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0 self-start sm:self-center"
@@ -703,7 +702,7 @@ Istirahat: ${breakMin}
 
                       {/* Line Name */}
                       <td className="py-3.5 px-4 font-semibold text-slate-700 whitespace-nowrap">
-                        {report.land?.name ?? "Unknown Line"}
+                        {report.line?.name ?? "Unknown Line"}
                       </td>
 
                       {/* Operator Name */}
@@ -851,7 +850,7 @@ Istirahat: ${breakMin}
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider select-none">Line (Card)</span>
-                  <div className="text-sm font-semibold text-slate-800 mt-1">{detailReport.land?.name ?? "Unknown Line"}</div>
+                  <div className="text-sm font-semibold text-slate-800 mt-1">{detailReport.line?.name ?? "Unknown Line"}</div>
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider select-none">Shift</span>

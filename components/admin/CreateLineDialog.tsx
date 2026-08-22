@@ -5,12 +5,12 @@ import { FolderPlus, Loader2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
-interface CreateLandDialogProps {
+interface CreateLineDialogProps {
   onCreateSuccess?: () => void
   onOpenChange?: (open: boolean) => void
 }
 
-export function CreateLandDialog({ onCreateSuccess, onOpenChange }: CreateLandDialogProps) {
+export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDialogProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -36,14 +36,14 @@ export function CreateLandDialog({ onCreateSuccess, onOpenChange }: CreateLandDi
     setIsDuplicate(false)
 
     if (!name.trim()) {
-      toast.error('Nama card tidak boleh kosong')
+      toast.error('Nama line produksi tidak boleh kosong')
       return
     }
 
     try {
       setIsLoading(true)
 
-      const response = await fetch('/api/lands', {
+      const response = await fetch('/api/lines', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -54,7 +54,7 @@ export function CreateLandDialog({ onCreateSuccess, onOpenChange }: CreateLandDi
 
       if (!response.ok) {
         const data = await response.json().catch(() => null)
-        const message = data?.error || 'Gagal membuat card'
+        const message = data?.error || 'Gagal membuat line produksi'
 
         // Tandai input sebagai duplikat jika status 409
         if (response.status === 409) {
@@ -65,14 +65,14 @@ export function CreateLandDialog({ onCreateSuccess, onOpenChange }: CreateLandDi
         return
       }
 
-      toast.success(`Card "${name.trim()}" berhasil dibuat!`)
+      toast.success(`Line produksi "${name.trim()}" berhasil dibuat!`)
       setName('')
       setDescription('')
       setIsOpen(false)
       onOpenChange?.(false)
       onCreateSuccess?.()
     } catch {
-      toast.error('Gagal membuat card. Periksa koneksi internet Anda.')
+      toast.error('Gagal membuat line produksi. Periksa koneksi internet Anda.')
     } finally {
       setIsLoading(false)
     }
@@ -85,7 +85,7 @@ export function CreateLandDialog({ onCreateSuccess, onOpenChange }: CreateLandDi
         className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto flex items-center justify-center h-9 px-4 rounded-lg text-white text-sm font-medium"
       >
         <FolderPlus className="w-4 h-4 mr-2" />
-        New Card
+        New Line Produksi
       </Button>
 
       {isOpen && (
@@ -97,7 +97,7 @@ export function CreateLandDialog({ onCreateSuccess, onOpenChange }: CreateLandDi
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full animate-in fade-in zoom-in-95 duration-200">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Buat Card Baru</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Buat Line Produksi Baru</h2>
               <button
                 onClick={handleClose}
                 disabled={isLoading}
@@ -109,20 +109,20 @@ export function CreateLandDialog({ onCreateSuccess, onOpenChange }: CreateLandDi
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              {/* Nama Card */}
+              {/* Nama Line */}
               <div className="space-y-1.5">
-                <label htmlFor="land-name" className="block text-sm font-medium text-gray-700">
-                  Nama Card <span className="text-red-500">*</span>
+                <label htmlFor="line-name" className="block text-sm font-medium text-gray-700">
+                  Nama Line Produksi <span className="text-red-500">*</span>
                 </label>
                 <input
-                  id="land-name"
+                  id="line-name"
                   type="text"
                   value={name}
                   onChange={(e) => {
                     setName(e.target.value)
                     if (isDuplicate) setIsDuplicate(false)
                   }}
-                  placeholder="Contoh: Produksi, HRD, Keuangan"
+                  placeholder="Contoh: Tandem, Blanking, PC200t"
                   className={`w-full px-4 py-2.5 border rounded-lg text-sm text-gray-900 outline-none transition
                     focus:ring-2 focus:border-transparent
                     ${isDuplicate
@@ -141,14 +141,14 @@ export function CreateLandDialog({ onCreateSuccess, onOpenChange }: CreateLandDi
 
               {/* Deskripsi */}
               <div className="space-y-1.5">
-                <label htmlFor="land-description" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="line-description" className="block text-sm font-medium text-gray-700">
                   Deskripsi <span className="text-gray-400">(opsional)</span>
                 </label>
                 <textarea
-                  id="land-description"
+                  id="line-description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Keterangan singkat tentang card ini..."
+                  placeholder="Keterangan singkat tentang line produksi ini..."
                   rows={3}
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-900 outline-none transition focus:ring-2 focus:ring-blue-200 focus:border-blue-500 resize-none"
                   disabled={isLoading}
@@ -177,7 +177,7 @@ export function CreateLandDialog({ onCreateSuccess, onOpenChange }: CreateLandDi
                       Membuat...
                     </>
                   ) : (
-                    'Buat Card'
+                    'Buat Line'
                   )}
                 </Button>
               </div>

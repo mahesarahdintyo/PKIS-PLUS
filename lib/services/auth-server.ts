@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 export interface UserProfile {
   user: any | null;
   role: "admin" | "operator" | "leader" | null;
-  landId: string | null;
+  lineId: string | null;
 }
 
 export async function getCurrentUserProfile(): Promise<UserProfile> {
@@ -14,12 +14,12 @@ export async function getCurrentUserProfile(): Promise<UserProfile> {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return { user: null, role: null, landId: null };
+      return { user: null, role: null, lineId: null };
     }
 
     const { data: profile, error } = await supabase
       .from("profiles")
-      .select("role, land_id")
+      .select("role, line_id")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -29,15 +29,15 @@ export async function getCurrentUserProfile(): Promise<UserProfile> {
 
     const rawRole = (profile?.role || user.user_metadata?.role || user.app_metadata?.role || null) as string | null;
     const cleanRole = rawRole ? (rawRole.trim().toLowerCase() as "admin" | "operator" | "leader") : null;
-    const landId = profile?.land_id ?? user.user_metadata?.land_id ?? null;
+    const lineId = profile?.line_id ?? user.user_metadata?.line_id ?? null;
 
     return {
       user,
       role: cleanRole,
-      landId,
+      lineId,
     };
   } catch (err) {
     console.error("Error fetching current user profile:", err);
-    return { user: null, role: null, landId: null };
+    return { user: null, role: null, lineId: null };
   }
 }

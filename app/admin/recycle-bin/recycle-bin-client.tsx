@@ -19,13 +19,13 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { getLands, type Land } from '@/lib/services/land'
+import { getLines, type Line } from '@/lib/services/line'
 import { getFolders, type Folder as FolderType } from '@/lib/services/folder'
 import { getDocuments, type Document as DocumentType } from '@/lib/services/document'
 import { getProductionReports, type ProductionReport } from '@/lib/services/production-report'
 
-type TrashTab = 'lands' | 'folders' | 'documents' | 'productionReports' | 'logProduksi' | 'masterData' | 'andon'
-type RestoreType = 'land' | 'folder' | 'document' | 'production_report'
+type TrashTab = 'lines' | 'folders' | 'documents' | 'productionReports' | 'logProduksi' | 'masterData' | 'andon'
+type RestoreType = 'line' | 'land' | 'folder' | 'document' | 'production_report'
   | 'attendance_log' | 'productivity_ref' | 'scrap' | 'safety_log'
   | 'production_log' | 'downtime_log' | 'dandori_log' | 'production_planning'
   | 'part_number' | 'nonproduksi_type' | 'downtime_problem' | 'andon_leader'
@@ -77,14 +77,14 @@ function getItemDisplayName(item: any): string {
 }
 
 export default function RecycleBinClient() {
-  const [activeTab, setActiveTab] = useState<TrashTab>('lands')
+  const [activeTab, setActiveTab] = useState<TrashTab>('lines')
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isActionLoading, setIsActionLoading] = useState(false)
   const [showEmptyConfirm, setShowEmptyConfirm] = useState(false)
   const [itemToDelete, setItemToDelete] = useState<{ type: RestoreType; id: string | number; name: string } | null>(null)
 
-  const [lands, setLands] = useState<Land[]>([])
+  const [lines, setLines] = useState<Line[]>([])
   const [folders, setFolders] = useState<FolderType[]>([])
   const [documents, setDocuments] = useState<DocumentType[]>([])
   const [productionReports, setProductionReports] = useState<ProductionReport[]>([])
@@ -95,8 +95,8 @@ export default function RecycleBinClient() {
   const loadData = async () => {
     try {
       setIsLoading(true)
-      const [landsData, foldersData, documentsData, productionReportsData, logData, masterData, andonData] = await Promise.all([
-        getLands({ trash: true, includeHidden: true }),
+      const [linesData, foldersData, documentsData, productionReportsData, logData, masterData, andonData] = await Promise.all([
+        getLines({ trash: true, includeHidden: true }),
         getFolders({ trash: true, includeAll: true }),
         getDocuments({ trash: true, includeHidden: true }),
         getProductionReports({ trash: true }),
@@ -105,7 +105,7 @@ export default function RecycleBinClient() {
         fetch('/api/admin/recycle-bin?group=andon').then(r => r.ok ? r.json() : []),
       ])
 
-      setLands(landsData)
+      setLines(linesData)
       setFolders(foldersData)
       setDocuments(documentsData)
       setProductionReports(productionReportsData)
@@ -174,7 +174,7 @@ export default function RecycleBinClient() {
       if (!response.ok) throw new Error(result.error ?? 'Gagal mengosongkan tempat sampah')
       const deleted = result.deleted
       const deletedCount = deleted
-        ? (deleted.lands ?? 0) + (deleted.folders ?? 0) + (deleted.documents ?? 0) + (deleted.productionReports ?? 0) + (deleted.prodLogs ?? 0)
+        ? (deleted.lines ?? deleted.lands ?? 0) + (deleted.folders ?? 0) + (deleted.documents ?? 0) + (deleted.productionReports ?? 0) + (deleted.prodLogs ?? 0)
         : null
       toast.success(
         deletedCount === null
@@ -190,10 +190,10 @@ export default function RecycleBinClient() {
     }
   }
 
-  const filteredLands = useMemo(() => {
+  const filteredLines = useMemo(() => {
     const q = searchQuery.toLowerCase()
-    return lands.filter(l => l.name.toLowerCase().includes(q) || (l.description || '').toLowerCase().includes(q))
-  }, [searchQuery, lands])
+    return lines.filter(l => l.name.toLowerCase().includes(q) || (l.description || '').toLowerCase().includes(q))
+  }, [searchQuery, lines])
 
   const filteredFolders = useMemo(() => {
     const q = searchQuery.toLowerCase()
@@ -215,7 +215,7 @@ export default function RecycleBinClient() {
       r.operator_name.toLowerCase().includes(q) ||
       r.part_number.toLowerCase().includes(q) ||
       r.shift.toLowerCase().includes(q) ||
-      (r.land?.name || '').toLowerCase().includes(q)
+      (r.line?.name || '').toLowerCase().includes(q)
     )
   }, [searchQuery, productionReports])
 
@@ -268,7 +268,7 @@ export default function RecycleBinClient() {
   }
 
   const tabs: Array<{ id: TrashTab; label: string; count: number; icon: typeof Layers }> = [
-    { id: 'lands', label: 'Cards', count: lands.length, icon: Layers },
+    { id: 'lines', label: 'Line Produksi', count: lines.length, icon: Layers },
     { id: 'folders', label: 'Folders', count: folders.length, icon: Folder },
     { id: 'documents', label: 'Dokumen', count: documents.length, icon: FileText },
     { id: 'productionReports', label: 'Laporan', count: productionReports.length, icon: ClipboardList },
@@ -277,7 +277,7 @@ export default function RecycleBinClient() {
     { id: 'andon', label: 'Andon Leader', count: andonItems.length, icon: Bell },
   ]
 
-  const totalItemsCount = lands.length + folders.length + documents.length + productionReports.length + logProduksiItems.length + masterDataItems.length + andonItems.length
+  const totalItemsCount = lines.length + folders.length + documents.length + productionReports.length + logProduksiItems.length + masterDataItems.length + andonItems.length
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-zinc-100 text-slate-900 font-sans pb-16">
@@ -328,7 +328,7 @@ export default function RecycleBinClient() {
         )}
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 mb-8">
-          <StatCard label="Cards" count={lands.length} icon={Layers} iconClassName="bg-blue-500/10 text-blue-500 border-blue-500/20" />
+          <StatCard label="Line Produksi" count={lines.length} icon={Layers} iconClassName="bg-blue-500/10 text-blue-500 border-blue-500/20" />
           <StatCard label="Folders" count={folders.length} icon={Folder} iconClassName="bg-emerald-500/10 text-emerald-500 border-emerald-500/20" />
           <StatCard label="Dokumen" count={documents.length} icon={FileText} iconClassName="bg-purple-500/10 text-purple-500 border-purple-500/20" />
           <StatCard label="Laporan" count={productionReports.length} icon={ClipboardList} iconClassName="bg-amber-500/10 text-amber-500 border-amber-500/20" />
@@ -386,22 +386,22 @@ export default function RecycleBinClient() {
               </div>
             ) : (
               <>
-                {/* Tab: Cards */}
-                {activeTab === 'lands' && (
+                {/* Tab: Line Produksi */}
+                {activeTab === 'lines' && (
                   <>
-                    {filteredLands.length === 0 ? (
-                      <EmptyState icon={Layers} message={searchQuery ? 'Pencarian tidak ditemukan' : 'Tidak ada card di tempat sampah'} />
+                    {filteredLines.length === 0 ? (
+                      <EmptyState icon={Layers} message={searchQuery ? 'Pencarian tidak ditemukan' : 'Tidak ada line produksi di tempat sampah'} />
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {filteredLands.map((land) => (
-                          <div key={land.id} className="p-5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between hover:border-slate-300 transition duration-200 group">
+                        {filteredLines.map((line) => (
+                          <div key={line.id} className="p-5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between hover:border-slate-300 transition duration-200 group">
                             <div className="min-w-0 pr-4">
-                              <h4 className="font-bold text-slate-800 truncate">{land.name}</h4>
-                              <p className="text-xs text-slate-400 truncate mt-1">{land.description || 'Tidak ada deskripsi'}</p>
+                              <h4 className="font-bold text-slate-800 truncate">{line.name}</h4>
+                              <p className="text-xs text-slate-400 truncate mt-1">{line.description || 'Tidak ada deskripsi'}</p>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                              <RestoreButton disabled={isActionLoading} onClick={() => handleRestore('land', land.id)} />
-                              <DeleteButton disabled={isActionLoading} onClick={() => setItemToDelete({ type: 'land', id: land.id, name: land.name })} />
+                              <RestoreButton disabled={isActionLoading} onClick={() => handleRestore('line', line.id)} />
+                              <DeleteButton disabled={isActionLoading} onClick={() => setItemToDelete({ type: 'line', id: line.id, name: line.name })} />
                             </div>
                           </div>
                         ))}
@@ -515,7 +515,7 @@ export default function RecycleBinClient() {
                             {filteredProductionReports.map((report) => (
                               <tr key={report.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors text-sm">
                                 <td className="py-3 px-2 font-semibold text-slate-800">{formatDate(report.report_date)}</td>
-                                <td className="py-3 px-2 text-slate-600">{report.land?.name ?? '-'}</td>
+                                <td className="py-3 px-2 text-slate-600">{report.line?.name ?? '-'}</td>
                                 <td className="py-3 px-2 text-slate-600">{report.operator_name}</td>
                                 <td className="py-3 px-2 text-slate-500">{report.shift}</td>
                                 <td className="py-3 px-2 text-slate-500">{report.part_number}</td>

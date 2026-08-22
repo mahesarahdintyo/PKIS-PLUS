@@ -12,7 +12,7 @@ const MAX_FILE_COUNT = 5
 
 interface UploadDialogProps {
   folderId: number | null
-  landId: string
+  lineId: string
   onUploadSuccess?: () => void
   onOpenChange?: (open: boolean) => void
 }
@@ -48,7 +48,7 @@ function isAllowedFile(file: File) {
 
 export function UploadDialog({
   folderId,
-  landId,
+  lineId,
   onUploadSuccess,
   onOpenChange
 }: UploadDialogProps) {
@@ -188,7 +188,9 @@ export function UploadDialog({
         formData.append('file', fileToUpload)
         formData.append('title', fileTitle)
         formData.append('description', description)
-        formData.append('landId', landId)
+        if (lineId) {
+          formData.append('lineId', lineId)
+        }
         if (targetDate && isValidTargetClock) {
           formData.append('targetTime', new Date(`${targetDate}T${targetClock}`).toISOString())
         }
