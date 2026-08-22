@@ -16,7 +16,6 @@ import { AdminLandCard } from '@/components/admin/AdminLandCard'
 import { LogoutButton } from '@/components/ui/logout-button'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { getLands, type Land } from '@/lib/services/land'
-import ProductionReportsDashboard from '@/components/admin/ProductionReportsDashboard'
 import AdminPartNumbersPanel from '@/components/admin/AdminPartNumbersPanel'
 import AdminNgCategoriesPanel from '@/components/admin/AdminNgCategoriesPanel'
 
@@ -96,13 +95,12 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
   const [folderPathHistory, setFolderPathHistory] = useState<BreadcrumbItem[]>([])
   const [isLoading, setIsLoading] = useState(initialLands.length === 0)
   const [error, setError] = useState('')
-  const [activeView, setActiveView] = useState<'workspace' | 'reports' | 'part-numbers' | 'ng-categories'>('workspace')
+  const [activeView, setActiveView] = useState<'workspace' | 'part-numbers' | 'ng-categories'>('workspace')
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(false)
   const [isAnyDialogOpen, setIsAnyDialogOpen] = useState(false)
   const pageTitle = {
     workspace: 'Workspace',
-    reports: 'Laporan Produksi',
     'part-numbers': 'Part Number',
     'ng-categories': 'Kategori NG',
   }[activeView]
@@ -425,7 +423,7 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
               </div>
               <div className="pt-2">
                 <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Monitoring Produksi</p>
-                <SidebarButton icon={FileText} label="Laporan Produksi" active={activeView === 'reports'} onClick={() => selectView('reports')} />
+                <SidebarLink href="/admin/laporan-produksi" icon={FileText} label="Laporan Produksi" />
                 <SidebarLink href="/admin/master-data" icon={Database} label="Master Data Produksi" />
                 <SidebarLink href="/admin/downtime-log" icon={History} label="Downtime Log" />
               </div>
@@ -468,7 +466,7 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
           </div>
           <div className="pt-2">
             <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Monitoring Produksi</p>
-            <SidebarButton icon={FileText} label="Laporan Produksi" active={activeView === 'reports'} onClick={() => selectView('reports')} />
+            <SidebarLink href="/admin/laporan-produksi" icon={FileText} label="Laporan Produksi" />
             <SidebarLink href="/admin/master-data" icon={Database} label="Master Data Produksi" />
             <SidebarLink href="/admin/downtime-log" icon={History} label="Downtime Log" />
           </div>
@@ -494,9 +492,7 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
           </div>
         </header>
         <main className="flex-1 mx-auto w-full max-w-6xl px-3 py-4 sm:px-6 sm:py-8 lg:px-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-          {activeView === 'reports' ? (
-            <ProductionReportsDashboard />
-          ) : activeView === 'part-numbers' ? (
+          {activeView === 'part-numbers' ? (
             <AdminPartNumbersPanel />
           ) : activeView === 'ng-categories' ? (
             <AdminNgCategoriesPanel />
