@@ -92,7 +92,7 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
           </h1>
         </div>
 
-        <div>
+        <div className="space-y-6">
           <Card className="dash-panel card-glow-info">
             <p className="dash-panel-title">Catat Insiden</p>
             <p className="hint" style={{ marginBottom: 12 }}>
@@ -178,7 +178,7 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
 
   return (
     <div className="app-shell">
-      <main className="main">
+      <main className="main max-w-6xl mx-auto w-full">
         {/* Tombol Kembali ke Admin */}
         <Link
           href="/admin"
@@ -195,7 +195,7 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
           </h1>
         </div>
 
-        <div>
+        <div className="space-y-6">
           <Card className="dash-panel card-glow-info">
             <p className="dash-panel-title">Catat Insiden</p>
             <p className="hint" style={{ marginBottom: 12 }}>

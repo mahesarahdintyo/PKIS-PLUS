@@ -98,7 +98,7 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
       )}
 
       {isLeaderOrAdmin && (
-        <div>
+        <div className="space-y-6">
           <Card className="dash-panel card-glow-info">
             <p className="dash-panel-title">1. Aktifkan Notifikasi di HP ini</p>
             <p className="hint" style={{ marginBottom: 14 }}>
@@ -276,7 +276,7 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
 
   return (
     <div className="app-shell">
-      <main className="main">
+      <main className="main max-w-6xl mx-auto w-full">
         {/* Tombol Kembali ke Admin */}
         <Link
           href="/admin"

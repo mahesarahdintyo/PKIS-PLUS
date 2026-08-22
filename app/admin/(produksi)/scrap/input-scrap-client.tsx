@@ -111,7 +111,7 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
         </h1>
       </div>
 
-      <div>
+      <div className="space-y-6">
         <Card className="dash-panel card-glow-info">
           <p className="dash-panel-title">
             {editId ? "Edit Scrap" : "Form Scrap Top End"}
@@ -218,7 +218,7 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
 
   return (
     <div className="app-shell">
-      <main className="main">
+      <main className="main max-w-6xl mx-auto w-full">
         {/* Tombol Kembali ke Admin */}
         <Link
           href="/admin"
