@@ -104,7 +104,7 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
         Kalau tanggal tertentu <b>tidak diisi</b> di sini, sistem otomatis pakai rumus (Massprod + Semi + Non) seperti biasa.
       </p>
 
-      <div>
+      <div className="space-y-6">
         <Card className="dash-panel card-glow-info">
           <p className="dash-panel-title">Isi / Ubah Earned Hours</p>
           <div className="form-grid">
@@ -187,7 +187,7 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
 
   return (
     <div className="app-shell">
-      <main className="main">
+      <main className="main max-w-6xl mx-auto w-full">
         {/* Tombol Kembali ke Admin */}
         <Link
           href="/admin"

@@ -101,7 +101,7 @@ export default function InputAttendanceClient({ userId, embedded }: Props) {
   };
 
   const innerContent = (
-    <div>
+    <div className="space-y-6">
       <Card className="dash-panel card-glow-info">
         <p className="dash-panel-title">
           {editId ? "Edit Absensi" : "Form Absensi"}
@@ -218,7 +218,7 @@ export default function InputAttendanceClient({ userId, embedded }: Props) {
 
   return (
     <div className="app-shell">
-      <main className="main">
+      <main className="main max-w-6xl mx-auto w-full">
         {/* Tombol Kembali ke Admin */}
         <Link
           href="/admin"
