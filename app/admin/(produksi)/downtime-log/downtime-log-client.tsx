@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { ArrowLeft, Clock, Filter, RefreshCw, AlertTriangle, Activity } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { toast } from "sonner";
 import "@/app/admin/(produksi)/produksi.css";
+
+const PAGE_SIZE = 1000;
 
 const MACHINES = [
   { key: "all", label: "Semua Mesin" },
@@ -45,7 +47,7 @@ function formatDate(iso?: string | null): string {
 }
 
 function formatTime(iso?: string | null): string {
-  if (!iso) return "-";
+  if (!iso) return "--:--";
   return new Date(iso).toLocaleTimeString("id-ID", {
     hour: "2-digit",
     minute: "2-digit",
@@ -53,7 +55,7 @@ function formatTime(iso?: string | null): string {
 }
 
 export default function DowntimeLogClient() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const sevenDaysAgo = useMemo(() => {
@@ -68,16 +70,31 @@ export default function DowntimeLogClient() {
   const [filterKategori, setFilterKategori] = useState<string>("all");
 
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadingMore, setLoadingMore] = useState<boolean>(false);
+  const [page, setPage] = useState<number>(0);
+  const [hasMore, setHasMore] = useState<boolean>(true);
   const [downtimeRows, setDowntimeRows] = useState<any[]>([]);
 
-  const fetchDowntime = useCallback(async () => {
-    setLoading(true);
+  const channelNameRef = useRef<string>(
+    "downtime_log_watch_" + Math.random().toString(36).slice(2)
+  );
+
+  const fetchDowntime = useCallback(async (targetPage = 0) => {
+    if (targetPage > 0) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
+
     try {
+      const from = targetPage * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
       let q = supabase
         .from("prod_downtime_log" as any)
         .select("*")
         .order("waktu_awal", { ascending: false })
-        .limit(1000);
+        .range(from, to);
 
       if (filterMesin !== "all") {
         q = q.eq("mesin", filterMesin);
@@ -113,18 +130,46 @@ export default function DowntimeLogClient() {
         };
       });
 
-      setDowntimeRows(rows);
+      if (targetPage === 0) {
+        setDowntimeRows(rows);
+      } else {
+        setDowntimeRows((prev) => [...prev, ...rows]);
+      }
+      setHasMore((data?.length ?? 0) === PAGE_SIZE);
+      setPage(targetPage);
     } catch (err: any) {
       console.error("Downtime fetch error:", err?.message || err);
       toast.error("Gagal memuat log downtime: " + (err?.message || ""));
     } finally {
-      setLoading(false);
+      if (targetPage > 0) {
+        setLoadingMore(false);
+      } else {
+        setLoading(false);
+      }
     }
   }, [filterMesin, filterKategori, filterTanggalDari, filterTanggalSampai, supabase]);
 
   useEffect(() => {
-    fetchDowntime();
+    fetchDowntime(0);
   }, [fetchDowntime]);
+
+  // Supabase Realtime subscription
+  useEffect(() => {
+    const channel = supabase
+      .channel(channelNameRef.current)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "prod_downtime_log" },
+        () => {
+          fetchDowntime(0);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchDowntime, supabase]);
 
   const resetFilters = () => {
     setFilterMesin("all");
@@ -133,7 +178,6 @@ export default function DowntimeLogClient() {
     setFilterKategori("all");
   };
 
-  // Summary Metrics
   const totalKejadian = downtimeRows.length;
   const totalDurasiMenit = useMemo(() => {
     return downtimeRows.reduce((acc, row) => acc + (Number(row.durasi_menit) || 0), 0);
@@ -143,7 +187,6 @@ export default function DowntimeLogClient() {
   return (
     <div className="app-shell machine-hub-container">
       <main className="main max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
-        {/* Tombol Kembali ke Admin */}
         <div>
           <Link
             href="/admin"
@@ -154,14 +197,17 @@ export default function DowntimeLogClient() {
           </Link>
         </div>
 
-        {/* Page Header */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="page-header mb-0">
-            <h1 className="page-title text-2xl font-bold font-display">
+            <h1 className="page-title text-2xl font-bold font-display flex items-center gap-3">
               <span className="eyebrow block text-xs font-semibold text-rose-500 uppercase tracking-wider mb-0.5">
                 Monitoring Produksi
               </span>
-              Downtime Log Konsolidasi
+              <span>Downtime Log Konsolidasi</span>
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-semibold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Live
+              </span>
             </h1>
             <p className="text-xs text-muted-foreground mt-1">
               Pantau riwayat downtime seluruh mesin produksi secara real-time lintas lini.
@@ -171,7 +217,7 @@ export default function DowntimeLogClient() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={fetchDowntime}
+              onClick={() => fetchDowntime(0)}
               disabled={loading}
               className="inline-flex items-center gap-2 min-h-[40px] px-3.5 py-2 text-xs font-bold rounded-xl border border-border bg-card text-foreground hover:bg-muted active:scale-95 transition-all cursor-pointer touch-manipulation"
             >
@@ -402,6 +448,19 @@ export default function DowntimeLogClient() {
               </tbody>
             </table>
           </div>
+          {hasMore && (
+            <div className="p-3 border-t border-border text-center">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={loadingMore}
+                onClick={() => fetchDowntime(page + 1)}
+              >
+                {loadingMore ? "Memuat..." : "Muat Lebih Banyak"}
+              </Button>
+            </div>
+          )}
         </Card>
       </main>
     </div>

@@ -22,10 +22,15 @@ const BULAN_OPTIONS = [
   "Juli","Agustus","September","Oktober","November","Desember"
 ];
 
+const PAGE_SIZE = 36;
+
 export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
   const supabase = createClient();
   const [rows, setRows] = useState<ProdScrapRecord[]>([]);
   const [editId, setEditId] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const now = new Date();
   const [form, setForm] = useState<ProdScrapRecord>({
@@ -41,18 +46,30 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
     else toast.success(m);
   };
 
-  const fetchRows = async () => {
+  const fetchRows = async (targetPage = 0) => {
+    if (targetPage > 0) setLoadingMore(true);
+    const from = targetPage * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
     const res = await supabase
       .from("prod_scrap_top_end")
       .select("*")
       .order("tahun", { ascending: false })
       .order("bulan", { ascending: false })
-      .limit(36);
-    if (res.data) setRows(res.data);
+      .range(from, to);
+    if (res.data) {
+      if (targetPage === 0) {
+        setRows(res.data);
+      } else {
+        setRows((prev) => [...prev, ...(res.data || [])]);
+      }
+      setHasMore((res.data?.length ?? 0) === PAGE_SIZE);
+    }
+    setPage(targetPage);
+    if (targetPage > 0) setLoadingMore(false);
   };
 
   useEffect(() => {
-    fetchRows();
+    fetchRows(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -74,7 +91,7 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
       flash(editId ? "Data scrap diperbarui!" : "Scrap berhasil disimpan!");
       setEditId(null);
       setForm({ tahun: now.getFullYear(), bulan: now.getMonth() + 1, scrap_value_kidr: 0, total_value_kidr: 0, target_rasio: 0.0046 });
-      fetchRows();
+      fetchRows(0);
     } catch (err: any) {
       if (isNetworkError(err)) {
         enqueueOffline("prod_scrap_top_end", payload);
@@ -99,7 +116,7 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
   const hapus = async (id: string) => {
     if (!confirm("Hapus data scrap ini?")) return;
     await supabase.from("prod_scrap_top_end").delete().eq("id", id);
-    fetchRows();
+    fetchRows(0);
   };
 
   const content = (
@@ -207,6 +224,19 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
               </tbody>
             </table>
           </div>
+          {hasMore && (
+            <div className="mt-3 text-center">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={loadingMore}
+                onClick={() => fetchRows(page + 1)}
+              >
+                {loadingMore ? "Memuat..." : "Muat Lebih Banyak"}
+              </Button>
+            </div>
+          )}
         </Card>
       </div>
     </>
