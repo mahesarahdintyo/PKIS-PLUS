@@ -44,7 +44,7 @@ export function AppHeader({ children, logoAside, disableLogoLink = false }: AppH
           </div>
 
           {children && (
-            <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-2">
+            <div className="w-full sm:w-auto flex flex-col sm:flex-row items-start gap-2">
               {children}
             </div>
           )}
