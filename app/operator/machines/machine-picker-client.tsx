@@ -1,25 +1,50 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppHeader } from "@/components/ui/app-header";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LogoutButton } from "@/components/ui/logout-button";
+import { createClient } from "@/lib/supabase/client";
+import type { Line } from "@/lib/services/line";
+import { Loader2, AlertCircle } from "lucide-react";
 import "@/app/admin/(produksi)/produksi.css";
-
-const MACHINE_CARDS = [
-  { slug: "tandem", label: "Tandem", hint: "PA-1 s/d PA-10", icon: "⚙️" },
-  { slug: "blanking", label: "Blanking", hint: "Blanking 500t", icon: "⚙️" },
-  { slug: "transfer-2000t", label: "Transfer 2000t", hint: "PT-1", icon: "⚙️" },
-  { slug: "transfer-800t", label: "Transfer 800t", hint: "PT-2", icon: "⚙️" },
-  { slug: "pc200t", label: "PC200t", hint: "PC-1, PC-2", icon: "⚙️" },
-];
 
 export default function MachinePickerClient() {
   const router = useRouter();
+  const [lines, setLines] = useState<Line[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const handleSelectMachine = (slug: string) => {
-    router.push(`/operator/machines/${slug}`);
+  useEffect(() => {
+    async function fetchLines() {
+      try {
+        setLoading(true);
+        const supabase = createClient();
+        const { data, error: fetchError } = await supabase
+          .from("lines")
+          .select("*")
+          .eq("is_active", true)
+          .eq("hidden_from_operator", false)
+          .order("name");
+
+        if (fetchError) {
+          throw new Error(fetchError.message);
+        }
+
+        setLines((data as Line[]) ?? []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Gagal memuat daftar line produksi");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchLines();
+  }, []);
+
+  const handleSelectLine = (lineId: string) => {
+    router.push(`/operator/machines/${lineId}`);
   };
 
   return (
@@ -54,22 +79,41 @@ export default function MachinePickerClient() {
           </p>
         </div>
 
-        <div className="machine-cards-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
-          {MACHINE_CARDS.map((m) => (
-            <button
-              key={m.slug}
-              type="button"
-              onClick={() => handleSelectMachine(m.slug)}
-              className="machine-card card-glow-info text-left cursor-pointer w-full min-h-[90px] sm:min-h-[100px] p-4 sm:p-5 rounded-xl sm:rounded-2xl transition-all duration-200 active:scale-[0.98] touch-manipulation"
-            >
-              <div className="machine-card-top flex items-center justify-between gap-2 mb-2">
-                <span className="machine-card-name text-base sm:text-lg font-bold">{m.label}</span>
-                <span className="text-2xl sm:text-3xl shrink-0">{m.icon}</span>
-              </div>
-              <div className="hint text-xs sm:text-sm text-muted-foreground">{m.hint}</div>
-            </button>
-          ))}
-        </div>
+        {loading ? (
+          <div className="flex flex-col items-center justify-center min-h-[200px] gap-3 text-muted-foreground">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <p className="text-sm">Memuat daftar line produksi...</p>
+          </div>
+        ) : error ? (
+          <div className="flex items-center gap-3 p-4 rounded-xl border border-destructive/30 bg-destructive/10 text-destructive text-sm">
+            <AlertCircle className="w-5 h-5 shrink-0" />
+            <span>{error}</span>
+          </div>
+        ) : lines.length === 0 ? (
+          <div className="text-center py-12 border border-dashed rounded-xl p-6 text-muted-foreground">
+            <p className="text-base font-semibold">Tidak ada line produksi yang aktif</p>
+            <p className="text-xs mt-1">Hubungi admin untuk mengaktifkan line produksi.</p>
+          </div>
+        ) : (
+          <div className="machine-cards-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+            {lines.map((line) => (
+              <button
+                key={line.id}
+                type="button"
+                onClick={() => handleSelectLine(line.id)}
+                className="machine-card card-glow-info text-left cursor-pointer w-full min-h-[90px] sm:min-h-[100px] p-4 sm:p-5 rounded-xl sm:rounded-2xl transition-all duration-200 active:scale-[0.98] touch-manipulation"
+              >
+                <div className="machine-card-top flex items-center justify-between gap-2 mb-2">
+                  <span className="machine-card-name text-base sm:text-lg font-bold">{line.name}</span>
+                  <span className="text-2xl sm:text-3xl shrink-0">⚙️</span>
+                </div>
+                <div className="hint text-xs sm:text-sm text-muted-foreground">
+                  {line.description || "Line Produksi"}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </main>
   );

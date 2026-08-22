@@ -146,13 +146,24 @@ function ManpowerChips({
   );
 }
 
-interface MachineDetailClientProps {
-  machineSlug: string;
+function getSlugFromName(name: string): string {
+  const lower = name.toLowerCase();
+  if (lower.includes("blanking")) return "blanking";
+  if (lower.includes("pc200") || lower.includes("pc 200")) return "pc200t";
+  if (lower.includes("2000") || lower.includes("transfer 2000") || lower.includes("transfer-2000")) return "transfer-2000t";
+  if (lower.includes("800") || lower.includes("transfer 800") || lower.includes("transfer-800")) return "transfer-800t";
+  return "tandem";
 }
 
-export default function MachineDetailClient({ machineSlug }: MachineDetailClientProps) {
+interface MachineDetailClientProps {
+  lineId?: string;
+  lineName?: string;
+  machineSlug?: string;
+}
+
+export default function MachineDetailClient({ lineId, lineName, machineSlug }: MachineDetailClientProps) {
   const supabase = createClient();
-  const slug = machineSlug || "tandem";
+  const slug = machineSlug || (lineName ? getSlugFromName(lineName) : "tandem");
   const config = MACHINE_CONFIGS[slug] || MACHINE_CONFIGS["tandem"];
 
   const [activeTab, setActiveTab] = useState<"produksi" | "riwayat" | "performance" | "downtime" | "master_data">("produksi");
@@ -339,11 +350,13 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
     setLoading(true);
     try {
       // 1. Mesin Settings
-      const { data: settingsData } = await supabase
-        .from("prod_mesin_settings" as any)
-        .select("*")
-        .eq("mesin", config.key)
-        .maybeSingle();
+      let settingsQuery = supabase.from("prod_mesin_settings" as any).select("*");
+      if (lineId) {
+        settingsQuery = settingsQuery.eq("line_id", lineId);
+      } else {
+        settingsQuery = settingsQuery.eq("mesin", config.key);
+      }
+      const { data: settingsData } = await settingsQuery.maybeSingle();
 
       if (settingsData) {
         setMesinSettings({
@@ -385,23 +398,23 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
       }
 
       // 3. Production Log
-      const { data: pRows } = await supabase
-        .from("prod_production_log" as any)
-        .select("*")
-        .eq("mesin", config.key)
-        .eq("is_active", true)
-        .order("waktu_awal", { ascending: false })
-        .limit(500);
+      let pRowsQuery = supabase.from("prod_production_log" as any).select("*").eq("is_active", true);
+      if (lineId) {
+        pRowsQuery = pRowsQuery.eq("line_id", lineId);
+      } else {
+        pRowsQuery = pRowsQuery.eq("mesin", config.key);
+      }
+      const { data: pRows } = await pRowsQuery.order("waktu_awal", { ascending: false }).limit(500);
       if (pRows) setProductionRows(pRows as ProdProductionLogRow[]);
 
       // 4. Downtime Log
-      const { data: dt } = await supabase
-        .from("prod_downtime_log" as any)
-        .select("*")
-        .eq("mesin", config.key)
-        .eq("is_active", true)
-        .order("waktu_awal", { ascending: false })
-        .limit(500);
+      let dtQuery = supabase.from("prod_downtime_log" as any).select("*").eq("is_active", true);
+      if (lineId) {
+        dtQuery = dtQuery.eq("line_id", lineId);
+      } else {
+        dtQuery = dtQuery.eq("mesin", config.key);
+      }
+      const { data: dt } = await dtQuery.order("waktu_awal", { ascending: false }).limit(500);
       if (dt) setDowntimeList(dt as ProdDowntimeLogRow[]);
 
       // 5. Downtime Problems Master
@@ -414,13 +427,13 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
       if (probs) setProblemList(probs as ProdDowntimeProblem[]);
 
       // 6. Dandori / Non-Produksi Log
-      const { data: dRows } = await supabase
-        .from("prod_dandori_log" as any)
-        .select("*")
-        .eq("mesin", config.key)
-        .eq("is_active", true)
-        .order("waktu_awal", { ascending: false })
-        .limit(500);
+      let dRowsQuery = supabase.from("prod_dandori_log" as any).select("*").eq("is_active", true);
+      if (lineId) {
+        dRowsQuery = dRowsQuery.eq("line_id", lineId);
+      } else {
+        dRowsQuery = dRowsQuery.eq("mesin", config.key);
+      }
+      const { data: dRows } = await dRowsQuery.order("waktu_awal", { ascending: false }).limit(500);
       if (dRows) setNonProduksiRows(dRows as ProdDandoriLogRow[]);
 
       // 7. Non-Produksi Types
@@ -433,19 +446,20 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
       if (npTypes) setNonProduksiTypes(npTypes as ProdNonProduksiType[]);
 
       // 8. Production Planning
-      const { data: planData } = await supabase
-        .from("prod_production_planning" as any)
-        .select("*")
-        .eq("mesin", config.key)
-        .eq("is_active", true)
-        .order("jam_rencana_mulai", { ascending: true });
+      let planQuery = supabase.from("prod_production_planning" as any).select("*").eq("is_active", true);
+      if (lineId) {
+        planQuery = planQuery.eq("line_id", lineId);
+      } else {
+        planQuery = planQuery.eq("mesin", config.key);
+      }
+      const { data: planData } = await planQuery.order("jam_rencana_mulai", { ascending: true });
       if (planData) setPlanningList(planData as ProdProductionPlanning[]);
     } catch (err: any) {
       console.error("Machine load error:", err?.message || err?.details || JSON.stringify(err) || err);
     } finally {
       setLoading(false);
     }
-  }, [config.key]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [config.key, lineId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     loadData();
@@ -459,12 +473,22 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
 
   const fetchGabunganRange = useCallback(
     async (waktuDari: string | null, waktuSampai: string | null, partNumberFilter: string) => {
-      let productionQuery = supabase.from("prod_production_log" as any).select("*").eq("mesin", config.key).eq("is_active", true);
+      let productionQuery = supabase.from("prod_production_log" as any).select("*").eq("is_active", true);
+      if (lineId) {
+        productionQuery = productionQuery.eq("line_id", lineId);
+      } else {
+        productionQuery = productionQuery.eq("mesin", config.key);
+      }
       if (waktuDari) productionQuery = productionQuery.gte("waktu_awal", waktuDari);
       if (waktuSampai) productionQuery = productionQuery.lte("waktu_awal", waktuSampai);
       if (partNumberFilter) productionQuery = productionQuery.eq("part_number", partNumberFilter);
 
-      let nonProduksiQuery = supabase.from("prod_dandori_log" as any).select("*").eq("mesin", config.key).eq("is_active", true);
+      let nonProduksiQuery = supabase.from("prod_dandori_log" as any).select("*").eq("is_active", true);
+      if (lineId) {
+        nonProduksiQuery = nonProduksiQuery.eq("line_id", lineId);
+      } else {
+        nonProduksiQuery = nonProduksiQuery.eq("mesin", config.key);
+      }
       if (waktuDari) nonProduksiQuery = nonProduksiQuery.gte("waktu_awal", waktuDari);
       if (waktuSampai) nonProduksiQuery = nonProduksiQuery.lte("waktu_awal", waktuSampai);
       if (partNumberFilter) nonProduksiQuery = nonProduksiQuery.or(`part_dari.eq.${partNumberFilter},part_ke.eq.${partNumberFilter}`);
@@ -480,7 +504,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
 
       return gabungan;
     },
-    [config.key] // eslint-disable-line react-hooks/exhaustive-deps
+    [config.key, lineId] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const fetchRiwayatGabungan = useCallback(async () => {
@@ -625,6 +649,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
   const handleCommitProduction = useCallback(
     async (stId: string, stationDbId: string | null, payload: CommitPayload) => {
       const row = {
+        line_id: lineId || null,
         mesin: payload.mesin,
         stasiun: stationDbId,
         waktu_awal: payload.waktu_awal,
@@ -666,7 +691,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
         }
       }
     },
-    [loadData, fetchRiwayatHariIniData, refreshPendingCount] // eslint-disable-line react-hooks/exhaustive-deps
+    [loadData, fetchRiwayatHariIniData, refreshPendingCount, lineId] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const handleUpdateProduction = useCallback(
@@ -687,11 +712,13 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
   const handleSaveNonProduksiRow = useCallback(
     async (stId: string, stationDbId: string | null, payload: NonProdPayload) => {
       const row = {
+        line_id: lineId || null,
         mesin: payload.mesin,
         stasiun: stationDbId,
         waktu_awal: payload.waktu_awal,
         waktu_akhir: payload.waktu_akhir,
         kategori: payload.kategori,
+        part_dari: (payload as any).part_dari ?? null,
         part_ke: payload.part_ke,
         keterangan: payload.keterangan,
       };
@@ -714,7 +741,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
         }
       }
     },
-    [loadData, fetchRiwayatHariIniData, refreshPendingCount] // eslint-disable-line react-hooks/exhaustive-deps
+    [loadData, fetchRiwayatHariIniData, refreshPendingCount, lineId] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const linesHook = useProductionLines(activeStationIds, {
@@ -742,6 +769,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const payload = {
+        line_id: lineId || null,
         mesin: config.key,
         stasiun: dbStasiun(stId),
         part_number: form.part_number,
@@ -782,6 +810,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const payload = {
+        line_id: lineId || null,
         mesin: config.key,
         gsph_target_mode: mesinSettingsDraft.gsph_target_mode,
         gsph_target_fixed: Number(mesinSettingsDraft.gsph_target_fixed) || 0,
@@ -1409,6 +1438,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
     e.preventDefault();
     const f = dtForm;
     const payload = {
+      line_id: lineId || null,
       mesin: config.key,
       waktu_awal: dtStart,
       waktu_akhir: dtEnd,

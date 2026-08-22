@@ -56,7 +56,9 @@ function readOperatorLocation(): OperatorLocationState | null {
 }
 
 interface OperatorPageProps {
-  machineSlug: string;
+  lineId?: string;
+  selectedLineName?: string;
+  machineSlug?: string;
   userRole?: string;
   userLineId?: string | null;
   userLandId?: string | null;
@@ -67,7 +69,9 @@ interface OperatorPageProps {
 }
 
 export default function OperatorPage({
-  machineSlug,
+  lineId,
+  selectedLineName,
+  machineSlug = "tandem",
   userRole = "operator",
   userLineId,
   userLandId,
@@ -80,7 +84,11 @@ export default function OperatorPage({
   const activeInitialLines = initialLines.length > 0 ? initialLines : initialLands;
 
   const isOperator = userRole === "operator";
-  const defaultLine = isOperator && activeUserLineId
+  const defaultLine = lineId
+    ? activeInitialLines.find(
+        (l) => String(l.id).trim().toLowerCase() === String(lineId).trim().toLowerCase()
+      ) ?? activeInitialLines[0] ?? null
+    : isOperator && activeUserLineId
     ? activeInitialLines.find(
         (l) => String(l.id).trim().toLowerCase() === String(activeUserLineId).trim().toLowerCase()
       ) ?? activeInitialLines[0] ?? null
@@ -503,7 +511,11 @@ export default function OperatorPage({
 
         {activeTab === "machine" && (
           <div className="space-y-6">
-            <MachineDetailClient machineSlug={machineSlug} />
+            <MachineDetailClient
+              lineId={selectedLine?.id ?? lineId}
+              lineName={selectedLine?.name ?? selectedLineName}
+              machineSlug={machineSlug}
+            />
           </div>
         )}
       </div>
