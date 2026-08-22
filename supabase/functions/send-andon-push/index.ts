@@ -9,6 +9,7 @@
 // hooks/produksi/useAndon.ts (satu pasang, tidak boleh beda).
 // SUPABASE_URL & SUPABASE_SERVICE_ROLE_KEY sudah otomatis tersedia bawaan.
 
+/// <reference path="../deno.d.ts" />
 import webpush from "npm:web-push@3.6.7";
 
 const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY")!;
@@ -31,7 +32,7 @@ function sbHeaders() {
   return { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` };
 }
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: CORS_HEADERS });
   }
