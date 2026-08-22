@@ -4,26 +4,26 @@ import { useState, useEffect, useRef } from 'react'
 import { Eye, EyeOff, Folder, Loader2, MoreVertical, Pencil, Trash2, X, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import type { Land } from '@/lib/services/land'
+import type { Line } from '@/lib/services/line'
 
-interface AdminLandCardProps {
-  land: Land
-  onEnter: (land: Land) => void
+interface AdminLineCardProps {
+  line: Line
+  onEnter: (line: Line) => void
   onChangeSuccess?: () => void
 }
 
-export function AdminLandCard({
-  land,
+export function AdminLineCard({
+  line,
   onEnter,
   onChangeSuccess,
-}: AdminLandCardProps) {
+}: AdminLineCardProps) {
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isEditClosing, setIsEditClosing] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const [isDeleteClosing, setIsDeleteClosing] = useState(false)
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false)
   const [isActionMenuClosing, setIsActionMenuClosing] = useState(false)
-  const [name, setName] = useState(land.name)
+  const [name, setName] = useState(line.name)
   const menuRef = useRef<HTMLDivElement>(null)
 
   const closeDeleteModal = () => {
@@ -77,17 +77,17 @@ export function AdminLandCard({
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [isActionMenuOpen, isActionMenuClosing])
-  const [description, setDescription] = useState(land.description ?? '')
+  const [description, setDescription] = useState(line.description ?? '')
   const [isSaving, setIsSaving] = useState(false)
   const [isSavingVisibility, setIsSavingVisibility] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [error, setError] = useState('')
   const [isDuplicateName, setIsDuplicateName] = useState(false)
-  const isHiddenFromOperator = Boolean(land.hidden_from_operator)
+  const isHiddenFromOperator = Boolean(line.hidden_from_operator)
 
   const resetEditForm = () => {
-    setName(land.name)
-    setDescription(land.description ?? '')
+    setName(line.name)
+    setDescription(line.description ?? '')
     setError('')
     setIsDuplicateName(false)
   }
@@ -103,7 +103,7 @@ export function AdminLandCard({
     setError('')
 
     if (!name.trim()) {
-      setError('Nama card tidak boleh kosong')
+      setError('Nama line produksi tidak boleh kosong')
       return
     }
 
@@ -112,11 +112,11 @@ export function AdminLandCard({
       setIsDuplicateName(false)
       setError('')
 
-      const response = await fetch('/api/lands', {
+      const response = await fetch('/api/lines', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: land.id,
+          id: line.id,
           name: name.trim(),
           description: description.trim() || null,
         }),
@@ -124,7 +124,7 @@ export function AdminLandCard({
 
       if (!response.ok) {
         const data = await response.json().catch(() => null)
-        const message = data?.error || 'Gagal mengubah card'
+        const message = data?.error || 'Gagal mengubah line produksi'
         if (response.status === 409) {
           setIsDuplicateName(true)
         } else {
@@ -134,11 +134,11 @@ export function AdminLandCard({
         return
       }
 
-      toast.success(`Card "${name.trim()}" berhasil diperbarui!`)
+      toast.success(`Line produksi "${name.trim()}" berhasil diperbarui!`)
       setIsEditOpen(false)
       onChangeSuccess?.()
     } catch {
-      const msg = 'Gagal mengubah card. Periksa koneksi internet Anda.'
+      const msg = 'Gagal mengubah line produksi. Periksa koneksi internet Anda.'
       setError(msg)
       toast.error(msg)
     } finally {
@@ -155,20 +155,20 @@ export function AdminLandCard({
     try {
       setIsDeleting(true)
 
-      const response = await fetch(`/api/lands?id=${encodeURIComponent(land.id)}`, {
+      const response = await fetch(`/api/lines?id=${encodeURIComponent(line.id)}`, {
         method: 'DELETE',
       })
 
       if (!response.ok) {
         const data = await response.json().catch(() => null)
-        throw new Error(data?.error || 'Gagal menghapus card')
+        throw new Error(data?.error || 'Gagal menghapus line produksi')
       }
 
-      toast.success(`Card "${land.name}" berhasil dihapus.`)
+      toast.success(`Line produksi "${line.name}" berhasil dihapus.`)
       setIsDeleteOpen(false)
       onChangeSuccess?.()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Gagal menghapus card')
+      toast.error(err instanceof Error ? err.message : 'Gagal menghapus line produksi')
     } finally {
       setIsDeleting(false)
     }
@@ -180,28 +180,28 @@ export function AdminLandCard({
     try {
       setIsSavingVisibility(true)
 
-      const response = await fetch('/api/lands', {
+      const response = await fetch('/api/lines', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: land.id,
+          id: line.id,
           hidden_from_operator: !isHiddenFromOperator,
         }),
       })
 
       if (!response.ok) {
         const data = await response.json().catch(() => null)
-        throw new Error(data?.error || 'Gagal mengubah visibilitas card')
+        throw new Error(data?.error || 'Gagal mengubah visibilitas line produksi')
       }
 
       toast.success(
         isHiddenFromOperator
-          ? `Card "${land.name}" sekarang terlihat oleh operator.`
-          : `Card "${land.name}" disembunyikan dari operator.`
+          ? `Line produksi "${line.name}" sekarang terlihat oleh operator.`
+          : `Line produksi "${line.name}" disembunyikan dari operator.`
       )
       onChangeSuccess?.()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Gagal mengubah visibilitas card')
+      toast.error(err instanceof Error ? err.message : 'Gagal mengubah visibilitas line produksi')
     } finally {
       setIsSavingVisibility(false)
     }
@@ -209,14 +209,14 @@ export function AdminLandCard({
 
   return (
     <>
-      {/* Card */}
+      {/* Line Card */}
       <div
-        onClick={() => onEnter(land)}
+        onClick={() => onEnter(line)}
         className={`group relative ${isActionMenuOpen ? 'z-20' : 'z-0'} bg-card border rounded-xl p-5 shadow-sm cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${isHiddenFromOperator
             ? 'border-amber-200 bg-amber-50/40 hover:border-amber-300'
             : 'border-border hover:border-primary'
           }`}
-        title={`Klik untuk membuka ${land.name}`}
+        title={`Klik untuk membuka ${line.name}`}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3 min-w-0">
@@ -225,12 +225,12 @@ export function AdminLandCard({
             </div>
             <div className="min-w-0">
               <h3 className="text-lg font-semibold text-foreground truncate">
-                {land.name}
+                {line.name}
               </h3>
               <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                {land.description || 'Klik untuk membuka'}
+                {line.description || 'Klik untuk membuka'}
               </p>
-              <p className="mt-3 text-xs font-medium text-muted-foreground">Total Dokumen: {land.document_count ?? 0}</p>
+              <p className="mt-3 text-xs font-medium text-muted-foreground">Total Dokumen: {line.document_count ?? 0}</p>
 
               {isHiddenFromOperator && (
                 <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
@@ -242,7 +242,7 @@ export function AdminLandCard({
           </div>
 
           <div ref={menuRef} className="relative flex-shrink-0" onClick={(event) => event.stopPropagation()}>
-            <Button size="icon-sm" variant="ghost" onClick={toggleActionMenu} title="Aksi card" aria-label={`Aksi untuk card ${land.name}`} className="text-muted-foreground hover:bg-muted hover:text-foreground">
+            <Button size="icon-sm" variant="ghost" onClick={toggleActionMenu} title="Aksi line produksi" aria-label={`Aksi untuk line ${line.name}`} className="text-muted-foreground hover:bg-muted hover:text-foreground">
               <MoreVertical className="w-5 h-5" />
             </Button>
             {isActionMenuOpen && (
@@ -254,8 +254,8 @@ export function AdminLandCard({
                   {isSavingVisibility ? <Loader2 className="w-4 h-4 animate-spin" /> : isHiddenFromOperator ? <Eye className="w-4 h-4 text-emerald-600" /> : <EyeOff className="w-4 h-4 text-amber-600" />}
                   {isHiddenFromOperator ? 'Tampilkan ke Operator' : 'Sembunyikan dari Operator'}
                 </button>
-                <button onClick={(e) => { closeActionMenu(); handleOpenEdit(e); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-foreground hover:bg-primary/10 hover:text-primary"><Pencil className="w-4 h-4" /> Edit Card</button>
-                <button onClick={(e) => { closeActionMenu(); handleOpenDelete(e); }} disabled={isDeleting} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50">{isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />} Hapus Card</button>
+                <button onClick={(e) => { closeActionMenu(); handleOpenEdit(e); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-foreground hover:bg-primary/10 hover:text-primary"><Pencil className="w-4 h-4" /> Edit Line</button>
+                <button onClick={(e) => { closeActionMenu(); handleOpenDelete(e); }} disabled={isDeleting} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50">{isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />} Hapus Line</button>
               </div>
             )}
           </div>
@@ -283,14 +283,14 @@ export function AdminLandCard({
                 <AlertTriangle className="w-5 h-5 text-red-600" />
               </div>
               <div>
-                <h2 className="text-base font-semibold text-foreground">Hapus Card</h2>
+                <h2 className="text-base font-semibold text-foreground">Hapus Line Produksi</h2>
                 <p className="text-sm text-muted-foreground mt-0.5">Tindakan ini tidak dapat dibatalkan.</p>
               </div>
             </div>
 
             <p className="text-sm text-foreground">
-              Apakah Anda yakin ingin menghapus card{' '}
-              <span className="font-semibold text-foreground">&quot;{land.name}&quot;</span>?
+              Apakah Anda yakin ingin menghapus line produksi{' '}
+              <span className="font-semibold text-foreground">&quot;{line.name}&quot;</span>?
             </p>
 
             <div className="flex gap-3 pt-1">
@@ -340,7 +340,7 @@ export function AdminLandCard({
               : 'animate-in fade-in zoom-in-95 duration-200'
           }`}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <h2 className="text-lg font-semibold text-foreground">Edit Card</h2>
+              <h2 className="text-lg font-semibold text-foreground">Edit Line Produksi</h2>
               <button
                 onClick={closeEditModal}
                 disabled={isSaving}
@@ -360,7 +360,7 @@ export function AdminLandCard({
 
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium text-foreground">
-                  Nama Card <span className="text-red-500">*</span>
+                  Nama Line Produksi <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"

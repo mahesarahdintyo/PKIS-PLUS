@@ -2,21 +2,21 @@
 
 import Link from "next/link";
 import OperatorHeader from "@/components/operator/OperatorHeader";
-import LandSelector from "@/components/operator/LandSelector";
+import LineSelector from "@/components/operator/LineSelector";
 import SearchBar from "@/components/operator/SearchBar";
 import DocumentList from "@/components/operator/DocumentList";
 import MachineDetailClient, { MACHINE_CONFIGS } from "@/components/produksi/machines/MachineDetailClient";
 import "@/app/admin/(produksi)/produksi.css";
 import { getDocuments, type Document } from "@/lib/services/document";
 import { getFolders, type Folder } from "@/lib/services/folder";
-import { getLands, type Land } from "@/lib/services/land";
+import { getLines, type Line } from "@/lib/services/line";
 import { Tv, Factory } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const LAND_STORAGE_KEY = "futaba.operator.selectedLand";
+const LINE_STORAGE_KEY = "futaba.operator.selectedLine";
 const OPERATOR_LOCATION_STORAGE_KEY = "futaba.operator.location";
 const WORKSPACE_REFRESH_INTERVAL_MS = 3000;
-const LAND_REFRESH_INTERVAL_MS = 3000;
+const LINE_REFRESH_INTERVAL_MS = 3000;
 
 interface BreadcrumbItem {
   id: number;
@@ -24,7 +24,7 @@ interface BreadcrumbItem {
 }
 
 interface OperatorLocationState {
-  landId: string;
+  lineId: string;
   folderPathHistory: BreadcrumbItem[];
 }
 
@@ -41,12 +41,13 @@ function readOperatorLocation(): OperatorLocationState | null {
       )
       : [];
 
-    if (typeof location.landId !== "string") {
+    const lineId = location.lineId ?? (location as any).landId;
+    if (typeof lineId !== "string") {
       return null;
     }
 
     return {
-      landId: location.landId,
+      lineId,
       folderPathHistory,
     };
   } catch {
@@ -57,8 +58,10 @@ function readOperatorLocation(): OperatorLocationState | null {
 interface OperatorPageProps {
   machineSlug: string;
   userRole?: string;
+  userLineId?: string | null;
   userLandId?: string | null;
-  initialLands?: Land[];
+  initialLines?: Line[];
+  initialLands?: Line[];
   initialFolders?: Folder[];
   initialDocuments?: Document[];
 }
@@ -66,31 +69,36 @@ interface OperatorPageProps {
 export default function OperatorPage({
   machineSlug,
   userRole = "operator",
+  userLineId,
   userLandId,
+  initialLines = [],
   initialLands = [],
   initialFolders = [],
   initialDocuments = [],
 }: OperatorPageProps) {
-  const isOperator = userRole === "operator";
-  const defaultLand = isOperator && userLandId
-    ? initialLands.find(
-        (l) => String(l.id).trim().toLowerCase() === String(userLandId).trim().toLowerCase()
-      ) ?? initialLands[0] ?? null
-    : initialLands[0] ?? null;
+  const activeUserLineId = userLineId ?? userLandId;
+  const activeInitialLines = initialLines.length > 0 ? initialLines : initialLands;
 
-  const [selectedLand, setSelectedLand] = useState<Land | null>(defaultLand);
-  const [lands, setLands] = useState<Land[]>(initialLands);
+  const isOperator = userRole === "operator";
+  const defaultLine = isOperator && activeUserLineId
+    ? activeInitialLines.find(
+        (l) => String(l.id).trim().toLowerCase() === String(activeUserLineId).trim().toLowerCase()
+      ) ?? activeInitialLines[0] ?? null
+    : activeInitialLines[0] ?? null;
+
+  const [selectedLine, setSelectedLine] = useState<Line | null>(defaultLine);
+  const [lines, setLines] = useState<Line[]>(activeInitialLines);
   const [folders, setFolders] = useState<Folder[]>(initialFolders);
   const [documents, setDocuments] = useState<Document[]>(initialDocuments);
   const [currentFolder, setCurrentFolder] = useState<BreadcrumbItem | null>(null);
   const [folderPathHistory, setFolderPathHistory] = useState<BreadcrumbItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(initialLands.length === 0);
+  const [isLoading, setIsLoading] = useState(activeInitialLines.length === 0);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<"display" | "machine">("display");
   const [documentListKey, setDocumentListKey] = useState(0);
   const workspaceRequestIdRef = useRef(0);
-  const landsRequestIdRef = useRef(0);
+  const linesRequestIdRef = useRef(0);
   const isMountedRef = useRef(true);
   const folderPathHistoryRef = useRef<BreadcrumbItem[]>([]);
 
@@ -104,73 +112,75 @@ export default function OperatorPage({
     folderPathHistoryRef.current = folderPathHistory;
   }, [folderPathHistory]);
 
-  // For operators: clear any stale land from previous sessions on mount
+  // For operators: clear any stale line from previous sessions on mount
   useEffect(() => {
     if (isOperator) {
-      window.localStorage.removeItem(LAND_STORAGE_KEY);
+      window.localStorage.removeItem(LINE_STORAGE_KEY);
+      window.localStorage.removeItem("futaba.operator.selectedLand");
       window.localStorage.removeItem(OPERATOR_LOCATION_STORAGE_KEY);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const persistOperatorLocation = (land: Land, history: BreadcrumbItem[]) => {
-    // For operators, don't persist landId to localStorage (it's enforced from profile)
+  const persistOperatorLocation = (line: Line, history: BreadcrumbItem[]) => {
+    // For operators, don't persist lineId to localStorage (it's enforced from profile)
     if (!isOperator) {
-      window.localStorage.setItem(LAND_STORAGE_KEY, land.id);
+      window.localStorage.setItem(LINE_STORAGE_KEY, line.id);
     }
     window.localStorage.setItem(
       OPERATOR_LOCATION_STORAGE_KEY,
       JSON.stringify({
-        landId: isOperator ? undefined : land.id,
+        lineId: isOperator ? undefined : line.id,
         folderPathHistory: history,
       })
     );
   };
 
-  const clearOperatorFolderLocation = (land: Land) => {
-    persistOperatorLocation(land, []);
+  const clearOperatorFolderLocation = (line: Line) => {
+    persistOperatorLocation(line, []);
   };
 
   const clearOperatorLocation = () => {
-    window.localStorage.removeItem(LAND_STORAGE_KEY);
+    window.localStorage.removeItem(LINE_STORAGE_KEY);
+    window.localStorage.removeItem("futaba.operator.selectedLand");
     window.localStorage.removeItem(OPERATOR_LOCATION_STORAGE_KEY);
   };
 
-  const loadLands = useCallback(
+  const loadLines = useCallback(
     async ({
       preferSavedLocation = false,
       showError = false,
     }: { preferSavedLocation?: boolean; showError?: boolean } = {}) => {
-      const requestId = landsRequestIdRef.current + 1;
-      landsRequestIdRef.current = requestId;
+      const requestId = linesRequestIdRef.current + 1;
+      linesRequestIdRef.current = requestId;
 
       try {
-        const activeLands = await getLands();
+        const activeLines = await getLines();
 
-        if (!isMountedRef.current || landsRequestIdRef.current !== requestId) return;
+        if (!isMountedRef.current || linesRequestIdRef.current !== requestId) return;
 
-        setLands(activeLands);
+        setLines(activeLines);
 
         const savedLocation = isOperator ? null : readOperatorLocation();
-        const savedLandId = isOperator
+        const savedLineId = isOperator
           ? null
-          : savedLocation?.landId ?? window.localStorage.getItem(LAND_STORAGE_KEY);
+          : savedLocation?.lineId ?? window.localStorage.getItem(LINE_STORAGE_KEY) ?? window.localStorage.getItem("futaba.operator.selectedLand");
 
-        setSelectedLand((currentLand) => {
-          const preferredLandId = isOperator && userLandId
-            ? userLandId
+        setSelectedLine((currentLine) => {
+          const preferredLineId = isOperator && activeUserLineId
+            ? activeUserLineId
             : preferSavedLocation
-            ? savedLandId
-            : currentLand?.id ?? savedLandId;
-          const nextSelectedLand =
-            activeLands.find(
-              (land) =>
-                String(land.id).trim().toLowerCase() ===
-                String(preferredLandId).trim().toLowerCase()
+            ? savedLineId
+            : currentLine?.id ?? savedLineId;
+          const nextSelectedLine =
+            activeLines.find(
+              (line) =>
+                String(line.id).trim().toLowerCase() ===
+                String(preferredLineId).trim().toLowerCase()
             ) ??
-            (isOperator ? currentLand ?? activeLands[0] ?? null : activeLands[0] ?? null);
+            (isOperator ? currentLine ?? activeLines[0] ?? null : activeLines[0] ?? null);
 
-          if (!nextSelectedLand) {
+          if (!nextSelectedLine) {
             clearOperatorLocation();
             setCurrentFolder(null);
             setFolderPathHistory([]);
@@ -181,8 +191,8 @@ export default function OperatorPage({
           }
 
           const shouldKeepCurrentFolder =
-            currentLand?.id === nextSelectedLand.id ||
-            (preferSavedLocation && savedLocation?.landId === nextSelectedLand.id);
+            currentLine?.id === nextSelectedLine.id ||
+            (preferSavedLocation && savedLocation?.lineId === nextSelectedLine.id);
           const nextHistory = shouldKeepCurrentFolder
             ? preferSavedLocation
               ? savedLocation?.folderPathHistory ?? []
@@ -195,49 +205,49 @@ export default function OperatorPage({
 
           setFolderPathHistory(nextHistory);
           setCurrentFolder(nextHistory[nextHistory.length - 1] ?? null);
-          persistOperatorLocation(nextSelectedLand, nextHistory);
+          persistOperatorLocation(nextSelectedLine, nextHistory);
 
           if (
-            currentLand?.id === nextSelectedLand.id &&
-            currentLand.name === nextSelectedLand.name &&
-            currentLand.description === nextSelectedLand.description &&
-            currentLand.is_active === nextSelectedLand.is_active
+            currentLine?.id === nextSelectedLine.id &&
+            currentLine.name === nextSelectedLine.name &&
+            currentLine.description === nextSelectedLine.description &&
+            currentLine.is_active === nextSelectedLine.is_active
           ) {
-            return currentLand;
+            return currentLine;
           }
 
-          return nextSelectedLand;
+          return nextSelectedLine;
         });
       } catch (error) {
         if (showError && isMountedRef.current) {
-          setError(error instanceof Error ? error.message : "Gagal memuat card");
+          setError(error instanceof Error ? error.message : "Gagal memuat line produksi");
         }
-        console.error("Failed to load lands", error);
+        console.error("Failed to load lines", error);
       }
     },
-    [isOperator, userLandId]
+    [isOperator, activeUserLineId]
   );
 
   useEffect(() => {
-    loadLands({ preferSavedLocation: true, showError: true });
-  }, [loadLands]);
+    loadLines({ preferSavedLocation: true, showError: true });
+  }, [loadLines]);
 
   useEffect(() => {
     let timeoutId: number;
     let isMounted = true;
 
-    const pollLands = async () => {
+    const pollLines = async () => {
       if (!isMounted) return;
-      await loadLands();
+      await loadLines();
       if (isMounted) {
-        timeoutId = window.setTimeout(pollLands, LAND_REFRESH_INTERVAL_MS);
+        timeoutId = window.setTimeout(pollLines, LINE_REFRESH_INTERVAL_MS);
       }
     };
 
-    timeoutId = window.setTimeout(pollLands, LAND_REFRESH_INTERVAL_MS);
+    timeoutId = window.setTimeout(pollLines, LINE_REFRESH_INTERVAL_MS);
 
     const handleWindowFocus = () => {
-      loadLands();
+      loadLines();
     };
 
     window.addEventListener("focus", handleWindowFocus);
@@ -247,14 +257,14 @@ export default function OperatorPage({
       window.clearTimeout(timeoutId);
       window.removeEventListener("focus", handleWindowFocus);
     };
-  }, [loadLands]);
+  }, [loadLines]);
 
-  const handleLandChange = (land: Land) => {
-    setSelectedLand(land);
+  const handleLineChange = (line: Line) => {
+    setSelectedLine(line);
     setCurrentFolder(null);
     setFolderPathHistory([]);
     setSearchQuery("");
-    clearOperatorFolderLocation(land);
+    clearOperatorFolderLocation(line);
   };
 
   const loadWorkspaceData = useCallback(
@@ -262,7 +272,7 @@ export default function OperatorPage({
       const requestId = workspaceRequestIdRef.current + 1;
       workspaceRequestIdRef.current = requestId;
 
-      if (!selectedLand) {
+      if (!selectedLine) {
         setFolders([]);
         setDocuments([]);
         setIsLoading(false);
@@ -278,22 +288,22 @@ export default function OperatorPage({
         const search = searchQuery.trim();
         const folderParentId = search ? null : currentFolder?.id ?? null;
 
-        const [landFolders, landDocuments] = await Promise.all([
+        const [lineFolders, lineDocuments] = await Promise.all([
           getFolders({
-            landId: selectedLand.id,
+            lineId: selectedLine.id,
             parentId: folderParentId,
             includeAll: Boolean(search),
             search,
           }),
           getDocuments({
-            landId: selectedLand.id,
+            lineId: selectedLine.id,
             folderId: folderParentId,
             search,
           }),
         ]);
 
-        setFolders(landFolders);
-        setDocuments(landDocuments);
+        setFolders(lineFolders);
+        setDocuments(lineDocuments);
         if (showLoading) {
           setDocumentListKey((prev) => prev + 1);
         }
@@ -317,7 +327,7 @@ export default function OperatorPage({
         }
       }
     },
-    [currentFolder, searchQuery, selectedLand]
+    [currentFolder, searchQuery, selectedLine]
   );
 
   useEffect(() => {
@@ -331,7 +341,7 @@ export default function OperatorPage({
   }, [loadWorkspaceData, searchQuery]);
 
   useEffect(() => {
-    if (!selectedLand) return;
+    if (!selectedLine) return;
 
     let timeoutId: number;
     let isMounted = true;
@@ -357,7 +367,8 @@ export default function OperatorPage({
       window.clearTimeout(timeoutId);
       window.removeEventListener("focus", handleWindowFocus);
     };
-  }, [loadWorkspaceData, selectedLand]);
+  }, [loadWorkspaceData, selectedLine]);
+
   const handleEnterFolder = (id: number, name: string) => {
     const nextFolder = { id, name };
     const nextHistory = [...folderPathHistory, nextFolder];
@@ -365,8 +376,8 @@ export default function OperatorPage({
     setCurrentFolder(nextFolder);
     setSearchQuery("");
 
-    if (selectedLand) {
-      persistOperatorLocation(selectedLand, nextHistory);
+    if (selectedLine) {
+      persistOperatorLocation(selectedLine, nextHistory);
     }
   };
 
@@ -376,8 +387,8 @@ export default function OperatorPage({
     if (index === -1) {
       setFolderPathHistory([]);
       setCurrentFolder(null);
-      if (selectedLand) {
-        clearOperatorFolderLocation(selectedLand);
+      if (selectedLine) {
+        clearOperatorFolderLocation(selectedLine);
       }
       return;
     }
@@ -385,15 +396,14 @@ export default function OperatorPage({
     const nextHistory = folderPathHistory.slice(0, index + 1);
     setFolderPathHistory(nextHistory);
     setCurrentFolder(nextHistory[index] ?? null);
-    if (selectedLand) {
-      persistOperatorLocation(selectedLand, nextHistory);
+    if (selectedLine) {
+      persistOperatorLocation(selectedLine, nextHistory);
     }
   };
 
-
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <OperatorHeader selectedLand={selectedLand?.name ?? ""} userRole={userRole} />
+      <OperatorHeader selectedLine={selectedLine?.name ?? ""} userRole={userRole} />
 
       <div className="mx-auto max-w-5xl space-y-4 sm:space-y-6 p-3 sm:p-6">
         {/* Active Machine & Ganti Mesin Link */}
@@ -413,10 +423,10 @@ export default function OperatorPage({
         </div>
 
         {userRole === "admin" && (
-          <LandSelector
-            value={selectedLand}
-            lands={lands}
-            onChange={handleLandChange}
+          <LineSelector
+            value={selectedLine}
+            lines={lines}
+            onChange={handleLineChange}
           />
         )}
 
@@ -485,7 +495,7 @@ export default function OperatorPage({
               documents={documents}
               isLoading={isLoading}
               error={error}
-              selectedLandId={selectedLand?.id}
+              selectedLineId={selectedLine?.id}
               onEnterFolder={handleEnterFolder}
             />
           </div>

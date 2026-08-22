@@ -11,15 +11,15 @@ import { SearchBar } from '@/components/ui/search-bar'
 import { UploadDialog } from '@/components/ui/upload-dialog'
 import { FolderCard } from '@/components/ui/folder-card'
 import { CreateFolderDialog } from '@/components/ui/create-folder-dialog'
-import { CreateLandDialog } from '@/components/admin/CreateLandDialog'
-import { AdminLandCard } from '@/components/admin/AdminLandCard'
+import { CreateLineDialog } from '@/components/admin/CreateLineDialog'
+import { AdminLineCard } from '@/components/admin/AdminLineCard'
 import { LogoutButton } from '@/components/ui/logout-button'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
-import { getLands, type Land } from '@/lib/services/land'
+import { getLines, type Line } from '@/lib/services/line'
 
 interface Document {
   id: string
-  landId?: string
+  lineId?: string
   title: string
   description: string
   category: string
@@ -46,7 +46,7 @@ interface BreadcrumbItem {
 }
 
 interface AdminLocationState {
-  landId: string
+  lineId: string
   folderPathHistory: BreadcrumbItem[]
 }
 
@@ -65,12 +65,13 @@ function readAdminLocation(): AdminLocationState | null {
       )
       : []
 
-    if (typeof location.landId !== 'string') {
+    const lineId = location.lineId ?? (location as any).landId
+    if (typeof lineId !== 'string') {
       return null
     }
 
     return {
-      landId: location.landId,
+      lineId,
       folderPathHistory,
     }
   } catch {
@@ -79,19 +80,19 @@ function readAdminLocation(): AdminLocationState | null {
 }
 
 interface AdminPageProps {
-  initialLands?: Land[]
+  initialLines?: Line[]
 }
 
-export default function Page({ initialLands = [] }: AdminPageProps) {
+export default function Page({ initialLines = [] }: AdminPageProps) {
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedLand, setSelectedLand] = useState<Land | null>(null)
-  const [showLandList, setShowLandList] = useState(true)
-  const [lands, setLands] = useState<Land[]>(initialLands)
+  const [selectedLine, setSelectedLine] = useState<Line | null>(null)
+  const [showLineList, setShowLineList] = useState(true)
+  const [lines, setLines] = useState<Line[]>(initialLines)
   const [documents, setDocuments] = useState<Document[]>([])
   const [folders, setFolders] = useState<Folder[]>([])
   const [currentFolder, setCurrentFolder] = useState<BreadcrumbItem | null>(null)
   const [folderPathHistory, setFolderPathHistory] = useState<BreadcrumbItem[]>([])
-  const [isLoading, setIsLoading] = useState(initialLands.length === 0)
+  const [isLoading, setIsLoading] = useState(initialLines.length === 0)
   const [error, setError] = useState('')
   const [activeView, setActiveView] = useState<'workspace'>('workspace')
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -112,11 +113,12 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
       document.exitFullscreen().catch(() => {});
     }
   }, []);
-  const persistAdminLocation = (land: Land, history: BreadcrumbItem[]) => {
+
+  const persistAdminLocation = (line: Line, history: BreadcrumbItem[]) => {
     window.localStorage.setItem(
       ADMIN_LOCATION_STORAGE_KEY,
       JSON.stringify({
-        landId: land.id,
+        lineId: line.id,
         folderPathHistory: history,
       })
     )
@@ -126,15 +128,15 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
     window.localStorage.removeItem(ADMIN_LOCATION_STORAGE_KEY)
   }
 
-  const loadLands = async () => {
+  const loadLines = async () => {
     try {
       setIsLoading(true)
-      const data = await getLands({ includeHidden: true })
+      const data = await getLines({ includeHidden: true })
 
-      setLands(data)
-      setSelectedLand(null)
+      setLines(data)
+      setSelectedLine(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Gagal mengambil data card')
+      setError(err instanceof Error ? err.message : 'Gagal mengambil data line produksi')
       console.error(err)
     } finally {
       setIsLoading(false)
@@ -144,24 +146,24 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
   useEffect(() => {
     let mounted = true
 
-    async function loadInitialLands() {
+    async function loadInitialLines() {
       try {
         setIsLoading(true)
-        const data = await getLands({ includeHidden: true })
+        const data = await getLines({ includeHidden: true })
         if (!mounted) return
 
-        setLands(data)
+        setLines(data)
 
         const savedLocation = readAdminLocation()
-        const savedLand = savedLocation
-          ? data.find((land) => land.id === savedLocation.landId)
+        const savedLine = savedLocation
+          ? data.find((line) => line.id === savedLocation.lineId)
           : null
 
-        if (savedLand && savedLocation) {
+        if (savedLine && savedLocation) {
           const nextHistory = savedLocation.folderPathHistory
 
-          setSelectedLand(savedLand)
-          setShowLandList(false)
+          setSelectedLine(savedLine)
+          setShowLineList(false)
           setFolderPathHistory(nextHistory)
           setCurrentFolder(nextHistory[nextHistory.length - 1] ?? null)
           setSearchQuery('')
@@ -169,10 +171,10 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
         }
 
         clearAdminLocation()
-        setSelectedLand(null)
+        setSelectedLine(null)
       } catch (err) {
         if (mounted) {
-          setError(err instanceof Error ? err.message : 'Gagal mengambil data card')
+          setError(err instanceof Error ? err.message : 'Gagal mengambil data line produksi')
         }
         console.error(err)
       } finally {
@@ -182,21 +184,21 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
       }
     }
 
-    loadInitialLands()
+    loadInitialLines()
 
     return () => {
       mounted = false
     }
   }, [])
 
-  const handleEnterLand = (land: Land) => {
-    setSelectedLand(land)
-    setShowLandList(false)
+  const handleEnterLine = (line: Line) => {
+    setSelectedLine(line)
+    setShowLineList(false)
 
     setCurrentFolder(null)
     setFolderPathHistory([])
     setSearchQuery('')
-    persistAdminLocation(land, [])
+    persistAdminLocation(line, [])
   }
 
   // Fetch documents and folders whenever the current folder or search changes
@@ -206,10 +208,10 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
     }, searchQuery.trim() ? 300 : 0)
 
     return () => window.clearTimeout(timeoutId)
-  }, [selectedLand, showLandList, currentFolder, searchQuery])
+  }, [selectedLine, showLineList, currentFolder, searchQuery])
 
   const fetchWorkspaceData = async (searchTerm = '') => {
-    if (showLandList || !selectedLand) {
+    if (showLineList || !selectedLine) {
       setIsLoading(false)
       return
     }
@@ -230,11 +232,11 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
   }
 
   const fetchDocuments = async (searchTerm = searchQuery.trim()) => {
-    if (!selectedLand) return
+    if (!selectedLine) return
 
     try {
       const params = new URLSearchParams({
-        landId: selectedLand.id,
+        lineId: selectedLine.id,
         includeHidden: 'true'
       })
 
@@ -255,16 +257,16 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
       setDocuments(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error fetching documents')
-      console.error('[v0] Error fetching documents:', err)
+      console.error('Error fetching documents:', err)
     }
   }
 
   const fetchFolders = async (searchTerm = searchQuery.trim()) => {
-    if (!selectedLand) return
+    if (!selectedLine) return
 
     try {
       const params = new URLSearchParams({
-        landId: selectedLand.id
+        lineId: selectedLine.id
       })
 
       if (searchTerm) {
@@ -285,7 +287,7 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
       setFolders(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error fetching folders')
-      console.error('[v0] Error fetching folders:', err)
+      console.error('Error fetching folders:', err)
     }
   }
 
@@ -318,15 +320,15 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
     setCurrentFolder({ id, name })
     setSearchQuery('')
 
-    if (selectedLand) {
-      persistAdminLocation(selectedLand, newHistory)
+    if (selectedLine) {
+      persistAdminLocation(selectedLine, newHistory)
     }
   }
 
   const handleNavigateBreadcrumb = (index: number) => {
     if (index === -1) {
-      setShowLandList(true)
-      setSelectedLand(null)
+      setShowLineList(true)
+      setSelectedLine(null)
       setCurrentFolder(null)
       setFolderPathHistory([])
       setSearchQuery('')
@@ -340,18 +342,18 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
     setCurrentFolder(newHistory[newHistory.length - 1])
     setSearchQuery('')
 
-    if (selectedLand) {
-      persistAdminLocation(selectedLand, newHistory)
+    if (selectedLine) {
+      persistAdminLocation(selectedLine, newHistory)
     }
   }
 
-  const handleNavigateLandRoot = () => {
+  const handleNavigateLineRoot = () => {
     setCurrentFolder(null)
     setFolderPathHistory([])
     setSearchQuery('')
 
-    if (selectedLand) {
-      persistAdminLocation(selectedLand, [])
+    if (selectedLine) {
+      persistAdminLocation(selectedLine, [])
     }
   }
 
@@ -359,17 +361,17 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
     fetchFolders()
   }
 
-  const filteredLands = useMemo(() => {
+  const filteredLines = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
-    if (!query) return lands
+    if (!query) return lines
 
-    return lands.filter((land) => {
+    return lines.filter((line) => {
       return (
-        land.name.toLowerCase().includes(query) ||
-        (land.description || '').toLowerCase().includes(query)
+        line.name.toLowerCase().includes(query) ||
+        (line.description || '').toLowerCase().includes(query)
       )
     })
-  }, [searchQuery, lands])
+  }, [searchQuery, lines])
 
   const filteredDocuments = useMemo(() => {
     return documents.filter((doc) => {
@@ -382,7 +384,6 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
     })
   }, [searchQuery, documents])
 
-  // Filter folders by search query (only at UI level when searching)
   const filteredFolders = useMemo(() => {
     if (!searchQuery) return folders
     return folders.filter((folder) =>
@@ -397,7 +398,7 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
       {/* Mobile backdrop */}
       {isSidebarOpen && <button aria-label="Tutup navigasi" className="fixed inset-0 z-30 bg-background/80 lg:hidden" onClick={() => setIsSidebarOpen(false)} />}
 
-      {/* Desktop sidebar — width-animated wrapper + border toggle button */}
+      {/* Desktop sidebar */}
       <div className="hidden lg:block relative flex-shrink-0 h-full">
         <div className={`h-full overflow-hidden transition-[width] duration-300 ease-in-out ${isDesktopSidebarCollapsed ? 'w-0' : 'w-72'}`}>
           <aside className={`h-full w-72 flex flex-col border-r border-border bg-card p-4 transition-all duration-300 ${isAnyDialogOpen ? 'blur-md pointer-events-none opacity-40' : ''}`}>
@@ -429,7 +430,6 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
             </div>
           </aside>
         </div>
-        {/* Floating toggle button on the sidebar border */}
         <button
           aria-label={isDesktopSidebarCollapsed ? 'Tampilkan sidebar' : 'Sembunyikan sidebar'}
           className="absolute top-16 right-0 translate-x-1/2 z-50 flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground transition-colors duration-200 cursor-pointer active:scale-90"
@@ -439,7 +439,7 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
         </button>
       </div>
 
-      {/* Mobile sidebar — fixed + translate */}
+      {/* Mobile sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-40 lg:hidden flex w-72 flex-col border-r border-border bg-card p-4 shadow-xl transition-all duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} ${isAnyDialogOpen ? 'blur-md pointer-events-none opacity-40' : ''}`}>
         <div className="flex items-center justify-between border-b border-border px-2 pb-4">
           <Link href="/" aria-label="Kembali ke landing page" className="inline-flex"><Image src="/pkis-logo-wordmark(final).png" alt="PKIS Logo" width={180} height={60} className="h-13 w-auto object-contain" priority /></Link>
@@ -474,12 +474,11 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
         <header className="sticky top-0 z-20 border-b border-border bg-card">
           <div className="flex min-h-16 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-3">
-              {/* Mobile: hamburger */}
               <button aria-label="Buka navigasi" className="rounded-lg p-2 text-muted-foreground hover:bg-muted transition-colors duration-200 lg:hidden" onClick={() => setIsSidebarOpen(true)}><Menu className="h-5 w-5" /></button>
               <h1 className="text-lg font-bold tracking-tight text-foreground sm:text-xl">{pageTitle}</h1>
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
-              {activeView === 'workspace' && (showLandList ? <CreateLandDialog onCreateSuccess={loadLands} onOpenChange={setIsAnyDialogOpen} /> : selectedLand ? <><CreateFolderDialog parentId={currentFolder ? currentFolder.id : null} landId={selectedLand.id} onCreateSuccess={handleCreateFolderSuccess} onOpenChange={setIsAnyDialogOpen} /><UploadDialog folderId={currentFolder ? currentFolder.id : null} landId={selectedLand.id} onUploadSuccess={handleUploadSuccess} onOpenChange={setIsAnyDialogOpen} /></> : null)}
+              {activeView === 'workspace' && (showLineList ? <CreateLineDialog onCreateSuccess={loadLines} onOpenChange={setIsAnyDialogOpen} /> : selectedLine ? <><CreateFolderDialog parentId={currentFolder ? currentFolder.id : null} lineId={selectedLine.id} onCreateSuccess={handleCreateFolderSuccess} onOpenChange={setIsAnyDialogOpen} /><UploadDialog folderId={currentFolder ? currentFolder.id : null} lineId={selectedLine.id} onUploadSuccess={handleUploadSuccess} onOpenChange={setIsAnyDialogOpen} /></> : null)}
             </div>
           </div>
         </header>
@@ -491,17 +490,16 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
                   value={searchQuery}
                   onChange={setSearchQuery}
                   placeholder={
-                    showLandList
-                      ? 'Cari card berdasarkan nama atau deskripsi...'
+                    showLineList
+                      ? 'Cari line produksi berdasarkan nama atau deskripsi...'
                       : 'Cari folder atau dokumen berdasarkan nama...'
                   }
                 />
               </div>
 
               {/* Breadcrumb Navigation */}
-              {(!showLandList && selectedLand) && (
+              {(!showLineList && selectedLine) && (
                 <div className="flex items-center flex-wrap gap-2 text-sm text-muted-foreground mb-6 bg-card p-3 rounded-lg border border-border shadow-sm select-none">
-
                   <button
                     onClick={() => handleNavigateBreadcrumb(-1)}
                     className="font-semibold text-primary hover:text-primary/80 transition-colors"
@@ -512,14 +510,14 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
                   <ChevronRight className="w-4 h-4 text-muted-foreground" />
 
                   <button
-                    onClick={handleNavigateLandRoot}
+                    onClick={handleNavigateLineRoot}
                     disabled={folderPathHistory.length === 0}
                     className={`font-semibold transition-colors ${folderPathHistory.length === 0
                       ? 'text-foreground cursor-default'
                       : 'text-primary hover:text-primary/80'
                       }`}
                   >
-                    {selectedLand.name}
+                    {selectedLine.name}
                   </button>
 
                   {folderPathHistory.map((folder, index) => (
@@ -541,25 +539,25 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
                 </div>
               )}
 
-              {showLandList && (
+              {showLineList && (
                 isLoading ? (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                    <AdminLandCardSkeleton />
-                    <AdminLandCardSkeleton />
-                    <AdminLandCardSkeleton />
+                    <AdminLineCardSkeleton />
+                    <AdminLineCardSkeleton />
+                    <AdminLineCardSkeleton />
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                    {filteredLands.map((land, index) => (
+                    {filteredLines.map((line, index) => (
                       <div
-                        key={land.id}
+                        key={line.id}
                         className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
                         style={{ animationDelay: `${index * 40}ms` }}
                       >
-                        <AdminLandCard
-                          land={land}
-                          onEnter={handleEnterLand}
-                          onChangeSuccess={loadLands}
+                        <AdminLineCard
+                          line={line}
+                          onEnter={handleEnterLine}
+                          onChangeSuccess={loadLines}
                         />
                       </div>
                     ))}
@@ -567,18 +565,18 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
                 )
               )}
 
-              {showLandList && !isLoading && filteredLands.length === 0 && (
+              {showLineList && !isLoading && filteredLines.length === 0 && (
                 <div className="text-center py-16 bg-card rounded-lg border border-border shadow-sm flex flex-col items-center justify-center p-6">
                   <p className="text-muted-foreground text-lg font-medium">
-                    {searchQuery ? 'Tidak ada card yang cocok' : 'Belum ada card'}
+                    {searchQuery ? 'Tidak ada line produksi yang cocok' : 'Belum ada line produksi'}
                   </p>
                   {!searchQuery ? (
                     <div className="mt-4 flex flex-col items-center gap-2">
                       <p className="text-muted-foreground text-xs">
-                        Buat card baru untuk memulai
+                        Buat line produksi baru untuk memulai
                       </p>
                       <div className="mt-2">
-                        <CreateLandDialog onCreateSuccess={loadLands} onOpenChange={setIsAnyDialogOpen} />
+                        <CreateLineDialog onCreateSuccess={loadLines} onOpenChange={setIsAnyDialogOpen} />
                       </div>
                     </div>
                   ) : (
@@ -593,7 +591,7 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
               )}
 
               {/* Folder List Grid */}
-              {!showLandList && !isLoading && filteredFolders.length > 0 && (
+              {!showLineList && !isLoading && filteredFolders.length > 0 && (
                 <div className="mb-8">
                   <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                     Folder ({filteredFolders.length})
@@ -615,7 +613,7 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
 
               {/* Documents List */}
               <div className="space-y-3">
-                {!showLandList && !isLoading && filteredDocuments.length > 0 && (
+                {!showLineList && !isLoading && filteredDocuments.length > 0 && (
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
                       Dokumen ({filteredDocuments.length})
@@ -629,9 +627,8 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
                   </div>
                 )}
 
-                {!showLandList && isLoading ? (
+                {!showLineList && isLoading ? (
                   <div className="space-y-6">
-                    {/* Folder Loading Skeleton */}
                     <div>
                       <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 animate-pulse">
                         Memuat Folder...
@@ -642,7 +639,6 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
                         <FolderCardSkeleton />
                       </div>
                     </div>
-                    {/* Document Loading Skeleton */}
                     <div className="space-y-3">
                       <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2 animate-pulse">
                         Memuat Dokumen...
@@ -652,13 +648,13 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
                       <DocumentCardSkeleton />
                     </div>
                   </div>
-                ) : !showLandList && filteredDocuments.length > 0 ? (
+                ) : !showLineList && filteredDocuments.length > 0 ? (
                   <div className="space-y-3">
                     {filteredDocuments.map((doc) => (
                       <DocumentCard
                         key={doc.id}
                         id={doc.id}
-                        landId={doc.landId}
+                        lineId={doc.lineId}
                         title={doc.title}
                         description={doc.description}
                         category={doc.category}
@@ -674,7 +670,7 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
                 ) : null}
 
                 {/* Empty State */}
-                {!showLandList && !isLoading && showEmptyState && (
+                {!showLineList && !isLoading && showEmptyState && (
                   <div className="text-center py-16 bg-card rounded-lg border border-border shadow-sm flex flex-col items-center justify-center p-6">
                     <p className="text-muted-foreground text-lg font-medium">
                       {searchQuery ? 'Tidak ada kecocokan pencarian' : 'Folder ini kosong'}
@@ -687,13 +683,13 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
                         <div className="flex flex-wrap items-center justify-center gap-3">
                           <CreateFolderDialog
                             parentId={currentFolder ? currentFolder.id : null}
-                            landId={selectedLand!.id}
+                            lineId={selectedLine!.id}
                             onCreateSuccess={handleCreateFolderSuccess}
                             onOpenChange={setIsAnyDialogOpen}
                           />
                           <UploadDialog
                             folderId={currentFolder ? currentFolder.id : null}
-                            landId={selectedLand!.id}
+                            lineId={selectedLine!.id}
                             onUploadSuccess={handleUploadSuccess}
                             onOpenChange={setIsAnyDialogOpen}
                           />
@@ -774,7 +770,7 @@ function DocumentCardSkeleton() {
   )
 }
 
-function AdminLandCardSkeleton() {
+function AdminLineCardSkeleton() {
   return (
     <div className="bg-card border border-border rounded-xl p-5 shadow-sm flex items-start justify-between gap-3 animate-pulse select-none">
       <div className="flex items-start gap-3 min-w-0 flex-1">

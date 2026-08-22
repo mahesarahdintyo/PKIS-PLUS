@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 
 interface DisplayDocument {
   id: string
-  landId?: string
+  lineId?: string
   title: string
   description?: string
   category?: string
@@ -19,31 +19,31 @@ interface DisplayDocument {
 
 declare global {
   // eslint-disable-next-line no-var
-  var futabaDisplayDocumentsByLand: Record<string, DisplayDocument | null> | undefined
+  var futabaDisplayDocumentsByLine: Record<string, DisplayDocument | null> | undefined
 }
 
-const LEGACY_DISPLAY_LAND_KEY = '__default__'
+const LEGACY_DISPLAY_LINE_KEY = '__default__'
 
-function getDisplayLandKey(landId?: string | null) {
-  return landId || LEGACY_DISPLAY_LAND_KEY
+function getDisplayLineKey(lineId?: string | null) {
+  return lineId || LEGACY_DISPLAY_LINE_KEY
 }
 
-function getMemoryDisplayDocument(landId?: string | null) {
-  const displayDocuments = globalThis.futabaDisplayDocumentsByLand ?? {}
-  return displayDocuments[getDisplayLandKey(landId)] ?? null
+function getMemoryDisplayDocument(lineId?: string | null) {
+  const displayDocuments = globalThis.futabaDisplayDocumentsByLine ?? {}
+  return displayDocuments[getDisplayLineKey(lineId)] ?? null
 }
 
-function setMemoryDisplayDocument(landId: string | undefined, document: DisplayDocument) {
-  globalThis.futabaDisplayDocumentsByLand = {
-    ...(globalThis.futabaDisplayDocumentsByLand ?? {}),
-    [getDisplayLandKey(landId)]: document,
+function setMemoryDisplayDocument(lineId: string | undefined, document: DisplayDocument) {
+  globalThis.futabaDisplayDocumentsByLine = {
+    ...(globalThis.futabaDisplayDocumentsByLine ?? {}),
+    [getDisplayLineKey(lineId)]: document,
   }
 }
 
-function clearMemoryDisplayDocument(landId?: string | null) {
-  globalThis.futabaDisplayDocumentsByLand = {
-    ...(globalThis.futabaDisplayDocumentsByLand ?? {}),
-    [getDisplayLandKey(landId)]: null,
+function clearMemoryDisplayDocument(lineId?: string | null) {
+  globalThis.futabaDisplayDocumentsByLine = {
+    ...(globalThis.futabaDisplayDocumentsByLine ?? {}),
+    [getDisplayLineKey(lineId)]: null,
   }
 }
 
@@ -83,19 +83,19 @@ async function getDocumentTargetTime(id: string) {
   return data?.target_time ?? null
 }
 
-async function getDatabaseDisplayDocument(landId: string | null) {
+async function getDatabaseDisplayDocument(lineId: string | null) {
   const supabase = await createClient()
-  const landKey = getDisplayLandKey(landId)
+  const lineKey = getDisplayLineKey(lineId)
 
   const { data, error } = await supabase
     .from('display_documents')
     .select('document, updated_at')
-    .eq('land_key', landKey)
+    .or(`line_key.eq.${lineKey},land_key.eq.${lineKey}`)
     .maybeSingle()
 
   if (error) {
     if (isMissingDisplayTableError(error)) {
-      return { document: getMemoryDisplayDocument(landId), hasDatabase: false }
+      return { document: getMemoryDisplayDocument(lineId), hasDatabase: false }
     }
 
     throw error
@@ -115,18 +115,18 @@ async function getDatabaseDisplayDocument(landId: string | null) {
 }
 
 async function saveDatabaseDisplayDocument(
-  landId: string | undefined,
+  lineId: string | undefined,
   document: DisplayDocument
 ) {
   const supabase = await createClient()
-  const landKey = getDisplayLandKey(landId)
+  const lineKey = getDisplayLineKey(lineId)
 
   const { error } = await supabase
     .from('display_documents')
     .upsert(
       {
-        land_key: landKey,
-        land_id: landId || null,
+        land_key: lineKey,
+        land_id: lineId || null,
         document,
         updated_at: toIsoDateTime(document.updatedAt),
       },
@@ -137,7 +137,7 @@ async function saveDatabaseDisplayDocument(
 
   if (error) {
     if (isMissingDisplayTableError(error)) {
-      setMemoryDisplayDocument(landId, document)
+      setMemoryDisplayDocument(lineId, document)
       return { hasDatabase: false }
     }
 
@@ -147,25 +147,25 @@ async function saveDatabaseDisplayDocument(
   return { hasDatabase: true }
 }
 
-async function clearDatabaseDisplayDocument(landId: string | null) {
+async function clearDatabaseDisplayDocument(lineId: string | null) {
   const supabase = await createClient()
-  const landKey = getDisplayLandKey(landId)
+  const lineKey = getDisplayLineKey(lineId)
 
   const { error } = await supabase
     .from('display_documents')
     .delete()
-    .eq('land_key', landKey)
+    .or(`line_key.eq.${lineKey},land_key.eq.${lineKey}`)
 
   if (error) {
     if (isMissingDisplayTableError(error)) {
-      clearMemoryDisplayDocument(landId)
+      clearMemoryDisplayDocument(lineId)
       return { hasDatabase: false }
     }
 
     throw error
   }
 
-  clearMemoryDisplayDocument(landId)
+  clearMemoryDisplayDocument(lineId)
   return { hasDatabase: true }
 }
 
@@ -176,7 +176,7 @@ function isDisplayDocument(value: unknown): value is Omit<DisplayDocument, 'upda
 
   return (
     typeof document.id === 'string' &&
-    (typeof document.landId === 'undefined' || typeof document.landId === 'string') &&
+    (typeof document.lineId === 'undefined' || typeof document.lineId === 'string') &&
     typeof document.title === 'string' &&
     typeof document.type === 'string' &&
     typeof document.file?.name === 'string' &&
@@ -204,8 +204,8 @@ function getRequestedAt(value: unknown) {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const landId = searchParams.get('landId')
-    const result = await getDatabaseDisplayDocument(landId)
+    const lineId = searchParams.get('lineId') ?? searchParams.get('landId')
+    const result = await getDatabaseDisplayDocument(lineId)
     let document = result.document
 
     if (document) {
@@ -218,9 +218,9 @@ export async function GET(request: Request) {
         }
 
         if (result.hasDatabase) {
-          await saveDatabaseDisplayDocument(document.landId, document)
+          await saveDatabaseDisplayDocument(document.lineId, document)
         } else {
-          setMemoryDisplayDocument(document.landId, document)
+          setMemoryDisplayDocument(document.lineId, document)
         }
       }
     }
@@ -251,8 +251,8 @@ export async function POST(request: Request) {
 
     const targetTime = body.targetTime ?? await getDocumentTargetTime(body.id)
     const requestedAt = getRequestedAt(body)
-    const landId = body.landId
-    const currentResult = await getDatabaseDisplayDocument(landId ?? null)
+    const lineId = body.lineId
+    const currentResult = await getDatabaseDisplayDocument(lineId ?? null)
     const currentDocument = currentResult.document
 
     if (currentDocument && requestedAt < currentDocument.updatedAt) {
@@ -264,7 +264,7 @@ export async function POST(request: Request) {
 
     const nextDocument: DisplayDocument = {
       id: body.id,
-      landId,
+      lineId,
       title: body.title,
       description: body.description,
       category: body.category,
@@ -278,7 +278,7 @@ export async function POST(request: Request) {
       updatedAt: requestedAt,
     }
 
-    const saveResult = await saveDatabaseDisplayDocument(landId, nextDocument)
+    const saveResult = await saveDatabaseDisplayDocument(lineId, nextDocument)
 
     if (!saveResult.hasDatabase) {
       console.warn('display_documents table is missing; using in-memory display state')
@@ -301,8 +301,8 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const landId = searchParams.get('landId')
-    const clearResult = await clearDatabaseDisplayDocument(landId)
+    const lineId = searchParams.get('lineId') ?? searchParams.get('landId')
+    const clearResult = await clearDatabaseDisplayDocument(lineId)
 
     if (!clearResult.hasDatabase) {
       console.warn('display_documents table is missing; cleared in-memory display state')

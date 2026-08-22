@@ -2,13 +2,13 @@ export interface Folder {
   id: number;
   name: string;
   parent_id: number | null;
-  land_id: string;
+  line_id: string;
   created_at: string;
   item_count?: number;
 }
 
 interface FolderQuery {
-  landId?: string;
+  lineId?: string;
   parentId?: number | null;
   includeAll?: boolean;
   search?: string;
@@ -16,7 +16,7 @@ interface FolderQuery {
 }
 
 export async function getFolders({
-  landId,
+  lineId,
   parentId,
   includeAll = false,
   search,
@@ -24,8 +24,8 @@ export async function getFolders({
 }: FolderQuery = {}): Promise<Folder[]> {
   const params = new URLSearchParams();
 
-  if (landId) {
-    params.set("landId", landId);
+  if (lineId) {
+    params.set("lineId", lineId);
   }
 
   if (typeof parentId === "number") {
@@ -61,6 +61,6 @@ export async function getFolders({
   return data;
 }
 
-export async function getFoldersByLand(landId: string): Promise<Folder[]> {
-  return getFolders({ landId });
+export async function getFoldersByLine(lineId: string): Promise<Folder[]> {
+  return getFolders({ lineId });
 }

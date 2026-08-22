@@ -7,14 +7,14 @@ import { toast } from 'sonner'
 
 interface CreateFolderDialogProps {
   parentId: number | null
-  landId: string
+  lineId: string
   onCreateSuccess?: () => void
   onOpenChange?: (open: boolean) => void
 }
 
 export function CreateFolderDialog({
   parentId,
-  landId,
+  lineId,
   onCreateSuccess,
   onOpenChange
 }: CreateFolderDialogProps) {
@@ -51,7 +51,7 @@ export function CreateFolderDialog({
         body: JSON.stringify({
           name: name.trim(),
           parentId,
-          landId
+          lineId
         })
       })
 

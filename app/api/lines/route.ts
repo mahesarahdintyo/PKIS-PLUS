@@ -10,10 +10,10 @@ export async function GET(request: Request) {
     const userProfile = await getCurrentUserProfile();
     const supabase = await createClient();
 
-    let query = supabase.from("lands").select("*");
+    let query = supabase.from("lines").select("*");
 
-    if (userProfile.role === "operator" && userProfile.landId) {
-      query = query.eq("id", userProfile.landId);
+    if (userProfile.role === "operator" && userProfile.lineId) {
+      query = query.eq("id", userProfile.lineId);
     } else if (!includeHidden) {
       query = query.eq("hidden_from_operator", false);
     }
@@ -24,11 +24,11 @@ export async function GET(request: Request) {
       query = query.or("is_active.eq.true,is_active.is.null");
     }
 
-    const [{ data: lands, error }, { data: documents, error: documentsError }] = await Promise.all([
+    const [{ data: lines, error }, { data: documents, error: documentsError }] = await Promise.all([
       query.order("name", { ascending: true }),
       supabase
         .from("documents")
-        .select("land_id, folders ( land_id )")
+        .select("line_id, folders ( line_id )")
         .or("is_active.eq.true,is_active.is.null"),
     ]);
 
@@ -36,22 +36,23 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error?.message ?? documentsError?.message }, { status: 500 });
     }
 
-    const documentCountByLandId = new Map<string, number>();
+    const documentCountByLineId = new Map<string, number>();
     for (const document of documents ?? []) {
       const folder = Array.isArray(document.folders) ? document.folders[0] : document.folders;
-      const landId = document.land_id ?? folder?.land_id;
-      if (landId) {
-        documentCountByLandId.set(landId, (documentCountByLandId.get(landId) ?? 0) + 1);
+      const lineId = document.line_id ?? folder?.line_id;
+      if (lineId) {
+        documentCountByLineId.set(lineId, (documentCountByLineId.get(lineId) ?? 0) + 1);
       }
     }
 
     return NextResponse.json(
-      (lands ?? []).map((land) => ({
-        ...land,
-        document_count: documentCountByLandId.get(land.id) ?? 0,
+      (lines ?? []).map((line) => ({
+        ...line,
+        document_count: documentCountByLineId.get(line.id) ?? 0,
       }))
-    );  } catch (error) {
-    console.error("Lands GET error:", error);
+    );
+  } catch (error) {
+    console.error("Lines GET error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
 
     if (!name) {
       return NextResponse.json(
-        { error: "Nama card tidak boleh kosong" },
+        { error: "Nama line produksi tidak boleh kosong" },
         { status: 400 }
       );
     }
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
 
     // Cek duplikat nama (case-insensitive)
     const { data: existing } = await supabase
-      .from("lands")
+      .from("lines")
       .select("id")
       .ilike("name", name)
       .eq("is_active", true)
@@ -84,13 +85,13 @@ export async function POST(request: Request) {
 
     if (existing) {
       return NextResponse.json(
-        { error: `Card dengan nama "${name}" sudah ada. Gunakan nama yang berbeda.` },
+        { error: `Line produksi dengan nama "${name}" sudah ada. Gunakan nama yang berbeda.` },
         { status: 409 }
       );
     }
 
-    const { data: newLand, error } = await supabase
-      .from("lands")
+    const { data: newLine, error } = await supabase
+      .from("lines")
       .insert({
         name,
         description,
@@ -103,9 +104,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json(newLand, { status: 201 });
+    return NextResponse.json(newLine, { status: 201 });
   } catch (error) {
-    console.error("Lands POST error:", error);
+    console.error("Lines POST error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -122,23 +123,23 @@ export async function PUT(request: Request) {
 
     if (!id) {
       return NextResponse.json(
-        { error: "Land ID tidak valid" },
+        { error: "Line ID tidak valid" },
         { status: 400 }
       );
     }
 
     if (!name) {
       return NextResponse.json(
-        { error: "Nama card tidak boleh kosong" },
+        { error: "Nama line produksi tidak boleh kosong" },
         { status: 400 }
       );
     }
 
     const supabase = await createClient();
 
-    // Cek duplikat nama (case-insensitive), kecuali card yang sedang diedit
+    // Cek duplikat nama (case-insensitive), kecuali line yang sedang diedit
     const { data: existing } = await supabase
-      .from("lands")
+      .from("lines")
       .select("id")
       .ilike("name", name)
       .eq("is_active", true)
@@ -147,13 +148,13 @@ export async function PUT(request: Request) {
 
     if (existing) {
       return NextResponse.json(
-        { error: `Card dengan nama "${name}" sudah ada. Gunakan nama yang berbeda.` },
+        { error: `Line produksi dengan nama "${name}" sudah ada. Gunakan nama yang berbeda.` },
         { status: 409 }
       );
     }
 
-    const { data: updatedLand, error } = await supabase
-      .from("lands")
+    const { data: updatedLine, error } = await supabase
+      .from("lines")
       .update({
         name,
         description,
@@ -166,9 +167,9 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json(updatedLand);
+    return NextResponse.json(updatedLine);
   } catch (error) {
-    console.error("Lands PUT error:", error);
+    console.error("Lines PUT error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -181,7 +182,7 @@ export async function PATCH(request: Request) {
 
     if (!id) {
       return NextResponse.json(
-        { error: "Land ID is required" },
+        { error: "Line ID is required" },
         { status: 400 }
       );
     }
@@ -195,8 +196,8 @@ export async function PATCH(request: Request) {
 
     const supabase = await createClient();
 
-    const { data: updatedLand, error } = await supabase
-      .from("lands")
+    const { data: updatedLine, error } = await supabase
+      .from("lines")
       .update({
         hidden_from_operator: hiddenFromOperator,
       })
@@ -205,25 +206,24 @@ export async function PATCH(request: Request) {
       .maybeSingle();
 
     if (error) {
-      console.error("Lands PATCH supabase error:", error);
+      console.error("Lines PATCH supabase error:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     // Jika tidak ada baris yang ter-update, kemungkinan diblokir oleh RLS
-    if (!updatedLand) {
+    if (!updatedLine) {
       return NextResponse.json(
-        { error: "Data tidak ditemukan atau Anda tidak memiliki izin untuk mengubah visibilitas card ini." },
+        { error: "Data tidak ditemukan atau Anda tidak memiliki izin untuk mengubah visibilitas line produksi ini." },
         { status: 403 }
       );
     }
 
-    return NextResponse.json(updatedLand);
+    return NextResponse.json(updatedLine);
   } catch (error) {
-    console.error("Lands PATCH error:", error);
+    console.error("Lines PATCH error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
-
 
 export async function DELETE(request: Request) {
   try {
@@ -232,31 +232,31 @@ export async function DELETE(request: Request) {
 
     if (!id) {
       return NextResponse.json(
-        { error: "Land ID is required" },
+        { error: "Line ID is required" },
         { status: 400 }
       );
     }
 
     const supabase = await createClient();
 
-    // 1. Get all folders of this land
+    // 1. Get all folders of this line
     const { data: folders } = await supabase
       .from("folders")
       .select("id")
-      .eq("land_id", id);
+      .eq("line_id", id);
 
     const folderIds = (folders ?? []).map((f) => f.id);
 
-    // 2. Find documents directly in the land or in its folders to clear display_documents
+    // 2. Find documents directly in the line or in its folders to clear display_documents
     const queryBuilder = supabase
       .from("documents")
       .select("id");
 
     let docQuery = queryBuilder;
     if (folderIds.length > 0) {
-      docQuery = docQuery.or(`land_id.eq.${id},folder_id.in.(${folderIds.join(",")})`);
+      docQuery = docQuery.or(`line_id.eq.${id},folder_id.in.(${folderIds.join(",")})`);
     } else {
-      docQuery = docQuery.eq("land_id", id);
+      docQuery = docQuery.eq("line_id", id);
     }
 
     const { data: documents } = await docQuery;
@@ -286,11 +286,11 @@ export async function DELETE(request: Request) {
     }
 
     // 4. Delete display heartbeats (if any)
-    await supabase.from("display_heartbeats").delete().eq("land_id", id);
+    await supabase.from("display_heartbeats").delete().eq("line_id", id);
 
-    // 5. Soft delete the land from database
+    // 5. Soft delete the line from database
     const { error } = await supabase
-      .from("lands")
+      .from("lines")
       .update({ is_active: false })
       .eq("id", id);
 
@@ -300,10 +300,10 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: "Land soft deleted successfully",
+      message: "Line soft deleted successfully",
     });
   } catch (error) {
-    console.error("Lands DELETE error:", error);
+    console.error("Lines DELETE error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

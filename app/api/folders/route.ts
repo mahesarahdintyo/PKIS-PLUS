@@ -7,14 +7,14 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const parentIdStr = searchParams.get('parentId')
-    const reqLandId = searchParams.get('landId')
+    const reqLineId = searchParams.get('lineId')
     const includeAll = searchParams.get('includeAll') === 'true'
     const searchQuery = searchParams.get('search')?.trim()
     const showTrash = searchParams.get('trash') === 'true'
     const parentId = parentIdStr ? parseInt(parentIdStr) : null
 
     const userProfile = await getCurrentUserProfile()
-    const landId = userProfile.role === 'operator' && userProfile.landId ? userProfile.landId : reqLandId
+    const lineId = userProfile.role === 'operator' && userProfile.lineId ? userProfile.lineId : reqLineId
 
     const supabase = await createClient()
 
@@ -26,8 +26,8 @@ export async function GET(request: Request) {
       query = query.or('is_active.eq.true,is_active.is.null')
     }
 
-    if (landId) {
-      query = query.eq('land_id', landId)
+    if (lineId) {
+      query = query.eq('line_id', lineId)
     }
 
     if (searchQuery) {
@@ -65,9 +65,9 @@ export async function GET(request: Request) {
       .in('folder_id', folderIds)
       .or('is_active.eq.true,is_active.is.null')
 
-    if (landId) {
-      childFolderQuery = childFolderQuery.eq('land_id', landId)
-      childDocumentQuery = childDocumentQuery.eq('land_id', landId)
+    if (lineId) {
+      childFolderQuery = childFolderQuery.eq('line_id', lineId)
+      childDocumentQuery = childDocumentQuery.eq('line_id', lineId)
     }
 
     const [
@@ -117,7 +117,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
 
-    const { name, parentId, landId: reqLandId } = body
+    const { name, parentId, lineId: reqLineId } = body
 
     if (!name || typeof name !== 'string' || !name.trim()) {
       return NextResponse.json(
@@ -127,21 +127,21 @@ export async function POST(request: Request) {
     }
 
     const userProfile = await getCurrentUserProfile()
-    const landId = userProfile.role === 'operator' && userProfile.landId ? userProfile.landId : reqLandId
+    const lineId = userProfile.role === 'operator' && userProfile.lineId ? userProfile.lineId : reqLineId
 
     const baseName = name.trim()
     const supabase = await createClient()
     const parsedParentId = parentId ? parseInt(parentId) : null
 
-    // Ambil semua folder dalam scope yang sama (parent + land)
+    // Ambil semua folder dalam scope yang sama (parent + line)
     let siblingQuery = supabase
       .from('folders')
       .select('name')
       .ilike('name', `${baseName}%`)
       .or('is_active.eq.true,is_active.is.null')
 
-    if (landId) {
-      siblingQuery = siblingQuery.eq('land_id', landId)
+    if (lineId) {
+      siblingQuery = siblingQuery.eq('line_id', lineId)
     }
 
     if (parsedParentId !== null) {
@@ -176,7 +176,7 @@ export async function POST(request: Request) {
       .insert({
         name: finalName,
         parent_id: parsedParentId,
-        land_id: landId,
+        line_id: lineId,
       })
       .select()
 

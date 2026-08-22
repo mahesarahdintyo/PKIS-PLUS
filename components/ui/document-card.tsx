@@ -27,13 +27,13 @@ import { toast } from 'sonner'
 
 const DISPLAY_DOCUMENT_STORAGE_KEY = 'futaba.display.document'
 
-function getDisplayDocumentStorageKey(landId?: string) {
-  return landId ? `${DISPLAY_DOCUMENT_STORAGE_KEY}.${landId}` : DISPLAY_DOCUMENT_STORAGE_KEY
+function getDisplayDocumentStorageKey(lineId?: string) {
+  return lineId ? `${DISPLAY_DOCUMENT_STORAGE_KEY}.${lineId}` : DISPLAY_DOCUMENT_STORAGE_KEY
 }
 
 interface DocumentCardProps {
   id: string
-  landId?: string
+  lineId?: string
   title: string
   description: string
   category: string
@@ -290,7 +290,7 @@ function isValidLocalDateTimeInputValue(localDateTime: string) {
 
 export function DocumentCard({
   id,
-  landId,
+  lineId,
   title,
   description,
   category,
@@ -394,7 +394,7 @@ export function DocumentCard({
 
       const displayDocument = {
         id,
-        landId,
+        lineId,
         title: currentTitle,
         description,
         category,
@@ -420,7 +420,7 @@ export function DocumentCard({
       const nextDisplayDocument = data.document ?? displayDocument
 
       window.localStorage.setItem(
-        getDisplayDocumentStorageKey(nextDisplayDocument.landId),
+        getDisplayDocumentStorageKey(nextDisplayDocument.lineId),
         JSON.stringify(nextDisplayDocument)
       )
 
@@ -454,7 +454,7 @@ export function DocumentCard({
       }
 
       // --- TAMBAHAN BARU: Sinyal instan ke layar Display ---
-      const displayStorageKey = getDisplayDocumentStorageKey(landId)
+      const displayStorageKey = getDisplayDocumentStorageKey(lineId)
       const rawDisplayDoc = window.localStorage.getItem(displayStorageKey)
 
       if (rawDisplayDoc) {
@@ -620,7 +620,7 @@ export function DocumentCard({
 
       setCurrentFileName(savedFileName)
 
-      const displayStorageKey = getDisplayDocumentStorageKey(landId)
+      const displayStorageKey = getDisplayDocumentStorageKey(lineId)
       const rawDisplayDoc = window.localStorage.getItem(displayStorageKey)
       if (rawDisplayDoc) {
         try {
@@ -680,7 +680,7 @@ export function DocumentCard({
 
       setCurrentTitle(savedTitle)
 
-      const displayStorageKey = getDisplayDocumentStorageKey(landId)
+      const displayStorageKey = getDisplayDocumentStorageKey(lineId)
       const rawDisplayDoc = window.localStorage.getItem(displayStorageKey)
       if (rawDisplayDoc) {
         try {

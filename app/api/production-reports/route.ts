@@ -6,13 +6,13 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const reqLandId = searchParams.get("landId");
+    const reqLineId = searchParams.get("lineId");
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
     const showTrash = searchParams.get("trash") === "true";
 
     const userProfile = await getCurrentUserProfile();
-    const landId = userProfile.role === "operator" && userProfile.landId ? userProfile.landId : reqLandId;
+    const lineId = userProfile.role === "operator" && userProfile.lineId ? userProfile.lineId : reqLineId;
 
     const supabase = await createClient();
 
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
       .from("production_reports")
       .select(`
         *,
-        land:lands(name)
+        line:lines(name)
       `);
 
     if (showTrash) {
@@ -29,9 +29,9 @@ export async function GET(request: Request) {
       query = query.or("is_active.eq.true,is_active.is.null");
     }
 
-    // Only filter by land if landId is specified and is not "all"
-    if (landId && landId !== "all" && landId !== "undefined") {
-      query = query.eq("land_id", landId);
+    // Only filter by line if lineId is specified and is not "all"
+    if (lineId && lineId !== "all" && lineId !== "undefined") {
+      query = query.eq("line_id", lineId);
     }
 
     // Filter by date range if provided
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const {
-      land_id: reqLandId,
+      line_id: reqLineId,
       report_date,
       shift,
       operator_name,
@@ -83,11 +83,11 @@ export async function POST(request: Request) {
     } = body;
 
     const userProfile = await getCurrentUserProfile();
-    const land_id = userProfile.role === "operator" && userProfile.landId ? userProfile.landId : reqLandId;
+    const line_id = userProfile.role === "operator" && userProfile.lineId ? userProfile.lineId : reqLineId;
 
     // Validate required fields
     if (
-      !land_id ||
+      !line_id ||
       !report_date ||
       !shift ||
       !operator_name ||
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
     const { data, error } = await supabase
       .from("production_reports")
       .insert({
-        land_id,
+        line_id,
         report_date,
         shift,
         operator_name: operator_name.trim(),

@@ -8,7 +8,7 @@ interface DocumentListProps {
   documents: Document[];
   isLoading?: boolean;
   error?: string;
-  selectedLandId?: string;
+  selectedLineId?: string;
   onEnterFolder: (id: number, name: string) => void;
 }
 
@@ -17,7 +17,7 @@ export default function DocumentList({
   documents,
   isLoading = false,
   error = "",
-  selectedLandId,
+  selectedLineId,
   onEnterFolder,
 }: DocumentListProps) {
   if (isLoading) {
@@ -97,7 +97,7 @@ export default function DocumentList({
                 >
                   <DocumentCard
                     id={document.id}
-                    landId={document.landId ?? selectedLandId}
+                    lineId={document.lineId ?? selectedLineId}
                     title={document.title}
                     description={document.description}
                     category={document.category}

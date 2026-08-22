@@ -1,6 +1,6 @@
 export interface ProductionReport {
   id: string;
-  land_id: string;
+  line_id: string;
   report_date: string; // YYYY-MM-DD
   shift: string;
   operator_name: string;
@@ -13,14 +13,14 @@ export interface ProductionReport {
   break_minutes: number;
   created_at: string;
   updated_at: string;
-  land?: {
+  line?: {
     name: string;
   } | null;
   is_active?: boolean;
 }
 
 export interface ProductionReportQuery {
-  landId?: string;
+  lineId?: string;
   startDate?: string;
   endDate?: string;
   trash?: boolean;
@@ -28,8 +28,8 @@ export interface ProductionReportQuery {
 
 export async function getProductionReports(query?: ProductionReportQuery): Promise<ProductionReport[]> {
   const params = new URLSearchParams();
-  if (query?.landId) {
-    params.set("landId", query.landId);
+  if (query?.lineId) {
+    params.set("lineId", query.lineId);
   }
   if (query?.startDate) {
     params.set("startDate", query.startDate);

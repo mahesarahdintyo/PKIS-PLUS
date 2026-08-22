@@ -1,6 +1,6 @@
 export interface Document {
   id: string;
-  landId?: string;
+  lineId?: string;
   title: string;
   description: string;
   category: string;
@@ -16,7 +16,7 @@ export interface Document {
 
 interface DocumentQuery {
   folderId?: number | null;
-  landId?: string;
+  lineId?: string;
   search?: string;
   trash?: boolean;
   includeHidden?: boolean;
@@ -24,7 +24,7 @@ interface DocumentQuery {
 
 export async function getDocuments({
   folderId,
-  landId,
+  lineId,
   search,
   trash = false,
   includeHidden = false,
@@ -35,8 +35,8 @@ export async function getDocuments({
     params.set("folderId", folderId.toString());
   }
 
-  if (landId) {
-    params.set("landId", landId);
+  if (lineId) {
+    params.set("lineId", lineId);
   }
 
   if (search?.trim()) {

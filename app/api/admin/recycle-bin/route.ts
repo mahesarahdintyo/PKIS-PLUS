@@ -44,17 +44,17 @@ export async function DELETE(request: Request) {
     // Single Item Permanent Hard Delete
     // -------------------------------------------------------------
     if (type && id) {
-      if (type === "land") {
+      if (type === "line" || type === "land") {
         const { data: folders } = await supabase
           .from("folders")
           .select("id")
-          .eq("land_id", id);
+          .eq("line_id", id);
         const folderIds = (folders ?? []).map((f) => f.id);
 
-        const { data: docsInLand } = await supabase
+        const { data: docsInLine } = await supabase
           .from("documents")
           .select("id, file_path")
-          .eq("land_id", id);
+          .eq("line_id", id);
 
         let docsInFolders: { id: number | string; file_path: string | null }[] = [];
         if (folderIds.length > 0) {
@@ -65,7 +65,7 @@ export async function DELETE(request: Request) {
           docsInFolders = df ?? [];
         }
 
-        const allDocs = [...(docsInLand ?? []), ...docsInFolders];
+        const allDocs = [...(docsInLine ?? []), ...docsInFolders];
         const uniqueDocsMap = new Map();
         allDocs.forEach((d) => uniqueDocsMap.set(d.id, d));
         const docs = Array.from(uniqueDocsMap.values());
@@ -91,17 +91,17 @@ export async function DELETE(request: Request) {
           await supabase.from("folders").delete().in("id", folderIds);
         }
 
-        await supabase.from("production_reports").delete().eq("land_id", id);
-        await supabase.from("display_heartbeats").delete().eq("land_id", id);
+        await supabase.from("production_reports").delete().eq("line_id", id);
+        await supabase.from("display_heartbeats").delete().eq("line_id", id);
 
-        const { error } = await supabase.from("lands").delete().eq("id", id);
+        const { error } = await supabase.from("lines").delete().eq("id", id);
         if (error) {
           return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
         return NextResponse.json({
           success: true,
-          message: "Card berhasil dihapus secara permanen.",
+          message: "Line produksi berhasil dihapus secara permanen.",
         });
       } else if (type === "folder") {
         const folderId = typeof id === "string" ? parseInt(id) : id;
@@ -232,18 +232,18 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: reportsFetchError.message }, { status: 500 });
     }
 
-    const { data: lands, error: landsFetchError } = await supabase
-      .from("lands")
+    const { data: lines, error: linesFetchError } = await supabase
+      .from("lines")
       .select("id")
       .eq("is_active", false);
 
-    if (landsFetchError) {
-      return NextResponse.json({ error: landsFetchError.message }, { status: 500 });
+    if (linesFetchError) {
+      return NextResponse.json({ error: linesFetchError.message }, { status: 500 });
     }
 
     const docIds = (documents ?? []).map((document) => document.id);
     const folderIds = (folders ?? []).map((folder) => folder.id);
-    const landIds = (lands ?? []).map((land) => land.id);
+    const lineIds = (lines ?? []).map((line) => line.id);
     const reportIds = (reports ?? []).map((report) => report.id);
 
     // 2. Delete physical files from Supabase Storage. Missing files should not block DB cleanup.
@@ -315,21 +315,21 @@ export async function DELETE(request: Request) {
       deletedProductionReports = count ?? 0;
     }
 
-    // 6. Delete inactive lands and related heartbeat rows.
-    let deletedLands = 0;
-    if (landIds.length > 0) {
-      await supabase.from("display_heartbeats").delete().in("land_id", landIds);
+    // 6. Delete inactive lines and related heartbeat rows.
+    let deletedLines = 0;
+    if (lineIds.length > 0) {
+      await supabase.from("display_heartbeats").delete().in("line_id", lineIds);
 
-      const { count, error: landDeleteError } = await supabase
-        .from("lands")
+      const { count, error: lineDeleteError } = await supabase
+        .from("lines")
         .delete({ count: "exact" })
-        .in("id", landIds);
+        .in("id", lineIds);
 
-      if (landDeleteError) {
-        return NextResponse.json({ error: landDeleteError.message }, { status: 500 });
+      if (lineDeleteError) {
+        return NextResponse.json({ error: lineDeleteError.message }, { status: 500 });
       }
 
-      deletedLands = count ?? 0;
+      deletedLines = count ?? 0;
     }
 
     // 7. Delete all inactive production module records
@@ -346,7 +346,7 @@ export async function DELETE(request: Request) {
       success: true,
       message: "Tempat sampah berhasil dikosongkan secara permanen.",
       deleted: {
-        lands: deletedLands,
+        lines: deletedLines,
         folders: deletedFolders,
         documents: deletedDocuments,
         productionReports: deletedProductionReports,
@@ -376,26 +376,26 @@ export async function POST(request: Request) {
 
     const supabase = await createClient();
 
-    if (type === "land") {
-      // 1. Restore the land itself
-      await supabase.from("lands").update({ is_active: true }).eq("id", id);
+    if (type === "line" || type === "land") {
+      // 1. Restore the line itself
+      await supabase.from("lines").update({ is_active: true }).eq("id", id);
 
-      // 2. Restore all folders of this land
+      // 2. Restore all folders of this line
       const { data: folders } = await supabase
         .from("folders")
         .select("id")
-        .eq("land_id", id);
+        .eq("line_id", id);
 
       const folderIds = (folders ?? []).map((f) => f.id);
 
       if (folderIds.length > 0) {
         await supabase.from("folders").update({ is_active: true }).in("id", folderIds);
-        // Restore documents inside the land's folders
+        // Restore documents inside the line's folders
         await supabase.from("documents").update({ is_active: true }).in("folder_id", folderIds);
       }
 
-      // 3. Restore all documents directly in the land
-      await supabase.from("documents").update({ is_active: true }).eq("land_id", id);
+      // 3. Restore all documents directly in the line
+      await supabase.from("documents").update({ is_active: true }).eq("line_id", id);
 
     } else if (type === "folder") {
       const folderId = typeof id === "string" ? parseInt(id) : id;
@@ -425,12 +425,12 @@ export async function POST(request: Request) {
       // Restore all documents in these folders
       await supabase.from("documents").update({ is_active: true }).in("folder_id", allFolderIds);
 
-      // 2. Recursively ensure parent chain (parent folders and parent land) is active
+      // 2. Recursively ensure parent chain (parent folders and parent line) is active
       let currentFolderId: number | null = folderId;
       while (currentFolderId) {
         const { data: folder } = await supabase
           .from("folders")
-          .select("parent_id, land_id")
+          .select("parent_id, line_id")
           .eq("id", currentFolderId)
           .single();
 
@@ -440,8 +440,8 @@ export async function POST(request: Request) {
           await supabase.from("folders").update({ is_active: true }).eq("id", folder.parent_id);
           currentFolderId = folder.parent_id;
         } else {
-          if (folder.land_id) {
-            await supabase.from("lands").update({ is_active: true }).eq("id", folder.land_id);
+          if (folder.line_id) {
+            await supabase.from("lines").update({ is_active: true }).eq("id", folder.line_id);
           }
           break;
         }
@@ -454,16 +454,16 @@ export async function POST(request: Request) {
       // 1. Restore the document itself
       await supabase.from("documents").update({ is_active: true }).eq("id", id);
 
-      // 2. Ensure its parent folder or parent land is active
+      // 2. Ensure its parent folder or parent line is active
       const { data: doc } = await supabase
         .from("documents")
-        .select("folder_id, land_id")
+        .select("folder_id, line_id")
         .eq("id", id)
         .single();
 
       if (doc) {
-        if (doc.land_id) {
-          await supabase.from("lands").update({ is_active: true }).eq("id", doc.land_id);
+        if (doc.line_id) {
+          await supabase.from("lines").update({ is_active: true }).eq("id", doc.line_id);
         }
         if (doc.folder_id) {
           await supabase.from("folders").update({ is_active: true }).eq("id", doc.folder_id);
@@ -473,7 +473,7 @@ export async function POST(request: Request) {
           while (currentFolderId) {
             const { data: folder } = await supabase
               .from("folders")
-              .select("parent_id, land_id")
+              .select("parent_id, line_id")
               .eq("id", currentFolderId)
               .single();
 
@@ -483,8 +483,8 @@ export async function POST(request: Request) {
               await supabase.from("folders").update({ is_active: true }).eq("id", folder.parent_id);
               currentFolderId = folder.parent_id;
             } else {
-              if (folder.land_id) {
-                await supabase.from("lands").update({ is_active: true }).eq("id", folder.land_id);
+              if (folder.line_id) {
+                await supabase.from("lines").update({ is_active: true }).eq("id", folder.line_id);
               }
               break;
             }

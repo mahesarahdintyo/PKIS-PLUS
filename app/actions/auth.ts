@@ -36,10 +36,10 @@ export async function login(state: any, formData: FormData) {
     return { error: "User tidak ditemukan." };
   }
 
-  // Ambil role dan land_id dari tabel profiles
+  // Ambil role dan line_id dari tabel profiles
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("role, land_id")
+    .select("role, line_id, land_id")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -49,11 +49,11 @@ export async function login(state: any, formData: FormData) {
 
   const rawRole = (profile?.role || user.user_metadata?.role || user.app_metadata?.role || "operator") as string;
   const role = rawRole.trim().toLowerCase();
-  const landId = profile?.land_id ?? user.user_metadata?.land_id ?? null;
+  const lineId = profile?.line_id ?? (profile as any)?.land_id ?? user.user_metadata?.line_id ?? user.user_metadata?.land_id ?? null;
 
   const redirectUrl = "/";
 
-  return { success: true, redirectUrl, role, landId };
+  return { success: true, redirectUrl, role, lineId, landId: lineId };
 }
 
 export async function logout() {

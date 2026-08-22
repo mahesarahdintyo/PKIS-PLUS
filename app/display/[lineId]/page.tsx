@@ -3,16 +3,16 @@ import { Suspense } from "react";
 
 interface DisplayLinePageProps {
   params: Promise<{
-    landId: string;
+    lineId: string;
   }>;
 }
 
 export default async function DisplayLinePage({ params }: DisplayLinePageProps) {
-  const { landId } = await params;
+  const { lineId } = await params;
 
   return (
     <Suspense fallback={null}>
-      <DisplayPageClient landId={landId} />
+      <DisplayPageClient lineId={lineId} />
     </Suspense>
   );
 }

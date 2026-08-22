@@ -1,21 +1,22 @@
-export interface Land {
+export interface Line {
   id: string;
   name: string;
   description?: string;
   is_active: boolean;
   hidden_from_operator?: boolean;
   document_count?: number;
+  machine_type?: string | null;
 }
 
-interface LandQuery {
+interface LineQuery {
   includeHidden?: boolean;
   trash?: boolean;
 }
 
-export async function getLands({
+export async function getLines({
   includeHidden = false,
   trash = false,
-}: LandQuery = {}): Promise<Land[]> {
+}: LineQuery = {}): Promise<Line[]> {
   const params = new URLSearchParams();
 
   if (includeHidden) {
@@ -27,7 +28,7 @@ export async function getLands({
   }
 
   const query = params.toString();
-  const url = `/api/lands${query ? `?${query}` : ""}`;
+  const url = `/api/lines${query ? `?${query}` : ""}`;
 
   const response = await fetch(url, {
     cache: "no-store",
@@ -35,7 +36,7 @@ export async function getLands({
 
   if (!response.ok) {
     const data = await response.json().catch(() => null);
-    throw new Error(data?.error ?? "Failed to load lands");
+    throw new Error(data?.error ?? "Failed to load lines");
   }
 
   const data = await response.json();

@@ -21,11 +21,11 @@ export async function POST(request: Request) {
     const title = formData.get('title') as string
     const description = formData.get('description') as string
     const folderId = formData.get('folderId') as string
-    const reqLandId = formData.get('landId') as string
+    const reqLineId = (formData.get('lineId') ?? formData.get('landId')) as string
     const targetTime = formData.get('targetTime') as string | null
 
     const userProfile = await getCurrentUserProfile()
-    const landId = userProfile.role === 'operator' && userProfile.landId ? userProfile.landId : reqLandId
+    const lineId = userProfile.role === 'operator' && userProfile.lineId ? userProfile.lineId : reqLineId
 
     if (!file) {
       return NextResponse.json(
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
       title,
       description,
       folder_id: folderId ? parseInt(folderId) : null,
-      land_id: landId || null,
+      line_id: lineId || null,
       file_name: file.name,
       file_path: uploadData.path,
       file_size: file.size,
