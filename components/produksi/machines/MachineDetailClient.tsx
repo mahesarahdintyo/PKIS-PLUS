@@ -1706,7 +1706,7 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
         </Button>
       </div>
 
-      <div className="machine-tabs-bar flex items-center gap-2.5 flex-wrap">
+      <div className="machine-tabs-bar flex items-center gap-2.5 flex-wrap mb-6">
         <Button
           type="button"
           variant={activeTab === "produksi" ? "default" : "secondary"}
