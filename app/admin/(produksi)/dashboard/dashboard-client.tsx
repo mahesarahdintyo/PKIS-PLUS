@@ -677,7 +677,7 @@ export default function DashboardClient() {
           accidentCount = Number(row.accident_count) || 0;
           daysWithoutAccident = Number(row.hari_tanpa_accident) || 0;
         } else {
-          const sr = await supabase.from("prod_safety_log").select("*").gte("tanggal", startDate).lte("tanggal", endDate);
+          const sr = await supabase.from("prod_safety_log").select("*").eq("is_active", true).gte("tanggal", startDate).lte("tanggal", endDate);
           if (sr.data && sr.data.length > 0) {
             accidentCount = sr.data.filter((s: any) => s.kategori === "ACCIDENT").length;
             const totalDays = periodMode === "harian" ? 1
@@ -700,7 +700,7 @@ export default function DashboardClient() {
         } else {
           const scrapYear = periodMode === "tahunan" ? tahunPilih : new Date(endDate).getFullYear();
           const scrapMonth = periodMode === "tahunan" ? new Date().getMonth() + 1 : new Date(endDate).getMonth() + 1;
-          const sr = await supabase.from("prod_scrap_top_end").select("*").eq("tahun", scrapYear).eq("bulan", scrapMonth).maybeSingle();
+          const sr = await supabase.from("prod_scrap_top_end").select("*").eq("is_active", true).eq("tahun", scrapYear).eq("bulan", scrapMonth).maybeSingle();
           scrapValueRpResult = sr.data ? (sr.data.scrap_value_kidr || 0) * 1000 : 0;
         }
       } catch { /* defaults */ }
@@ -740,7 +740,7 @@ export default function DashboardClient() {
       } catch {
         let attList: any[] = [];
         try {
-          let aq = supabase.from("prod_attendance_log").select("*").gte("tanggal", startDate).lte("tanggal", endDate);
+          let aq = supabase.from("prod_attendance_log").select("*").eq("is_active", true).gte("tanggal", startDate).lte("tanggal", endDate);
           if (shiftFilter !== "all") aq = aq.eq("shift", shiftFilter);
           const ar = await aq;
           if (ar.data) attList = ar.data;

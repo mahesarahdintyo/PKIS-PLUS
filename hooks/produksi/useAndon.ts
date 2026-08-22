@@ -214,6 +214,7 @@ export function useAndonLeaders(userId: string | null | undefined) {
       .from("andon_leaders" as any)
       .select("*")
       .eq("user_id", userId)
+      .eq("is_active", true)
       .order("mesin");
     setMyLeaders((data as AndonLeader[]) || []);
     setLoading(false);
@@ -228,7 +229,7 @@ export function useAndonLeaders(userId: string | null | undefined) {
       if (!userId) return { error: "Belum login." };
       const { error } = await supabase
         .from("andon_leaders" as any)
-        .insert({ user_id: userId, mesin, tier });
+        .insert({ user_id: userId, mesin, tier, is_active: true });
       if (error) {
         await fetchMyLeaders();
         return { error: error.code === "23505" ? "Sudah terdaftar utk line & tier ini." : error.message };
@@ -241,7 +242,7 @@ export function useAndonLeaders(userId: string | null | undefined) {
 
   const hapusLeader = useCallback(
     async (id: string) => {
-      await supabase.from("andon_leaders" as any).delete().eq("id", id);
+      await supabase.from("andon_leaders" as any).update({ is_active: false }).eq("id", id);
       await fetchMyLeaders();
     },
     [fetchMyLeaders] // eslint-disable-line react-hooks/exhaustive-deps

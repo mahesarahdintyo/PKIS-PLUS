@@ -108,6 +108,7 @@ export default function MasterDataClient() {
         .from("prod_part_numbers" as any)
         .select("*")
         .eq("mesin", currentConfig.key)
+        .eq("is_active", true)
         .order("value");
 
       if (!pNumErr && pNumData) {
@@ -139,6 +140,7 @@ export default function MasterDataClient() {
         .from("prod_downtime_problems" as any)
         .select("*")
         .eq("mesin", currentConfig.key)
+        .eq("is_active", true)
         .order("value", { ascending: true });
       if (probs) setProblemList(probs as ProdDowntimeProblem[]);
       else setProblemList([]);
@@ -148,6 +150,7 @@ export default function MasterDataClient() {
         .from("prod_nonproduksi_types" as any)
         .select("*")
         .eq("mesin", currentConfig.key)
+        .eq("is_active", true)
         .order("nama", { ascending: true });
       if (npTypes) setNonProduksiTypes(npTypes as ProdNonProduksiType[]);
       else setNonProduksiTypes([]);
@@ -259,7 +262,7 @@ export default function MasterDataClient() {
     try {
       const { error } = await supabase
         .from("prod_part_numbers" as any)
-        .delete()
+        .update({ is_active: false })
         .eq("id", id);
       if (error) throw error;
       toast.success("Part Number berhasil dihapus!");
@@ -291,7 +294,7 @@ export default function MasterDataClient() {
     try {
       const { error } = await supabase
         .from("prod_nonproduksi_types" as any)
-        .delete()
+        .update({ is_active: false })
         .eq("id", id);
       if (error) throw error;
       toast.success("Jenis non-produksi berhasil dihapus!");
@@ -366,7 +369,7 @@ export default function MasterDataClient() {
     try {
       const { error } = await supabase
         .from("prod_downtime_problems" as any)
-        .delete()
+        .update({ is_active: false })
         .eq("id", id);
       if (error) throw error;
       setProblemList((prev) => prev.filter((p) => p.id !== id));

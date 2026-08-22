@@ -53,6 +53,7 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
     const res = await supabase
       .from("prod_scrap_top_end")
       .select("*")
+      .eq("is_active", true)
       .order("tahun", { ascending: false })
       .order("bulan", { ascending: false })
       .range(from, to);
@@ -80,6 +81,7 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
       scrap_value_kidr: Number(form.scrap_value_kidr),
       total_value_kidr: Number(form.total_value_kidr),
       target_rasio: Number(form.target_rasio),
+      is_active: true,
     };
 
     try {
@@ -115,7 +117,7 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
 
   const hapus = async (id: string) => {
     if (!confirm("Hapus data scrap ini?")) return;
-    await supabase.from("prod_scrap_top_end").delete().eq("id", id);
+    await supabase.from("prod_scrap_top_end").update({ is_active: false }).eq("id", id);
     fetchRows(0);
   };
 

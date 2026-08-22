@@ -40,6 +40,7 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
     const res = await supabase
       .from("prod_safety_log")
       .select("*")
+      .eq("is_active", true)
       .order("tanggal", { ascending: false })
       .range(from, to);
     if (res.data) {
@@ -64,6 +65,7 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
       tanggal: form.tanggal,
       kategori: form.kategori,
       keterangan: form.keterangan || null,
+      is_active: true,
     };
 
     try {
@@ -89,7 +91,7 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
 
   const hapus = async (id: string) => {
     if (!confirm("Hapus data insiden ini?")) return;
-    await supabase.from("prod_safety_log").delete().eq("id", id);
+    await supabase.from("prod_safety_log").update({ is_active: false }).eq("id", id);
     fetchRows(0);
   };
 

@@ -21,6 +21,7 @@ export interface ProdAttendanceRecord {
   catatan?: string;
   created_at?: string;
   _pending?: boolean;
+  is_active?: boolean;
 }
 
 export interface ProdSafetyRecord {
@@ -30,6 +31,7 @@ export interface ProdSafetyRecord {
   keterangan?: string;
   created_at?: string;
   _pending?: boolean;
+  is_active?: boolean;
 }
 
 export interface ProdScrapRecord {
@@ -41,6 +43,7 @@ export interface ProdScrapRecord {
   target_rasio?: number;
   created_at?: string;
   _pending?: boolean;
+  is_active?: boolean;
 }
 
 export interface ProdProductivityRecord {
@@ -48,6 +51,7 @@ export interface ProdProductivityRecord {
   tanggal: string;
   eh_jam: number | string;
   created_at?: string;
+  is_active?: boolean;
 }
 
 export interface ProdExtraField {
@@ -85,6 +89,7 @@ export interface ProdMasterPart {
   harga_rp?: number;
   harga_pcs?: number;
   value?: string;
+  is_active?: boolean;
 }
 
 export interface ProdProductionRecord {
@@ -110,6 +115,7 @@ export interface ProdProductionRecord {
   berat_coil?: number;
   next_process?: string;
   created_at?: string;
+  is_active?: boolean;
 }
 
 export interface ProdProductionPlanning {
@@ -126,6 +132,7 @@ export interface ProdProductionPlanning {
   updated_by?: string | null;
   created_at?: string;
   updated_at?: string;
+  is_active?: boolean;
 }
 
 export interface ProdDowntimeRecord {
@@ -140,6 +147,7 @@ export interface ProdDowntimeRecord {
   station?: string;
   created_at?: string;
   _pending?: boolean;
+  is_active?: boolean;
 }
 
 export interface ProdNonProduksiRecord {
@@ -151,6 +159,7 @@ export interface ProdNonProduksiRecord {
   durasi_menit: number;
   keterangan?: string;
   created_at?: string;
+  is_active?: boolean;
 }
 
 export interface ProdSQCDMPRecord {
@@ -166,6 +175,7 @@ export interface ProdSQCDMPRecord {
   productivity?: "OK" | "NG";
   catatan?: string;
   created_at?: string;
+  is_active?: boolean;
 }
 
 // Station State Machine Types
