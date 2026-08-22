@@ -22,10 +22,16 @@ interface Props {
   embedded?: boolean;
 }
 
-export default function InputAttendanceClient({ userId, embedded }: Props) {
+const PAGE_SIZE = 60;
+
+export default function InputAttendanceClient({ userId: initialUserId, embedded }: Props) {
   const supabase = createClient();
   const [rows, setRows] = useState<ProdAttendanceRecord[]>([]);
   const [editId, setEditId] = useState<string | null>(null);
+  const [userId] = useState<string | null>(initialUserId || null);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
   const [form, setForm] = useState<ProdAttendanceRecord>({
@@ -43,17 +49,29 @@ export default function InputAttendanceClient({ userId, embedded }: Props) {
     else toast.success(m);
   };
 
-  const fetchRows = async () => {
+  const fetchRows = async (targetPage = 0) => {
+    if (targetPage > 0) setLoadingMore(true);
+    const from = targetPage * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
     const res = await supabase
       .from("prod_attendance_log")
       .select("*")
       .order("tanggal", { ascending: false })
-      .limit(60);
-    if (res.data) setRows(res.data);
+      .range(from, to);
+    if (res.data) {
+      if (targetPage === 0) {
+        setRows(res.data);
+      } else {
+        setRows((prev) => [...prev, ...(res.data || [])]);
+      }
+      setHasMore((res.data?.length ?? 0) === PAGE_SIZE);
+    }
+    setPage(targetPage);
+    if (targetPage > 0) setLoadingMore(false);
   };
 
   useEffect(() => {
-    fetchRows();
+    fetchRows(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -78,7 +96,7 @@ export default function InputAttendanceClient({ userId, embedded }: Props) {
       flash(editId ? "Data absensi diperbarui!" : "Absensi berhasil disimpan!");
       setEditId(null);
       setForm({ tanggal: today, shift: 1, total_orang: 0, hadir: 0, cuti: 0, absen: 0, overtime_jam: 0 });
-      fetchRows();
+      fetchRows(0);
     } catch (err: any) {
       if (isNetworkError(err)) {
         enqueueOffline("prod_attendance_log", payload);
@@ -98,6 +116,16 @@ export default function InputAttendanceClient({ userId, embedded }: Props) {
     setEditId(r.id || null);
     setForm({ ...r });
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const hapus = async (tanggal: string, shift?: number) => {
+    if (!confirm("Hapus data absensi ini?")) return;
+    let q = supabase.from("prod_attendance_log").delete().eq("tanggal", tanggal);
+    if (shift !== undefined) {
+      q = q.eq("shift", shift);
+    }
+    await q;
+    fetchRows(0);
   };
 
   const innerContent = (
@@ -186,7 +214,10 @@ export default function InputAttendanceClient({ userId, embedded }: Props) {
                   <td className="mono">{fmtNum(r.absen)}</td>
                   <td className="mono">{fmtNum(r.overtime_jam)}</td>
                   <td>
-                    <Button variant="secondary" size="sm" onClick={() => edit(r)}>Edit</Button>
+                    <div className="row-actions flex gap-1">
+                      <Button variant="secondary" size="sm" onClick={() => edit(r)}>Edit</Button>
+                      <Button variant="destructive" size="sm" onClick={() => hapus(r.tanggal, r.shift)}>Hapus</Button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -198,6 +229,19 @@ export default function InputAttendanceClient({ userId, embedded }: Props) {
             </tbody>
           </table>
         </div>
+        {hasMore && (
+          <div className="mt-3 text-center">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={loadingMore}
+              onClick={() => fetchRows(page + 1)}
+            >
+              {loadingMore ? "Memuat..." : "Muat Lebih Banyak"}
+            </Button>
+          </div>
+        )}
       </Card>
     </div>
   );

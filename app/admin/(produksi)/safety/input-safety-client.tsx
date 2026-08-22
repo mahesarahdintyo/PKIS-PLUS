@@ -12,9 +12,14 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { toast } from "sonner";
 
+const PAGE_SIZE = 60;
+
 export default function InputSafetyClient({ embedded }: { embedded?: boolean }) {
   const supabase = createClient();
   const [rows, setRows] = useState<ProdSafetyRecord[]>([]);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
   const [form, setForm] = useState<ProdSafetyRecord>({
@@ -28,17 +33,29 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
     else toast.success(m);
   };
 
-  const fetchRows = async () => {
+  const fetchRows = async (targetPage = 0) => {
+    if (targetPage > 0) setLoadingMore(true);
+    const from = targetPage * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
     const res = await supabase
       .from("prod_safety_log")
       .select("*")
       .order("tanggal", { ascending: false })
-      .limit(60);
-    if (res.data) setRows(res.data);
+      .range(from, to);
+    if (res.data) {
+      if (targetPage === 0) {
+        setRows(res.data);
+      } else {
+        setRows((prev) => [...prev, ...(res.data || [])]);
+      }
+      setHasMore((res.data?.length ?? 0) === PAGE_SIZE);
+    }
+    setPage(targetPage);
+    if (targetPage > 0) setLoadingMore(false);
   };
 
   useEffect(() => {
-    fetchRows();
+    fetchRows(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -55,7 +72,7 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
 
       flash("Insiden berhasil dicatat!");
       setForm({ tanggal: today, kategori: "ACCIDENT", keterangan: "" });
-      fetchRows();
+      fetchRows(0);
     } catch (err: any) {
       if (isNetworkError(err)) {
         enqueueOffline("prod_safety_log", payload);
@@ -73,7 +90,7 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
   const hapus = async (id: string) => {
     if (!confirm("Hapus data insiden ini?")) return;
     await supabase.from("prod_safety_log").delete().eq("id", id);
-    fetchRows();
+    fetchRows(0);
   };
 
   const badgeKategori = (k: string) => {
@@ -170,6 +187,19 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
                 </tbody>
               </table>
             </div>
+            {hasMore && (
+              <div className="mt-3 text-center">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={loadingMore}
+                  onClick={() => fetchRows(page + 1)}
+                >
+                  {loadingMore ? "Memuat..." : "Muat Lebih Banyak"}
+                </Button>
+              </div>
+            )}
           </Card>
         </div>
       </div>
@@ -273,6 +303,19 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
                 </tbody>
               </table>
             </div>
+            {hasMore && (
+              <div className="mt-3 text-center">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={loadingMore}
+                  onClick={() => fetchRows(page + 1)}
+                >
+                  {loadingMore ? "Memuat..." : "Muat Lebih Banyak"}
+                </Button>
+              </div>
+            )}
           </Card>
         </div>
       </main>

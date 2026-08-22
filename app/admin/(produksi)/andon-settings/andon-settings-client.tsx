@@ -62,25 +62,45 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
 
   const [history, setHistory] = useState<AndonCall[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const fetchHistory = useCallback(async () => {
-    setLoadingHistory(true);
+  const PAGE_SIZE = 100;
+
+  const fetchHistory = useCallback(async (targetPage = 0) => {
+    if (targetPage > 0) setLoadingMore(true);
+    else setLoadingHistory(true);
+
+    const from = targetPage * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
     const { data } = await supabase
       .from("andon_calls")
       .select("*")
       .order("created_at", { ascending: false })
-      .limit(100);
-    setHistory((data as AndonCall[]) || []);
-    setLoadingHistory(false);
+      .range(from, to);
+
+    if (data) {
+      if (targetPage === 0) {
+        setHistory((data as AndonCall[]) || []);
+      } else {
+        setHistory((prev) => [...prev, ...((data as AndonCall[]) || [])]);
+      }
+      setHasMore(data.length === PAGE_SIZE);
+    }
+    setPage(targetPage);
+    if (targetPage > 0) setLoadingMore(false);
+    else setLoadingHistory(false);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (isLeaderOrAdmin) fetchHistory();
+    if (isLeaderOrAdmin) fetchHistory(0);
   }, [isLeaderOrAdmin, fetchHistory]);
 
   // Refresh riwayat setiap ada panggilan aktif berubah
   useEffect(() => {
-    if (isLeaderOrAdmin) fetchHistory();
+    if (isLeaderOrAdmin) fetchHistory(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCalls.length]);
 
@@ -264,6 +284,19 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
                 </tbody>
               </table>
             </div>
+            {hasMore && (
+              <div className="mt-3 text-center">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={loadingMore}
+                  onClick={() => fetchHistory(page + 1)}
+                >
+                  {loadingMore ? "Memuat..." : "Muat Lebih Banyak"}
+                </Button>
+              </div>
+            )}
           </Card>
         </div>
       )}

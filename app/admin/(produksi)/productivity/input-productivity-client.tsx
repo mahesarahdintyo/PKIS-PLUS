@@ -21,10 +21,15 @@ function fmtTgl(iso: string): string {
   return d.toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
 }
 
+const PAGE_SIZE = 90;
+
 export default function InputProductivityClient({ embedded }: { embedded?: boolean }) {
   const supabase = createClient();
   const [rows, setRows] = useState<ProdProductivityRecord[]>([]);
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
   const [form, setForm] = useState<ProdProductivityRecord>({
@@ -37,17 +42,29 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
     else toast.success(m);
   };
 
-  const fetchRows = async () => {
+  const fetchRows = async (targetPage = 0) => {
+    if (targetPage > 0) setLoadingMore(true);
+    const from = targetPage * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
     const { data } = await supabase
       .from("productivity_daily_reference")
       .select("tanggal, eh_jam")
       .order("tanggal", { ascending: false })
-      .limit(90);
-    setRows(data || []);
+      .range(from, to);
+    if (data) {
+      if (targetPage === 0) {
+        setRows(data);
+      } else {
+        setRows((prev) => [...prev, ...data]);
+      }
+      setHasMore(data.length === PAGE_SIZE);
+    }
+    setPage(targetPage);
+    if (targetPage > 0) setLoadingMore(false);
   };
 
   useEffect(() => {
-    fetchRows();
+    fetchRows(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -73,7 +90,7 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
     }
     flash("Earned Hours " + form.tanggal + " disimpan.");
     setForm((prev) => ({ ...prev, eh_jam: "" }));
-    await fetchRows();
+    await fetchRows(0);
   };
 
   const editRow = (r: ProdProductivityRecord) => {
@@ -86,7 +103,7 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
 
   const hapusRow = async (tanggal: string) => {
     await supabase.from("productivity_daily_reference").delete().eq("tanggal", tanggal);
-    await fetchRows();
+    await fetchRows(0);
   };
 
   const content = (
@@ -176,6 +193,19 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
               </tbody>
             </table>
           </div>
+          {hasMore && (
+            <div className="mt-3 text-center">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={loadingMore}
+                onClick={() => fetchRows(page + 1)}
+              >
+                {loadingMore ? "Memuat..." : "Muat Lebih Banyak"}
+              </Button>
+            </div>
+          )}
         </Card>
       </div>
     </>
