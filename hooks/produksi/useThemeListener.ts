@@ -8,7 +8,7 @@ export function useThemeListener() {
   useEffect(() => {
     const getCurrentTheme = (): "light" | "dark" => {
       if (typeof window === "undefined") return "dark";
-      const saved = localStorage.getItem("theme_v1") as "light" | "dark" | null;
+      const saved = localStorage.getItem("futaba.theme") as "light" | "dark" | null;
       if (saved) return saved;
       return document.documentElement.classList.contains("dark") ? "dark" : "light";
     };
