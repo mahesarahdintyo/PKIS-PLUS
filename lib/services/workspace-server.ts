@@ -5,21 +5,14 @@ import type { Folder } from "@/lib/services/folder";
 import type { Line } from "@/lib/services/line";
 
 export async function getInitialLines(): Promise<Line[]> {
-  const userProfile = await getCurrentUserProfile();
   const supabase = await createClient();
 
-  let query = supabase
+  const { data, error } = await supabase
     .from("lines")
     .select("*")
-    .or("is_active.eq.true,is_active.is.null");
-
-  if (userProfile.role === "operator" && userProfile.lineId) {
-    query = query.eq("id", userProfile.lineId);
-  } else {
-    query = query.eq("hidden_from_operator", false);
-  }
-
-  const { data, error } = await query.order("name", { ascending: true });
+    .or("is_active.eq.true,is_active.is.null")
+    .eq("hidden_from_operator", false)
+    .order("name", { ascending: true });
 
   if (error) {
     console.error("Initial lines error:", error);
