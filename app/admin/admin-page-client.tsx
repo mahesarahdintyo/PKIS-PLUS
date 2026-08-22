@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { Bell, ChevronLeft, ChevronRight, Database, FileText, FolderKanban, History, LayoutDashboard, Menu, Shield, Tags, Trash2, Users, Wrench, X, Zap } from 'lucide-react'
+import { Bell, ChevronLeft, ChevronRight, Database, FileText, FolderKanban, History, LayoutDashboard, Menu, Shield, Trash2, Users, Wrench, X, Zap } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -16,8 +16,6 @@ import { AdminLandCard } from '@/components/admin/AdminLandCard'
 import { LogoutButton } from '@/components/ui/logout-button'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { getLands, type Land } from '@/lib/services/land'
-import AdminPartNumbersPanel from '@/components/admin/AdminPartNumbersPanel'
-import AdminNgCategoriesPanel from '@/components/admin/AdminNgCategoriesPanel'
 
 interface Document {
   id: string
@@ -95,14 +93,12 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
   const [folderPathHistory, setFolderPathHistory] = useState<BreadcrumbItem[]>([])
   const [isLoading, setIsLoading] = useState(initialLands.length === 0)
   const [error, setError] = useState('')
-  const [activeView, setActiveView] = useState<'workspace' | 'part-numbers' | 'ng-categories'>('workspace')
+  const [activeView, setActiveView] = useState<'workspace'>('workspace')
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(false)
   const [isAnyDialogOpen, setIsAnyDialogOpen] = useState(false)
   const pageTitle = {
     workspace: 'Workspace',
-    'part-numbers': 'Part Number',
-    'ng-categories': 'Kategori NG',
   }[activeView]
 
   const selectView = (view: typeof activeView) => {
@@ -411,8 +407,6 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
             <nav className="mt-6 flex-1 overflow-y-auto space-y-1" aria-label="Navigasi utama">
               <SidebarButton icon={FolderKanban} label="Workspace" active={activeView === 'workspace'} onClick={() => selectView('workspace')} />
               <SidebarLink href="/admin/dashboard" icon={LayoutDashboard} label="Dashboard" />
-              <SidebarButton icon={Tags} label="Part Number" active={activeView === 'part-numbers'} onClick={() => selectView('part-numbers')} />
-              <SidebarButton icon={Tags} label="Kategori NG" active={activeView === 'ng-categories'} onClick={() => selectView('ng-categories')} />
               <div className="pt-2">
                 <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Input Produksi</p>
                 <SidebarLink href="/admin/safety" icon={Shield} label="Input Safety" />
@@ -454,8 +448,6 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
         <nav className="mt-6 flex-1 overflow-y-auto space-y-1" aria-label="Navigasi utama">
           <SidebarButton icon={FolderKanban} label="Workspace" active={activeView === 'workspace'} onClick={() => selectView('workspace')} />
           <SidebarLink href="/admin/dashboard" icon={LayoutDashboard} label="Dashboard" />
-          <SidebarButton icon={Tags} label="Part Number" active={activeView === 'part-numbers'} onClick={() => selectView('part-numbers')} />
-          <SidebarButton icon={Tags} label="Kategori NG" active={activeView === 'ng-categories'} onClick={() => selectView('ng-categories')} />
           <div className="pt-2">
             <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Input Produksi</p>
             <SidebarLink href="/admin/safety" icon={Shield} label="Input Safety" />
@@ -492,12 +484,7 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
           </div>
         </header>
         <main className="flex-1 mx-auto w-full max-w-6xl px-3 py-4 sm:px-6 sm:py-8 lg:px-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-          {activeView === 'part-numbers' ? (
-            <AdminPartNumbersPanel />
-          ) : activeView === 'ng-categories' ? (
-            <AdminNgCategoriesPanel />
-          ) : (
-            <>
+          <>
               {/* Search Bar */}
               <div className="mb-6">
                 <SearchBar
@@ -724,7 +711,6 @@ export default function Page({ initialLands = [] }: AdminPageProps) {
                 )}
               </div>
             </>
-          )}
         </main>
 
         {/* Footer */}
