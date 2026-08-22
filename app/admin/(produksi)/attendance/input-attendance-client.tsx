@@ -222,7 +222,7 @@ export default function InputAttendanceClient({ userId, embedded }: Props) {
         {/* Tombol Kembali ke Admin */}
         <Link
           href="/admin"
-          className="inline-flex items-center gap-1.5 min-h-[44px] px-3 py-2 mb-3 text-xs font-semibold rounded-lg border border-border bg-card text-foreground hover:bg-muted transition-colors touch-manipulation"
+          className="inline-flex items-center gap-1.5 self-start min-h-[44px] px-3 py-2 mb-3 text-xs font-semibold rounded-lg border border-border bg-card text-foreground hover:bg-muted transition-colors touch-manipulation"
         >
           <ArrowLeft className="h-4 w-4 shrink-0" />
           Kembali ke Admin
