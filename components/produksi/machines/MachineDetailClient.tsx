@@ -162,9 +162,14 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
 
   const toggleTheme = () => {
     const nextTheme = theme === "light" ? "dark" : "light";
-    localStorage.setItem("theme_v1", nextTheme);
-    if (nextTheme === "dark") document.documentElement.classList.add("dark");
-    else document.documentElement.classList.remove("dark");
+    localStorage.setItem("futaba.theme", nextTheme);
+    if (nextTheme === "dark") {
+      document.documentElement.classList.add("dark");
+      document.documentElement.classList.remove("light");
+    } else {
+      document.documentElement.classList.add("light");
+      document.documentElement.classList.remove("dark");
+    }
     document.documentElement.setAttribute("data-theme", nextTheme);
     window.dispatchEvent(new Event("themeChange"));
   };
