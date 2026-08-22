@@ -37,7 +37,7 @@ import { enqueueOffline, isNetworkError } from "@/lib/produksi/offlineQueue";
 import { useOfflineSync } from "@/hooks/produksi/useOfflineSync";
 import { useFlash } from "@/hooks/produksi/useFlash";
 import { usePanggilLeader } from "@/hooks/produksi/useAndon";
-import { Bell, Sun, Moon } from "lucide-react";
+import { Bell } from "lucide-react";
 
 import ProduksiTab from "./ProduksiTab";
 import RiwayatTab from "./RiwayatTab";
@@ -159,20 +159,6 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
   const [loading, setLoading] = useState(true);
 
   const theme = useThemeListener();
-
-  const toggleTheme = () => {
-    const nextTheme = theme === "light" ? "dark" : "light";
-    localStorage.setItem("futaba.theme", nextTheme);
-    if (nextTheme === "dark") {
-      document.documentElement.classList.add("dark");
-      document.documentElement.classList.remove("light");
-    } else {
-      document.documentElement.classList.add("light");
-      document.documentElement.classList.remove("dark");
-    }
-    document.documentElement.setAttribute("data-theme", nextTheme);
-    window.dispatchEvent(new Event("themeChange"));
-  };
 
   const { flash } = useFlash();
 
@@ -1758,14 +1744,6 @@ export default function MachineDetailClient({ machineSlug }: MachineDetailClient
           >
             <Bell size={16} style={{ display: "inline", verticalAlign: "middle", marginRight: 6 }} /> Panggil Leader
           </Button>
-          <button
-            type="button"
-            className="theme-toggle"
-            onClick={toggleTheme}
-            title={theme === "dark" ? "Ke mode terang" : "Ke mode gelap"}
-          >
-            <span>{theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}</span>
-          </button>
         </div>
       </div>
 
