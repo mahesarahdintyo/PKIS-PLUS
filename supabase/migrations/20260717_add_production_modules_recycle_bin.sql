@@ -7,12 +7,37 @@ CREATE INDEX IF NOT EXISTS prod_attendance_log_is_active_idx
   ON public.prod_attendance_log (is_active);
 UPDATE public.prod_attendance_log SET is_active = true WHERE is_active IS NULL;
 
--- 2. productivity_daily_reference
+-- 2. productivity_daily_reference (Create if not exists, otherwise add column)
+CREATE TABLE IF NOT EXISTS public.productivity_daily_reference (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tanggal DATE NOT NULL UNIQUE,
+  eh_jam NUMERIC NOT NULL DEFAULT 0,
+  is_active BOOLEAN DEFAULT true NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 ALTER TABLE public.productivity_daily_reference
   ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true NOT NULL;
 CREATE INDEX IF NOT EXISTS productivity_daily_ref_is_active_idx
   ON public.productivity_daily_reference (is_active);
 UPDATE public.productivity_daily_reference SET is_active = true WHERE is_active IS NULL;
+
+ALTER TABLE public.productivity_daily_reference ENABLE ROW LEVEL SECURITY;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'productivity_daily_reference' AND policyname = 'Login bisa lihat productivity_daily_reference'
+  ) THEN
+    CREATE POLICY "Login bisa lihat productivity_daily_reference" ON public.productivity_daily_reference FOR SELECT TO authenticated USING (true);
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'productivity_daily_reference' AND policyname = 'Admin/Leader kelola productivity_daily_reference'
+  ) THEN
+    CREATE POLICY "Admin/Leader kelola productivity_daily_reference" ON public.productivity_daily_reference FOR ALL TO authenticated
+      USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin','leader')))
+      WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin','leader')));
+  END IF;
+END $$;
 
 -- 3. prod_scrap_top_end
 ALTER TABLE public.prod_scrap_top_end
@@ -56,12 +81,39 @@ CREATE INDEX IF NOT EXISTS prod_production_planning_is_active_idx
   ON public.prod_production_planning (is_active);
 UPDATE public.prod_production_planning SET is_active = true WHERE is_active IS NULL;
 
--- 9. andon_leaders
+-- 9. andon_leaders (Create if not exists, otherwise add column)
+CREATE TABLE IF NOT EXISTS public.andon_leaders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL,
+  mesin TEXT NOT NULL,
+  tier SMALLINT NOT NULL CHECK (tier IN (1, 2)),
+  is_active BOOLEAN DEFAULT true NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, mesin, tier)
+);
+
 ALTER TABLE public.andon_leaders
   ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true NOT NULL;
 CREATE INDEX IF NOT EXISTS andon_leaders_is_active_idx
   ON public.andon_leaders (is_active);
 UPDATE public.andon_leaders SET is_active = true WHERE is_active IS NULL;
+
+ALTER TABLE public.andon_leaders ENABLE ROW LEVEL SECURITY;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'andon_leaders' AND policyname = 'Login bisa lihat andon_leaders'
+  ) THEN
+    CREATE POLICY "Login bisa lihat andon_leaders" ON public.andon_leaders FOR SELECT TO authenticated USING (true);
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'andon_leaders' AND policyname = 'Admin/Leader kelola andon_leaders'
+  ) THEN
+    CREATE POLICY "Admin/Leader kelola andon_leaders" ON public.andon_leaders FOR ALL TO authenticated
+      USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin','leader')))
+      WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin','leader')));
+  END IF;
+END $$;
 
 -- 10. prod_part_numbers
 ALTER TABLE public.prod_part_numbers
