@@ -99,14 +99,71 @@ export default function OperatorPage({
   const [currentFolder, setCurrentFolder] = useState<BreadcrumbItem | null>(null);
   const [folderPathHistory, setFolderPathHistory] = useState<BreadcrumbItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(activeInitialLines.length === 0);
+  // Start as false when SSR already provided lines — no need to show spinner immediately
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<"display" | "machine">("display");
   const [documentListKey, setDocumentListKey] = useState(0);
+  // Whether SSR already seeded documents — if so, first workspace fetch should be silent
+  const hasInitialDataRef = useRef(initialDocuments.length > 0 || initialFolders.length > 0);
   const workspaceRequestIdRef = useRef(0);
   const linesRequestIdRef = useRef(0);
   const isMountedRef = useRef(true);
   const folderPathHistoryRef = useRef<BreadcrumbItem[]>([]);
+  // Track previous lineId to distinguish initial mount from actual navigation changes
+  const prevLineIdRef = useRef<string | undefined>(lineId);
+
+  useEffect(() => {
+    if (!lineId) return;
+    // On initial mount, skip the fetch — server already provided fresh data via SSR props
+    if (prevLineIdRef.current === lineId) {
+      prevLineIdRef.current = lineId;
+      return;
+    }
+    prevLineIdRef.current = lineId;
+    const nextLine = activeInitialLines.find(
+      (l) => String(l.id).trim().toLowerCase() === String(lineId).trim().toLowerCase()
+    ) ?? null;
+    setSelectedLine(nextLine);
+    setLines(activeInitialLines);
+    setFolders(initialFolders);
+    setDocuments(initialDocuments);
+    setCurrentFolder(null);
+    setFolderPathHistory([]);
+    setSearchQuery("");
+    // Immediately kick off a fresh workspace fetch for the new line;
+    // can't rely on loadWorkspaceData here (it's stale via closure),
+    // so pass the lineId directly.
+    if (nextLine) {
+      const requestId = workspaceRequestIdRef.current + 1;
+      workspaceRequestIdRef.current = requestId;
+      setIsLoading(true);
+      setError("");
+      Promise.all([
+        getFolders({ lineId: nextLine.id, parentId: null }),
+        getDocuments({ lineId: nextLine.id, folderId: null }),
+      ])
+        .then(([lineFolders, lineDocuments]) => {
+          if (!isMountedRef.current || workspaceRequestIdRef.current !== requestId) return;
+          setFolders(lineFolders);
+          setDocuments(lineDocuments);
+          setDocumentListKey((prev) => prev + 1);
+        })
+        .catch((err) => {
+          if (!isMountedRef.current || workspaceRequestIdRef.current !== requestId) return;
+          console.error("Failed to load workspace on line change", err);
+          setFolders([]);
+          setDocuments([]);
+          setError(err instanceof Error ? err.message : "Gagal memuat data operator");
+        })
+        .finally(() => {
+          if (isMountedRef.current && workspaceRequestIdRef.current === requestId) {
+            setIsLoading(false);
+          }
+        });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lineId]);
 
   useEffect(() => {
     return () => {
@@ -338,13 +395,18 @@ export default function OperatorPage({
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      loadWorkspaceData();
+      // If SSR already provided data, do first fetch silently (no spinner)
+      // so the user sees documents immediately while refresh runs in background
+      const showSpinner = !hasInitialDataRef.current || searchQuery.trim().length > 0;
+      hasInitialDataRef.current = false; // only skip spinner on the very first call
+      loadWorkspaceData({ showLoading: showSpinner });
     }, searchQuery.trim() ? 300 : 0);
 
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [loadWorkspaceData, searchQuery]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadWorkspaceData]);
 
   useEffect(() => {
     if (!selectedLine) return;
