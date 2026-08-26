@@ -8,6 +8,13 @@ import { ProdProductivityRecord } from "@/types/produksi";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 function fmtNum(n: number | string | null | undefined): string {
@@ -31,6 +38,18 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+
+  // State untuk Dialog Edit
+  const [editTarget, setEditTarget] = useState<ProdProductivityRecord | null>(null);
+  const [editForm, setEditForm] = useState<ProdProductivityRecord>({
+    tanggal: "",
+    eh_jam: "",
+  });
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  // State untuk Dialog Hapus
+  const [deleteTarget, setDeleteTarget] = useState<ProdProductivityRecord | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
   const [form, setForm] = useState<ProdProductivityRecord>({
@@ -102,16 +121,55 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
     await fetchRows(0);
   };
 
-  const editRow = (r: ProdProductivityRecord) => {
-    setForm({
+  const handleOpenEdit = (r: ProdProductivityRecord) => {
+    setEditTarget(r);
+    setEditForm({
       tanggal: r.tanggal,
       eh_jam: r.eh_jam,
     });
-    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const hapusRow = async (tanggal: string) => {
-    await supabase.from("productivity_daily_reference").update({ is_active: false }).eq("tanggal", tanggal);
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editForm.tanggal || editForm.eh_jam === "") {
+      flash("Isi tanggal & Earned Hours dulu.", true);
+      return;
+    }
+    setIsSavingEdit(true);
+    const { error } = await supabase
+      .from("productivity_daily_reference")
+      .upsert(
+        {
+          tanggal: editForm.tanggal,
+          eh_jam: Number(editForm.eh_jam),
+          is_active: true,
+        },
+        { onConflict: "tanggal" }
+      );
+    setIsSavingEdit(false);
+    if (error) {
+      flash("Gagal simpan: " + error.message, true);
+      return;
+    }
+    flash("Earned Hours " + editForm.tanggal + " diperbarui.");
+    setEditTarget(null);
+    await fetchRows(0);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    const { error } = await supabase
+      .from("productivity_daily_reference")
+      .update({ is_active: false })
+      .eq("tanggal", deleteTarget.tanggal);
+    setIsDeleting(false);
+    if (error) {
+      flash("Gagal menghapus: " + error.message, true);
+      return;
+    }
+    flash("Data Earned Hours " + deleteTarget.tanggal + " berhasil dihapus.");
+    setDeleteTarget(null);
     await fetchRows(0);
   };
 
@@ -132,7 +190,7 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
 
       <div className="space-y-6">
         <Card className="dash-panel card-glow-info">
-          <p className="dash-panel-title">Isi / Ubah Earned Hours</p>
+          <p className="dash-panel-title">Isi Earned Hours</p>
           <div className="form-grid">
             <div className="field">
               <label>Tanggal</label>
@@ -196,10 +254,10 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
                       <td className="mono">{fmtTgl(r.tanggal)}</td>
                       <td className="mono">{fmtNum(r.eh_jam)}</td>
                       <td className="flex gap-1">
-                        <Button variant="secondary" size="sm" onClick={() => editRow(r)}>
+                        <Button variant="secondary" size="sm" onClick={() => handleOpenEdit(r)}>
                           Edit
                         </Button>
-                        <Button variant="destructive" size="sm" onClick={() => hapusRow(r.tanggal)}>
+                        <Button variant="destructive" size="sm" onClick={() => setDeleteTarget(r)}>
                           Hapus
                         </Button>
                       </td>
@@ -224,6 +282,94 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
           )}
         </Card>
       </div>
+
+      {/* Modal Edit Earned Hours */}
+      {editTarget && (
+        <Dialog open={!!editTarget} onOpenChange={(open) => { if (!open) setEditTarget(null); }}>
+          <DialogContent onClose={() => setEditTarget(null)} maxWidth="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Edit Earned Hours — {fmtTgl(editTarget.tanggal)}</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              <div className="form-grid">
+                <div className="field">
+                  <label>Tanggal</label>
+                  <Input
+                    type="date"
+                    value={editForm.tanggal}
+                    onChange={(e) => setEditForm({ ...editForm, tanggal: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label>Earned Hours (jam)</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="mis. 154.98"
+                    value={editForm.eh_jam}
+                    onChange={(e) => setEditForm({ ...editForm, eh_jam: e.target.value })}
+                    autoFocus
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setEditTarget(null)}
+                  disabled={isSavingEdit}
+                >
+                  Batal
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSavingEdit}
+                >
+                  {isSavingEdit ? "Menyimpan..." : "Simpan Perubahan"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Modal Konfirmasi Hapus */}
+      {deleteTarget && (
+        <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+          <DialogContent onClose={() => setDeleteTarget(null)} maxWidth="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Hapus Earned Hours</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground mb-4">
+              Yakin ingin menghapus data Earned Hours untuk tanggal{" "}
+              <span className="font-semibold text-foreground">
+                {fmtTgl(deleteTarget.tanggal)}
+              </span>{" "}
+              ({fmtNum(deleteTarget.eh_jam)} jam)?
+              <br />
+              <span className="text-red-400 text-xs mt-1 block">Tindakan ini tidak bisa dibatalkan.</span>
+            </p>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setDeleteTarget(null)}
+                disabled={isDeleting}
+              >
+                Batal
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? "Menghapus…" : "Ya, Hapus"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 
