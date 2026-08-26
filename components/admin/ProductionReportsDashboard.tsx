@@ -651,10 +651,7 @@ Istirahat: ${breakMin}
         )}
 
         {isLoading ? (
-          <div className="py-20 text-center">
-            <div className="inline-block h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-emerald-600"></div>
-            <p className="mt-4 text-sm text-slate-500 font-medium">Memuat laporan produksi...</p>
-          </div>
+          <ProductionReportsTableSkeleton />
         ) : filteredReports.length === 0 ? (
           <div className="py-20 text-center px-4">
             <div className="mx-auto h-12 w-12 rounded-full bg-slate-50 flex items-center justify-center border border-slate-200">
@@ -683,7 +680,10 @@ Istirahat: ${breakMin}
                   <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-center">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody
+                key={`${selectedLineId}-${startDate}-${endDate}-${selectedShift}`}
+                className="divide-y divide-slate-100 animate-in fade-in slide-in-from-bottom-2 duration-500"
+              >
                 {filteredReports.map((report, index) => {
                   const okQty = report.qty - report.ng_qty;
                   const ngRate = report.qty > 0 ? (report.ng_qty / report.qty) * 100 : 0;
@@ -1030,6 +1030,47 @@ Istirahat: ${breakMin}
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function ProductionReportsTableSkeleton() {
+  return (
+    <div className="overflow-x-auto select-none animate-pulse">
+      <table className="w-full text-left text-sm border-collapse">
+        <thead>
+          <tr className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+            <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Tanggal</th>
+            <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Line/Card</th>
+            <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Operator</th>
+            <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Shift</th>
+            <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Part Number</th>
+            <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-center">Mulai - Selesai</th>
+            <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-center">Istirahat</th>
+            <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-right">QTY OK</th>
+            <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-right">QTY NG</th>
+            <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-right">NG Rate</th>
+            <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-center">Aksi</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {Array.from({ length: 7 }).map((_, i) => (
+            <tr key={i}>
+              <td className="py-3.5 px-4"><div className="h-4 bg-slate-200 rounded w-20" /></td>
+              <td className="py-3.5 px-4"><div className="h-4 bg-slate-200 rounded w-24" /></td>
+              <td className="py-3.5 px-4"><div className="h-4 bg-slate-200 rounded w-28" /></td>
+              <td className="py-3.5 px-4"><div className="h-5 bg-slate-200 rounded-md w-14" /></td>
+              <td className="py-3.5 px-4"><div className="h-4 bg-slate-200 rounded w-24 font-mono" /></td>
+              <td className="py-3.5 px-4 text-center"><div className="h-4 bg-slate-200 rounded w-20 mx-auto" /></td>
+              <td className="py-3.5 px-4 text-center"><div className="h-4 bg-slate-200 rounded w-10 mx-auto" /></td>
+              <td className="py-3.5 px-4 text-right"><div className="h-4 bg-slate-200 rounded w-12 ml-auto" /></td>
+              <td className="py-3.5 px-4 text-right"><div className="h-4 bg-slate-200 rounded w-8 ml-auto" /></td>
+              <td className="py-3.5 px-4 text-right"><div className="h-4 bg-slate-200 rounded w-12 ml-auto" /></td>
+              <td className="py-3.5 px-4 text-center"><div className="h-7 bg-slate-200 rounded-lg w-16 mx-auto" /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

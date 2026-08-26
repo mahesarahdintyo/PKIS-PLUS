@@ -19,6 +19,7 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
   const [rows, setRows] = useState<ProdSafetyRecord[]>([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
@@ -35,24 +36,30 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
 
   const fetchRows = async (targetPage = 0) => {
     if (targetPage > 0) setLoadingMore(true);
-    const from = targetPage * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
-    const res = await supabase
-      .from("prod_safety_log")
-      .select("*")
-      .eq("is_active", true)
-      .order("tanggal", { ascending: false })
-      .range(from, to);
-    if (res.data) {
-      if (targetPage === 0) {
-        setRows(res.data);
-      } else {
-        setRows((prev) => [...prev, ...(res.data || [])]);
+    else setLoading(true);
+
+    try {
+      const from = targetPage * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      const res = await supabase
+        .from("prod_safety_log")
+        .select("*")
+        .eq("is_active", true)
+        .order("tanggal", { ascending: false })
+        .range(from, to);
+      if (res.data) {
+        if (targetPage === 0) {
+          setRows(res.data);
+        } else {
+          setRows((prev) => [...prev, ...(res.data || [])]);
+        }
+        setHasMore((res.data?.length ?? 0) === PAGE_SIZE);
       }
-      setHasMore((res.data?.length ?? 0) === PAGE_SIZE);
+      setPage(targetPage);
+    } finally {
+      if (targetPage > 0) setLoadingMore(false);
+      else setLoading(false);
     }
-    setPage(targetPage);
-    if (targetPage > 0) setLoadingMore(false);
   };
 
   useEffect(() => {
@@ -103,7 +110,7 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
 
   if (embedded) {
     return (
-      <div className="main" style={{ minHeight: 0 }}>
+      <div className="main animate-in fade-in slide-in-from-bottom-2 duration-500" style={{ minHeight: 0 }}>
         <div className="page-header">
           <h1 className="page-title">
             <span className="eyebrow">Input</span>
@@ -163,28 +170,35 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r) => (
-                    <tr key={r.id}>
-                      <td className="mono">{r.tanggal}</td>
-                      <td>
-                        <span className="badge" style={badgeKategori(r.kategori || "")}>
-                          {r.kategori}
-                        </span>
-                      </td>
-                      <td>{r.keterangan || "-"}</td>
-                      <td>
-                        <Button variant="destructive" size="sm" onClick={() => hapus(r.id!)}>
-                          Hapus
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                  {rows.length === 0 && (
+                  {loading ? (
+                    <SafetyTableSkeleton />
+                  ) : rows.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="empty-state">
                         Tidak ada insiden tercatat. <ThumbsUp size={14} style={{ display: "inline", verticalAlign: "middle", marginLeft: 4 }} />
                       </td>
                     </tr>
+                  ) : (
+                    rows.map((r, index) => (
+                      <tr
+                        key={r.id || index}
+                        className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+                        style={{ animationDelay: `${Math.min(index * 25, 300)}ms` }}
+                      >
+                        <td className="mono">{r.tanggal}</td>
+                        <td>
+                          <span className="badge" style={badgeKategori(r.kategori || "")}>
+                            {r.kategori}
+                          </span>
+                        </td>
+                        <td>{r.keterangan || "-"}</td>
+                        <td>
+                          <Button variant="destructive" size="sm" onClick={() => hapus(r.id!)}>
+                            Hapus
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
                   )}
                 </tbody>
               </table>
@@ -210,7 +224,7 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
 
   return (
     <div className="app-shell">
-      <main className="main max-w-6xl mx-auto w-full">
+      <main className="main max-w-6xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-500">
         {/* Tombol Kembali ke Admin */}
         <Link
           href="/admin"
@@ -279,28 +293,35 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r) => (
-                    <tr key={r.id}>
-                      <td className="mono">{r.tanggal}</td>
-                      <td>
-                        <span className="badge" style={badgeKategori(r.kategori || "")}>
-                          {r.kategori}
-                        </span>
-                      </td>
-                      <td>{r.keterangan || "-"}</td>
-                      <td>
-                        <Button variant="destructive" size="sm" onClick={() => hapus(r.id!)}>
-                          Hapus
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                  {rows.length === 0 && (
+                  {loading ? (
+                    <SafetyTableSkeleton />
+                  ) : rows.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="empty-state">
                         Tidak ada insiden tercatat. <ThumbsUp size={14} style={{ display: "inline", verticalAlign: "middle", marginLeft: 4 }} />
                       </td>
                     </tr>
+                  ) : (
+                    rows.map((r, index) => (
+                      <tr
+                        key={r.id || index}
+                        className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+                        style={{ animationDelay: `${Math.min(index * 25, 300)}ms` }}
+                      >
+                        <td className="mono">{r.tanggal}</td>
+                        <td>
+                          <span className="badge" style={badgeKategori(r.kategori || "")}>
+                            {r.kategori}
+                          </span>
+                        </td>
+                        <td>{r.keterangan || "-"}</td>
+                        <td>
+                          <Button variant="destructive" size="sm" onClick={() => hapus(r.id!)}>
+                            Hapus
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
                   )}
                 </tbody>
               </table>
@@ -322,5 +343,20 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
         </div>
       </main>
     </div>
+  );
+}
+
+function SafetyTableSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <tr key={i} className="animate-pulse select-none">
+          <td><div className="h-4 bg-muted rounded w-24" /></td>
+          <td><div className="h-5 bg-muted rounded w-20" /></td>
+          <td><div className="h-4 bg-muted rounded w-48" /></td>
+          <td><div className="h-7 bg-muted rounded w-16" /></td>
+        </tr>
+      ))}
+    </>
   );
 }

@@ -386,7 +386,7 @@ export default function MasterDataClient() {
 
   return (
     <div className="app-shell machine-hub-container">
-      <main className="main max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
+      <main className="main max-w-6xl mx-auto p-4 sm:p-6 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
         {/* Tombol Kembali ke Admin */}
         <div>
           <Link
@@ -445,52 +445,111 @@ export default function MasterDataClient() {
         </div>
 
         {/* Active Machine Master Data CRUD */}
-        <div className="mt-4">
-          <MasterDataTab
-            config={currentConfig}
-            isLeaderOrAdmin={true}
-            mesinSettingsDraft={mesinSettingsDraft}
-            setMesinSettingsDraft={setMesinSettingsDraft}
-            handleSaveMesinSettings={handleSaveMesinSettings}
-            masterParts={masterParts}
-            newPartKode={newPartKode}
-            setNewPartKode={setNewPartKode}
-            newPartNama={newPartNama}
-            setNewPartNama={setNewPartNama}
-            newPartStdCt={newPartStdCt}
-            setNewPartStdCt={setNewPartStdCt}
-            newPartNextProcess={newPartNextProcess}
-            setNewPartNextProcess={setNewPartNextProcess}
-            newPartHarga={newPartHarga}
-            setNewPartHarga={setNewPartHarga}
-            handleAddPartNumber={handleAddPartNumber}
-            editingPartId={editingPartId}
-            editPartForm={editPartForm}
-            setEditPartForm={setEditPartForm}
-            handleStartEditPartNumber={handleStartEditPartNumber}
-            handleSaveEditPartNumber={handleSaveEditPartNumber}
-            setEditingPartId={setEditingPartId}
-            handleDeletePartNumber={handleDeletePartNumber}
-            nonProduksiTypes={nonProduksiTypes}
-            newNonProduksiTypeValue={newNonProduksiTypeValue}
-            setNewNonProduksiTypeValue={setNewNonProduksiTypeValue}
-            handleAddNonProduksiType={handleAddNonProduksiType}
-            handleDeleteNonProduksiType={handleDeleteNonProduksiType}
-            problemList={problemList}
-            newProblemValue={newProblemValue}
-            setNewProblemValue={setNewProblemValue}
-            editingProblemId={editingProblemId}
-            editProblemValue={editProblemValue}
-            setEditProblemValue={setEditProblemValue}
-            handleAddProblem={handleAddProblem}
-            handleStartEditProblem={handleStartEditProblem}
-            handleCancelEditProblem={handleCancelEditProblem}
-            handleSaveEditProblem={handleSaveEditProblem}
-            handleDeleteProblem={handleDeleteProblem}
-            fmtNum={fmtNum}
-          />
+        <div
+          key={selectedMachineSlug}
+          className="mt-4 animate-in fade-in slide-in-from-bottom-2 duration-500"
+        >
+          {loading ? (
+            <MasterDataSkeleton />
+          ) : (
+            <MasterDataTab
+              config={currentConfig}
+              isLeaderOrAdmin={true}
+              mesinSettingsDraft={mesinSettingsDraft}
+              setMesinSettingsDraft={setMesinSettingsDraft}
+              handleSaveMesinSettings={handleSaveMesinSettings}
+              masterParts={masterParts}
+              newPartKode={newPartKode}
+              setNewPartKode={setNewPartKode}
+              newPartNama={newPartNama}
+              setNewPartNama={setNewPartNama}
+              newPartStdCt={newPartStdCt}
+              setNewPartStdCt={setNewPartStdCt}
+              newPartNextProcess={newPartNextProcess}
+              setNewPartNextProcess={setNewPartNextProcess}
+              newPartHarga={newPartHarga}
+              setNewPartHarga={setNewPartHarga}
+              handleAddPartNumber={handleAddPartNumber}
+              editingPartId={editingPartId}
+              editPartForm={editPartForm}
+              setEditPartForm={setEditPartForm}
+              handleStartEditPartNumber={handleStartEditPartNumber}
+              handleSaveEditPartNumber={handleSaveEditPartNumber}
+              setEditingPartId={setEditingPartId}
+              handleDeletePartNumber={handleDeletePartNumber}
+              nonProduksiTypes={nonProduksiTypes}
+              newNonProduksiTypeValue={newNonProduksiTypeValue}
+              setNewNonProduksiTypeValue={setNewNonProduksiTypeValue}
+              handleAddNonProduksiType={handleAddNonProduksiType}
+              handleDeleteNonProduksiType={handleDeleteNonProduksiType}
+              problemList={problemList}
+              newProblemValue={newProblemValue}
+              setNewProblemValue={setNewProblemValue}
+              editingProblemId={editingProblemId}
+              editProblemValue={editProblemValue}
+              setEditProblemValue={setEditProblemValue}
+              handleAddProblem={handleAddProblem}
+              handleStartEditProblem={handleStartEditProblem}
+              handleCancelEditProblem={handleCancelEditProblem}
+              handleSaveEditProblem={handleSaveEditProblem}
+              handleDeleteProblem={handleDeleteProblem}
+              fmtNum={fmtNum}
+            />
+          )}
         </div>
       </main>
+    </div>
+  );
+}
+
+function MasterDataSkeleton() {
+  return (
+    <div className="space-y-6 select-none animate-pulse">
+      {/* Target Setting Card Skeleton */}
+      <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-4">
+        <div className="h-5 bg-muted rounded w-1/3" />
+        <div className="h-3.5 bg-muted rounded w-1/2" />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+          <div className="h-10 bg-muted/60 rounded-lg" />
+          <div className="h-10 bg-muted/60 rounded-lg" />
+          <div className="h-10 bg-muted/60 rounded-lg" />
+        </div>
+      </div>
+
+      {/* Part Number List Skeleton */}
+      <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-4">
+        <div className="flex justify-between items-center">
+          <div className="h-5 bg-muted rounded w-1/4" />
+          <div className="h-8 bg-muted rounded w-24" />
+        </div>
+        <div className="space-y-2 pt-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-11 bg-muted/50 rounded-lg w-full" />
+          ))}
+        </div>
+      </div>
+
+      {/* Non Produksi & Problems Skeleton */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-3">
+          <div className="h-5 bg-muted rounded w-1/2" />
+          <div className="h-10 bg-muted/60 rounded-lg" />
+          <div className="space-y-2 pt-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-9 bg-muted/50 rounded-lg" />
+            ))}
+          </div>
+        </div>
+        <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-3">
+          <div className="h-5 bg-muted rounded w-1/2" />
+          <div className="h-10 bg-muted/60 rounded-lg" />
+          <div className="space-y-2 pt-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-9 bg-muted/50 rounded-lg" />
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
