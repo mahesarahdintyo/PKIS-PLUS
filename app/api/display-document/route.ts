@@ -90,7 +90,7 @@ async function getDatabaseDisplayDocument(lineId: string | null) {
   const { data, error } = await supabase
     .from('display_documents')
     .select('document, updated_at')
-    .or(`line_key.eq.${lineKey},land_key.eq.${lineKey}`)
+    .eq('line_key', lineKey)
     .maybeSingle()
 
   if (error) {
@@ -125,13 +125,13 @@ async function saveDatabaseDisplayDocument(
     .from('display_documents')
     .upsert(
       {
-        land_key: lineKey,
-        land_id: lineId || null,
+        line_key: lineKey,
+        line_id: lineId || null,
         document,
         updated_at: toIsoDateTime(document.updatedAt),
       },
       {
-        onConflict: 'land_key',
+        onConflict: 'line_key',
       }
     )
 
@@ -154,7 +154,7 @@ async function clearDatabaseDisplayDocument(lineId: string | null) {
   const { error } = await supabase
     .from('display_documents')
     .delete()
-    .or(`line_key.eq.${lineKey},land_key.eq.${lineKey}`)
+    .eq('line_key', lineKey)
 
   if (error) {
     if (isMissingDisplayTableError(error)) {
