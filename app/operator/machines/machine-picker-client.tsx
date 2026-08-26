@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { AppHeader } from "@/components/ui/app-header";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -16,32 +16,52 @@ export default function MachinePickerClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    async function fetchLines() {
-      try {
-        setLoading(true);
-        const supabase = createClient();
-        const { data, error: fetchError } = await supabase
-          .from("lines")
-          .select("*")
-          .eq("is_active", true)
-          .eq("hidden_from_operator", false)
-          .order("name");
+  const channelNameRef = useRef(
+    `lines_picker_watch_${Math.random().toString(36).slice(2)}`
+  );
 
-        if (fetchError) {
-          throw new Error(fetchError.message);
-        }
+  const fetchLines = useCallback(async (showLoading = true) => {
+    try {
+      if (showLoading) setLoading(true);
+      const supabase = createClient();
+      const { data, error: fetchError } = await supabase
+        .from("lines")
+        .select("*")
+        .eq("is_active", true)
+        .eq("hidden_from_operator", false)
+        .order("name");
 
-        setLines((data as Line[]) ?? []);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Gagal memuat daftar line produksi");
-      } finally {
-        setLoading(false);
+      if (fetchError) {
+        throw new Error(fetchError.message);
       }
-    }
 
-    fetchLines();
+      setLines((data as Line[]) ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal memuat daftar line produksi");
+    } finally {
+      if (showLoading) setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchLines(true);
+
+    const supabase = createClient();
+    const channel = supabase
+      .channel(channelNameRef.current)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "lines" },
+        () => {
+          fetchLines(false);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchLines]);
 
   const handleSelectLine = (lineId: string) => {
     router.push(`/operator/machines/${lineId}`);
