@@ -65,6 +65,11 @@ export async function POST(request: Request) {
       typeof body.description === "string" && body.description.trim()
         ? body.description.trim()
         : null;
+    // machine_type: string (slug) atau null untuk line non-produksi
+    const machine_type =
+      typeof body.machine_type === "string" && body.machine_type.trim()
+        ? body.machine_type.trim()
+        : null;
 
     if (!name) {
       return NextResponse.json(
@@ -95,6 +100,7 @@ export async function POST(request: Request) {
       .insert({
         name,
         description,
+        machine_type,
         is_active: true,
       })
       .select()
@@ -120,6 +126,14 @@ export async function PUT(request: Request) {
       typeof body.description === "string" && body.description.trim()
         ? body.description.trim()
         : null;
+    // machine_type: string (slug) atau null untuk line non-produksi
+    // Kirim undefined berarti tidak diubah, kirim null berarti dihapus
+    const hasMachineType = "machine_type" in body;
+    const machine_type = hasMachineType
+      ? (typeof body.machine_type === "string" && body.machine_type.trim()
+          ? body.machine_type.trim()
+          : null)
+      : undefined;
 
     if (!id) {
       return NextResponse.json(
@@ -153,12 +167,12 @@ export async function PUT(request: Request) {
       );
     }
 
+    const updatePayload: Record<string, unknown> = { name, description };
+    if (hasMachineType) updatePayload.machine_type = machine_type;
+
     const { data: updatedLine, error } = await supabase
       .from("lines")
-      .update({
-        name,
-        description,
-      })
+      .update(updatePayload)
       .eq("id", id)
       .select()
       .single();

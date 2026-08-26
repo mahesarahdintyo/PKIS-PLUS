@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { ArrowLeft, RefreshCw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { MACHINE_CONFIGS } from "@/components/produksi/machines/MachineDetailClient";
+import { MACHINE_CONFIGS, getMachineConfig } from "@/components/produksi/machines/MachineDetailClient";
 import MasterDataTab from "@/components/produksi/machines/MasterDataTab";
 import type {
   ProdMasterPart,
@@ -29,6 +29,7 @@ const DEFAULT_MACHINE_LIST: MachineItem[] = [
 ];
 
 function normalizeMachineSlug(machineType: string): string {
+  // Prioritize exact match, then dashed form, then return as-is (for generic lines)
   if (MACHINE_CONFIGS[machineType]) return machineType;
   const dashed = machineType.replace(/_/g, "-");
   if (MACHINE_CONFIGS[dashed]) return dashed;
@@ -93,8 +94,9 @@ export default function MasterDataClient() {
     };
   }, [fetchMachineList]);
 
-  const currentConfig =
-    MACHINE_CONFIGS[selectedMachineSlug] || MACHINE_CONFIGS["tandem"];
+  // Find matching machine list item to get the label for generic configs
+  const selectedMachineItem = machineList.find((m) => m.slug === selectedMachineSlug);
+  const currentConfig = getMachineConfig(selectedMachineSlug, selectedMachineItem?.label);
 
   // Target GSPH & Availability State
   const [mesinSettingsDraft, setMesinSettingsDraft] = useState<{

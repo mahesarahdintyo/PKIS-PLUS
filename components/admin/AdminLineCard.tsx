@@ -1,10 +1,31 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Eye, EyeOff, Folder, Loader2, MoreVertical, Pencil, Trash2, X, AlertTriangle } from 'lucide-react'
+import { Eye, EyeOff, Factory, FileText, Folder, Cpu, Loader2, MoreVertical, Pencil, Trash2, X, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import type { Line } from '@/lib/services/line'
+
+/** Opsi mesin produksi yang sudah punya konfigurasi khusus */
+const EXISTING_MACHINE_TYPES = [
+  { slug: 'tandem',         label: 'Tandem' },
+  { slug: 'blanking',       label: 'Blanking' },
+  { slug: 'pc200t',         label: 'PC200t' },
+  { slug: 'transfer-2000t', label: 'Transfer 2000t' },
+  { slug: 'transfer-800t',  label: 'Transfer 800t' },
+] as const
+
+const KNOWN_SLUGS = EXISTING_MACHINE_TYPES.map((m) => m.slug) as string[]
+
+type MachineTypeMode = 'none' | 'existing' | 'custom'
+
+function slugifyName(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+}
 
 interface AdminLineCardProps {
   line: Line
@@ -25,6 +46,20 @@ export function AdminLineCard({
   const [isActionMenuClosing, setIsActionMenuClosing] = useState(false)
   const [name, setName] = useState(line.name)
   const menuRef = useRef<HTMLDivElement>(null)
+
+  // Tentukan mode awal berdasarkan machine_type yang ada di line
+  function getModeFromLine(): MachineTypeMode {
+    if (!line.machine_type) return 'none'
+    if (KNOWN_SLUGS.includes(line.machine_type)) return 'existing'
+    return 'custom'
+  }
+
+  const [machineTypeMode, setMachineTypeMode] = useState<MachineTypeMode>(getModeFromLine)
+  const [existingMachineType, setExistingMachineType] = useState<string>(
+    line.machine_type && KNOWN_SLUGS.includes(line.machine_type)
+      ? line.machine_type
+      : EXISTING_MACHINE_TYPES[0].slug
+  )
 
   const closeDeleteModal = () => {
     if (!isDeleteOpen || isDeleteClosing) return
@@ -88,6 +123,12 @@ export function AdminLineCard({
   const resetEditForm = () => {
     setName(line.name)
     setDescription(line.description ?? '')
+    setMachineTypeMode(getModeFromLine())
+    setExistingMachineType(
+      line.machine_type && KNOWN_SLUGS.includes(line.machine_type)
+        ? line.machine_type
+        : EXISTING_MACHINE_TYPES[0].slug
+    )
     setError('')
     setIsDuplicateName(false)
   }
@@ -107,6 +148,17 @@ export function AdminLineCard({
       return
     }
 
+    // Hitung machine_type berdasarkan mode
+    let machine_type: string | null
+    if (machineTypeMode === 'none') {
+      machine_type = null
+    } else if (machineTypeMode === 'existing') {
+      machine_type = existingMachineType
+    } else {
+      // custom: slugify nama
+      machine_type = slugifyName(name.trim()) || null
+    }
+
     try {
       setIsSaving(true)
       setIsDuplicateName(false)
@@ -119,6 +171,7 @@ export function AdminLineCard({
           id: line.id,
           name: name.trim(),
           description: description.trim() || null,
+          machine_type,
         }),
       })
 
@@ -398,6 +451,110 @@ export function AdminLineCard({
                   className="w-full px-4 py-2.5 border border-border bg-background rounded-lg text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 resize-none"
                   disabled={isSaving}
                 />
+              </div>
+
+              {/* Hubungkan ke Mesin Produksi */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-foreground">
+                  Hubungkan ke mesin produksi
+                </label>
+
+                {/* Opsi: Bukan line produksi */}
+                <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition
+                  ${machineTypeMode === 'none'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-muted-foreground hover:bg-muted/50'
+                  }`}>
+                  <input
+                    type="radio"
+                    name="edit-machine-type-mode"
+                    value="none"
+                    checked={machineTypeMode === 'none'}
+                    onChange={() => setMachineTypeMode('none')}
+                    className="mt-0.5 accent-blue-600"
+                    disabled={isSaving}
+                  />
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Bukan line produksi</p>
+                      <p className="text-xs text-muted-foreground">Hanya untuk card dokumen / folder biasa</p>
+                    </div>
+                  </div>
+                </label>
+
+                {/* Opsi: Mesin yang sudah ada */}
+                <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition
+                  ${machineTypeMode === 'existing'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-muted-foreground hover:bg-muted/50'
+                  }`}>
+                  <input
+                    type="radio"
+                    name="edit-machine-type-mode"
+                    value="existing"
+                    checked={machineTypeMode === 'existing'}
+                    onChange={() => setMachineTypeMode('existing')}
+                    className="mt-0.5 accent-blue-600"
+                    disabled={isSaving}
+                  />
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <Cpu className="w-4 h-4 text-indigo-500 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground">Mesin yang sudah ada</p>
+                      <p className="text-xs text-muted-foreground">Pakai konfigurasi mesin yang sudah dikonfigurasi</p>
+                      {machineTypeMode === 'existing' && (
+                        <select
+                          value={existingMachineType}
+                          onChange={(e) => setExistingMachineType(e.target.value)}
+                          className="mt-2 w-full px-3 py-1.5 border border-border rounded-md text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-background"
+                          disabled={isSaving}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {EXISTING_MACHINE_TYPES.map((m) => (
+                            <option key={m.slug} value={m.slug}>{m.label}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  </div>
+                </label>
+
+                {/* Opsi: Line produksi baru (konfigurasi standar) */}
+                <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition
+                  ${machineTypeMode === 'custom'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-muted-foreground hover:bg-muted/50'
+                  }`}>
+                  <input
+                    type="radio"
+                    name="edit-machine-type-mode"
+                    value="custom"
+                    checked={machineTypeMode === 'custom'}
+                    onChange={() => setMachineTypeMode('custom')}
+                    className="mt-0.5 accent-blue-600"
+                    disabled={isSaving}
+                  />
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Factory className="w-4 h-4 text-green-500 shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Line produksi baru (konfigurasi standar)</p>
+                      <p className="text-xs text-muted-foreground">Buat mesin baru dengan template umum</p>
+                      {machineTypeMode === 'custom' && name.trim() && (
+                        <p className="text-xs text-indigo-600 font-mono mt-0.5">
+                          machine_type: <span className="font-semibold">{slugifyName(name.trim())}</span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </label>
+
+                {/* Tampilkan machine_type saat ini jika ada dan tidak diubah */}
+                {machineTypeMode === 'custom' && line.machine_type && !KNOWN_SLUGS.includes(line.machine_type) && (
+                  <p className="text-xs text-muted-foreground pl-1">
+                    Sebelumnya: <span className="font-mono text-foreground">{line.machine_type}</span>
+                  </p>
+                )}
               </div>
 
               <div className="flex gap-3 pt-2">

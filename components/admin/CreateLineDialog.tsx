@@ -1,9 +1,29 @@
 'use client'
 
 import { useState } from 'react'
-import { FolderPlus, Loader2, X } from 'lucide-react'
+import { FolderPlus, Loader2, X, Factory, FileText, Cpu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+
+/** Opsi mesin produksi yang sudah punya konfigurasi khusus */
+const EXISTING_MACHINE_TYPES = [
+  { slug: 'tandem',         label: 'Tandem' },
+  { slug: 'blanking',       label: 'Blanking' },
+  { slug: 'pc200t',         label: 'PC200t' },
+  { slug: 'transfer-2000t', label: 'Transfer 2000t' },
+  { slug: 'transfer-800t',  label: 'Transfer 800t' },
+] as const
+
+/** Slugify nama line untuk dijadikan machine_type generik */
+function slugifyName(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+}
+
+type MachineTypeMode = 'none' | 'existing' | 'custom'
 
 interface CreateLineDialogProps {
   onCreateSuccess?: () => void
@@ -14,8 +34,18 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
   const [isOpen, setIsOpen] = useState(false)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [machineTypeMode, setMachineTypeMode] = useState<MachineTypeMode>('none')
+  const [existingMachineType, setExistingMachineType] = useState<string>(EXISTING_MACHINE_TYPES[0].slug)
   const [isLoading, setIsLoading] = useState(false)
   const [isDuplicate, setIsDuplicate] = useState(false)
+
+  /** Hitung machine_type berdasarkan pilihan mode */
+  function resolveMachineType(): string | null {
+    if (machineTypeMode === 'none') return null
+    if (machineTypeMode === 'existing') return existingMachineType
+    // custom: slugify nama line
+    return slugifyName(name) || null
+  }
 
   const handleOpen = () => {
     setIsOpen(true)
@@ -27,6 +57,8 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
     setIsOpen(false)
     setName('')
     setDescription('')
+    setMachineTypeMode('none')
+    setExistingMachineType(EXISTING_MACHINE_TYPES[0].slug)
     setIsDuplicate(false)
     onOpenChange?.(false)
   }
@@ -40,6 +72,8 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
       return
     }
 
+    const machine_type = resolveMachineType()
+
     try {
       setIsLoading(true)
 
@@ -49,18 +83,14 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
         body: JSON.stringify({
           name: name.trim(),
           description: description.trim() || null,
+          machine_type,
         }),
       })
 
       if (!response.ok) {
         const data = await response.json().catch(() => null)
         const message = data?.error || 'Gagal membuat line produksi'
-
-        // Tandai input sebagai duplikat jika status 409
-        if (response.status === 409) {
-          setIsDuplicate(true)
-        }
-
+        if (response.status === 409) setIsDuplicate(true)
         toast.error(message)
         return
       }
@@ -68,6 +98,8 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
       toast.success(`Line produksi "${name.trim()}" berhasil dibuat!`)
       setName('')
       setDescription('')
+      setMachineTypeMode('none')
+      setExistingMachineType(EXISTING_MACHINE_TYPES[0].slug)
       setIsOpen(false)
       onOpenChange?.(false)
       onCreateSuccess?.()
@@ -77,6 +109,10 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
       setIsLoading(false)
     }
   }
+
+  const customSlugPreview = machineTypeMode === 'custom' && name.trim()
+    ? slugifyName(name)
+    : null
 
   return (
     <>
@@ -149,10 +185,109 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Keterangan singkat tentang line produksi ini..."
-                  rows={3}
+                  rows={2}
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-900 outline-none transition focus:ring-2 focus:ring-blue-200 focus:border-blue-500 resize-none"
                   disabled={isLoading}
                 />
+              </div>
+
+              {/* Hubungkan ke Mesin Produksi */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Hubungkan ke mesin produksi
+                </label>
+
+                {/* Opsi: Bukan line produksi */}
+                <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition
+                  ${machineTypeMode === 'none'
+                    ? 'border-blue-400 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  }`}>
+                  <input
+                    type="radio"
+                    name="machine-type-mode"
+                    value="none"
+                    checked={machineTypeMode === 'none'}
+                    onChange={() => setMachineTypeMode('none')}
+                    className="mt-0.5 accent-blue-600"
+                    disabled={isLoading}
+                  />
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileText className="w-4 h-4 text-gray-400 shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">Bukan line produksi</p>
+                      <p className="text-xs text-gray-500">Hanya untuk card dokumen / folder biasa</p>
+                    </div>
+                  </div>
+                </label>
+
+                {/* Opsi: Mesin yang sudah ada */}
+                <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition
+                  ${machineTypeMode === 'existing'
+                    ? 'border-blue-400 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  }`}>
+                  <input
+                    type="radio"
+                    name="machine-type-mode"
+                    value="existing"
+                    checked={machineTypeMode === 'existing'}
+                    onChange={() => setMachineTypeMode('existing')}
+                    className="mt-0.5 accent-blue-600"
+                    disabled={isLoading}
+                  />
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <Cpu className="w-4 h-4 text-indigo-500 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800">Mesin yang sudah ada</p>
+                      <p className="text-xs text-gray-500">Pakai konfigurasi mesin yang sudah dikonfigurasi</p>
+                      {machineTypeMode === 'existing' && (
+                        <select
+                          value={existingMachineType}
+                          onChange={(e) => setExistingMachineType(e.target.value)}
+                          className="mt-2 w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 bg-white"
+                          disabled={isLoading}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {EXISTING_MACHINE_TYPES.map((m) => (
+                            <option key={m.slug} value={m.slug}>{m.label}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  </div>
+                </label>
+
+                {/* Opsi: Line produksi baru (konfigurasi standar) */}
+                <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition
+                  ${machineTypeMode === 'custom'
+                    ? 'border-blue-400 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  }`}>
+                  <input
+                    type="radio"
+                    name="machine-type-mode"
+                    value="custom"
+                    checked={machineTypeMode === 'custom'}
+                    onChange={() => setMachineTypeMode('custom')}
+                    className="mt-0.5 accent-blue-600"
+                    disabled={isLoading}
+                  />
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Factory className="w-4 h-4 text-green-500 shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">Line produksi baru (konfigurasi standar)</p>
+                      <p className="text-xs text-gray-500">
+                        Buat mesin baru dengan template umum
+                      </p>
+                      {customSlugPreview && (
+                        <p className="text-xs text-indigo-600 font-mono mt-0.5">
+                          machine_type: <span className="font-semibold">{customSlugPreview}</span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </label>
               </div>
 
               {/* Actions */}

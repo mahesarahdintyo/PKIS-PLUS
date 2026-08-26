@@ -4,6 +4,7 @@ export interface Line {
   description?: string;
   is_active: boolean;
   hidden_from_operator?: boolean;
+  machine_type?: string | null;
   document_count?: number;
 }
 
