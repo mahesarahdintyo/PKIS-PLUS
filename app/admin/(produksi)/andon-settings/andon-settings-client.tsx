@@ -203,7 +203,7 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
                 <thead>
                   <tr>
                     <th>Waktu</th>
-                    <th>Mesin</th>
+                    <th>Line / Mesin</th>
                     <th>Stasiun</th>
                     <th>Alasan</th>
                     <th>Status</th>
@@ -214,7 +214,7 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
                   {activeCalls.map((c) => (
                     <tr key={c.id}>
                       <td className="mono">{new Date(c.created_at).toLocaleString("id-ID")}</td>
-                      <td>{MESIN_LABELS[c.mesin] || c.mesin}</td>
+                      <td>{c.line_name || MESIN_LABELS[c.mesin] || c.mesin}</td>
                       <td>{c.stasiun || "-"}</td>
                       <td>{c.alasan || "-"}</td>
                       <td>
@@ -250,7 +250,7 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
                 <thead>
                   <tr>
                     <th>Waktu</th>
-                    <th>Mesin</th>
+                    <th>Line / Mesin</th>
                     <th>Stasiun</th>
                     <th>Alasan</th>
                     <th>Status</th>
@@ -261,7 +261,7 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
                   {history.map((c) => (
                     <tr key={c.id}>
                       <td className="mono">{new Date(c.created_at).toLocaleString("id-ID")}</td>
-                      <td>{MESIN_LABELS[c.mesin] || c.mesin}</td>
+                      <td>{c.line_name || MESIN_LABELS[c.mesin] || c.mesin}</td>
                       <td>{c.stasiun || "-"}</td>
                       <td>{c.alasan || "-"}</td>
                       <td>
