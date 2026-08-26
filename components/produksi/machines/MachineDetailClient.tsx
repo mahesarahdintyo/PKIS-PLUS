@@ -158,12 +158,11 @@ function getSlugFromName(name: string): string {
 interface MachineDetailClientProps {
   lineId?: string;
   lineName?: string;
-  machineSlug?: string;
 }
 
-export default function MachineDetailClient({ lineId, lineName, machineSlug }: MachineDetailClientProps) {
+export default function MachineDetailClient({ lineId, lineName }: MachineDetailClientProps) {
   const supabase = createClient();
-  const slug = machineSlug || (lineName ? getSlugFromName(lineName) : "tandem");
+  const slug = lineName ? getSlugFromName(lineName) : "tandem";
   const config = MACHINE_CONFIGS[slug] || MACHINE_CONFIGS["tandem"];
 
   const [activeTab, setActiveTab] = useState<"produksi" | "riwayat" | "performance" | "downtime" | "master_data">("produksi");
@@ -183,6 +182,8 @@ export default function MachineDetailClient({ lineId, lineName, machineSlug }: M
   const isLeaderOrAdmin = Boolean(profile && ["admin", "leader"].includes(profile.role || ""));
 
   const { andonCalling, panggilLeader } = usePanggilLeader({
+    line_id: lineId || null,
+    line_name: lineName || null,
     mesin: config.key,
     triggeredBy: profile?.id || null,
     onDone: (msg, isError) => flash(msg, isError),

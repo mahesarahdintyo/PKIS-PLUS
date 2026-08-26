@@ -65,11 +65,14 @@ Deno.serve(async (req: Request) => {
     const subs = await subsRes.json();
     console.log("device terdaftar (push_subscriptions):", subs.length);
 
+    const lineDisplayName = call.line_name || call.mesin;
     const payload = JSON.stringify({
-      title: targetTier === 2 ? `🚨 ESKALASI Andon - ${call.mesin}` : `🔔 Panggilan Andon - ${call.mesin}`,
+      title: targetTier === 2 ? `🚨 ESKALASI Andon - ${lineDisplayName}` : `🔔 Panggilan Andon - ${lineDisplayName}`,
       body: call.alasan ? `Alasan: ${call.alasan}` : "Operator memanggil leader",
       call_id: call.id,
       mesin: call.mesin,
+      line_id: call.line_id || null,
+      line_name: call.line_name || null,
       tier: targetTier,
     });
 

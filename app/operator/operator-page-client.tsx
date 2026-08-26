@@ -5,7 +5,7 @@ import OperatorHeader from "@/components/operator/OperatorHeader";
 import LineSelector from "@/components/operator/LineSelector";
 import SearchBar from "@/components/operator/SearchBar";
 import DocumentList from "@/components/operator/DocumentList";
-import MachineDetailClient, { MACHINE_CONFIGS } from "@/components/produksi/machines/MachineDetailClient";
+import MachineDetailClient from "@/components/produksi/machines/MachineDetailClient";
 import "@/app/admin/(produksi)/produksi.css";
 import { getDocuments, type Document } from "@/lib/services/document";
 import { getFolders, type Folder } from "@/lib/services/folder";
@@ -58,7 +58,6 @@ function readOperatorLocation(): OperatorLocationState | null {
 interface OperatorPageProps {
   lineId?: string;
   selectedLineName?: string;
-  machineSlug?: string;
   userRole?: string;
   userLineId?: string | null;
   userLandId?: string | null;
@@ -71,7 +70,6 @@ interface OperatorPageProps {
 export default function OperatorPage({
   lineId,
   selectedLineName,
-  machineSlug = "tandem",
   userRole = "operator",
   userLineId,
   userLandId,
@@ -419,7 +417,7 @@ export default function OperatorPage({
           <div className="flex items-center gap-2">
             <span className="font-semibold text-muted-foreground uppercase tracking-wide text-[11px] sm:text-xs">Mesin Aktif:</span>
             <span className="font-bold text-foreground font-mono text-xs sm:text-sm">
-              {MACHINE_CONFIGS[machineSlug]?.label || machineSlug}
+              {selectedLine?.name || selectedLineName || "-"}
             </span>
           </div>
           <Link
@@ -514,7 +512,6 @@ export default function OperatorPage({
             <MachineDetailClient
               lineId={selectedLine?.id ?? lineId}
               lineName={selectedLine?.name ?? selectedLineName}
-              machineSlug={machineSlug}
             />
           </div>
         )}

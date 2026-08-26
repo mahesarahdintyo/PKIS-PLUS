@@ -59,6 +59,8 @@ export async function andonSubscribePush(userId: string): Promise<{ ok: boolean;
 
 export interface AndonCall {
   id: string;
+  line_id?: string | null;
+  line_name?: string | null;
   mesin: string;
   stasiun: string | null;
   alasan: string | null;
@@ -80,6 +82,8 @@ export interface AndonLeader {
 
 // Insert panggilan Andon baru — dipakai dari halaman mesin lewat tombol "🔔 Panggil Leader".
 export async function panggilLeaderAndon(params: {
+  line_id?: string | null;
+  line_name?: string | null;
   mesin: string;
   stasiun?: string | null;
   alasan?: string;
@@ -89,6 +93,8 @@ export async function panggilLeaderAndon(params: {
   const { data, error } = await supabase
     .from("andon_calls" as any)
     .insert({
+      line_id: params.line_id || null,
+      line_name: params.line_name || null,
       mesin: params.mesin,
       stasiun: params.stasiun || null,
       alasan: params.alasan || null,
@@ -101,6 +107,8 @@ export async function panggilLeaderAndon(params: {
 
 // Hook untuk halaman mesin: state andonCalling + fungsi panggilLeader().
 export function usePanggilLeader(params: {
+  line_id?: string | null;
+  line_name?: string | null;
   mesin: string;
   stasiun?: string | null;
   triggeredBy?: string | null;
@@ -108,12 +116,14 @@ export function usePanggilLeader(params: {
 }) {
   const supabase = createClient();
   const [andonCalling, setAndonCalling] = useState(false);
-  const { mesin, stasiun, triggeredBy, onDone } = params;
+  const { line_id, line_name, mesin, stasiun, triggeredBy, onDone } = params;
 
   const panggilLeader = useCallback(
     async (alasan: string) => {
       setAndonCalling(true);
       const { error, callId } = await panggilLeaderAndon({
+        line_id,
+        line_name,
         mesin,
         stasiun,
         alasan,
@@ -137,7 +147,7 @@ export function usePanggilLeader(params: {
         }
       }
     },
-    [mesin, stasiun, triggeredBy, onDone]
+    [line_id, line_name, mesin, stasiun, triggeredBy, onDone]
   );
 
   return { andonCalling, panggilLeader };
