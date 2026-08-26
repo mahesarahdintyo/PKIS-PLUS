@@ -10,7 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 // Public VAPID key — dipasangkan dengan VAPID_PRIVATE_KEY di edge function send-andon-push.
-const ANDON_VAPID_PUBLIC_KEY = "BGh5QHGjVlSoFFRSQspuPhA9NllcyRGGlcETi3wDEYvvHvvhCyJ5quRAoLZO0JJIRYRtrHauc5gcT5_XO4Bavrc";
+const ANDON_VAPID_PUBLIC_KEY = "BCPEeRkRPz2P0UQKWiu1X3nAjZ5C3UrVG4In4KJXw8Z9TGJhHlRxCzxbqPekSEU7M_nOsoitqZr9Ry7Q0bFeNAw";
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);

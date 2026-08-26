@@ -1,4 +1,4 @@
-const CACHE_NAME = 'futaba-pkis-v2';
+const CACHE_NAME = 'futaba-pkis-v3';
 const STATIC_ASSETS = [
   '/',
   '/offline',
@@ -37,6 +37,49 @@ self.addEventListener('activate', (event) => {
         );
       })
       .then(() => self.clients.claim())
+  );
+});
+
+// Push event: tampilkan notifikasi Andon
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch (e) {
+    payload = { title: 'Panggilan Andon', body: event.data ? event.data.text() : '' };
+  }
+
+  const title = payload.title || 'Panggilan Andon';
+  const options = {
+    body: payload.body || 'Operator memanggil leader',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    vibrate: [200, 100, 200, 100, 200],
+    tag: payload.call_id ? `andon-${payload.call_id}` : 'andon-call',
+    renotify: true,
+    requireInteraction: true,
+    data: payload,
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Klik notifikasi: fokus/buka halaman Andon Settings
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = '/admin/andon-settings';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientsArr) => {
+      for (const client of clientsArr) {
+        if (client.url.includes('/admin') && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
+    })
   );
 });
 
