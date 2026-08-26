@@ -10,6 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 function fmtNum(n: number | null | undefined): string {
@@ -27,11 +34,25 @@ const PAGE_SIZE = 36;
 export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
   const supabase = createClient();
   const [rows, setRows] = useState<ProdScrapRecord[]>([]);
-  const [editId, setEditId] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+
+  // State untuk Dialog Edit
+  const [editTarget, setEditTarget] = useState<ProdScrapRecord | null>(null);
+  const [editForm, setEditForm] = useState<ProdScrapRecord>({
+    tahun: new Date().getFullYear(),
+    bulan: new Date().getMonth() + 1,
+    scrap_value_kidr: 0,
+    total_value_kidr: 0,
+    target_rasio: 0.0046,
+  });
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  // State untuk Dialog Hapus
+  const [deleteTarget, setDeleteTarget] = useState<ProdScrapRecord | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const now = new Date();
   const [form, setForm] = useState<ProdScrapRecord>({
@@ -97,8 +118,7 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
         .upsert(payload, { onConflict: "tahun,bulan" });
       if (res.error) throw res.error;
 
-      flash(editId ? "Data scrap diperbarui!" : "Scrap berhasil disimpan!");
-      setEditId(null);
+      flash("Scrap berhasil disimpan!");
       setForm({ tahun: now.getFullYear(), bulan: now.getMonth() + 1, scrap_value_kidr: 0, total_value_kidr: 0, target_rasio: 0.0046 });
       fetchRows(0);
     } catch (err: any) {
@@ -108,7 +128,6 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
           { ...payload, id: "pending_" + Date.now(), _pending: true },
           ...prev,
         ]);
-        setEditId(null);
         setForm({ tahun: now.getFullYear(), bulan: now.getMonth() + 1, scrap_value_kidr: 0, total_value_kidr: 0, target_rasio: 0.0046 });
       } else {
         flash("Gagal menyimpan: " + (err?.message || "Unknown error"), true);
@@ -116,16 +135,69 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
     }
   };
 
-  const edit = (r: ProdScrapRecord) => {
-    setEditId(r.id || null);
-    setForm({ ...r });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  const handleOpenEdit = (r: ProdScrapRecord) => {
+    setEditTarget(r);
+    setEditForm({ ...r });
   };
 
-  const hapus = async (id: string) => {
-    if (!confirm("Hapus data scrap ini?")) return;
-    await supabase.from("prod_scrap_top_end").update({ is_active: false }).eq("id", id);
-    fetchRows(0);
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingEdit(true);
+    const payload = {
+      tahun: Number(editForm.tahun),
+      bulan: Number(editForm.bulan),
+      scrap_value_kidr: Number(editForm.scrap_value_kidr),
+      total_value_kidr: Number(editForm.total_value_kidr),
+      target_rasio: Number(editForm.target_rasio),
+      is_active: true,
+    };
+
+    try {
+      const res = await supabase
+        .from("prod_scrap_top_end")
+        .upsert(payload, { onConflict: "tahun,bulan" });
+      if (res.error) throw res.error;
+
+      flash("Data scrap diperbarui!");
+      setEditTarget(null);
+      fetchRows(0);
+    } catch (err: any) {
+      if (isNetworkError(err)) {
+        enqueueOffline("prod_scrap_top_end", payload);
+        setRows((prev) => [
+          { ...payload, id: "pending_" + Date.now(), _pending: true },
+          ...prev,
+        ]);
+        setEditTarget(null);
+      } else {
+        flash("Gagal menyimpan: " + (err?.message || "Unknown error"), true);
+      }
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      let q = supabase.from("prod_scrap_top_end").update({ is_active: false });
+      if (deleteTarget.id) {
+        q = q.eq("id", deleteTarget.id);
+      } else {
+        q = q.eq("tahun", deleteTarget.tahun).eq("bulan", deleteTarget.bulan);
+      }
+      const { error } = await q;
+      if (error) throw error;
+
+      flash(`Data scrap periode ${deleteTarget.tahun}-${String(deleteTarget.bulan).padStart(2, "0")} berhasil dihapus.`);
+      setDeleteTarget(null);
+      fetchRows(0);
+    } catch (err: any) {
+      flash("Gagal menghapus: " + (err?.message || "Unknown error"), true);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const content = (
@@ -139,19 +211,7 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
 
       <div className="space-y-6">
         <Card className="dash-panel card-glow-info">
-          <p className="dash-panel-title">
-            {editId ? "Edit Scrap" : "Form Scrap Top End"}
-            {editId && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="ml-auto"
-                onClick={() => { setEditId(null); setForm({ tahun: now.getFullYear(), bulan: now.getMonth() + 1, scrap_value_kidr: 0, total_value_kidr: 0, target_rasio: 0.0046 }); }}
-              >
-                ✕ Batal Edit
-              </Button>
-            )}
-          </p>
+          <p className="dash-panel-title">Form Scrap Top End</p>
           <p className="hint" style={{ marginBottom: 12 }}>
             Satuan mengikuti laporan asli: <b>K IDR</b> (ribuan Rupiah).
           </p>
@@ -183,7 +243,7 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
           </div>
           <div className="form-actions">
             <Button type="button" onClick={save}>
-              {editId ? "Update Scrap" : "Simpan Scrap"}
+              Simpan Scrap
             </Button>
           </div>
         </Card>
@@ -230,8 +290,8 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
                       <td className="mono">{fmtNum((r.target_rasio || 0) * 100)}%</td>
                       <td>
                         <div className="row-actions flex gap-1">
-                          <Button variant="secondary" size="sm" onClick={() => edit(r)}>Edit</Button>
-                          <Button variant="destructive" size="sm" onClick={() => hapus(r.id!)}>Hapus</Button>
+                          <Button variant="secondary" size="sm" onClick={() => handleOpenEdit(r)}>Edit</Button>
+                          <Button variant="destructive" size="sm" onClick={() => setDeleteTarget(r)}>Hapus</Button>
                         </div>
                       </td>
                     </tr>
@@ -255,6 +315,123 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
           )}
         </Card>
       </div>
+
+      {/* Modal Edit Scrap */}
+      {editTarget && (
+        <Dialog open={!!editTarget} onOpenChange={(open) => { if (!open) setEditTarget(null); }}>
+          <DialogContent onClose={() => setEditTarget(null)} maxWidth="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Edit Scrap — Periode {editTarget.tahun}-{String(editTarget.bulan).padStart(2, "0")}</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              <div className="form-grid">
+                <div className="field">
+                  <label>Tahun</label>
+                  <Input
+                    type="number"
+                    min="2000"
+                    max="2100"
+                    value={editForm.tahun}
+                    onChange={(e) => setEditForm({ ...editForm, tahun: Number(e.target.value) })}
+                  />
+                </div>
+                <div className="field">
+                  <label>Bulan</label>
+                  <Select
+                    value={editForm.bulan}
+                    onChange={(e) => setEditForm({ ...editForm, bulan: Number(e.target.value) })}
+                  >
+                    {BULAN_OPTIONS.map((b, idx) => (
+                      <option key={b} value={idx + 1}>{b}</option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="field">
+                  <label>Scrap Value (K IDR)</label>
+                  <Input
+                    type="number"
+                    step="0.001"
+                    value={editForm.scrap_value_kidr}
+                    onChange={(e) => setEditForm({ ...editForm, scrap_value_kidr: Number(e.target.value) })}
+                  />
+                </div>
+                <div className="field">
+                  <label>Total Value (K IDR)</label>
+                  <Input
+                    type="number"
+                    step="0.001"
+                    value={editForm.total_value_kidr}
+                    onChange={(e) => setEditForm({ ...editForm, total_value_kidr: Number(e.target.value) })}
+                  />
+                </div>
+                <div className="field">
+                  <label>Target Rasio (mis. 0.0046)</label>
+                  <Input
+                    type="number"
+                    step="0.0001"
+                    value={editForm.target_rasio}
+                    onChange={(e) => setEditForm({ ...editForm, target_rasio: Number(e.target.value) })}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setEditTarget(null)}
+                  disabled={isSavingEdit}
+                >
+                  Batal
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSavingEdit}
+                >
+                  {isSavingEdit ? "Menyimpan..." : "Simpan Perubahan"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Modal Konfirmasi Hapus */}
+      {deleteTarget && (
+        <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+          <DialogContent onClose={() => setDeleteTarget(null)} maxWidth="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Hapus Data Scrap</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground mb-4">
+              Yakin ingin menghapus data Scrap periode{" "}
+              <span className="font-semibold text-foreground">
+                {deleteTarget.tahun}-{String(deleteTarget.bulan).padStart(2, "0")}
+              </span>{" "}
+              (Scrap: {fmtNum(deleteTarget.scrap_value_kidr)} K IDR, Total: {fmtNum(deleteTarget.total_value_kidr)} K IDR)?
+              <br />
+              <span className="text-red-400 text-xs mt-1 block">Tindakan ini tidak bisa dibatalkan.</span>
+            </p>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setDeleteTarget(null)}
+                disabled={isDeleting}
+              >
+                Batal
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? "Menghapus…" : "Ya, Hapus"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 

@@ -10,6 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 function fmtNum(n: number | null | undefined): string {
@@ -27,12 +34,28 @@ const PAGE_SIZE = 60;
 export default function InputAttendanceClient({ userId: initialUserId, embedded }: Props) {
   const supabase = createClient();
   const [rows, setRows] = useState<ProdAttendanceRecord[]>([]);
-  const [editId, setEditId] = useState<string | null>(null);
   const [userId] = useState<string | null>(initialUserId || null);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+
+  // State untuk Dialog Edit
+  const [editTarget, setEditTarget] = useState<ProdAttendanceRecord | null>(null);
+  const [editForm, setEditForm] = useState<ProdAttendanceRecord>({
+    tanggal: new Date().toISOString().split("T")[0],
+    shift: 1,
+    total_orang: 0,
+    hadir: 0,
+    cuti: 0,
+    absen: 0,
+    overtime_jam: 0,
+  });
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  // State untuk Dialog Hapus
+  const [deleteTarget, setDeleteTarget] = useState<ProdAttendanceRecord | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
   const [form, setForm] = useState<ProdAttendanceRecord>({
@@ -102,8 +125,7 @@ export default function InputAttendanceClient({ userId: initialUserId, embedded 
         .upsert(payload, { onConflict: "tanggal,shift" });
       if (res.error) throw res.error;
 
-      flash(editId ? "Data absensi diperbarui!" : "Absensi berhasil disimpan!");
-      setEditId(null);
+      flash("Absensi berhasil disimpan!");
       setForm({ tanggal: today, shift: 1, total_orang: 0, hadir: 0, cuti: 0, absen: 0, overtime_jam: 0 });
       fetchRows(0);
     } catch (err: any) {
@@ -113,7 +135,6 @@ export default function InputAttendanceClient({ userId: initialUserId, embedded 
           { ...payload, id: "pending_" + Date.now(), _pending: true },
           ...prev,
         ]);
-        setEditId(null);
         setForm({ tanggal: today, shift: 1, total_orang: 0, hadir: 0, cuti: 0, absen: 0, overtime_jam: 0 });
       } else {
         flash("Gagal menyimpan: " + (err?.message || "Unknown error"), true);
@@ -121,38 +142,76 @@ export default function InputAttendanceClient({ userId: initialUserId, embedded 
     }
   };
 
-  const edit = (r: ProdAttendanceRecord) => {
-    setEditId(r.id || null);
-    setForm({ ...r });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  const handleOpenEdit = (r: ProdAttendanceRecord) => {
+    setEditTarget(r);
+    setEditForm({ ...r });
   };
 
-  const hapus = async (tanggal: string, shift?: number) => {
-    if (!confirm("Hapus data absensi ini?")) return;
-    let q = supabase.from("prod_attendance_log").update({ is_active: false }).eq("tanggal", tanggal);
-    if (shift !== undefined) {
-      q = q.eq("shift", shift);
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingEdit(true);
+    const payload = {
+      tanggal: editForm.tanggal,
+      shift: Number(editForm.shift),
+      total_orang: Number(editForm.total_orang),
+      hadir: Number(editForm.hadir),
+      cuti: Number(editForm.cuti),
+      absen: Number(editForm.absen),
+      overtime_jam: Number(editForm.overtime_jam),
+      updated_by: userId,
+      is_active: true,
+    };
+
+    try {
+      const res = await supabase
+        .from("prod_attendance_log")
+        .upsert(payload, { onConflict: "tanggal,shift" });
+      if (res.error) throw res.error;
+
+      flash("Data absensi diperbarui!");
+      setEditTarget(null);
+      fetchRows(0);
+    } catch (err: any) {
+      if (isNetworkError(err)) {
+        enqueueOffline("prod_attendance_log", payload);
+        setRows((prev) => [
+          { ...payload, id: "pending_" + Date.now(), _pending: true },
+          ...prev,
+        ]);
+        setEditTarget(null);
+      } else {
+        flash("Gagal menyimpan: " + (err?.message || "Unknown error"), true);
+      }
+    } finally {
+      setIsSavingEdit(false);
     }
-    await q;
-    fetchRows(0);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      let q = supabase.from("prod_attendance_log").update({ is_active: false }).eq("tanggal", deleteTarget.tanggal);
+      if (deleteTarget.shift !== undefined) {
+        q = q.eq("shift", deleteTarget.shift);
+      }
+      const { error } = await q;
+      if (error) throw error;
+
+      flash(`Data absensi tanggal ${deleteTarget.tanggal} (Shift ${deleteTarget.shift}) berhasil dihapus.`);
+      setDeleteTarget(null);
+      fetchRows(0);
+    } catch (err: any) {
+      flash("Gagal menghapus: " + (err?.message || "Unknown error"), true);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const innerContent = (
     <div className="space-y-6">
       <Card className="dash-panel card-glow-info">
-        <p className="dash-panel-title">
-          {editId ? "Edit Absensi" : "Form Absensi"}
-          {editId && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="ml-auto"
-              onClick={() => { setEditId(null); setForm({ tanggal: today, shift: 1, total_orang: 0, hadir: 0, cuti: 0, absen: 0, overtime_jam: 0 }); }}
-            >
-              ✕ Batal Edit
-            </Button>
-          )}
-        </p>
+        <p className="dash-panel-title">Form Absensi</p>
         <div className="form-grid">
           <div className="field">
             <label>Tanggal</label>
@@ -188,7 +247,7 @@ export default function InputAttendanceClient({ userId: initialUserId, embedded 
         </div>
         <div className="form-actions">
           <Button type="button" onClick={save}>
-            {editId ? "Update Absensi" : "Simpan Absensi"}
+            Simpan Absensi
           </Button>
         </div>
       </Card>
@@ -235,8 +294,8 @@ export default function InputAttendanceClient({ userId: initialUserId, embedded 
                     <td className="mono">{fmtNum(r.overtime_jam)}</td>
                     <td>
                       <div className="row-actions flex gap-1">
-                        <Button variant="secondary" size="sm" onClick={() => edit(r)}>Edit</Button>
-                        <Button variant="destructive" size="sm" onClick={() => hapus(r.tanggal, r.shift)}>Hapus</Button>
+                        <Button variant="secondary" size="sm" onClick={() => handleOpenEdit(r)}>Edit</Button>
+                        <Button variant="destructive" size="sm" onClick={() => setDeleteTarget(r)}>Hapus</Button>
                       </div>
                     </td>
                   </tr>
@@ -259,6 +318,134 @@ export default function InputAttendanceClient({ userId: initialUserId, embedded 
           </div>
         )}
       </Card>
+
+      {/* Modal Edit Absensi */}
+      {editTarget && (
+        <Dialog open={!!editTarget} onOpenChange={(open) => { if (!open) setEditTarget(null); }}>
+          <DialogContent onClose={() => setEditTarget(null)} maxWidth="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Edit Absensi — {editTarget.tanggal} (Shift {editTarget.shift})</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              <div className="form-grid">
+                <div className="field">
+                  <label>Tanggal</label>
+                  <Input
+                    type="date"
+                    value={editForm.tanggal}
+                    onChange={(e) => setEditForm({ ...editForm, tanggal: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label>Shift</label>
+                  <Select
+                    value={editForm.shift}
+                    onChange={(e) => setEditForm({ ...editForm, shift: Number(e.target.value) })}
+                  >
+                    <option value={1}>Shift 1</option>
+                    <option value={2}>Shift 2</option>
+                  </Select>
+                </div>
+                <div className="field">
+                  <label>Total Orang</label>
+                  <Input
+                    type="number"
+                    value={editForm.total_orang}
+                    onChange={(e) => setEditForm({ ...editForm, total_orang: Number(e.target.value) })}
+                  />
+                </div>
+                <div className="field">
+                  <label>Hadir</label>
+                  <Input
+                    type="number"
+                    value={editForm.hadir}
+                    onChange={(e) => setEditForm({ ...editForm, hadir: Number(e.target.value) })}
+                  />
+                </div>
+                <div className="field">
+                  <label>Cuti</label>
+                  <Input
+                    type="number"
+                    value={editForm.cuti}
+                    onChange={(e) => setEditForm({ ...editForm, cuti: Number(e.target.value) })}
+                  />
+                </div>
+                <div className="field">
+                  <label>Absen</label>
+                  <Input
+                    type="number"
+                    value={editForm.absen}
+                    onChange={(e) => setEditForm({ ...editForm, absen: Number(e.target.value) })}
+                  />
+                </div>
+                <div className="field">
+                  <label>Overtime (jam)</label>
+                  <Input
+                    type="number"
+                    step="0.5"
+                    value={editForm.overtime_jam}
+                    onChange={(e) => setEditForm({ ...editForm, overtime_jam: Number(e.target.value) })}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setEditTarget(null)}
+                  disabled={isSavingEdit}
+                >
+                  Batal
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSavingEdit}
+                >
+                  {isSavingEdit ? "Menyimpan..." : "Simpan Perubahan"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Modal Konfirmasi Hapus */}
+      {deleteTarget && (
+        <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+          <DialogContent onClose={() => setDeleteTarget(null)} maxWidth="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Hapus Data Absensi</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground mb-4">
+              Yakin ingin menghapus data absensi tanggal{" "}
+              <span className="font-semibold text-foreground">
+                {deleteTarget.tanggal}
+              </span>{" "}
+              (Shift {deleteTarget.shift}, Hadir: {fmtNum(deleteTarget.hadir)}/{fmtNum(deleteTarget.total_orang)})?
+              <br />
+              <span className="text-red-400 text-xs mt-1 block">Tindakan ini tidak bisa dibatalkan.</span>
+            </p>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setDeleteTarget(null)}
+                disabled={isDeleting}
+              >
+                Batal
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? "Menghapus…" : "Ya, Hapus"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 
