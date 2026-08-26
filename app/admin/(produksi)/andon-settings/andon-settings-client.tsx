@@ -8,7 +8,15 @@ import { ProdProfile } from "@/types/produksi";
 import { useAndonAlerts, useAndonLeaders, andonSubscribePush, AndonCall } from "@/hooks/produksi/useAndon";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 const MESIN_LABELS: Record<string, string> = {
@@ -66,6 +74,25 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
+  // State untuk Dialog Edit Riwayat Panggilan
+  const [editTarget, setEditTarget] = useState<AndonCall | null>(null);
+  const [editForm, setEditForm] = useState<{
+    mesin: string;
+    stasiun: string;
+    alasan: string;
+    status: "pending" | "acknowledged" | "escalated";
+  }>({
+    mesin: "tandem",
+    stasiun: "",
+    alasan: "",
+    status: "pending",
+  });
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  // State untuk Dialog Hapus Riwayat Panggilan
+  const [deleteTarget, setDeleteTarget] = useState<AndonCall | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const PAGE_SIZE = 100;
 
   const fetchHistory = useCallback(async (targetPage = 0) => {
@@ -103,6 +130,61 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
     if (isLeaderOrAdmin) fetchHistory(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCalls.length]);
+
+  const handleOpenEdit = (c: AndonCall) => {
+    setEditTarget(c);
+    setEditForm({
+      mesin: c.mesin || "tandem",
+      stasiun: c.stasiun || "",
+      alasan: c.alasan || "",
+      status: c.status || "pending",
+    });
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTarget?.id) return;
+    setIsSavingEdit(true);
+    const payload = {
+      mesin: editForm.mesin,
+      stasiun: editForm.stasiun.trim() || null,
+      alasan: editForm.alasan.trim() || null,
+      status: editForm.status,
+    };
+    try {
+      const { error } = await supabase
+        .from("andon_calls")
+        .update(payload)
+        .eq("id", editTarget.id);
+      if (error) throw error;
+      toast.success("Riwayat panggilan diperbarui!");
+      setEditTarget(null);
+      fetchHistory(0);
+    } catch (err: any) {
+      toast.error("Gagal menyimpan: " + (err?.message || "Unknown error"));
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget?.id) return;
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("andon_calls")
+        .delete()
+        .eq("id", deleteTarget.id);
+      if (error) throw error;
+      toast.success("Riwayat panggilan berhasil dihapus.");
+      setDeleteTarget(null);
+      fetchHistory(0);
+    } catch (err: any) {
+      toast.error("Gagal menghapus: " + (err?.message || "Unknown error"));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const andonContent = (
     <>
@@ -263,6 +345,7 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
                     <th>Alasan</th>
                     <th>Status</th>
                     <th>Diterima</th>
+                    <th>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -270,7 +353,7 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
                     <AndonHistoryTableSkeleton />
                   ) : history.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="empty-state">
+                      <td colSpan={7} className="empty-state">
                         Belum ada riwayat panggilan.
                       </td>
                     </tr>
@@ -293,6 +376,16 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
                         <td className="mono">
                           {c.acknowledged_at ? new Date(c.acknowledged_at).toLocaleString("id-ID") : "-"}
                         </td>
+                        <td>
+                          <div className="row-actions flex gap-1">
+                            <Button variant="secondary" size="sm" onClick={() => handleOpenEdit(c)}>
+                              Edit
+                            </Button>
+                            <Button variant="destructive" size="sm" onClick={() => setDeleteTarget(c)}>
+                              Hapus
+                            </Button>
+                          </div>
+                        </td>
                       </tr>
                     ))
                   )}
@@ -314,6 +407,116 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
             )}
           </Card>
         </div>
+      )}
+
+      {/* Modal Edit Riwayat Panggilan */}
+      {editTarget && (
+        <Dialog open={!!editTarget} onOpenChange={(open) => { if (!open) setEditTarget(null); }}>
+          <DialogContent onClose={() => setEditTarget(null)} maxWidth="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Edit Riwayat Panggilan — {new Date(editTarget.created_at).toLocaleString("id-ID")}</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              <div className="form-grid">
+                <div className="field">
+                  <label>Line / Mesin</label>
+                  <Select
+                    value={editForm.mesin}
+                    onChange={(e) => setEditForm({ ...editForm, mesin: e.target.value })}
+                  >
+                    {MESIN_OPTIONS.map(([key, label]) => (
+                      <option key={key} value={key}>{label}</option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="field">
+                  <label>Status</label>
+                  <Select
+                    value={editForm.status}
+                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value as any })}
+                  >
+                    <option value="pending">Menunggu</option>
+                    <option value="escalated">Eskalasi</option>
+                    <option value="acknowledged">Diterima</option>
+                  </Select>
+                </div>
+                <div className="field">
+                  <label>Stasiun</label>
+                  <Input
+                    type="text"
+                    placeholder="mis. PA-1 / PC-1 (opsional)"
+                    value={editForm.stasiun}
+                    onChange={(e) => setEditForm({ ...editForm, stasiun: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label>Alasan / Keterangan</label>
+                  <Input
+                    type="text"
+                    placeholder="mis. Dies macet, Butuh bantuan"
+                    value={editForm.alasan}
+                    onChange={(e) => setEditForm({ ...editForm, alasan: e.target.value })}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setEditTarget(null)}
+                  disabled={isSavingEdit}
+                >
+                  Batal
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSavingEdit}
+                >
+                  {isSavingEdit ? "Menyimpan..." : "Simpan Perubahan"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Modal Konfirmasi Hapus Riwayat Panggilan */}
+      {deleteTarget && (
+        <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+          <DialogContent onClose={() => setDeleteTarget(null)} maxWidth="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Hapus Riwayat Panggilan</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground mb-4">
+              Yakin ingin menghapus panggilan Andon untuk line{" "}
+              <span className="font-semibold text-foreground">
+                {deleteTarget.line_name || MESIN_LABELS[deleteTarget.mesin] || deleteTarget.mesin}
+              </span>{" "}
+              pada {new Date(deleteTarget.created_at).toLocaleString("id-ID")}
+              {deleteTarget.alasan ? ` (Alasan: "${deleteTarget.alasan}")` : ""}?
+              <br />
+              <span className="text-red-400 text-xs mt-1 block">Tindakan ini tidak bisa dibatalkan.</span>
+            </p>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setDeleteTarget(null)}
+                disabled={isDeleting}
+              >
+                Batal
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? "Menghapus…" : "Ya, Hapus"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </>
   );
@@ -351,6 +554,7 @@ function AndonHistoryTableSkeleton() {
           <td><div className="h-4 bg-muted rounded w-32" /></td>
           <td><div className="h-5 bg-muted rounded w-16" /></td>
           <td><div className="h-4 bg-muted rounded w-28" /></td>
+          <td><div className="h-7 bg-muted rounded w-24" /></td>
         </tr>
       ))}
     </>
