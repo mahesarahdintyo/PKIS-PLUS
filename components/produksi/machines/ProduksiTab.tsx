@@ -443,82 +443,83 @@ export default function ProduksiTab({
                 {/* Kolom Kiri: PLANNING PRODUKSI */}
                 <div className="planning-col">
                   <p className="panel-subtitle">PLANNING PRODUKSI</p>
-                  {isLeaderOrAdmin && (
-                    <div className="planning-add-row flex flex-wrap gap-2 mb-3 items-center">
-                      <Select
-                        className="text-xs h-8"
-                        style={{ minWidth: "140px", flex: 1 }}
-                        value={form.part_number}
-                        onChange={(e) =>
-                          setNewPlanningForm((prev) => ({
-                            ...prev,
-                            [st.id]: { ...form, part_number: e.target.value },
-                          }))
-                        }
-                      >
-                        <option value="">Part Number</option>
-                        {masterParts.map((p) => {
-                          const val = p.kode_part || p.value || "";
-                          return (
-                            <option key={p.id || val} value={val}>
-                              {val}
-                            </option>
-                          );
-                        })}
-                      </Select>
+                  <div className="planning-add-row flex flex-wrap gap-2 mb-3 items-center">
+                    <Input
+                      type="text"
+                      list={`parts-list-planning-${st.id}`}
+                      placeholder="Part Number"
+                      className="h-8 text-xs font-semibold"
+                      style={{ minWidth: "140px", flex: 1 }}
+                      value={form.part_number}
+                      onChange={(e) =>
+                        setNewPlanningForm((prev) => ({
+                          ...prev,
+                          [st.id]: { ...form, part_number: e.target.value },
+                        }))
+                      }
+                    />
+                    <datalist id={`parts-list-planning-${st.id}`}>
+                      {masterParts.map((p) => {
+                        const val = p.kode_part || p.value || "";
+                        return (
+                          <option key={p.id || val} value={val}>
+                            {p.nama_part && p.nama_part !== val ? `${val} - ${p.nama_part}` : val}
+                          </option>
+                        );
+                      })}
+                    </datalist>
 
-                      <Input
-                        type="number"
-                        placeholder="Qty"
-                        className="h-8 w-20 text-xs"
-                        value={form.qty_rencana}
-                        onChange={(e) =>
-                          setNewPlanningForm((prev) => ({
-                            ...prev,
-                            [st.id]: {
-                              ...form,
-                              qty_rencana: e.target.value === "" ? "" : Number(e.target.value),
-                            },
-                          }))
-                        }
-                      />
+                    <Input
+                      type="number"
+                      placeholder="Qty"
+                      className="h-8 w-20 text-xs"
+                      value={form.qty_rencana}
+                      onChange={(e) =>
+                        setNewPlanningForm((prev) => ({
+                          ...prev,
+                          [st.id]: {
+                            ...form,
+                            qty_rencana: e.target.value === "" ? "" : Number(e.target.value),
+                          },
+                        }))
+                      }
+                    />
 
-                      <Input
-                        type="datetime-local"
-                        title="Jam rencana mulai"
-                        className="h-8 text-xs font-mono"
-                        value={form.jam_mulai}
-                        onChange={(e) =>
-                          setNewPlanningForm((prev) => ({
-                            ...prev,
-                            [st.id]: { ...form, jam_mulai: e.target.value },
-                          }))
-                        }
-                      />
+                    <Input
+                      type="datetime-local"
+                      title="Jam rencana mulai"
+                      className="h-8 text-xs font-mono"
+                      value={form.jam_mulai}
+                      onChange={(e) =>
+                        setNewPlanningForm((prev) => ({
+                          ...prev,
+                          [st.id]: { ...form, jam_mulai: e.target.value },
+                        }))
+                      }
+                    />
 
-                      <Input
-                        type="datetime-local"
-                        title="Jam rencana selesai"
-                        className="h-8 text-xs font-mono"
-                        value={form.jam_selesai}
-                        onChange={(e) =>
-                          setNewPlanningForm((prev) => ({
-                            ...prev,
-                            [st.id]: { ...form, jam_selesai: e.target.value },
-                          }))
-                        }
-                      />
+                    <Input
+                      type="datetime-local"
+                      title="Jam rencana selesai"
+                      className="h-8 text-xs font-mono"
+                      value={form.jam_selesai}
+                      onChange={(e) =>
+                        setNewPlanningForm((prev) => ({
+                          ...prev,
+                          [st.id]: { ...form, jam_selesai: e.target.value },
+                        }))
+                      }
+                    />
 
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="px-3 py-1.5 text-xs"
-                        onClick={() => handleAddPlanning(st.id)}
-                      >
-                        + Add
-                      </Button>
-                    </div>
-                  )}
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="px-3 py-1.5 text-xs"
+                      onClick={() => handleAddPlanning(st.id)}
+                    >
+                      + Add
+                    </Button>
+                  </div>
 
                   <div className="planning-list">
                     {stPlanning.map((p) => (
@@ -530,7 +531,7 @@ export default function ProduksiTab({
                         <span className="hint text-xs text-muted-foreground">
                           {p.qty_rencana ? `${p.qty_rencana}pcs` : "-"} · {fmtClock(p.jam_rencana_mulai)}-{fmtClock(p.jam_rencana_selesai)}
                         </span>
-                        {isLeaderOrAdmin && p.id && (
+                        {p.id && (
                           <Button
                             type="button"
                             variant="destructive"
