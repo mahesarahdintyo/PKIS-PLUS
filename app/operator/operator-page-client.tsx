@@ -104,8 +104,10 @@ export default function OperatorPage({
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<"display" | "machine">("display");
   const [documentListKey, setDocumentListKey] = useState(0);
-  // Whether SSR already seeded documents — if so, first workspace fetch should be silent
-  const hasInitialDataRef = useRef(initialDocuments.length > 0 || initialFolders.length > 0);
+  // Whether SSR already seeded documents — if so, first workspace fetch should be silent.
+  // If lineId is present, SSR ran getInitialDocuments/getInitialFolders and the result
+  // (even empty arrays) is already fresh — no spinner needed on first client fetch.
+  const hasInitialDataRef = useRef(!!lineId);
   const workspaceRequestIdRef = useRef(0);
   const linesRequestIdRef = useRef(0);
   const isMountedRef = useRef(true);
