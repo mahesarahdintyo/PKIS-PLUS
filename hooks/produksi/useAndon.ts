@@ -32,13 +32,14 @@ export async function andonSubscribePush(userId: string): Promise<{ ok: boolean;
   try {
     const supabase = createClient();
     const reg = await navigator.serviceWorker.ready;
-    let sub = await reg.pushManager.getSubscription();
-    if (!sub) {
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(ANDON_VAPID_PUBLIC_KEY) as BufferSource,
-      });
+    const existingSub = await reg.pushManager.getSubscription();
+    if (existingSub) {
+      await existingSub.unsubscribe();
     }
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(ANDON_VAPID_PUBLIC_KEY) as BufferSource,
+    });
     const json = sub.toJSON();
     const { error } = await supabase.from("push_subscriptions" as any).upsert(
       {
