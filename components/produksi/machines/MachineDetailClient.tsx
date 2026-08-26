@@ -102,6 +102,29 @@ export const MACHINE_CONFIGS: Record<string, ProdMachineConfig> = {
   },
 };
 
+/**
+ * Config default/generic untuk line produksi baru yang tidak punya entry khusus di MACHINE_CONFIGS.
+ * Dipakai sebagai fallback — tidak menggantikan 5 config yang sudah ada.
+ */
+export function getMachineConfig(slug: string, label?: string): ProdMachineConfig {
+  if (MACHINE_CONFIGS[slug]) return MACHINE_CONFIGS[slug];
+  // Coba bentuk dashed → key-nya underscore (e.g. "my-line" → MACHINE_CONFIGS["my_line"])
+  const dashed = slug.replace(/_/g, "-");
+  if (MACHINE_CONFIGS[dashed]) return MACHINE_CONFIGS[dashed];
+  // Fallback: konfigurasi standar generik
+  const key = slug.replace(/-/g, "_");
+  return {
+    slug,
+    key,
+    label: label ?? slug,
+    extraFields: [],
+    routingMax: 0,
+    kategoriOptions: ["MESIN", "DIES", "OTHER"],
+    stationConfig: { mode: "none" },
+  };
+}
+
+
 function ModalShell({
   title,
   onClose,
@@ -152,18 +175,22 @@ function getSlugFromName(name: string): string {
   if (lower.includes("pc200") || lower.includes("pc 200")) return "pc200t";
   if (lower.includes("2000") || lower.includes("transfer 2000") || lower.includes("transfer-2000")) return "transfer-2000t";
   if (lower.includes("800") || lower.includes("transfer 800") || lower.includes("transfer-800")) return "transfer-800t";
-  return "tandem";
+  // No longer defaults to tandem — returns empty string for generic fallback
+  return "";
 }
 
 interface MachineDetailClientProps {
   lineId?: string;
   lineName?: string;
+  /** machine_type langsung dari database – diutamakan daripada deteksi dari nama */
+  machineType?: string | null;
 }
 
-export default function MachineDetailClient({ lineId, lineName }: MachineDetailClientProps) {
+export default function MachineDetailClient({ lineId, lineName, machineType }: MachineDetailClientProps) {
   const supabase = createClient();
-  const slug = lineName ? getSlugFromName(lineName) : "tandem";
-  const config = MACHINE_CONFIGS[slug] || MACHINE_CONFIGS["tandem"];
+  // Prioritas: machine_type dari DB > deteksi dari nama > generic
+  const slug = machineType || (lineName ? getSlugFromName(lineName) : "");
+  const config = getMachineConfig(slug, lineName);
 
   const [activeTab, setActiveTab] = useState<"produksi" | "riwayat" | "performance" | "downtime" | "master_data">("produksi");
   const [loading, setLoading] = useState(true);

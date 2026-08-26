@@ -512,6 +512,7 @@ export default function OperatorPage({
             <MachineDetailClient
               lineId={selectedLine?.id ?? lineId}
               lineName={selectedLine?.name ?? selectedLineName}
+              machineType={selectedLine?.machine_type}
             />
           </div>
         )}

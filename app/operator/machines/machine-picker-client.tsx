@@ -29,6 +29,7 @@ export default function MachinePickerClient() {
         .select("*")
         .eq("is_active", true)
         .eq("hidden_from_operator", false)
+        .not("machine_type", "is", null)
         .order("name");
 
       if (fetchError) {
