@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { ArrowLeft, RefreshCw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -14,7 +14,13 @@ import type {
 import { toast } from "sonner";
 import "@/app/admin/(produksi)/produksi.css";
 
-const MACHINE_LIST = [
+interface MachineItem {
+  slug: string;
+  label: string;
+  key: string;
+}
+
+const DEFAULT_MACHINE_LIST: MachineItem[] = [
   { slug: "tandem", label: "Tandem", key: "tandem" },
   { slug: "blanking", label: "Blanking", key: "blanking" },
   { slug: "transfer-2000t", label: "Transfer 2000t", key: "transfer_2000t" },
@@ -22,10 +28,71 @@ const MACHINE_LIST = [
   { slug: "pc200t", label: "PC200t", key: "pc200t" },
 ];
 
+function normalizeMachineSlug(machineType: string): string {
+  if (MACHINE_CONFIGS[machineType]) return machineType;
+  const dashed = machineType.replace(/_/g, "-");
+  if (MACHINE_CONFIGS[dashed]) return dashed;
+  return machineType;
+}
+
+function normalizeMachineKey(machineType: string): string {
+  return machineType.replace(/-/g, "_");
+}
+
 export default function MasterDataClient() {
   const supabase = createClient();
+  const [machineList, setMachineList] = useState<MachineItem[]>(DEFAULT_MACHINE_LIST);
   const [selectedMachineSlug, setSelectedMachineSlug] = useState<string>("tandem");
   const [loading, setLoading] = useState<boolean>(true);
+
+  const channelNameRef = useRef(
+    `master_data_lines_watch_${Math.random().toString(36).slice(2)}`
+  );
+
+  const fetchMachineList = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from("lines")
+        .select("id, name, machine_type, is_active")
+        .not("machine_type", "is", null)
+        .order("name", { ascending: true });
+
+      if (error) {
+        console.warn("Gagal fetch lines untuk master-data, gunakan fallback:", error.message);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const mapped: MachineItem[] = data.map((l: any) => ({
+          slug: normalizeMachineSlug(l.machine_type),
+          label: l.name,
+          key: normalizeMachineKey(l.machine_type),
+        }));
+        setMachineList(mapped);
+      }
+    } catch (err) {
+      console.error("Error fetch lines master-data:", err);
+    }
+  }, [supabase]);
+
+  useEffect(() => {
+    fetchMachineList();
+
+    const channel = supabase
+      .channel(channelNameRef.current)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "lines" },
+        () => {
+          fetchMachineList();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchMachineList, supabase]);
 
   const currentConfig =
     MACHINE_CONFIGS[selectedMachineSlug] || MACHINE_CONFIGS["tandem"];
@@ -425,7 +492,7 @@ export default function MasterDataClient() {
 
         {/* Machine Selector Tabs */}
         <div className="flex flex-wrap gap-2 p-1.5 rounded-2xl border border-border bg-card/60 shadow-xs">
-          {MACHINE_LIST.map((m) => {
+          {machineList.map((m) => {
             const isSelected = selectedMachineSlug === m.slug;
             return (
               <button
