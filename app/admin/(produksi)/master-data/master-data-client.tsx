@@ -40,7 +40,6 @@ function normalizeMachineKey(machineType: string): string {
 }
 
 export default function MasterDataClient() {
-  const supabase = createClient();
   const [machineList, setMachineList] = useState<MachineItem[]>(DEFAULT_MACHINE_LIST);
   const [selectedMachineSlug, setSelectedMachineSlug] = useState<string>("tandem");
   const [loading, setLoading] = useState<boolean>(true);
@@ -51,6 +50,7 @@ export default function MasterDataClient() {
 
   const fetchMachineList = useCallback(async () => {
     try {
+      const supabase = createClient();
       const { data, error } = await supabase
         .from("lines")
         .select("id, name, machine_type, is_active")
@@ -62,22 +62,21 @@ export default function MasterDataClient() {
         return;
       }
 
-      if (data && data.length > 0) {
-        const mapped: MachineItem[] = data.map((l: any) => ({
-          slug: normalizeMachineSlug(l.machine_type),
-          label: l.name,
-          key: normalizeMachineKey(l.machine_type),
-        }));
-        setMachineList(mapped);
-      }
+      const mapped: MachineItem[] = (data || []).map((l: any) => ({
+        slug: normalizeMachineSlug(l.machine_type),
+        label: l.name,
+        key: normalizeMachineKey(l.machine_type),
+      }));
+      setMachineList(mapped);
     } catch (err) {
       console.error("Error fetch lines master-data:", err);
     }
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     fetchMachineList();
 
+    const supabase = createClient();
     const channel = supabase
       .channel(channelNameRef.current)
       .on(
@@ -92,7 +91,7 @@ export default function MasterDataClient() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchMachineList, supabase]);
+  }, [fetchMachineList]);
 
   const currentConfig =
     MACHINE_CONFIGS[selectedMachineSlug] || MACHINE_CONFIGS["tandem"];
@@ -143,6 +142,7 @@ export default function MasterDataClient() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
+      const supabase = createClient();
       // 1. Target settings
       const { data: settingsData } = await supabase
         .from("prod_mesin_settings" as any)
@@ -227,7 +227,7 @@ export default function MasterDataClient() {
     } finally {
       setLoading(false);
     }
-  }, [currentConfig.key, supabase]);
+  }, [currentConfig.key]);
 
   useEffect(() => {
     loadData();
@@ -236,6 +236,7 @@ export default function MasterDataClient() {
   // Target Settings Handler
   const handleSaveMesinSettings = async () => {
     try {
+      const supabase = createClient();
       const payload = {
         mesin: currentConfig.key,
         gsph_target_mode: mesinSettingsDraft.gsph_target_mode,
@@ -268,6 +269,7 @@ export default function MasterDataClient() {
     if (!newPartKode.trim()) return;
 
     try {
+      const supabase = createClient();
       const payload = {
         mesin: currentConfig.key,
         value: newPartKode.trim(),
@@ -304,6 +306,7 @@ export default function MasterDataClient() {
   const handleSaveEditPartNumber = async (id: string) => {
     if (!editPartForm.kode_part.trim()) return;
     try {
+      const supabase = createClient();
       const payload = {
         value: editPartForm.kode_part.trim(),
         std_ct: editPartForm.std_ct === "" ? null : Number(editPartForm.std_ct),
@@ -327,6 +330,7 @@ export default function MasterDataClient() {
   const handleDeletePartNumber = async (id: string) => {
     if (!confirm("Hapus part number ini?")) return;
     try {
+      const supabase = createClient();
       const { error } = await supabase
         .from("prod_part_numbers" as any)
         .update({ is_active: false })
@@ -344,6 +348,7 @@ export default function MasterDataClient() {
     const v = newNonProduksiTypeValue.trim();
     if (!v) return;
     try {
+      const supabase = createClient();
       const { error } = await supabase
         .from("prod_nonproduksi_types" as any)
         .insert({ mesin: currentConfig.key, nama: v });
@@ -359,6 +364,7 @@ export default function MasterDataClient() {
   const handleDeleteNonProduksiType = async (id: string) => {
     if (!confirm("Hapus jenis ini?")) return;
     try {
+      const supabase = createClient();
       const { error } = await supabase
         .from("prod_nonproduksi_types" as any)
         .update({ is_active: false })
@@ -376,6 +382,7 @@ export default function MasterDataClient() {
     const v = newProblemValue.trim();
     if (!v) return;
     try {
+      const supabase = createClient();
       const { data, error } = await supabase
         .from("prod_downtime_problems" as any)
         .insert({ mesin: currentConfig.key, value: v })
@@ -411,6 +418,7 @@ export default function MasterDataClient() {
       return;
     }
     try {
+      const supabase = createClient();
       const { data, error } = await supabase
         .from("prod_downtime_problems" as any)
         .update({ value: v })
@@ -434,6 +442,7 @@ export default function MasterDataClient() {
   const handleDeleteProblem = async (id: string) => {
     if (!confirm("Hapus problem ini?")) return;
     try {
+      const supabase = createClient();
       const { error } = await supabase
         .from("prod_downtime_problems" as any)
         .update({ is_active: false })
