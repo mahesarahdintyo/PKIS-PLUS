@@ -62,82 +62,93 @@ function readDisplayDocument(lineId?: string | null): DisplayDocument | null {
   }
 }
 
+function getFileExtension(fileName: string) {
+  const parts = fileName.toLowerCase().split('.')
+  return parts.length > 1 ? parts[parts.length - 1] ?? '' : ''
+}
+
+function getDisplayMode(document: DisplayDocument) {
+  const extension = getFileExtension(document.file.name)
+
+  if (document.type.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(extension)) {
+    return 'image'
+  }
+
+  if (document.type.startsWith('video/') || ['mp4', 'mov', 'webm'].includes(extension)) {
+    return 'video'
+  }
+
+  return 'frame'
+}
+
+function getTypeLabel(document: DisplayDocument) {
+  const extension = getFileExtension(document.file.name)
+  if (extension) return extension.toUpperCase()
+
+  const parts = document.type.split('/')
+  const subtype = parts[parts.length - 1]
+  return subtype ? subtype.toUpperCase() : 'FILE'
+}
+
+function formatDateTime(date: Date) {
+  const pad = (value: number) => value < 10 ? '0' + value : value.toString()
+  const formattedDate = new Intl.DateTimeFormat('id-ID', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date)
+
+  return `${formattedDate}, ${pad(date.getHours())}.${pad(date.getMinutes())}`
+}
+
+function formatDisplayTime(updatedAt?: number) {
+  if (!updatedAt) return '-'
+
+  const date = new Date(updatedAt)
+  if (Number.isNaN(date.getTime())) return '-'
+
+  return formatDateTime(date)
+}
+
 function formatTargetTime(targetTime?: string | null) {
   if (!targetTime) return '-'
 
-  const targetDate = new Date(targetTime)
-  if (Number.isNaN(targetDate.getTime())) return '-'
+  const date = new Date(targetTime)
+  if (Number.isNaN(date.getTime())) return '-'
 
-  const day = String(targetDate.getDate()).padStart(2, '0')
-  const month = String(targetDate.getMonth() + 1).padStart(2, '0')
-  const year = targetDate.getFullYear()
-  const hours = String(targetDate.getHours()).padStart(2, '0')
-  const minutes = String(targetDate.getMinutes()).padStart(2, '0')
-
-  return `${day}/${month}/${year} ${hours}:${minutes}`
+  return formatDateTime(date)
 }
 
-function getCountdownState(targetTime?: string | null, currentTime: number = Date.now()) {
-  if (!targetTime) {
-    return {
-      countdownLabel: '-',
-      isExpired: false,
-      progress: 0,
-      badgeClassName: 'border-slate-800 bg-slate-900/60 text-slate-400',
-    }
-  }
+function isSameDisplayDocument(
+  currentDocument: DisplayDocument | null,
+  nextDocument: DisplayDocument | null
+) {
+  if (!currentDocument || !nextDocument) return currentDocument === nextDocument
 
-  const targetTimestamp = new Date(targetTime).getTime()
-  if (Number.isNaN(targetTimestamp)) {
-    return {
-      countdownLabel: '-',
-      isExpired: false,
-      progress: 0,
-      badgeClassName: 'border-slate-800 bg-slate-900/60 text-slate-400',
-    }
-  }
+  return (
+    currentDocument.id === nextDocument.id &&
+    currentDocument.title === nextDocument.title &&
+    currentDocument.description === nextDocument.description &&
+    currentDocument.category === nextDocument.category &&
+    currentDocument.type === nextDocument.type &&
+    currentDocument.file.name === nextDocument.file.name &&
+    currentDocument.file.path === nextDocument.file.path &&
+    currentDocument.file.size === nextDocument.file.size &&
+    currentDocument.targetTime === nextDocument.targetTime &&
+    currentDocument.updatedAt === nextDocument.updatedAt
+  )
+}
 
-  const diffMs = targetTimestamp - currentTime
-  const isExpired = diffMs <= 0
-  const absDiffSeconds = Math.floor(Math.abs(diffMs) / 1000)
-
-  const days = Math.floor(absDiffSeconds / 86400)
-  const hours = Math.floor((absDiffSeconds % 86400) / 3600)
-  const minutes = Math.floor((absDiffSeconds % 3600) / 60)
-  const seconds = absDiffSeconds % 60
-
-  const parts: string[] = []
-  if (days > 0) parts.push(`${days}h`)
-  if (hours > 0 || days > 0) parts.push(`${hours}j`)
-  parts.push(`${minutes}m`)
-  parts.push(`${seconds}d`)
-
-  const countdownLabel = `${isExpired ? 'Lewat ' : ''}${parts.join(' ')}`
-
-  if (isExpired) {
-    return {
-      countdownLabel,
-      isExpired: true,
-      progress: 100,
-      badgeClassName: 'border-red-500/40 bg-red-950/40 text-red-300',
-    }
-  }
-
-  if (diffMs <= 3600 * 1000) {
-    return {
-      countdownLabel,
-      isExpired: false,
-      progress: 85,
-      badgeClassName: 'border-amber-500/40 bg-amber-950/40 text-amber-300',
-    }
-  }
-
-  return {
-    countdownLabel,
-    isExpired: false,
-    progress: 40,
-    badgeClassName: 'border-emerald-500/40 bg-emerald-950/40 text-emerald-300',
-  }
+function isSameFile(
+  currentDocument: DisplayDocument | null,
+  nextDocument: DisplayDocument | null
+) {
+  if (!currentDocument || !nextDocument) return currentDocument === nextDocument
+  return (
+    currentDocument.id === nextDocument.id &&
+    currentDocument.file.path === nextDocument.file.path
+  )
 }
 
 interface DisplayPageClientProps {
@@ -147,51 +158,49 @@ interface DisplayPageClientProps {
 export default function DisplayPageClient({ lineId: routeLineId }: DisplayPageClientProps = {}) {
   const searchParams = useSearchParams()
   const lineId = routeLineId ?? searchParams.get('lineId') ?? searchParams.get('landId')
-
-  const [document, setDocument] = useState<DisplayDocument | null>(() => readDisplayDocument(lineId))
+  const [document, setDocument] = useState<DisplayDocument | null>(null)
+  const [fileUrl, setFileUrl] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
   const [currentTime, setCurrentTime] = useState(() => Date.now())
-  const [isClient, setIsClient] = useState(false)
-  const isMountedRef = useRef(true)
 
-  const isPDF = useMemo(() => {
-    if (!document) return false
-    return (
-      document.type.toLowerCase() === 'pdf' ||
-      document.file.name.toLowerCase().endsWith('.pdf') ||
-      document.file.path.toLowerCase().endsWith('.pdf')
-    )
-  }, [document])
-
-  const isImage = useMemo(() => {
-    if (!document) return false
-    const type = document.type.toLowerCase()
-    const fileName = document.file.name.toLowerCase()
-    const filePath = document.file.path.toLowerCase()
-
-    return (
-      type === 'jpg' ||
-      type === 'jpeg' ||
-      type === 'png' ||
-      fileName.endsWith('.jpg') ||
-      fileName.endsWith('.jpeg') ||
-      fileName.endsWith('.png') ||
-      filePath.endsWith('.jpg') ||
-      filePath.endsWith('.jpeg') ||
-      filePath.endsWith('.png')
-    )
-  }, [document])
+  const displayMode = useMemo(
+    () => (document ? getDisplayMode(document) : 'frame'),
+    [document]
+  )
+  const sideRailClassName = 'top-[72px] h-[calc(100%-72px)] py-6'
+  const leftSideRailBackgroundClassName = displayMode === 'frame'
+    ? 'bg-transparent'
+    : 'bg-gradient-to-r from-black via-black/85 to-transparent'
+  const rightSideRailBackgroundClassName = displayMode === 'frame'
+    ? 'bg-transparent'
+    : 'bg-gradient-to-l from-black via-black/85 to-transparent'
 
   useEffect(() => {
-    setIsClient(true)
-    isMountedRef.current = true
+    const originalBodyOverflow = window.document.body.style.overflow
+    const originalHtmlOverflow = window.document.documentElement.style.overflow
+
+    window.document.body.style.overflow = 'hidden'
+    window.document.documentElement.style.overflow = 'hidden'
 
     return () => {
-      isMountedRef.current = false
+      window.document.body.style.overflow = originalBodyOverflow
+      window.document.documentElement.style.overflow = originalHtmlOverflow
     }
   }, [])
 
   useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setCurrentTime(Date.now())
+    }, 1000)
+
+    return () => window.clearInterval(intervalId)
+  }, [])
+
+  useEffect(() => {
     if (!lineId) return
+
+    let heartbeatTimeoutId: number
 
     const sendHeartbeat = async () => {
       try {
@@ -201,231 +210,279 @@ export default function DisplayPageClient({ lineId: routeLineId }: DisplayPageCl
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ lineId }),
+          keepalive: true,
         })
       } catch (error) {
-        console.error('Display heartbeat send error:', error)
+        console.error('Display heartbeat error:', error)
+      } finally {
+        heartbeatTimeoutId = window.setTimeout(sendHeartbeat, 5000)
       }
     }
 
-    const clearHeartbeat = () => {
+    const clearDisplayDocument = () => {
       const params = new URLSearchParams({ lineId })
-      navigator.sendBeacon?.('/api/system/display-heartbeat?' + params.toString())
+
       window.localStorage.removeItem(getDisplayDocumentStorageKey(lineId))
+
+      fetch(`/api/system/display-heartbeat?${params.toString()}`, {
+        method: 'DELETE',
+        keepalive: true,
+      }).catch((error) => {
+        console.error('Display heartbeat clear error:', error)
+      })
+
+      fetch(`/api/display-document?${params.toString()}`, {
+        method: 'DELETE',
+        keepalive: true,
+      }).catch((error) => {
+        console.error('Display clear error:', error)
+      })
     }
 
-    void sendHeartbeat()
-    const heartbeatTimer = window.setInterval(() => {
-      void sendHeartbeat()
-    }, 10000)
+    sendHeartbeat()
 
-    const handleBeforeUnload = () => {
-      clearHeartbeat()
-    }
-
-    const handlePageHide = () => {
-      clearHeartbeat()
-    }
-
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    window.addEventListener('pagehide', handlePageHide)
+    window.addEventListener('pagehide', clearDisplayDocument)
 
     return () => {
-      window.clearInterval(heartbeatTimer)
-      window.removeEventListener('beforeunload', handleBeforeUnload)
-      window.removeEventListener('pagehide', handlePageHide)
-      clearHeartbeat()
+      window.removeEventListener('pagehide', clearDisplayDocument)
+      window.clearTimeout(heartbeatTimeoutId)
     }
   }, [lineId])
 
   useEffect(() => {
-    const syncDisplayDocument = async () => {
+    let pollingTimeoutId: number
+
+    async function loadServerDisplayDocument() {
       try {
         const params = new URLSearchParams()
         if (lineId) {
           params.set('lineId', lineId)
         }
 
-        const query = params.toString()
-        const response = await fetch(`/api/display-document${query ? `?${query}` : ''}`, {
+        const response = await fetch(`/api/display-document${params.toString() ? `?${params.toString()}` : ''}`, {
           cache: 'no-store',
         })
 
         if (!response.ok) return
 
-        const data = (await response.json()) as { document?: DisplayDocument | null }
-        if (!isMountedRef.current) return
+        const data = await response.json()
+        const nextDocument = data.document as DisplayDocument | null
 
-        if (!data.document) {
-          setDocument(null)
-          if (lineId) {
+        setDocument((currentDocument) => {
+          if (!nextDocument) {
+            window.localStorage.removeItem(DISPLAY_DOCUMENT_STORAGE_KEY)
             window.localStorage.removeItem(getDisplayDocumentStorageKey(lineId))
+            return null
           }
-          return
-        }
 
-        setDocument(data.document)
-        if (lineId) {
+          if (isSameDisplayDocument(currentDocument, nextDocument)) {
+            return currentDocument
+          }
+
           window.localStorage.setItem(
             getDisplayDocumentStorageKey(lineId),
-            JSON.stringify(data.document)
+            JSON.stringify(nextDocument)
           )
-        }
+
+          return nextDocument
+        })
       } catch (error) {
-        console.error('Display document sync error:', error)
+        console.error('Display polling error:', error)
+      } finally {
+        pollingTimeoutId = window.setTimeout(loadServerDisplayDocument, 1000)
       }
     }
 
-    void syncDisplayDocument()
-    const syncTimer = window.setInterval(() => {
-      void syncDisplayDocument()
-    }, 2000)
-
-    const handleStorageChange = (event: StorageEvent) => {
+    const handleStorage = (event: StorageEvent) => {
       if (event.key === getDisplayDocumentStorageKey(lineId)) {
         setDocument(readDisplayDocument(lineId))
       }
     }
 
-    const handleFocus = () => {
+    const handleLocalChange = () => {
       setDocument(readDisplayDocument(lineId))
-      void syncDisplayDocument()
     }
 
-    window.addEventListener('storage', handleStorageChange)
-    window.addEventListener('focus', handleFocus)
+    window.addEventListener('storage', handleStorage)
+    window.addEventListener('futaba-display-document-change', handleLocalChange)
+
+    loadServerDisplayDocument()
 
     return () => {
-      window.clearInterval(syncTimer)
-      window.removeEventListener('storage', handleStorageChange)
-      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('storage', handleStorage)
+      window.removeEventListener('futaba-display-document-change', handleLocalChange)
+      window.clearTimeout(pollingTimeoutId)
     }
   }, [lineId])
 
+  const prevDocumentRef = useRef<DisplayDocument | null>(null)
+
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      setCurrentTime(Date.now())
-    }, 1000)
+    let isMounted = true
 
-    return () => window.clearInterval(timer)
-  }, [])
+    async function loadFileUrl() {
+      if (!document) {
+        setFileUrl('')
+        setError('')
+        prevDocumentRef.current = null
+        return
+      }
 
-  const countdown = useMemo(() => {
-    return getCountdownState(document?.targetTime, currentTime)
-  }, [document?.targetTime, currentTime])
+      // Jika file yang di-display sama (id + path), skip reload URL
+      if (isSameFile(prevDocumentRef.current, document)) {
+        return
+      }
 
-  const formattedTargetTime = useMemo(() => {
-    return formatTargetTime(document?.targetTime)
-  }, [document?.targetTime])
+      prevDocumentRef.current = document
 
-  const clockString = useMemo(() => {
-    if (!isClient) return '--:--:--'
-    return new Date(currentTime).toLocaleTimeString('id-ID', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    })
-  }, [currentTime, isClient])
+      try {
+        setIsLoading(true)
+        setError('')
+        setFileUrl('')
+
+        const response = await fetch('/api/download', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            filePath: document.file.path,
+          }),
+        })
+
+        if (!response.ok) {
+          const data = await response.json().catch(() => null)
+          throw new Error(data?.error ?? `Gagal memuat file display (${response.status})`)
+        }
+
+        const data = await response.json()
+        if (typeof data.url !== 'string') {
+          throw new Error('URL file display tidak valid')
+        }
+
+        if (isMounted) {
+          setFileUrl(data.url)
+        }
+      } catch (error) {
+        console.error('Display file load error:', error)
+        if (isMounted) {
+          setFileUrl('')
+          setError(error instanceof Error ? error.message : 'Gagal memuat file display')
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    loadFileUrl()
+
+    return () => {
+      isMounted = false
+    }
+  }, [document])
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 text-slate-100 select-none">
-      <header className="flex h-16 flex-shrink-0 items-center justify-between border-b border-slate-800/80 bg-slate-950/90 px-6 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-            <Monitor className="h-5 w-5" />
-          </div>
+    <main className="fixed inset-0 h-screen w-screen overflow-hidden bg-black text-white">
+      <section className="h-full w-full overflow-hidden">
+        {document && fileUrl && !isLoading && !error && displayMode === 'image' && (
+          <img
+            key={`${document.id}-${document.file.path}-${document.updatedAt}`}
+            src={fileUrl}
+            alt={document.title}
+            className="h-screen w-screen object-contain"
+          />
+        )}
+
+        {document && fileUrl && !isLoading && !error && displayMode === 'video' && (
+          <video
+            key={`${document.id}-${document.file.path}-${document.updatedAt}`}
+            src={fileUrl}
+            className="h-screen w-screen object-contain"
+            controls
+            autoPlay
+          />
+        )}
+
+        {document && fileUrl && !isLoading && !error && displayMode === 'frame' && (
+          <iframe
+            key={`${document.id}-${document.file.path}-${document.updatedAt}`}
+            src={fileUrl}
+            title={document.title}
+            className="block h-screen w-screen border-0 bg-white"
+          />
+        )}
+      </section>
+
+      <aside className={`pointer-events-none absolute left-0 z-10 flex w-[clamp(120px,24vw,210px)] flex-col justify-between px-4 lg:w-[clamp(120px,10vw,210px)] ${sideRailClassName} ${leftSideRailBackgroundClassName}`}>
+        <div className="space-y-4">
           <div>
-            <h1 className="text-base font-bold tracking-tight text-white">
-              FUTABA PKIS
-            </h1>
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">
-              Live TV Display
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">
+              Dokumen
             </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-1.5 font-mono text-sm font-semibold tracking-wider text-slate-200">
-            <Clock className="h-4 w-4 text-slate-400" />
-            <span>{clockString}</span>
-          </div>
-        </div>
-      </header>
-
-      {document && (
-        <div className="flex flex-shrink-0 items-center justify-between border-b border-slate-800/60 bg-slate-900/40 px-6 py-2.5">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
-              <FileText className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-sm font-bold text-white truncate max-w-[500px]">
-                {document.title}
-              </h2>
-              {document.description && (
-                <p className="text-xs text-slate-400 truncate max-w-[500px]">
-                  {document.description}
-                </p>
-              )}
-            </div>
+            <h1 className="mt-2 line-clamp-4 text-sm font-semibold leading-snug text-white">
+              {document?.title ?? 'Belum ada file'}
+            </h1>
           </div>
 
-          {document.targetTime && (
-            <div className="flex items-center gap-3 flex-shrink-0">
-              <div className="text-right">
-                <span className="block text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
-                  Target Waktu
-                </span>
-                <span className="text-xs font-semibold text-slate-300">
-                  {formattedTargetTime}
-                </span>
+          {document && (
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-white">
+                <FileText className="h-3.5 w-3.5 text-[#67e8f9]" />
+                {getTypeLabel(document)}
               </div>
-              <div className={`rounded-xl border px-3 py-1 text-xs font-bold ${countdown.badgeClassName}`}>
-                {countdown.countdownLabel}
+
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                  Target Waktu
+                </p>
+                <p className="mt-2 text-sm font-semibold capitalize leading-snug text-[#34d399]">
+                  {formatTargetTime(document.targetTime)}
+                </p>
               </div>
             </div>
           )}
         </div>
-      )}
 
-      <main className="flex-1 relative overflow-hidden bg-slate-950">
-        {!document ? (
-          <div className="flex h-full flex-col items-center justify-center gap-4 text-center p-8">
-            <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-slate-900 border border-slate-800 text-slate-600">
-              <Monitor className="h-10 w-10" />
-            </div>
-            <div className="space-y-1 max-w-sm">
-              <h3 className="text-lg font-bold text-slate-300">
-                Belum Ada Dokumen Ditampilkan
-              </h3>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Pilih dokumen pada aplikasi operator untuk menampilkannya secara langsung di layar TV ini.
-              </p>
-            </div>
+        <div className="space-y-3 text-[11px] text-white/55">
+          <div className="h-px w-12 bg-white/25" />
+          <p>Futaba Display</p>
+          <p className="leading-relaxed">
+            Konten akan mengikuti file terakhir yang dipilih dari operator.
+          </p>
+        </div>
+      </aside>
+
+      <aside className={`pointer-events-none absolute right-0 z-10 hidden w-[clamp(120px,10vw,210px)] flex-col items-end justify-between px-4 text-right lg:flex ${sideRailClassName} ${rightSideRailBackgroundClassName}`}>
+        <div className="space-y-4">
+          <div className="ml-auto flex h-10 w-10 items-center justify-center rounded-full border border-[#059669]/40 bg-[#059669]/15">
+            <Monitor className="h-5 w-5 text-[#34d399]" />
           </div>
-        ) : isPDF ? (
-          <iframe
-            src={`/api/documents/${document.id}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
-            className="h-full w-full border-0"
-            title={document.title}
-          />
-        ) : isImage ? (
-          <div className="flex h-full w-full items-center justify-center p-4">
-            <img
-              src={`/api/documents/${document.id}`}
-              alt={document.title}
-              className="max-h-full max-w-full object-contain rounded-lg shadow-2xl"
-            />
-          </div>
-        ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-center p-8">
-            <FileText className="h-12 w-12 text-slate-500" />
-            <h3 className="text-base font-bold text-slate-300">{document.title}</h3>
-            <p className="text-xs text-slate-500">
-              Format dokumen ini ({document.type}) tidak dapat dipratinjau langsung.
+
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">
+              Status
+            </p>
+            <p className="mt-2 text-sm font-semibold text-[#34d399]">
+              Live Display
             </p>
           </div>
-        )}
-      </main>
-    </div>
+        </div>
+
+        <div className="space-y-3 text-[11px] text-white/55">
+          <div className="ml-auto h-px w-12 bg-white/25" />
+          <div className="inline-flex max-w-full items-center gap-2 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-white/75">
+            <Clock className="h-3.5 w-3.5" />
+            <span className="capitalize leading-snug">
+              {formatDisplayTime(currentTime)}
+            </span>
+          </div>
+          <p className="leading-relaxed">
+            Tekan Tampilkan pada halaman operator untuk mengganti layar ini.
+          </p>
+        </div>
+      </aside>
+    </main>
   )
 }
