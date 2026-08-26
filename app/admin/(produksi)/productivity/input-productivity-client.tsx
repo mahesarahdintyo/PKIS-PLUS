@@ -29,6 +29,7 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
@@ -44,24 +45,30 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
 
   const fetchRows = async (targetPage = 0) => {
     if (targetPage > 0) setLoadingMore(true);
-    const from = targetPage * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
-    const { data } = await supabase
-      .from("productivity_daily_reference")
-      .select("tanggal, eh_jam")
-      .eq("is_active", true)
-      .order("tanggal", { ascending: false })
-      .range(from, to);
-    if (data) {
-      if (targetPage === 0) {
-        setRows(data);
-      } else {
-        setRows((prev) => [...prev, ...data]);
+    else setLoading(true);
+
+    try {
+      const from = targetPage * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      const { data } = await supabase
+        .from("productivity_daily_reference")
+        .select("tanggal, eh_jam")
+        .eq("is_active", true)
+        .order("tanggal", { ascending: false })
+        .range(from, to);
+      if (data) {
+        if (targetPage === 0) {
+          setRows(data);
+        } else {
+          setRows((prev) => [...prev, ...data]);
+        }
+        setHasMore(data.length === PAGE_SIZE);
       }
-      setHasMore(data.length === PAGE_SIZE);
+      setPage(targetPage);
+    } finally {
+      if (targetPage > 0) setLoadingMore(false);
+      else setLoading(false);
     }
-    setPage(targetPage);
-    if (targetPage > 0) setLoadingMore(false);
   };
 
   useEffect(() => {
@@ -171,26 +178,33 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
-                  <tr key={r.tanggal}>
-                    <td className="mono">{fmtTgl(r.tanggal)}</td>
-                    <td className="mono">{fmtNum(r.eh_jam)}</td>
-                    <td className="flex gap-1">
-                      <Button variant="secondary" size="sm" onClick={() => editRow(r)}>
-                        Edit
-                      </Button>
-                      <Button variant="destructive" size="sm" onClick={() => hapusRow(r.tanggal)}>
-                        Hapus
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-                {rows.length === 0 && (
+                {loading ? (
+                  <ProductivityTableSkeleton />
+                ) : rows.length === 0 ? (
                   <tr>
                     <td colSpan={3} className="empty-state">
                       Belum ada input.
                     </td>
                   </tr>
+                ) : (
+                  rows.map((r, index) => (
+                    <tr
+                      key={r.tanggal || index}
+                      className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+                      style={{ animationDelay: `${Math.min(index * 25, 300)}ms` }}
+                    >
+                      <td className="mono">{fmtTgl(r.tanggal)}</td>
+                      <td className="mono">{fmtNum(r.eh_jam)}</td>
+                      <td className="flex gap-1">
+                        <Button variant="secondary" size="sm" onClick={() => editRow(r)}>
+                          Edit
+                        </Button>
+                        <Button variant="destructive" size="sm" onClick={() => hapusRow(r.tanggal)}>
+                          Hapus
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>
@@ -214,12 +228,12 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
   );
 
   if (embedded) {
-    return <div className="main" style={{ minHeight: 0 }}>{content}</div>;
+    return <div className="main animate-in fade-in slide-in-from-bottom-2 duration-500" style={{ minHeight: 0 }}>{content}</div>;
   }
 
   return (
     <div className="app-shell">
-      <main className="main max-w-6xl mx-auto w-full">
+      <main className="main max-w-6xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-500">
         {/* Tombol Kembali ke Admin */}
         <Link
           href="/admin"
@@ -232,5 +246,19 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
         {content}
       </main>
     </div>
+  );
+}
+
+function ProductivityTableSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <tr key={i} className="animate-pulse select-none">
+          <td><div className="h-4 bg-muted rounded w-28" /></td>
+          <td><div className="h-4 bg-muted rounded w-20" /></td>
+          <td><div className="h-7 bg-muted rounded w-24" /></td>
+        </tr>
+      ))}
+    </>
   );
 }

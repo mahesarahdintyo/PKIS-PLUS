@@ -1738,7 +1738,7 @@ export default function DashboardClient() {
   return (
     <div className="app-shell app-shell-dashboard flex flex-col min-h-screen">
       {/* Main Content Area */}
-      <main className="main main-dashboard">
+      <main className="main main-dashboard animate-in fade-in slide-in-from-bottom-2 duration-500">
         {/* Topbar ──────────────────────────────────────────── */}
         <div className="dash-topbar">
           <div className="dash-title-block flex items-center gap-3">
@@ -1815,9 +1815,12 @@ export default function DashboardClient() {
         </div>
 
         {loading ? (
-          <p className="empty-state">Memuat data...</p>
+          <DashboardSkeleton vizMode={vizMode} />
         ) : (
-          <div className="dash-body">
+          <div
+            key={`${periodMode}-${tanggal}-${bulanPilih}-${tahunPilih}-${shiftFilter}-${vizMode}`}
+            className="dash-body animate-in fade-in slide-in-from-bottom-2 duration-500"
+          >
             {machinesTanpaTarget.length > 0 && (
               <div className="error-msg" style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem" }}>
                 <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: 2 }} />
@@ -1948,10 +1951,14 @@ export default function DashboardClient() {
                   </Card>
                 </div>
                 <div className="internal-row-worst">
-                  {MACHINES.map((m) => {
+                  {MACHINES.map((m, mIdx) => {
                     const rows = worstPerMachine[m.key] || [];
                     return (
-                      <Card key={m.key} className="dash-panel card-glow-info">
+                      <Card
+                        key={m.key}
+                        className="dash-panel card-glow-info animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+                        style={{ animationDelay: `${mIdx * 40}ms` }}
+                      >
                         <p className="dash-panel-title">5 Downtime Terburuk — {m.shortLabel}</p>
                         {rows.length === 0 ? (
                           <p className="empty-state" style={{ padding: "20px 0" }}>Tidak ada downtime.</p>
@@ -1967,7 +1974,11 @@ export default function DashboardClient() {
                               </thead>
                               <tbody>
                                 {rows.map((r, i) => (
-                                  <tr key={i}>
+                                  <tr
+                                    key={i}
+                                    className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+                                    style={{ animationDelay: `${i * 30}ms` }}
+                                  >
                                     <td title={r.kategori}>
                                       <span className={`badge`}>
                                         {r.kategori}
@@ -2048,13 +2059,17 @@ export default function DashboardClient() {
                           </tr>
                         </thead>
                         <tbody>
-                          {MACHINES.map((m) => {
+                          {MACHINES.map((m, mIdx) => {
                             const d = machineDataMap[m.key] || {
                               stroke: 0, gsph: 0, ng: 0, downtime: 0, status: "OFFLINE",
                               targetGsph: 0, performanceFactor: 0, oee: 0,
                             };
                             return (
-                              <tr key={m.key}>
+                              <tr
+                                key={m.key}
+                                className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+                                style={{ animationDelay: `${mIdx * 30}ms` }}
+                              >
                                 <td>
                                   <span style={{ fontWeight: 700, color: "var(--text)" }}>
                                     {m.shortLabel}
@@ -2110,7 +2125,11 @@ export default function DashboardClient() {
                         <tbody>
                           {fleetTop10.length > 0 ? (
                             fleetTop10.map((row, idx) => (
-                              <tr key={idx}>
+                              <tr
+                                key={idx}
+                                className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+                                style={{ animationDelay: `${idx * 30}ms` }}
+                              >
                                 <td title={row.mesinLabel}><span className="badge">{row.mesinLabel}</span></td>
                                 <td title={row.kategori}>{row.kategori}</td>
                                 <td title={row.problem} style={{ minWidth: 120, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.problem}</td>
@@ -2134,8 +2153,12 @@ export default function DashboardClient() {
                     <p className="dash-panel-title">PARETO DOWNTIME (MENIT)</p>
                     {paretoDowntime.length > 0 ? (
                       <div style={{ flex: 1 }}>
-                        {paretoDowntime.map((row) => (
-                          <div className="pareto-row" key={row.problem}>
+                        {paretoDowntime.map((row, pIdx) => (
+                          <div
+                            className="pareto-row animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+                            key={row.problem}
+                            style={{ animationDelay: `${pIdx * 30}ms` }}
+                          >
                             <span className="pareto-label" title={row.problem}>{row.problem}</span>
                             <div className="pareto-bar-track">
                               <div className="pareto-bar-fill" style={{ width: `${row.barPct}%` }} />
@@ -2163,7 +2186,7 @@ export default function DashboardClient() {
               <DialogTitle>{downtimeModal.title}</DialogTitle>
             </DialogHeader>
             {downtimeModal.loading ? (
-              <p className="empty-state">Memuat data...</p>
+              <DowntimeModalSkeleton />
             ) : (
               <div className="table-wrap" style={{ maxHeight: "60vh" }}>
                 <table className="table-compact">
@@ -2174,8 +2197,12 @@ export default function DashboardClient() {
                     </tr>
                   </thead>
                   <tbody>
-                    {downtimeModal.rows.map((row) => (
-                      <tr key={row.id}>
+                    {downtimeModal.rows.map((row, rIdx) => (
+                      <tr
+                        key={row.id}
+                        className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+                        style={{ animationDelay: `${rIdx * 25}ms` }}
+                      >
                         <td title={row.mesinLabel}><span className="badge">{row.mesinLabel}</span></td>
                         <td className="mono">{fmtDowntimeWaktu(row.waktu_awal)}</td>
                         <td title={row.kategori}>{row.kategori}</td>
@@ -2199,6 +2226,104 @@ export default function DashboardClient() {
           </DialogContent>
         </Dialog>
       </main>
+    </div>
+  );
+}
+
+function DashboardKpiSkeleton() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-4 select-none">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="bg-card border border-border rounded-xl p-4 shadow-sm animate-pulse flex flex-col justify-between h-28">
+          <div className="flex items-center justify-between">
+            <div className="h-3.5 bg-muted rounded w-1/2" />
+            <div className="h-6 w-6 bg-muted rounded-md" />
+          </div>
+          <div className="space-y-2">
+            <div className="h-6 bg-muted rounded w-3/4" />
+            <div className="h-3 bg-muted rounded w-1/3" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DashboardTvSkeleton() {
+  return (
+    <div className="space-y-4 select-none animate-pulse">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-card border border-border rounded-xl p-4 shadow-sm h-64 flex flex-col">
+          <div className="h-4 bg-muted rounded w-1/3 mb-4" />
+          <div className="flex-1 bg-muted/40 rounded-lg" />
+        </div>
+        <div className="bg-card border border-border rounded-xl p-4 shadow-sm h-64 flex flex-col">
+          <div className="h-4 bg-muted rounded w-1/3 mb-4" />
+          <div className="flex-1 flex items-center justify-around">
+            <div className="w-16 h-16 rounded-full bg-muted/60" />
+            <div className="w-16 h-16 rounded-full bg-muted/60" />
+            <div className="w-16 h-16 rounded-full bg-muted/60" />
+          </div>
+        </div>
+        <div className="bg-card border border-border rounded-xl p-4 shadow-sm h-64 flex flex-col">
+          <div className="h-4 bg-muted rounded w-1/3 mb-4" />
+          <div className="space-y-2.5 flex-1">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-6 bg-muted/50 rounded w-full" />
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="bg-card border border-border rounded-xl p-4 shadow-sm h-64 flex flex-col">
+            <div className="h-4 bg-muted rounded w-1/2 mb-4" />
+            <div className="flex-1 bg-muted/40 rounded-lg" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DashboardInternalSkeleton() {
+  return (
+    <div className="space-y-4 select-none animate-pulse">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="bg-card border border-border rounded-xl p-4 shadow-sm h-64 flex flex-col">
+            <div className="h-4 bg-muted rounded w-1/2 mb-4" />
+            <div className="flex-1 bg-muted/40 rounded-lg" />
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <div key={i} className="bg-card border border-border rounded-xl p-4 shadow-sm h-60 flex flex-col">
+            <div className="h-4 bg-muted rounded w-1/3 mb-4" />
+            <div className="flex-1 bg-muted/40 rounded-lg" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DashboardSkeleton({ vizMode }: { vizMode: "umum" | "internal" }) {
+  return (
+    <div className="space-y-4 animate-pulse select-none">
+      {vizMode === "umum" && <DashboardKpiSkeleton />}
+      {vizMode === "umum" ? <DashboardTvSkeleton /> : <DashboardInternalSkeleton />}
+    </div>
+  );
+}
+
+function DowntimeModalSkeleton() {
+  return (
+    <div className="table-wrap space-y-2 animate-pulse select-none p-4" style={{ maxHeight: "60vh" }}>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="h-8 bg-muted/60 rounded-md w-full" />
+      ))}
     </div>
   );
 }

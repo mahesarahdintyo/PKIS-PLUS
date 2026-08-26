@@ -8,7 +8,7 @@ import ProductionReportsDashboard from "@/components/admin/ProductionReportsDash
 export default function LaporanProduksiClient() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
         <div>
           <Link
             href="/admin"

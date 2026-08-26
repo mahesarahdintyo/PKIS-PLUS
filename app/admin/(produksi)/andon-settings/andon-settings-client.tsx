@@ -171,8 +171,12 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
                   <tr><th>Line</th><th>Tier</th><th>Aksi</th></tr>
                 </thead>
                 <tbody>
-                  {myLeaders.map((r) => (
-                    <tr key={r.id}>
+                  {myLeaders.map((r, rIdx) => (
+                    <tr
+                      key={r.id}
+                      className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+                      style={{ animationDelay: `${Math.min(rIdx * 25, 300)}ms` }}
+                    >
                       <td>{MESIN_LABELS[r.mesin] || r.mesin}</td>
                       <td><span className="badge">Tier {r.tier}</span></td>
                       <td>
@@ -211,8 +215,12 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
                   </tr>
                 </thead>
                 <tbody>
-                  {activeCalls.map((c) => (
-                    <tr key={c.id}>
+                  {activeCalls.map((c, cIdx) => (
+                    <tr
+                      key={c.id}
+                      className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+                      style={{ animationDelay: `${Math.min(cIdx * 25, 300)}ms` }}
+                    >
                       <td className="mono">{new Date(c.created_at).toLocaleString("id-ID")}</td>
                       <td>{c.line_name || MESIN_LABELS[c.mesin] || c.mesin}</td>
                       <td>{c.stasiun || "-"}</td>
@@ -258,28 +266,35 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
                   </tr>
                 </thead>
                 <tbody>
-                  {history.map((c) => (
-                    <tr key={c.id}>
-                      <td className="mono">{new Date(c.created_at).toLocaleString("id-ID")}</td>
-                      <td>{c.line_name || MESIN_LABELS[c.mesin] || c.mesin}</td>
-                      <td>{c.stasiun || "-"}</td>
-                      <td>{c.alasan || "-"}</td>
-                      <td>
-                        <span className={`badge ${c.status !== "acknowledged" ? "role-admin" : ""}`}>
-                          {c.status === "pending" ? "Menunggu" : c.status === "escalated" ? "Eskalasi" : "Diterima"}
-                        </span>
-                      </td>
-                      <td className="mono">
-                        {c.acknowledged_at ? new Date(c.acknowledged_at).toLocaleString("id-ID") : "-"}
-                      </td>
-                    </tr>
-                  ))}
-                  {!loadingHistory && history.length === 0 && (
+                  {loadingHistory ? (
+                    <AndonHistoryTableSkeleton />
+                  ) : history.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="empty-state">
                         Belum ada riwayat panggilan.
                       </td>
                     </tr>
+                  ) : (
+                    history.map((c, hIdx) => (
+                      <tr
+                        key={c.id}
+                        className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+                        style={{ animationDelay: `${Math.min(hIdx * 20, 300)}ms` }}
+                      >
+                        <td className="mono">{new Date(c.created_at).toLocaleString("id-ID")}</td>
+                        <td>{c.line_name || MESIN_LABELS[c.mesin] || c.mesin}</td>
+                        <td>{c.stasiun || "-"}</td>
+                        <td>{c.alasan || "-"}</td>
+                        <td>
+                          <span className={`badge ${c.status !== "acknowledged" ? "role-admin" : ""}`}>
+                            {c.status === "pending" ? "Menunggu" : c.status === "escalated" ? "Eskalasi" : "Diterima"}
+                          </span>
+                        </td>
+                        <td className="mono">
+                          {c.acknowledged_at ? new Date(c.acknowledged_at).toLocaleString("id-ID") : "-"}
+                        </td>
+                      </tr>
+                    ))
                   )}
                 </tbody>
               </table>
@@ -304,12 +319,12 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
   );
 
   if (embedded) {
-    return <div className="main" style={{ minHeight: 0 }}>{andonContent}</div>;
+    return <div className="main animate-in fade-in slide-in-from-bottom-2 duration-500" style={{ minHeight: 0 }}>{andonContent}</div>;
   }
 
   return (
     <div className="app-shell">
-      <main className="main max-w-6xl mx-auto w-full">
+      <main className="main max-w-6xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-500">
         {/* Tombol Kembali ke Admin */}
         <Link
           href="/admin"
@@ -322,5 +337,22 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
         {andonContent}
       </main>
     </div>
+  );
+}
+
+function AndonHistoryTableSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <tr key={i} className="animate-pulse select-none">
+          <td><div className="h-4 bg-muted rounded w-28" /></td>
+          <td><div className="h-4 bg-muted rounded w-24" /></td>
+          <td><div className="h-4 bg-muted rounded w-16" /></td>
+          <td><div className="h-4 bg-muted rounded w-32" /></td>
+          <td><div className="h-5 bg-muted rounded w-16" /></td>
+          <td><div className="h-4 bg-muted rounded w-28" /></td>
+        </tr>
+      ))}
+    </>
   );
 }

@@ -31,6 +31,7 @@ export default function InputAttendanceClient({ userId: initialUserId, embedded 
   const [userId] = useState<string | null>(initialUserId || null);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
@@ -51,24 +52,30 @@ export default function InputAttendanceClient({ userId: initialUserId, embedded 
 
   const fetchRows = async (targetPage = 0) => {
     if (targetPage > 0) setLoadingMore(true);
-    const from = targetPage * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
-    const res = await supabase
-      .from("prod_attendance_log")
-      .select("*")
-      .eq("is_active", true)
-      .order("tanggal", { ascending: false })
-      .range(from, to);
-    if (res.data) {
-      if (targetPage === 0) {
-        setRows(res.data);
-      } else {
-        setRows((prev) => [...prev, ...(res.data || [])]);
+    else setLoading(true);
+
+    try {
+      const from = targetPage * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      const res = await supabase
+        .from("prod_attendance_log")
+        .select("*")
+        .eq("is_active", true)
+        .order("tanggal", { ascending: false })
+        .range(from, to);
+      if (res.data) {
+        if (targetPage === 0) {
+          setRows(res.data);
+        } else {
+          setRows((prev) => [...prev, ...(res.data || [])]);
+        }
+        setHasMore((res.data?.length ?? 0) === PAGE_SIZE);
       }
-      setHasMore((res.data?.length ?? 0) === PAGE_SIZE);
+      setPage(targetPage);
+    } finally {
+      if (targetPage > 0) setLoadingMore(false);
+      else setLoading(false);
     }
-    setPage(targetPage);
-    if (targetPage > 0) setLoadingMore(false);
   };
 
   useEffect(() => {
@@ -206,27 +213,34 @@ export default function InputAttendanceClient({ userId: initialUserId, embedded 
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <tr key={r.id}>
-                  <td className="mono">{r.tanggal}</td>
-                  <td>Shift {r.shift}</td>
-                  <td className="mono">{fmtNum(r.total_orang)}</td>
-                  <td className="mono">{fmtNum(r.hadir)}</td>
-                  <td className="mono">{fmtNum(r.cuti)}</td>
-                  <td className="mono">{fmtNum(r.absen)}</td>
-                  <td className="mono">{fmtNum(r.overtime_jam)}</td>
-                  <td>
-                    <div className="row-actions flex gap-1">
-                      <Button variant="secondary" size="sm" onClick={() => edit(r)}>Edit</Button>
-                      <Button variant="destructive" size="sm" onClick={() => hapus(r.tanggal, r.shift)}>Hapus</Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {rows.length === 0 && (
+              {loading ? (
+                <AttendanceTableSkeleton />
+              ) : rows.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="empty-state">Belum ada data absensi.</td>
                 </tr>
+              ) : (
+                rows.map((r, index) => (
+                  <tr
+                    key={r.id || index}
+                    className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+                    style={{ animationDelay: `${Math.min(index * 25, 300)}ms` }}
+                  >
+                    <td className="mono">{r.tanggal}</td>
+                    <td>Shift {r.shift}</td>
+                    <td className="mono">{fmtNum(r.total_orang)}</td>
+                    <td className="mono">{fmtNum(r.hadir)}</td>
+                    <td className="mono">{fmtNum(r.cuti)}</td>
+                    <td className="mono">{fmtNum(r.absen)}</td>
+                    <td className="mono">{fmtNum(r.overtime_jam)}</td>
+                    <td>
+                      <div className="row-actions flex gap-1">
+                        <Button variant="secondary" size="sm" onClick={() => edit(r)}>Edit</Button>
+                        <Button variant="destructive" size="sm" onClick={() => hapus(r.tanggal, r.shift)}>Hapus</Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
@@ -250,7 +264,7 @@ export default function InputAttendanceClient({ userId: initialUserId, embedded 
 
   if (embedded) {
     return (
-      <div className="main" style={{ minHeight: 0 }}>
+      <div className="main animate-in fade-in slide-in-from-bottom-2 duration-500" style={{ minHeight: 0 }}>
         <div className="page-header">
           <h1 className="page-title">
             <span className="eyebrow">Input</span>
@@ -264,7 +278,7 @@ export default function InputAttendanceClient({ userId: initialUserId, embedded 
 
   return (
     <div className="app-shell">
-      <main className="main max-w-6xl mx-auto w-full">
+      <main className="main max-w-6xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-500">
         {/* Tombol Kembali ke Admin */}
         <Link
           href="/admin"
@@ -284,5 +298,24 @@ export default function InputAttendanceClient({ userId: initialUserId, embedded 
         {innerContent}
       </main>
     </div>
+  );
+}
+
+function AttendanceTableSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <tr key={i} className="animate-pulse select-none">
+          <td><div className="h-4 bg-muted rounded w-20" /></td>
+          <td><div className="h-4 bg-muted rounded w-14" /></td>
+          <td><div className="h-4 bg-muted rounded w-10" /></td>
+          <td><div className="h-4 bg-muted rounded w-10" /></td>
+          <td><div className="h-4 bg-muted rounded w-10" /></td>
+          <td><div className="h-4 bg-muted rounded w-10" /></td>
+          <td><div className="h-4 bg-muted rounded w-12" /></td>
+          <td><div className="h-7 bg-muted rounded w-24" /></td>
+        </tr>
+      ))}
+    </>
   );
 }

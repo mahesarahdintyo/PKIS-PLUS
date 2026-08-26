@@ -187,7 +187,7 @@ export default function DowntimeLogClient() {
 
   return (
     <div className="app-shell machine-hub-container">
-      <main className="main max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
+      <main className="main max-w-6xl mx-auto p-4 sm:p-6 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
         <div>
           <Link
             href="/admin"
@@ -200,55 +200,38 @@ export default function DowntimeLogClient() {
 
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="page-header mb-0">
-            <h1 className="page-title text-2xl font-bold font-display flex items-center gap-3">
-              <span className="eyebrow block text-xs font-semibold text-rose-500 uppercase tracking-wider mb-0.5">
-                Monitoring Produksi
+            <h1 className="page-title text-2xl font-bold font-display">
+              <span className="eyebrow block text-xs font-semibold text-blue-500 uppercase tracking-wider mb-0.5">
+                Monitoring & Analisis
               </span>
-              <span>Downtime Log Konsolidasi</span>
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-semibold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Live
-              </span>
+              Downtime Log
             </h1>
             <p className="text-xs text-muted-foreground mt-1">
-              Pantau riwayat downtime seluruh mesin produksi secara real-time lintas lini.
+              Catatan riwayat gangguan mesin &amp; line stop untuk seluruh mesin produksi.
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => fetchDowntime(0)}
-              disabled={loading}
-              className="inline-flex items-center gap-2 min-h-[40px] px-3.5 py-2 text-xs font-bold rounded-xl border border-border bg-card text-foreground hover:bg-muted active:scale-95 transition-all cursor-pointer touch-manipulation"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-              <span>Refresh</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => fetchDowntime(0)}
+            disabled={loading}
+            className="inline-flex items-center gap-2 min-h-[40px] px-3.5 py-2 text-xs font-bold rounded-xl border border-border bg-card text-foreground hover:bg-muted active:scale-95 transition-all cursor-pointer touch-manipulation"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+            <span>Refresh</span>
+          </button>
         </div>
 
         {/* Filter Panel */}
-        <Card className="dash-panel card-glow-info p-4 sm:p-5">
-          <div className="flex items-center justify-between mb-3 border-b border-border pb-2.5">
-            <div className="flex items-center gap-2 text-sm font-bold">
-              <Filter className="h-4 w-4 text-primary" />
-              <span>Filter Log Downtime</span>
-            </div>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={resetFilters}
-              className="h-8 text-xs px-3"
-            >
-              Reset Filter
-            </Button>
+        <Card className="dash-panel p-4 sm:p-5">
+          <div className="flex items-center gap-2 mb-3 text-sm font-bold text-foreground">
+            <Filter className="h-4 w-4 text-primary" />
+            <span>Filter Data</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="field">
-              <label className="text-xs font-semibold block mb-1">Mesin</label>
+              <label className="text-xs font-semibold block mb-1">Mesin / Line</label>
               <Select
                 value={filterMesin}
                 onChange={(e) => setFilterMesin(e.target.value)}
@@ -300,7 +283,10 @@ export default function DowntimeLogClient() {
         </Card>
 
         {/* Summary Metric Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
+        <div
+          key={`metrics-${filterMesin}-${filterTanggalDari}-${filterTanggalSampai}-${filterKategori}`}
+          className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500"
+        >
           <Card className="dash-panel p-4 flex items-center gap-3.5 border-l-4 border-l-rose-500">
             <div className="h-11 w-11 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500 shrink-0">
               <AlertTriangle className="h-5 w-5" />
@@ -377,16 +363,12 @@ export default function DowntimeLogClient() {
                   <th className="p-3">Stasiun</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody
+                key={`${filterMesin}-${filterTanggalDari}-${filterTanggalSampai}-${filterKategori}-${page}`}
+                className="divide-y divide-border animate-in fade-in slide-in-from-bottom-2 duration-500"
+              >
                 {loading ? (
-                  <tr>
-                    <td colSpan={9} className="p-8 text-center text-muted-foreground">
-                      <div className="flex items-center justify-center gap-2">
-                        <RefreshCw className="h-4 w-4 animate-spin text-primary" />
-                        <span>Memuat data downtime...</span>
-                      </div>
-                    </td>
-                  </tr>
+                  <DowntimeTableSkeleton />
                 ) : downtimeRows.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="p-8 text-center text-muted-foreground">
@@ -395,7 +377,11 @@ export default function DowntimeLogClient() {
                   </tr>
                 ) : (
                   downtimeRows.map((row, idx) => (
-                    <tr key={row.id || idx} className="hover:bg-muted/30 transition-colors">
+                    <tr
+                      key={row.id || idx}
+                      className="hover:bg-muted/30 transition-colors animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+                      style={{ animationDelay: `${Math.min(idx * 20, 300)}ms` }}
+                    >
                       <td className="p-3 font-bold whitespace-nowrap">
                         <span className="px-2 py-1 rounded-md bg-card border border-border text-foreground font-mono text-xs">
                           {getMachineLabel(row.mesin)}
@@ -465,5 +451,25 @@ export default function DowntimeLogClient() {
         </Card>
       </main>
     </div>
+  );
+}
+
+function DowntimeTableSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 8 }).map((_, i) => (
+        <tr key={i} className="animate-pulse select-none">
+          <td className="p-3"><div className="h-6 bg-muted rounded-md w-20" /></td>
+          <td className="p-3"><div className="h-4 bg-muted rounded w-20" /></td>
+          <td className="p-3"><div className="h-4 bg-muted rounded w-24" /></td>
+          <td className="p-3 text-right"><div className="h-4 bg-muted rounded w-12 ml-auto" /></td>
+          <td className="p-3"><div className="h-5 bg-muted rounded w-16" /></td>
+          <td className="p-3"><div className="h-4 bg-muted rounded w-36" /></td>
+          <td className="p-3"><div className="h-4 bg-muted rounded w-32" /></td>
+          <td className="p-3"><div className="h-4 bg-muted rounded w-32" /></td>
+          <td className="p-3"><div className="h-4 bg-muted rounded w-12" /></td>
+        </tr>
+      ))}
+    </>
   );
 }
