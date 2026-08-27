@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Eye, EyeOff, Factory, FileText, Folder, Cpu, Loader2, MoreVertical, Pencil, Trash2, X, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import type { Line } from '@/lib/services/line'
+import type { FixedStationConfig, Line, LineStationConfig, StationConfigMode } from '@/lib/services/line'
 
 /** Opsi mesin produksi yang sudah punya konfigurasi khusus */
 const EXISTING_MACHINE_TYPES = [
@@ -25,6 +25,19 @@ function slugifyName(name: string): string {
     .trim()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '')
+}
+
+function getStationModeFromLine(targetLine: Line): StationConfigMode {
+  if (targetLine.station_config?.mode === 'fixed') return 'fixed'
+  if (targetLine.station_config?.mode === 'variant') return 'variant'
+  return 'none'
+}
+
+function getFixedStationsTextFromLine(targetLine: Line): string {
+  if (targetLine.station_config?.mode === 'fixed' && Array.isArray((targetLine.station_config as FixedStationConfig).stations)) {
+    return (targetLine.station_config as FixedStationConfig).stations.join(', ')
+  }
+  return ''
 }
 
 interface AdminLineCardProps {
@@ -60,6 +73,8 @@ export function AdminLineCard({
       ? line.machine_type
       : EXISTING_MACHINE_TYPES[0].slug
   )
+  const [stationMode, setStationMode] = useState<StationConfigMode>(() => getStationModeFromLine(line))
+  const [fixedStationsText, setFixedStationsText] = useState<string>(() => getFixedStationsTextFromLine(line))
 
   const closeDeleteModal = () => {
     if (!isDeleteOpen || isDeleteClosing) return
@@ -129,8 +144,74 @@ export function AdminLineCard({
         ? line.machine_type
         : EXISTING_MACHINE_TYPES[0].slug
     )
+    setStationMode(getStationModeFromLine(line))
+    setFixedStationsText(getFixedStationsTextFromLine(line))
     setError('')
     setIsDuplicateName(false)
+  }
+
+  const handleMachineTypeModeChange = (mode: MachineTypeMode) => {
+    setMachineTypeMode(mode)
+    if (mode === 'none') {
+      setStationMode('none')
+      setFixedStationsText('')
+    } else if (mode === 'existing') {
+      if (existingMachineType === 'pc200t') {
+        setStationMode('fixed')
+        setFixedStationsText('PC-1, PC-2')
+      } else if (existingMachineType === 'tandem') {
+        setStationMode('variant')
+      } else {
+        setStationMode('none')
+        setFixedStationsText('')
+      }
+    }
+  }
+
+  const handleExistingMachineTypeChange = (slug: string) => {
+    setExistingMachineType(slug)
+    if (slug === 'pc200t') {
+      setStationMode('fixed')
+      setFixedStationsText('PC-1, PC-2')
+    } else if (slug === 'tandem') {
+      setStationMode('variant')
+    } else {
+      setStationMode('none')
+      setFixedStationsText('')
+    }
+  }
+
+  function resolveStationConfig(): LineStationConfig {
+    if (machineTypeMode === 'none') {
+      return { mode: 'none' }
+    }
+    if (stationMode === 'fixed') {
+      const stations = fixedStationsText
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0)
+      return {
+        mode: 'fixed',
+        stations: stations.length > 0 ? stations : ['Stasiun 1'],
+      }
+    }
+    if (stationMode === 'variant') {
+      if (line.station_config?.mode === 'variant') {
+        return line.station_config
+      }
+      if (machineTypeMode === 'existing' && existingMachineType === 'tandem') {
+        return {
+          mode: 'variant',
+          default: 'baru',
+          variants: [
+            { key: 'lama', label: 'TDM Lama', stations: ['PA-1', 'PA-2', 'PA-3', 'PA-4', 'PA-5'] },
+            { key: 'baru', label: 'TDM Baru', stations: ['PA-6', 'PA-7', 'PA-8', 'PA-9', 'PA-10'] },
+          ],
+        }
+      }
+      return { mode: 'none' }
+    }
+    return { mode: 'none' }
   }
 
   const handleOpenEdit = (event: React.MouseEvent) => {
@@ -172,6 +253,7 @@ export function AdminLineCard({
           name: name.trim(),
           description: description.trim() || null,
           machine_type,
+          station_config: resolveStationConfig(),
         }),
       })
 
@@ -470,7 +552,7 @@ export function AdminLineCard({
                     name="edit-machine-type-mode"
                     value="none"
                     checked={machineTypeMode === 'none'}
-                    onChange={() => setMachineTypeMode('none')}
+                    onChange={() => handleMachineTypeModeChange('none')}
                     className="mt-0.5 accent-blue-600"
                     disabled={isSaving}
                   />
@@ -494,7 +576,7 @@ export function AdminLineCard({
                     name="edit-machine-type-mode"
                     value="existing"
                     checked={machineTypeMode === 'existing'}
-                    onChange={() => setMachineTypeMode('existing')}
+                    onChange={() => handleMachineTypeModeChange('existing')}
                     className="mt-0.5 accent-blue-600"
                     disabled={isSaving}
                   />
@@ -506,7 +588,7 @@ export function AdminLineCard({
                       {machineTypeMode === 'existing' && (
                         <select
                           value={existingMachineType}
-                          onChange={(e) => setExistingMachineType(e.target.value)}
+                          onChange={(e) => handleExistingMachineTypeChange(e.target.value)}
                           className="mt-2 w-full px-3 py-1.5 border border-border rounded-md text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-background"
                           disabled={isSaving}
                           onClick={(e) => e.stopPropagation()}
@@ -531,7 +613,7 @@ export function AdminLineCard({
                     name="edit-machine-type-mode"
                     value="custom"
                     checked={machineTypeMode === 'custom'}
-                    onChange={() => setMachineTypeMode('custom')}
+                    onChange={() => handleMachineTypeModeChange('custom')}
                     className="mt-0.5 accent-blue-600"
                     disabled={isSaving}
                   />
@@ -555,6 +637,108 @@ export function AdminLineCard({
                     Sebelumnya: <span className="font-mono text-foreground">{line.machine_type}</span>
                   </p>
                 )}
+              </div>
+
+              {/* Konfigurasi Sub-Stasiun */}
+              <div className="space-y-2 pt-1 border-t border-border">
+                <label className="block text-sm font-medium text-foreground">
+                  Konfigurasi Sub-Stasiun
+                </label>
+
+                <div className="space-y-2">
+                  {/* Opsi 1: Tanpa sub-stasiun */}
+                  <label className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition
+                    ${stationMode === 'none'
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-muted-foreground hover:bg-muted/50'
+                    }`}>
+                    <input
+                      type="radio"
+                      name="edit-station-mode"
+                      value="none"
+                      checked={stationMode === 'none'}
+                      onChange={() => setStationMode('none')}
+                      className="mt-0.5 accent-blue-600"
+                      disabled={isSaving}
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Tanpa sub-stasiun</p>
+                      <p className="text-xs text-muted-foreground">Mesin beroperasi sebagai satu stasiun tunggal</p>
+                    </div>
+                  </label>
+
+                  {/* Opsi 2: Daftar stasiun tetap */}
+                  <label className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition
+                    ${stationMode === 'fixed'
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-muted-foreground hover:bg-muted/50'
+                    }`}>
+                    <input
+                      type="radio"
+                      name="edit-station-mode"
+                      value="fixed"
+                      checked={stationMode === 'fixed'}
+                      onChange={() => setStationMode('fixed')}
+                      className="mt-0.5 accent-blue-600"
+                      disabled={isSaving}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground">Daftar stasiun tetap</p>
+                      <p className="text-xs text-muted-foreground">Memiliki daftar sub-stasiun tetap (cth: PC-1, PC-2)</p>
+                      {stationMode === 'fixed' && (
+                        <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                          <label className="block text-xs font-medium text-foreground mb-1">
+                            Nama Stasiun <span className="text-muted-foreground">(pisahkan dengan koma)</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={fixedStationsText}
+                            onChange={(e) => setFixedStationsText(e.target.value)}
+                            placeholder="Contoh: PC-1, PC-2"
+                            className="w-full px-3 py-1.5 border border-border rounded-md text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-background"
+                            disabled={isSaving}
+                          />
+                          {fixedStationsText.trim() && (
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {fixedStationsText
+                                .split(',')
+                                .map((s) => s.trim())
+                                .filter(Boolean)
+                                .map((s, i) => (
+                                  <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
+                                    {s}
+                                  </span>
+                                ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </label>
+
+                  {/* Opsi 3: Beberapa varian stasiun */}
+                  <label className={`flex items-start gap-3 p-2.5 rounded-lg border transition opacity-70 cursor-not-allowed bg-muted/30
+                    ${stationMode === 'variant' ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                    <input
+                      type="radio"
+                      name="edit-station-mode"
+                      value="variant"
+                      checked={stationMode === 'variant'}
+                      onChange={() => setStationMode('variant')}
+                      className="mt-0.5 accent-blue-600"
+                      disabled={true}
+                    />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-foreground">Beberapa varian stasiun</p>
+                        <span className="text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-semibold px-1.5 py-0.5 rounded">Segera Hadir</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Fitur ini akan tersedia di update berikutnya
+                      </p>
+                    </div>
+                  </label>
+                </div>
               </div>
 
               <div className="flex gap-3 pt-2">

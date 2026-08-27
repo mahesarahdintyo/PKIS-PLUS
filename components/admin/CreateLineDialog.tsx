@@ -5,6 +5,8 @@ import { FolderPlus, Loader2, X, Factory, FileText, Cpu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
+import type { LineStationConfig, StationConfigMode } from '@/lib/services/line'
+
 /** Opsi mesin produksi yang sudah punya konfigurasi khusus */
 const EXISTING_MACHINE_TYPES = [
   { slug: 'tandem',         label: 'Tandem' },
@@ -36,6 +38,8 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
   const [description, setDescription] = useState('')
   const [machineTypeMode, setMachineTypeMode] = useState<MachineTypeMode>('none')
   const [existingMachineType, setExistingMachineType] = useState<string>(EXISTING_MACHINE_TYPES[0].slug)
+  const [stationMode, setStationMode] = useState<StationConfigMode>('none')
+  const [fixedStationsText, setFixedStationsText] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isDuplicate, setIsDuplicate] = useState(false)
 
@@ -45,6 +49,68 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
     if (machineTypeMode === 'existing') return existingMachineType
     // custom: slugify nama line
     return slugifyName(name) || null
+  }
+
+  /** Hitung station_config berdasarkan pilihan mode */
+  function resolveStationConfig(): LineStationConfig {
+    if (machineTypeMode === 'none') {
+      return { mode: 'none' }
+    }
+    if (stationMode === 'fixed') {
+      const stations = fixedStationsText
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0)
+      return {
+        mode: 'fixed',
+        stations: stations.length > 0 ? stations : ['Stasiun 1'],
+      }
+    }
+    if (stationMode === 'variant') {
+      if (machineTypeMode === 'existing' && existingMachineType === 'tandem') {
+        return {
+          mode: 'variant',
+          default: 'baru',
+          variants: [
+            { key: 'lama', label: 'TDM Lama', stations: ['PA-1', 'PA-2', 'PA-3', 'PA-4', 'PA-5'] },
+            { key: 'baru', label: 'TDM Baru', stations: ['PA-6', 'PA-7', 'PA-8', 'PA-9', 'PA-10'] },
+          ],
+        }
+      }
+      return { mode: 'none' }
+    }
+    return { mode: 'none' }
+  }
+
+  const handleMachineTypeModeChange = (mode: MachineTypeMode) => {
+    setMachineTypeMode(mode)
+    if (mode === 'none') {
+      setStationMode('none')
+      setFixedStationsText('')
+    } else if (mode === 'existing') {
+      if (existingMachineType === 'pc200t') {
+        setStationMode('fixed')
+        setFixedStationsText('PC-1, PC-2')
+      } else if (existingMachineType === 'tandem') {
+        setStationMode('variant')
+      } else {
+        setStationMode('none')
+        setFixedStationsText('')
+      }
+    }
+  }
+
+  const handleExistingMachineTypeChange = (slug: string) => {
+    setExistingMachineType(slug)
+    if (slug === 'pc200t') {
+      setStationMode('fixed')
+      setFixedStationsText('PC-1, PC-2')
+    } else if (slug === 'tandem') {
+      setStationMode('variant')
+    } else {
+      setStationMode('none')
+      setFixedStationsText('')
+    }
   }
 
   const handleOpen = () => {
@@ -59,6 +125,8 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
     setDescription('')
     setMachineTypeMode('none')
     setExistingMachineType(EXISTING_MACHINE_TYPES[0].slug)
+    setStationMode('none')
+    setFixedStationsText('')
     setIsDuplicate(false)
     onOpenChange?.(false)
   }
@@ -73,6 +141,7 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
     }
 
     const machine_type = resolveMachineType()
+    const station_config = resolveStationConfig()
 
     try {
       setIsLoading(true)
@@ -84,6 +153,7 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
           name: name.trim(),
           description: description.trim() || null,
           machine_type,
+          station_config,
         }),
       })
 
@@ -100,6 +170,8 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
       setDescription('')
       setMachineTypeMode('none')
       setExistingMachineType(EXISTING_MACHINE_TYPES[0].slug)
+      setStationMode('none')
+      setFixedStationsText('')
       setIsOpen(false)
       onOpenChange?.(false)
       onCreateSuccess?.()
@@ -208,7 +280,7 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
                     name="machine-type-mode"
                     value="none"
                     checked={machineTypeMode === 'none'}
-                    onChange={() => setMachineTypeMode('none')}
+                    onChange={() => handleMachineTypeModeChange('none')}
                     className="mt-0.5 accent-blue-600"
                     disabled={isLoading}
                   />
@@ -232,7 +304,7 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
                     name="machine-type-mode"
                     value="existing"
                     checked={machineTypeMode === 'existing'}
-                    onChange={() => setMachineTypeMode('existing')}
+                    onChange={() => handleMachineTypeModeChange('existing')}
                     className="mt-0.5 accent-blue-600"
                     disabled={isLoading}
                   />
@@ -244,7 +316,7 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
                       {machineTypeMode === 'existing' && (
                         <select
                           value={existingMachineType}
-                          onChange={(e) => setExistingMachineType(e.target.value)}
+                          onChange={(e) => handleExistingMachineTypeChange(e.target.value)}
                           className="mt-2 w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 bg-white"
                           disabled={isLoading}
                           onClick={(e) => e.stopPropagation()}
@@ -269,7 +341,7 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
                     name="machine-type-mode"
                     value="custom"
                     checked={machineTypeMode === 'custom'}
-                    onChange={() => setMachineTypeMode('custom')}
+                    onChange={() => handleMachineTypeModeChange('custom')}
                     className="mt-0.5 accent-blue-600"
                     disabled={isLoading}
                   />
@@ -288,6 +360,108 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
                     </div>
                   </div>
                 </label>
+              </div>
+
+              {/* Konfigurasi Sub-Stasiun */}
+              <div className="space-y-2 pt-1 border-t border-gray-100">
+                <label className="block text-sm font-medium text-gray-700">
+                  Konfigurasi Sub-Stasiun
+                </label>
+
+                <div className="space-y-2">
+                  {/* Opsi 1: Tanpa sub-stasiun */}
+                  <label className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition
+                    ${stationMode === 'none'
+                      ? 'border-blue-400 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    }`}>
+                    <input
+                      type="radio"
+                      name="create-station-mode"
+                      value="none"
+                      checked={stationMode === 'none'}
+                      onChange={() => setStationMode('none')}
+                      className="mt-0.5 accent-blue-600"
+                      disabled={isLoading}
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">Tanpa sub-stasiun</p>
+                      <p className="text-xs text-gray-500">Mesin beroperasi sebagai satu stasiun tunggal</p>
+                    </div>
+                  </label>
+
+                  {/* Opsi 2: Daftar stasiun tetap */}
+                  <label className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition
+                    ${stationMode === 'fixed'
+                      ? 'border-blue-400 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    }`}>
+                    <input
+                      type="radio"
+                      name="create-station-mode"
+                      value="fixed"
+                      checked={stationMode === 'fixed'}
+                      onChange={() => setStationMode('fixed')}
+                      className="mt-0.5 accent-blue-600"
+                      disabled={isLoading}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800">Daftar stasiun tetap</p>
+                      <p className="text-xs text-gray-500">Memiliki daftar sub-stasiun tetap (cth: PC-1, PC-2)</p>
+                      {stationMode === 'fixed' && (
+                        <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Nama Stasiun <span className="text-gray-400">(pisahkan dengan koma)</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={fixedStationsText}
+                            onChange={(e) => setFixedStationsText(e.target.value)}
+                            placeholder="Contoh: PC-1, PC-2"
+                            className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 bg-white"
+                            disabled={isLoading}
+                          />
+                          {fixedStationsText.trim() && (
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {fixedStationsText
+                                .split(',')
+                                .map((s) => s.trim())
+                                .filter(Boolean)
+                                .map((s, i) => (
+                                  <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                    {s}
+                                  </span>
+                                ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </label>
+
+                  {/* Opsi 3: Beberapa varian stasiun */}
+                  <label className={`flex items-start gap-3 p-2.5 rounded-lg border transition opacity-70 cursor-not-allowed bg-gray-50
+                    ${stationMode === 'variant' ? 'border-blue-400 bg-blue-50' : 'border-gray-200'}`}>
+                    <input
+                      type="radio"
+                      name="create-station-mode"
+                      value="variant"
+                      checked={stationMode === 'variant'}
+                      onChange={() => setStationMode('variant')}
+                      className="mt-0.5 accent-blue-600"
+                      disabled={true}
+                    />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-gray-800">Beberapa varian stasiun</p>
+                        <span className="text-[10px] bg-amber-100 text-amber-800 font-semibold px-1.5 py-0.5 rounded">Segera Hadir</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Fitur ini akan tersedia di update berikutnya
+                      </p>
+                    </div>
+                  </label>
+                </div>
               </div>
 
               {/* Actions */}

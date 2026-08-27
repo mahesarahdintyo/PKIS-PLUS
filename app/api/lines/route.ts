@@ -71,6 +71,12 @@ export async function POST(request: Request) {
         ? body.machine_type.trim()
         : null;
 
+    // station_config: object JSON, default { mode: "none" }
+    const station_config =
+      body.station_config && typeof body.station_config === "object"
+        ? body.station_config
+        : { mode: "none" };
+
     if (!name) {
       return NextResponse.json(
         { error: "Nama line produksi tidak boleh kosong" },
@@ -101,6 +107,7 @@ export async function POST(request: Request) {
         name,
         description,
         machine_type,
+        station_config,
         is_active: true,
       })
       .select()
@@ -134,6 +141,13 @@ export async function PUT(request: Request) {
           ? body.machine_type.trim()
           : null)
       : undefined;
+
+    // station_config: object JSON
+    const hasStationConfig = "station_config" in body;
+    const station_config =
+      hasStationConfig && body.station_config && typeof body.station_config === "object"
+        ? body.station_config
+        : undefined;
 
     if (!id) {
       return NextResponse.json(
@@ -169,6 +183,7 @@ export async function PUT(request: Request) {
 
     const updatePayload: Record<string, unknown> = { name, description };
     if (hasMachineType) updatePayload.machine_type = machine_type;
+    if (hasStationConfig) updatePayload.station_config = station_config;
 
     const { data: updatedLine, error } = await supabase
       .from("lines")

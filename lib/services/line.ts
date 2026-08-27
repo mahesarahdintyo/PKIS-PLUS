@@ -1,3 +1,30 @@
+export type StationConfigMode = "none" | "fixed" | "variant";
+
+export interface FixedStationConfig {
+  mode: "fixed";
+  stations: string[];
+}
+
+export interface NoneStationConfig {
+  mode: "none";
+}
+
+export interface VariantStationConfig {
+  mode: "variant";
+  variants: {
+    key: string;
+    label: string;
+    stations: string[];
+  }[];
+  default?: string;
+}
+
+export type LineStationConfig =
+  | NoneStationConfig
+  | FixedStationConfig
+  | VariantStationConfig
+  | { mode: string; [key: string]: unknown };
+
 export interface Line {
   id: string;
   name: string;
@@ -5,6 +32,7 @@ export interface Line {
   is_active: boolean;
   hidden_from_operator?: boolean;
   machine_type?: string | null;
+  station_config?: LineStationConfig;
   document_count?: number;
 }
 
