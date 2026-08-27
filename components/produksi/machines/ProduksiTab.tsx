@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Play,
   Square,
@@ -13,6 +14,9 @@ import {
   Timer,
   Pencil,
   X,
+  Clock,
+  Plus,
+  Calendar,
 } from "lucide-react";
 import type {
   ProdMachineConfig,
@@ -21,6 +25,30 @@ import type {
   ProdProductionLogRow,
   ProdNonProduksiType,
 } from "@/types/produksi";
+
+function getLocalDateString(d: Date = new Date()): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getLocalTimeString(d: Date = new Date()): string {
+  const hours = String(d.getHours()).padStart(2, "0");
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
+}
+
+function parseDateTimeString(dtStr?: string): { date: string; time: string } {
+  if (!dtStr) {
+    return { date: getLocalDateString(), time: "" };
+  }
+  if (dtStr.includes("T")) {
+    const [d, t] = dtStr.split("T");
+    return { date: d || getLocalDateString(), time: (t || "").slice(0, 5) };
+  }
+  return { date: getLocalDateString(), time: dtStr.slice(0, 5) };
+}
 
 interface ProduksiTabProps {
   config: ProdMachineConfig;
@@ -100,6 +128,125 @@ export default function ProduksiTab({
   rowAvailability,
   availabilityHint,
 }: ProduksiTabProps) {
+  const handleDateChange = (
+    stId: string,
+    form: { part_number: string; qty_rencana: number | ""; jam_mulai: string; jam_selesai: string },
+    newDate: string
+  ) => {
+    const dateStr = newDate || getLocalDateString();
+    const mulaiP = parseDateTimeString(form.jam_mulai);
+    const selesaiP = parseDateTimeString(form.jam_selesai);
+    const newMulai = mulaiP.time ? `${dateStr}T${mulaiP.time}` : "";
+    const newSelesai = selesaiP.time ? `${dateStr}T${selesaiP.time}` : "";
+    setNewPlanningForm((prev) => ({
+      ...prev,
+      [stId]: {
+        ...form,
+        jam_mulai: newMulai,
+        jam_selesai: newSelesai,
+      },
+    }));
+  };
+
+  const handleSetDate = (
+    stId: string,
+    form: { part_number: string; qty_rencana: number | ""; jam_mulai: string; jam_selesai: string },
+    offsetDays: number
+  ) => {
+    const target = new Date();
+    if (offsetDays !== 0) {
+      target.setDate(target.getDate() + offsetDays);
+    }
+    const targetDateStr = getLocalDateString(target);
+    const mulaiP = parseDateTimeString(form.jam_mulai);
+    const selesaiP = parseDateTimeString(form.jam_selesai);
+    const newMulai = `${targetDateStr}T${mulaiP.time || getLocalTimeString(new Date())}`;
+    const newSelesai = selesaiP.time ? `${targetDateStr}T${selesaiP.time}` : "";
+    setNewPlanningForm((prev) => ({
+      ...prev,
+      [stId]: {
+        ...form,
+        jam_mulai: newMulai,
+        jam_selesai: newSelesai,
+      },
+    }));
+  };
+
+  const handleTimeChange = (
+    stId: string,
+    form: { part_number: string; qty_rencana: number | ""; jam_mulai: string; jam_selesai: string },
+    field: "jam_mulai" | "jam_selesai",
+    timeVal: string,
+    existingDate: string
+  ) => {
+    const dateStr = existingDate || getLocalDateString();
+    const fullDt = timeVal ? `${dateStr}T${timeVal}` : "";
+    setNewPlanningForm((prev) => ({
+      ...prev,
+      [stId]: { ...form, [field]: fullDt },
+    }));
+  };
+
+  const handleSetNow = (
+    stId: string,
+    form: { part_number: string; qty_rencana: number | ""; jam_mulai: string; jam_selesai: string }
+  ) => {
+    const now = new Date();
+    const nowDt = `${getLocalDateString(now)}T${getLocalTimeString(now)}`;
+    setNewPlanningForm((prev) => ({
+      ...prev,
+      [stId]: { ...form, jam_mulai: nowDt },
+    }));
+  };
+
+  const handleAddDuration = (
+    stId: string,
+    form: { part_number: string; qty_rencana: number | ""; jam_mulai: string; jam_selesai: string },
+    minutes: number
+  ) => {
+    const baseDate = form.jam_mulai ? new Date(form.jam_mulai) : new Date();
+    const endDt = new Date(baseDate.getTime() + minutes * 60 * 1000);
+    const endDtStr = `${getLocalDateString(endDt)}T${getLocalTimeString(endDt)}`;
+    const startDtStr = form.jam_mulai || `${getLocalDateString(baseDate)}T${getLocalTimeString(baseDate)}`;
+    setNewPlanningForm((prev) => ({
+      ...prev,
+      [stId]: {
+        ...form,
+        jam_mulai: startDtStr,
+        jam_selesai: endDtStr,
+      },
+    }));
+  };
+
+  const handleSetShift = (
+    stId: string,
+    form: { part_number: string; qty_rencana: number | ""; jam_mulai: string; jam_selesai: string },
+    startH: number,
+    startM: number,
+    endH: number,
+    endM: number,
+    baseDateStr?: string,
+    crossDay: boolean = false
+  ) => {
+    const dStr = baseDateStr || getLocalDateString();
+    const startStr = `${dStr}T${String(startH).padStart(2, "0")}:${String(startM).padStart(2, "0")}`;
+    let endDStr = dStr;
+    if (crossDay) {
+      const baseD = new Date(dStr + "T00:00:00");
+      const nextDay = new Date(baseD.getTime() + 24 * 60 * 60 * 1000);
+      endDStr = getLocalDateString(nextDay);
+    }
+    const endStr = `${endDStr}T${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+    setNewPlanningForm((prev) => ({
+      ...prev,
+      [stId]: {
+        ...form,
+        jam_mulai: startStr,
+        jam_selesai: endStr,
+      },
+    }));
+  };
+
   return (
     <div>
       {/* Pemilihan Line untuk Tandem */}
@@ -443,83 +590,189 @@ export default function ProduksiTab({
                 {/* Kolom Kiri: PLANNING PRODUKSI */}
                 <div className="planning-col">
                   <p className="panel-subtitle">PLANNING PRODUKSI</p>
-                  <div className="planning-add-row flex flex-wrap gap-2 mb-3 items-center">
-                    <Input
-                      type="text"
-                      list={`parts-list-planning-${st.id}`}
-                      placeholder="Part Number"
-                      className="h-8 text-xs font-semibold"
-                      style={{ minWidth: "140px", flex: 1 }}
-                      value={form.part_number}
-                      onChange={(e) =>
-                        setNewPlanningForm((prev) => ({
-                          ...prev,
-                          [st.id]: { ...form, part_number: e.target.value },
-                        }))
-                      }
-                    />
-                    <datalist id={`parts-list-planning-${st.id}`}>
-                      {masterParts.map((p) => {
-                        const val = p.kode_part || p.value || "";
-                        return (
-                          <option key={p.id || val} value={val}>
-                            {p.nama_part && p.nama_part !== val ? `${val} - ${p.nama_part}` : val}
-                          </option>
-                        );
-                      })}
-                    </datalist>
 
-                    <Input
-                      type="number"
-                      placeholder="Qty"
-                      className="h-8 w-20 text-xs"
-                      value={form.qty_rencana}
-                      onChange={(e) =>
-                        setNewPlanningForm((prev) => ({
-                          ...prev,
-                          [st.id]: {
-                            ...form,
-                            qty_rencana: e.target.value === "" ? "" : Number(e.target.value),
-                          },
-                        }))
-                      }
-                    />
+                  {/* Touch & Tablet Friendly Planning Form */}
+                  {(() => {
+                    const mulaiParsed = parseDateTimeString(form.jam_mulai);
+                    const selesaiParsed = parseDateTimeString(form.jam_selesai);
 
-                    <Input
-                      type="datetime-local"
-                      title="Jam rencana mulai"
-                      className="h-8 text-xs font-mono"
-                      value={form.jam_mulai}
-                      onChange={(e) =>
-                        setNewPlanningForm((prev) => ({
-                          ...prev,
-                          [st.id]: { ...form, jam_mulai: e.target.value },
-                        }))
-                      }
-                    />
+                    return (
+                      <div className="p-3 bg-muted/20 dark:bg-muted/10 rounded-xl border border-border/60 mb-3 space-y-2.5">
+                        {/* Baris 1: Part Number & Qty */}
+                        <div className="flex gap-2 items-center">
+                          <div className="flex-1 min-w-0">
+                            <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
+                              Part Number
+                            </label>
+                            <Combobox
+                              className="w-full"
+                              inputClassName="h-9 text-xs font-semibold"
+                              placeholder="Pilih / ketik Part Number..."
+                              value={form.part_number}
+                              onChange={(v) =>
+                                setNewPlanningForm((prev) => ({
+                                  ...prev,
+                                  [st.id]: { ...form, part_number: v },
+                                }))
+                              }
+                              options={masterParts.map((p) => {
+                                const val = p.kode_part || p.value || "";
+                                return {
+                                  value: val,
+                                  label: p.nama_part && p.nama_part !== val ? `${val} - ${p.nama_part}` : val,
+                                };
+                              })}
+                            />
+                          </div>
 
-                    <Input
-                      type="datetime-local"
-                      title="Jam rencana selesai"
-                      className="h-8 text-xs font-mono"
-                      value={form.jam_selesai}
-                      onChange={(e) =>
-                        setNewPlanningForm((prev) => ({
-                          ...prev,
-                          [st.id]: { ...form, jam_selesai: e.target.value },
-                        }))
-                      }
-                    />
+                          <div className="w-24 sm:w-28 shrink-0">
+                            <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
+                              Qty (pcs)
+                            </label>
+                            <Input
+                              type="number"
+                              placeholder="0"
+                              className="h-9 text-xs font-semibold"
+                              value={form.qty_rencana}
+                              onChange={(e) =>
+                                setNewPlanningForm((prev) => ({
+                                  ...prev,
+                                  [st.id]: {
+                                    ...form,
+                                    qty_rencana: e.target.value === "" ? "" : Number(e.target.value),
+                                  },
+                                }))
+                              }
+                            />
+                          </div>
+                        </div>
 
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="px-3 py-1.5 text-xs"
-                      onClick={() => handleAddPlanning(st.id)}
-                    >
-                      + Add
-                    </Button>
-                  </div>
+                        {/* Baris 2: Tanggal Produksi */}
+                        <div className="pt-1 border-t border-border/40">
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                              <Calendar size={11} className="text-indigo-400" /> Tanggal Produksi
+                            </label>
+                            <div className="flex gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleSetDate(st.id, form, 0)}
+                                className="text-[10px] font-medium text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 px-1.5 py-0.5 rounded cursor-pointer active:scale-95 transition"
+                              >
+                                Hari Ini
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSetDate(st.id, form, 1)}
+                                className="text-[10px] font-medium text-muted-foreground hover:text-foreground bg-muted hover:bg-muted-foreground/20 px-1.5 py-0.5 rounded cursor-pointer active:scale-95 transition"
+                              >
+                                Besok
+                              </button>
+                            </div>
+                          </div>
+                          <Input
+                            type="date"
+                            className="h-9 text-xs font-mono font-semibold bg-background"
+                            value={mulaiParsed.date}
+                            onChange={(e) => handleDateChange(st.id, form, e.target.value)}
+                          />
+                        </div>
+
+                        {/* Baris 3: Waktu (Jam Mulai & Jam Selesai) */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {/* Jam Mulai */}
+                          <div className="space-y-1">
+                            <div className="flex justify-between items-center">
+                              <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                                <Clock size={11} className="text-blue-400" /> Jam Mulai
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => handleSetNow(st.id, form)}
+                                className="text-[10px] font-medium text-blue-400 hover:text-blue-300 active:scale-95 transition flex items-center gap-0.5 bg-blue-500/10 hover:bg-blue-500/20 px-1.5 py-0.5 rounded cursor-pointer"
+                              >
+                                ⚡ Sekarang
+                              </button>
+                            </div>
+                            <Input
+                              type="time"
+                              className="h-9 text-xs font-mono font-semibold bg-background"
+                              value={mulaiParsed.time}
+                              onChange={(e) => handleTimeChange(st.id, form, 'jam_mulai', e.target.value, mulaiParsed.date)}
+                            />
+                          </div>
+
+                          {/* Jam Selesai */}
+                          <div className="space-y-1">
+                            <div className="flex justify-between items-center">
+                              <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                                <Clock size={11} className="text-emerald-400" /> Jam Selesai
+                              </label>
+                              <div className="flex gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddDuration(st.id, form, 30)}
+                                  className="text-[10px] font-medium text-muted-foreground hover:text-foreground bg-muted hover:bg-muted-foreground/20 active:scale-95 transition px-1.5 py-0.5 rounded cursor-pointer"
+                                >
+                                  +30m
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddDuration(st.id, form, 60)}
+                                  className="text-[10px] font-medium text-muted-foreground hover:text-foreground bg-muted hover:bg-muted-foreground/20 active:scale-95 transition px-1.5 py-0.5 rounded cursor-pointer"
+                                >
+                                  +1j
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddDuration(st.id, form, 120)}
+                                  className="text-[10px] font-medium text-muted-foreground hover:text-foreground bg-muted hover:bg-muted-foreground/20 active:scale-95 transition px-1.5 py-0.5 rounded cursor-pointer"
+                                >
+                                  +2j
+                                </button>
+                              </div>
+                            </div>
+                            <Input
+                              type="time"
+                              className="h-9 text-xs font-mono font-semibold bg-background"
+                              value={selesaiParsed.time}
+                              onChange={(e) => handleTimeChange(st.id, form, 'jam_selesai', e.target.value, selesaiParsed.date || mulaiParsed.date)}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Baris 4: Quick Shift Presets & Tombol Tambah */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/40">
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-muted-foreground mr-0.5">Shift:</span>
+                            <button
+                              type="button"
+                              onClick={() => handleSetShift(st.id, form, 7, 30, 16, 30, mulaiParsed.date)}
+                              className="text-[10px] px-2 py-1 rounded bg-secondary/80 hover:bg-secondary active:scale-95 transition font-medium cursor-pointer"
+                            >
+                              S1 (07:30-16:30)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSetShift(st.id, form, 16, 30, 0, 30, mulaiParsed.date, true)}
+                              className="text-[10px] px-2 py-1 rounded bg-secondary/80 hover:bg-secondary active:scale-95 transition font-medium cursor-pointer"
+                            >
+                              S2 (16:30-00:30)
+                            </button>
+                          </div>
+
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="h-9 px-4 text-xs font-semibold bg-blue-600 hover:bg-blue-700 active:scale-95 transition ml-auto flex items-center gap-1.5 cursor-pointer"
+                            onClick={() => handleAddPlanning(st.id)}
+                          >
+                            <Plus size={14} /> Tambah Plan
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   <div className="planning-list">
                     {stPlanning.map((p) => (
