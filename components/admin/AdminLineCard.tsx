@@ -471,13 +471,13 @@ export function AdminLineCard({
           style={{ backgroundColor: 'rgba(0, 0, 0, 0.4)' }}
           onClick={(e) => { if (e.target === e.currentTarget && !isSaving) closeEditModal() }}
         >
-          <div className={`bg-card rounded-xl shadow-2xl max-w-md w-full ${
+          <div className={`bg-card rounded-xl shadow-2xl max-w-md w-full max-h-[90dvh] flex flex-col overflow-hidden ${
             isEditClosing
               ? 'animate-out fade-out zoom-out-95 duration-200 [animation-fill-mode:forwards]'
               : 'animate-in fade-in zoom-in-95 duration-200'
           }`}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <h2 className="text-lg font-semibold text-foreground">Edit Line Produksi</h2>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border shrink-0">
+              <h2 className="text-base font-semibold text-foreground">Edit Line Produksi</h2>
               <button
                 onClick={closeEditModal}
                 disabled={isSaving}
@@ -488,15 +488,15 @@ export function AdminLineCard({
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="p-6 space-y-4">
+            <form onSubmit={handleSave} className="p-4 sm:p-5 space-y-3 overflow-y-auto flex-1 text-sm">
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-xs">
                   {error}
                 </div>
               )}
 
-              <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-foreground">
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-foreground">
                   Nama Line Produksi <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -507,7 +507,7 @@ export function AdminLineCard({
                     if (isDuplicateName) setIsDuplicateName(false)
                     if (error) setError('')
                   }}
-                  className={`w-full px-4 py-2.5 border rounded-lg text-sm text-foreground outline-none focus:ring-2 transition-all duration-200
+                  className={`w-full px-3 py-1.5 border rounded-lg text-sm text-foreground outline-none focus:ring-2 transition-all duration-200
                     ${isDuplicateName
                       ? 'border-red-400 bg-red-50 focus:ring-red-200'
                       : 'border-border bg-background focus:ring-primary/20 focus:border-primary'
@@ -522,132 +522,134 @@ export function AdminLineCard({
                 )}
               </div>
 
-              <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-foreground">
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-foreground">
                   Deskripsi <span className="text-muted-foreground">(opsional)</span>
                 </label>
                 <textarea
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
-                  rows={3}
-                  className="w-full px-4 py-2.5 border border-border bg-background rounded-lg text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 resize-none"
+                  rows={2}
+                  className="w-full px-3 py-1.5 border border-border bg-background rounded-lg text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 resize-none"
                   disabled={isSaving}
                 />
               </div>
 
               {/* Hubungkan ke Mesin Produksi */}
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-foreground">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-foreground">
                   Hubungkan ke mesin produksi
                 </label>
 
-                {/* Opsi: Bukan line produksi */}
-                <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition
-                  ${machineTypeMode === 'none'
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border hover:border-muted-foreground hover:bg-muted/50'
-                  }`}>
-                  <input
-                    type="radio"
-                    name="edit-machine-type-mode"
-                    value="none"
-                    checked={machineTypeMode === 'none'}
-                    onChange={() => handleMachineTypeModeChange('none')}
-                    className="mt-0.5 accent-blue-600"
-                    disabled={isSaving}
-                  />
-                  <div className="flex items-center gap-2 min-w-0">
-                    <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium text-foreground">Bukan line produksi</p>
-                      <p className="text-xs text-muted-foreground">Hanya untuk card dokumen / folder biasa</p>
+                <div className="space-y-1.5">
+                  {/* Opsi: Bukan line produksi */}
+                  <label className={`flex items-start gap-2.5 p-2 rounded-lg border cursor-pointer transition
+                    ${machineTypeMode === 'none'
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-muted-foreground hover:bg-muted/50'
+                    }`}>
+                    <input
+                      type="radio"
+                      name="edit-machine-type-mode"
+                      value="none"
+                      checked={machineTypeMode === 'none'}
+                      onChange={() => handleMachineTypeModeChange('none')}
+                      className="mt-0.5 accent-blue-600"
+                      disabled={isSaving}
+                    />
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <div>
+                        <p className="text-xs font-medium text-foreground">Bukan line produksi</p>
+                        <p className="text-[11px] text-muted-foreground">Hanya untuk card dokumen / folder biasa</p>
+                      </div>
                     </div>
-                  </div>
-                </label>
+                  </label>
 
-                {/* Opsi: Mesin yang sudah ada */}
-                <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition
-                  ${machineTypeMode === 'existing'
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border hover:border-muted-foreground hover:bg-muted/50'
-                  }`}>
-                  <input
-                    type="radio"
-                    name="edit-machine-type-mode"
-                    value="existing"
-                    checked={machineTypeMode === 'existing'}
-                    onChange={() => handleMachineTypeModeChange('existing')}
-                    className="mt-0.5 accent-blue-600"
-                    disabled={isSaving}
-                  />
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <Cpu className="w-4 h-4 text-indigo-500 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground">Mesin yang sudah ada</p>
-                      <p className="text-xs text-muted-foreground">Pakai konfigurasi mesin yang sudah dikonfigurasi</p>
-                      {machineTypeMode === 'existing' && (
-                        <select
-                          value={existingMachineType}
-                          onChange={(e) => handleExistingMachineTypeChange(e.target.value)}
-                          className="mt-2 w-full px-3 py-1.5 border border-border rounded-md text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-background"
-                          disabled={isSaving}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {EXISTING_MACHINE_TYPES.map((m) => (
-                            <option key={m.slug} value={m.slug}>{m.label}</option>
-                          ))}
-                        </select>
-                      )}
+                  {/* Opsi: Mesin yang sudah ada */}
+                  <label className={`flex items-start gap-2.5 p-2 rounded-lg border cursor-pointer transition
+                    ${machineTypeMode === 'existing'
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-muted-foreground hover:bg-muted/50'
+                    }`}>
+                    <input
+                      type="radio"
+                      name="edit-machine-type-mode"
+                      value="existing"
+                      checked={machineTypeMode === 'existing'}
+                      onChange={() => handleMachineTypeModeChange('existing')}
+                      className="mt-0.5 accent-blue-600"
+                      disabled={isSaving}
+                    />
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <Cpu className="w-4 h-4 text-indigo-500 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-foreground">Mesin yang sudah ada</p>
+                        <p className="text-[11px] text-muted-foreground">Pakai konfigurasi mesin yang sudah dikonfigurasi</p>
+                        {machineTypeMode === 'existing' && (
+                          <select
+                            value={existingMachineType}
+                            onChange={(e) => handleExistingMachineTypeChange(e.target.value)}
+                            className="mt-1.5 w-full px-2.5 py-1 border border-border rounded-md text-xs text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-background"
+                            disabled={isSaving}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {EXISTING_MACHINE_TYPES.map((m) => (
+                              <option key={m.slug} value={m.slug}>{m.label}</option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </label>
+                  </label>
 
-                {/* Opsi: Line produksi baru (konfigurasi standar) */}
-                <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition
-                  ${machineTypeMode === 'custom'
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border hover:border-muted-foreground hover:bg-muted/50'
-                  }`}>
-                  <input
-                    type="radio"
-                    name="edit-machine-type-mode"
-                    value="custom"
-                    checked={machineTypeMode === 'custom'}
-                    onChange={() => handleMachineTypeModeChange('custom')}
-                    className="mt-0.5 accent-blue-600"
-                    disabled={isSaving}
-                  />
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Factory className="w-4 h-4 text-green-500 shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium text-foreground">Line produksi baru (konfigurasi standar)</p>
-                      <p className="text-xs text-muted-foreground">Buat mesin baru dengan template umum</p>
-                      {machineTypeMode === 'custom' && name.trim() && (
-                        <p className="text-xs text-indigo-600 font-mono mt-0.5">
-                          machine_type: <span className="font-semibold">{slugifyName(name.trim())}</span>
-                        </p>
-                      )}
+                  {/* Opsi: Line produksi baru (konfigurasi standar) */}
+                  <label className={`flex items-start gap-2.5 p-2 rounded-lg border cursor-pointer transition
+                    ${machineTypeMode === 'custom'
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-muted-foreground hover:bg-muted/50'
+                    }`}>
+                    <input
+                      type="radio"
+                      name="edit-machine-type-mode"
+                      value="custom"
+                      checked={machineTypeMode === 'custom'}
+                      onChange={() => handleMachineTypeModeChange('custom')}
+                      className="mt-0.5 accent-blue-600"
+                      disabled={isSaving}
+                    />
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Factory className="w-4 h-4 text-green-500 shrink-0" />
+                      <div>
+                        <p className="text-xs font-medium text-foreground">Line produksi baru (konfigurasi standar)</p>
+                        <p className="text-[11px] text-muted-foreground">Buat mesin baru dengan template umum</p>
+                        {machineTypeMode === 'custom' && name.trim() && (
+                          <p className="text-[11px] text-indigo-600 font-mono mt-0.5">
+                            machine_type: <span className="font-semibold">{slugifyName(name.trim())}</span>
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </label>
+                  </label>
 
-                {/* Tampilkan machine_type saat ini jika ada dan tidak diubah */}
-                {machineTypeMode === 'custom' && line.machine_type && !KNOWN_SLUGS.includes(line.machine_type) && (
-                  <p className="text-xs text-muted-foreground pl-1">
-                    Sebelumnya: <span className="font-mono text-foreground">{line.machine_type}</span>
-                  </p>
-                )}
+                  {/* Tampilkan machine_type saat ini jika ada dan tidak diubah */}
+                  {machineTypeMode === 'custom' && line.machine_type && !KNOWN_SLUGS.includes(line.machine_type) && (
+                    <p className="text-[11px] text-muted-foreground pl-1">
+                      Sebelumnya: <span className="font-mono text-foreground">{line.machine_type}</span>
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* Konfigurasi Sub-Stasiun */}
-              <div className="space-y-2 pt-1 border-t border-border">
-                <label className="block text-sm font-medium text-foreground">
+              <div className="space-y-1.5 pt-1 border-t border-border">
+                <label className="block text-xs font-medium text-foreground">
                   Konfigurasi Sub-Stasiun
                 </label>
 
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {/* Opsi 1: Tanpa sub-stasiun */}
-                  <label className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition
+                  <label className={`flex items-start gap-2.5 p-2 rounded-lg border cursor-pointer transition
                     ${stationMode === 'none'
                       ? 'border-primary bg-primary/5'
                       : 'border-border hover:border-muted-foreground hover:bg-muted/50'
@@ -662,13 +664,13 @@ export function AdminLineCard({
                       disabled={isSaving}
                     />
                     <div>
-                      <p className="text-sm font-medium text-foreground">Tanpa sub-stasiun</p>
-                      <p className="text-xs text-muted-foreground">Mesin beroperasi sebagai satu stasiun tunggal</p>
+                      <p className="text-xs font-medium text-foreground">Tanpa sub-stasiun</p>
+                      <p className="text-[11px] text-muted-foreground">Mesin beroperasi sebagai satu stasiun tunggal</p>
                     </div>
                   </label>
 
                   {/* Opsi 2: Daftar stasiun tetap */}
-                  <label className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition
+                  <label className={`flex items-start gap-2.5 p-2 rounded-lg border cursor-pointer transition
                     ${stationMode === 'fixed'
                       ? 'border-primary bg-primary/5'
                       : 'border-border hover:border-muted-foreground hover:bg-muted/50'
@@ -683,11 +685,11 @@ export function AdminLineCard({
                       disabled={isSaving}
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground">Daftar stasiun tetap</p>
-                      <p className="text-xs text-muted-foreground">Memiliki daftar sub-stasiun tetap (cth: PC-1, PC-2)</p>
+                      <p className="text-xs font-medium text-foreground">Daftar stasiun tetap</p>
+                      <p className="text-[11px] text-muted-foreground">Memiliki daftar sub-stasiun tetap (cth: PC-1, PC-2)</p>
                       {stationMode === 'fixed' && (
-                        <div className="mt-2" onClick={(e) => e.stopPropagation()}>
-                          <label className="block text-xs font-medium text-foreground mb-1">
+                        <div className="mt-1.5" onClick={(e) => e.stopPropagation()}>
+                          <label className="block text-[11px] font-medium text-foreground mb-0.5">
                             Nama Stasiun <span className="text-muted-foreground">(pisahkan dengan koma)</span>
                           </label>
                           <input
@@ -695,17 +697,17 @@ export function AdminLineCard({
                             value={fixedStationsText}
                             onChange={(e) => setFixedStationsText(e.target.value)}
                             placeholder="Contoh: PC-1, PC-2"
-                            className="w-full px-3 py-1.5 border border-border rounded-md text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-background"
+                            className="w-full px-2.5 py-1 border border-border rounded-md text-xs text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-background"
                             disabled={isSaving}
                           />
                           {fixedStationsText.trim() && (
-                            <div className="flex flex-wrap gap-1 mt-1.5">
+                            <div className="flex flex-wrap gap-1 mt-1">
                               {fixedStationsText
                                 .split(',')
                                 .map((s) => s.trim())
                                 .filter(Boolean)
                                 .map((s, i) => (
-                                  <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
+                                  <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
                                     {s}
                                   </span>
                                 ))}
@@ -717,7 +719,7 @@ export function AdminLineCard({
                   </label>
 
                   {/* Opsi 3: Beberapa varian stasiun */}
-                  <label className={`flex items-start gap-3 p-2.5 rounded-lg border transition opacity-70 cursor-not-allowed bg-muted/30
+                  <label className={`flex items-start gap-2.5 p-2 rounded-lg border transition opacity-70 cursor-not-allowed bg-muted/30
                     ${stationMode === 'variant' ? 'border-primary bg-primary/5' : 'border-border'}`}>
                     <input
                       type="radio"
@@ -729,11 +731,11 @@ export function AdminLineCard({
                       disabled={true}
                     />
                     <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-foreground">Beberapa varian stasiun</p>
-                        <span className="text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-semibold px-1.5 py-0.5 rounded">Segera Hadir</span>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xs font-medium text-foreground">Beberapa varian stasiun</p>
+                        <span className="text-[9px] bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-semibold px-1 py-0.2 rounded">Segera Hadir</span>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
                         Fitur ini akan tersedia di update berikutnya
                       </p>
                     </div>
@@ -741,20 +743,20 @@ export function AdminLineCard({
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-2.5 pt-2 shrink-0 border-t border-border">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={closeEditModal}
                   disabled={isSaving}
-                  className="flex-1"
+                  className="flex-1 h-9"
                 >
                   Batal
                 </Button>
                 <Button
                   type="submit"
                   disabled={isSaving || !name.trim()}
-                  className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
+                  className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 h-9"
                 >
                   {isSaving ? (
                     <>

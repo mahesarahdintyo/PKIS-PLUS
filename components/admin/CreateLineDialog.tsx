@@ -202,10 +202,10 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
           style={{ backgroundColor: 'rgba(0, 0, 0, 0.4)' }}
           onClick={(e) => { if (e.target === e.currentTarget) handleClose() }}
         >
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90dvh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Buat Line Produksi Baru</h2>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 shrink-0">
+              <h2 className="text-base font-semibold text-gray-900">Buat Line Produksi Baru</h2>
               <button
                 onClick={handleClose}
                 disabled={isLoading}
@@ -216,10 +216,10 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-3 overflow-y-auto flex-1">
               {/* Nama Line */}
-              <div className="space-y-1.5">
-                <label htmlFor="line-name" className="block text-sm font-medium text-gray-700">
+              <div className="space-y-1">
+                <label htmlFor="line-name" className="block text-xs font-medium text-gray-700">
                   Nama Line Produksi <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -231,7 +231,7 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
                     if (isDuplicate) setIsDuplicate(false)
                   }}
                   placeholder="Contoh: Tandem, Blanking, PC200t"
-                  className={`w-full px-4 py-2.5 border rounded-lg text-sm text-gray-900 outline-none transition
+                  className={`w-full px-3 py-1.5 border rounded-lg text-sm text-gray-900 outline-none transition
                     focus:ring-2 focus:border-transparent
                     ${isDuplicate
                       ? 'border-red-400 bg-red-50 focus:ring-red-200'
@@ -248,8 +248,8 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
               </div>
 
               {/* Deskripsi */}
-              <div className="space-y-1.5">
-                <label htmlFor="line-description" className="block text-sm font-medium text-gray-700">
+              <div className="space-y-1">
+                <label htmlFor="line-description" className="block text-xs font-medium text-gray-700">
                   Deskripsi <span className="text-gray-400">(opsional)</span>
                 </label>
                 <textarea
@@ -258,119 +258,121 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Keterangan singkat tentang line produksi ini..."
                   rows={2}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-900 outline-none transition focus:ring-2 focus:ring-blue-200 focus:border-blue-500 resize-none"
+                  className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900 outline-none transition focus:ring-2 focus:ring-blue-200 focus:border-blue-500 resize-none"
                   disabled={isLoading}
                 />
               </div>
 
               {/* Hubungkan ke Mesin Produksi */}
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-gray-700">
                   Hubungkan ke mesin produksi
                 </label>
 
-                {/* Opsi: Bukan line produksi */}
-                <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition
-                  ${machineTypeMode === 'none'
-                    ? 'border-blue-400 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                  }`}>
-                  <input
-                    type="radio"
-                    name="machine-type-mode"
-                    value="none"
-                    checked={machineTypeMode === 'none'}
-                    onChange={() => handleMachineTypeModeChange('none')}
-                    className="mt-0.5 accent-blue-600"
-                    disabled={isLoading}
-                  />
-                  <div className="flex items-center gap-2 min-w-0">
-                    <FileText className="w-4 h-4 text-gray-400 shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-800">Bukan line produksi</p>
-                      <p className="text-xs text-gray-500">Hanya untuk card dokumen / folder biasa</p>
+                <div className="space-y-1.5">
+                  {/* Opsi: Bukan line produksi */}
+                  <label className={`flex items-start gap-2.5 p-2 rounded-lg border cursor-pointer transition
+                    ${machineTypeMode === 'none'
+                      ? 'border-blue-400 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    }`}>
+                    <input
+                      type="radio"
+                      name="machine-type-mode"
+                      value="none"
+                      checked={machineTypeMode === 'none'}
+                      onChange={() => handleMachineTypeModeChange('none')}
+                      className="mt-0.5 accent-blue-600"
+                      disabled={isLoading}
+                    />
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileText className="w-4 h-4 text-gray-400 shrink-0" />
+                      <div>
+                        <p className="text-xs font-medium text-gray-800">Bukan line produksi</p>
+                        <p className="text-[11px] text-gray-500">Hanya untuk card dokumen / folder biasa</p>
+                      </div>
                     </div>
-                  </div>
-                </label>
+                  </label>
 
-                {/* Opsi: Mesin yang sudah ada */}
-                <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition
-                  ${machineTypeMode === 'existing'
-                    ? 'border-blue-400 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                  }`}>
-                  <input
-                    type="radio"
-                    name="machine-type-mode"
-                    value="existing"
-                    checked={machineTypeMode === 'existing'}
-                    onChange={() => handleMachineTypeModeChange('existing')}
-                    className="mt-0.5 accent-blue-600"
-                    disabled={isLoading}
-                  />
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <Cpu className="w-4 h-4 text-indigo-500 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800">Mesin yang sudah ada</p>
-                      <p className="text-xs text-gray-500">Pakai konfigurasi mesin yang sudah dikonfigurasi</p>
-                      {machineTypeMode === 'existing' && (
-                        <select
-                          value={existingMachineType}
-                          onChange={(e) => handleExistingMachineTypeChange(e.target.value)}
-                          className="mt-2 w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 bg-white"
-                          disabled={isLoading}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {EXISTING_MACHINE_TYPES.map((m) => (
-                            <option key={m.slug} value={m.slug}>{m.label}</option>
-                          ))}
-                        </select>
-                      )}
+                  {/* Opsi: Mesin yang sudah ada */}
+                  <label className={`flex items-start gap-2.5 p-2 rounded-lg border cursor-pointer transition
+                    ${machineTypeMode === 'existing'
+                      ? 'border-blue-400 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    }`}>
+                    <input
+                      type="radio"
+                      name="machine-type-mode"
+                      value="existing"
+                      checked={machineTypeMode === 'existing'}
+                      onChange={() => handleMachineTypeModeChange('existing')}
+                      className="mt-0.5 accent-blue-600"
+                      disabled={isLoading}
+                    />
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <Cpu className="w-4 h-4 text-indigo-500 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-gray-800">Mesin yang sudah ada</p>
+                        <p className="text-[11px] text-gray-500">Pakai konfigurasi mesin yang sudah dikonfigurasi</p>
+                        {machineTypeMode === 'existing' && (
+                          <select
+                            value={existingMachineType}
+                            onChange={(e) => handleExistingMachineTypeChange(e.target.value)}
+                            className="mt-1.5 w-full px-2.5 py-1 border border-gray-300 rounded-md text-xs text-gray-900 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 bg-white"
+                            disabled={isLoading}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {EXISTING_MACHINE_TYPES.map((m) => (
+                              <option key={m.slug} value={m.slug}>{m.label}</option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </label>
+                  </label>
 
-                {/* Opsi: Line produksi baru (konfigurasi standar) */}
-                <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition
-                  ${machineTypeMode === 'custom'
-                    ? 'border-blue-400 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                  }`}>
-                  <input
-                    type="radio"
-                    name="machine-type-mode"
-                    value="custom"
-                    checked={machineTypeMode === 'custom'}
-                    onChange={() => handleMachineTypeModeChange('custom')}
-                    className="mt-0.5 accent-blue-600"
-                    disabled={isLoading}
-                  />
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Factory className="w-4 h-4 text-green-500 shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-800">Line produksi baru (konfigurasi standar)</p>
-                      <p className="text-xs text-gray-500">
-                        Buat mesin baru dengan template umum
-                      </p>
-                      {customSlugPreview && (
-                        <p className="text-xs text-indigo-600 font-mono mt-0.5">
-                          machine_type: <span className="font-semibold">{customSlugPreview}</span>
+                  {/* Opsi: Line produksi baru (konfigurasi standar) */}
+                  <label className={`flex items-start gap-2.5 p-2 rounded-lg border cursor-pointer transition
+                    ${machineTypeMode === 'custom'
+                      ? 'border-blue-400 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    }`}>
+                    <input
+                      type="radio"
+                      name="machine-type-mode"
+                      value="custom"
+                      checked={machineTypeMode === 'custom'}
+                      onChange={() => handleMachineTypeModeChange('custom')}
+                      className="mt-0.5 accent-blue-600"
+                      disabled={isLoading}
+                    />
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Factory className="w-4 h-4 text-green-500 shrink-0" />
+                      <div>
+                        <p className="text-xs font-medium text-gray-800">Line produksi baru (konfigurasi standar)</p>
+                        <p className="text-[11px] text-gray-500">
+                          Buat mesin baru dengan template umum
                         </p>
-                      )}
+                        {customSlugPreview && (
+                          <p className="text-[11px] text-indigo-600 font-mono mt-0.5">
+                            machine_type: <span className="font-semibold">{customSlugPreview}</span>
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </label>
+                  </label>
+                </div>
               </div>
 
               {/* Konfigurasi Sub-Stasiun */}
-              <div className="space-y-2 pt-1 border-t border-gray-100">
-                <label className="block text-sm font-medium text-gray-700">
+              <div className="space-y-1.5 pt-1 border-t border-gray-100">
+                <label className="block text-xs font-medium text-gray-700">
                   Konfigurasi Sub-Stasiun
                 </label>
 
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {/* Opsi 1: Tanpa sub-stasiun */}
-                  <label className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition
+                  <label className={`flex items-start gap-2.5 p-2 rounded-lg border cursor-pointer transition
                     ${stationMode === 'none'
                       ? 'border-blue-400 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
@@ -385,13 +387,13 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
                       disabled={isLoading}
                     />
                     <div>
-                      <p className="text-sm font-medium text-gray-800">Tanpa sub-stasiun</p>
-                      <p className="text-xs text-gray-500">Mesin beroperasi sebagai satu stasiun tunggal</p>
+                      <p className="text-xs font-medium text-gray-800">Tanpa sub-stasiun</p>
+                      <p className="text-[11px] text-gray-500">Mesin beroperasi sebagai satu stasiun tunggal</p>
                     </div>
                   </label>
 
                   {/* Opsi 2: Daftar stasiun tetap */}
-                  <label className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition
+                  <label className={`flex items-start gap-2.5 p-2 rounded-lg border cursor-pointer transition
                     ${stationMode === 'fixed'
                       ? 'border-blue-400 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
@@ -406,11 +408,11 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
                       disabled={isLoading}
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800">Daftar stasiun tetap</p>
-                      <p className="text-xs text-gray-500">Memiliki daftar sub-stasiun tetap (cth: PC-1, PC-2)</p>
+                      <p className="text-xs font-medium text-gray-800">Daftar stasiun tetap</p>
+                      <p className="text-[11px] text-gray-500">Memiliki daftar sub-stasiun tetap (cth: PC-1, PC-2)</p>
                       {stationMode === 'fixed' && (
-                        <div className="mt-2" onClick={(e) => e.stopPropagation()}>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                        <div className="mt-1.5" onClick={(e) => e.stopPropagation()}>
+                          <label className="block text-[11px] font-medium text-gray-700 mb-0.5">
                             Nama Stasiun <span className="text-gray-400">(pisahkan dengan koma)</span>
                           </label>
                           <input
@@ -418,17 +420,17 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
                             value={fixedStationsText}
                             onChange={(e) => setFixedStationsText(e.target.value)}
                             placeholder="Contoh: PC-1, PC-2"
-                            className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 bg-white"
+                            className="w-full px-2.5 py-1 border border-gray-300 rounded-md text-xs text-gray-900 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 bg-white"
                             disabled={isLoading}
                           />
                           {fixedStationsText.trim() && (
-                            <div className="flex flex-wrap gap-1 mt-1.5">
+                            <div className="flex flex-wrap gap-1 mt-1">
                               {fixedStationsText
                                 .split(',')
                                 .map((s) => s.trim())
                                 .filter(Boolean)
                                 .map((s, i) => (
-                                  <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                  <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-800">
                                     {s}
                                   </span>
                                 ))}
@@ -440,7 +442,7 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
                   </label>
 
                   {/* Opsi 3: Beberapa varian stasiun */}
-                  <label className={`flex items-start gap-3 p-2.5 rounded-lg border transition opacity-70 cursor-not-allowed bg-gray-50
+                  <label className={`flex items-start gap-2.5 p-2 rounded-lg border transition opacity-70 cursor-not-allowed bg-gray-50
                     ${stationMode === 'variant' ? 'border-blue-400 bg-blue-50' : 'border-gray-200'}`}>
                     <input
                       type="radio"
@@ -452,11 +454,11 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
                       disabled={true}
                     />
                     <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-gray-800">Beberapa varian stasiun</p>
-                        <span className="text-[10px] bg-amber-100 text-amber-800 font-semibold px-1.5 py-0.5 rounded">Segera Hadir</span>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xs font-medium text-gray-800">Beberapa varian stasiun</p>
+                        <span className="text-[9px] bg-amber-100 text-amber-800 font-semibold px-1 py-0.2 rounded">Segera Hadir</span>
                       </div>
-                      <p className="text-xs text-gray-500 mt-0.5">
+                      <p className="text-[11px] text-gray-500 mt-0.5">
                         Fitur ini akan tersedia di update berikutnya
                       </p>
                     </div>
@@ -465,20 +467,20 @@ export function CreateLineDialog({ onCreateSuccess, onOpenChange }: CreateLineDi
               </div>
 
               {/* Actions */}
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-2.5 pt-2 shrink-0 border-t border-gray-100">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={handleClose}
                   disabled={isLoading}
-                  className="flex-1 border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                  className="flex-1 border-gray-300 bg-white text-gray-700 hover:bg-gray-50 h-9"
                 >
                   Batal
                 </Button>
                 <Button
                   type="submit"
                   disabled={isLoading || !name.trim()}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 h-9"
                 >
                   {isLoading ? (
                     <>
