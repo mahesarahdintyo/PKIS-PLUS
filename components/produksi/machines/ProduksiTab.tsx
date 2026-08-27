@@ -786,12 +786,18 @@ export default function ProduksiTab({
                       <div
                         key={p.id}
                         className={`planning-item ${p.status === "selesai" ? "planning-done" : ""}`}
+                        style={p._pending ? { opacity: 0.65 } : undefined}
                       >
                         <span className="font-semibold">{p.part_number}</span>
+                        {p._pending && (
+                          <span style={{ marginLeft: 4, fontSize: "0.65rem", background: "var(--status-warn-bg)", color: "var(--status-warn)", border: "1px solid var(--status-warn)", borderRadius: 4, padding: "1px 5px", verticalAlign: "middle", whiteSpace: "nowrap" }}>
+                            Belum tersinkron
+                          </span>
+                        )}
                         <span className="hint text-xs text-muted-foreground">
                           {p.qty_rencana ? `${p.qty_rencana}pcs` : "-"} · {fmtClock(p.jam_rencana_mulai)}-{fmtClock(p.jam_rencana_selesai)}
                         </span>
-                        {p.id && (
+                        {p.id && !p._pending && (
                           <Button
                             type="button"
                             variant="destructive"
