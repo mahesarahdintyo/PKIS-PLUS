@@ -336,7 +336,7 @@ export default function ProduksiTab({
                     <div className="field">
                       <label className="text-[11px] block text-muted-foreground mb-1">Jenis Non-Produksi</label>
                       <Select
-                        className="text-xs h-8"
+                        className="text-xs h-9"
                         value={line.gapForm.nonproduksi_nama}
                         onChange={(e) => linesHook.setGapFormField(st.id, "nonproduksi_nama", e.target.value)}
                       >
@@ -435,47 +435,54 @@ export default function ProduksiTab({
                     </p>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="field col-span-2">
-                        <label className="text-[11px] block text-muted-foreground mb-1">Part Number</label>
-                        <Select
-                          className="text-xs h-8"
+                        <label className="text-[11px] block text-muted-foreground mb-1 font-semibold uppercase tracking-wider">
+                          Part Number
+                        </label>
+                        <Combobox
+                          className="w-full"
+                          inputClassName="h-9 text-xs font-semibold"
+                          placeholder="Pilih / ketik Part Number..."
                           value={line.form.part_number}
-                          onChange={(e) => linesHook.setFormField(st.id, "part_number", e.target.value)}
-                        >
-                          <option value="">- Pilih Part Number -</option>
-                          {masterParts.map((part) => {
-                            const partNumber = part.kode_part || part.value || part.nama_part;
-                            return (
-                              <option key={part.id || partNumber} value={partNumber}>
-                                {partNumber}{part.nama_part && part.nama_part !== partNumber ? ` - ${part.nama_part}` : ""}
-                              </option>
-                            );
+                          onChange={(v) => linesHook.setFormField(st.id, "part_number", v)}
+                          options={masterParts.map((part) => {
+                            const partNumber = part.kode_part || part.value || part.nama_part || "";
+                            return {
+                              value: partNumber,
+                              label: part.nama_part && part.nama_part !== partNumber ? `${partNumber} - ${part.nama_part}` : partNumber,
+                            };
                           })}
-                        </Select>
+                        />
                       </div>
                       <div className="field">
-                        <label className="text-[11px] block text-muted-foreground mb-1">Qty</label>
+                        <label className="text-[11px] block text-muted-foreground mb-1 font-semibold uppercase tracking-wider">
+                          Qty
+                        </label>
                         <Input
                           type="number"
-                          className="h-8 text-xs"
+                          className="h-9 text-xs font-semibold"
                           value={line.form.qty}
                           onChange={(e) => linesHook.setFormField(st.id, "qty", e.target.value === "" ? "" : Number(e.target.value))}
                         />
                       </div>
                       <div className="field">
-                        <label className="text-[11px] block text-muted-foreground mb-1">Jumlah MP</label>
+                        <label className="text-[11px] block text-muted-foreground mb-1 font-semibold uppercase tracking-wider">
+                          Jumlah MP
+                        </label>
                         <Input
                           type="number"
-                          className="h-8 text-xs"
+                          className="h-9 text-xs font-semibold"
                           value={line.form.manpower}
                           onChange={(e) => linesHook.setFormField(st.id, "manpower", e.target.value === "" ? "" : Number(e.target.value))}
                         />
                       </div>
                       {config.extraFields.map((f) => (
                         <div className="field" key={f.key}>
-                          <label className="text-[11px] block text-muted-foreground mb-1">{f.label}</label>
+                          <label className="text-[11px] block text-muted-foreground mb-1 font-semibold uppercase tracking-wider">
+                            {f.label}
+                          </label>
                           <Input
                             type={f.type}
-                            className="h-8 text-xs"
+                            className="h-9 text-xs font-semibold"
                             value={line.form[f.key] ?? ""}
                             onChange={(e) =>
                               linesHook.setFormField(
@@ -491,7 +498,7 @@ export default function ProduksiTab({
                     <Button
                       type="button"
                       size="sm"
-                      className="w-full text-xs"
+                      className="w-full h-9 text-xs font-semibold bg-blue-600 hover:bg-blue-700 active:scale-95 transition"
                       onClick={() => linesHook.confirmActualStart(st.id)}
                     >
                       <CheckCircle size={14} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} /> Konfirmasi Produksi Mulai
@@ -547,7 +554,7 @@ export default function ProduksiTab({
                     <div className="field">
                       <label className="text-[11px] block text-muted-foreground mb-1">Jenis</label>
                       <Select
-                        className="text-xs h-8"
+                        className="text-xs h-9"
                         value={line.nonProdForm.nama}
                         onChange={(e) => linesHook.setNonProdFormField(st.id, "nama", e.target.value)}
                       >
