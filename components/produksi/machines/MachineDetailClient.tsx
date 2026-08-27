@@ -796,20 +796,21 @@ export default function MachineDetailClient({ lineId, lineName, machineType }: M
       flash("Mohon lengkapi Part Number, Jam Rencana Mulai, dan Selesai.", true);
       return;
     }
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const payload = {
-        line_id: lineId || null,
-        mesin: config.key,
-        stasiun: dbStasiun(stId),
-        part_number: form.part_number,
-        qty_rencana: form.qty_rencana === "" ? null : Number(form.qty_rencana),
-        jam_rencana_mulai: new Date(form.jam_mulai).toISOString(),
-        jam_rencana_selesai: new Date(form.jam_selesai).toISOString(),
-        status: "pending",
-        created_by: session?.user?.id || profile?.id,
-      };
 
+    const { data: { session } } = await supabase.auth.getSession();
+    const payload = {
+      line_id: lineId || null,
+      mesin: config.key,
+      stasiun: dbStasiun(stId),
+      part_number: form.part_number,
+      qty_rencana: form.qty_rencana === "" ? null : Number(form.qty_rencana),
+      jam_rencana_mulai: new Date(form.jam_mulai).toISOString(),
+      jam_rencana_selesai: new Date(form.jam_selesai).toISOString(),
+      status: "pending",
+      created_by: session?.user?.id || profile?.id,
+    };
+
+    try {
       const { error } = await supabase.from("prod_production_planning" as any).insert([payload]);
       if (error) throw error;
 
@@ -820,7 +821,25 @@ export default function MachineDetailClient({ lineId, lineName, machineType }: M
       }));
       loadData();
     } catch (err: any) {
-      flash("Gagal menambah rencana produksi: " + (err?.message || JSON.stringify(err)), true);
+      if (isNetworkError(err)) {
+        enqueueOffline("prod_production_planning", payload);
+        refreshPendingCount();
+        setPlanningList((prev) => [
+          ...prev,
+          {
+            ...payload,
+            id: "pending_" + Date.now(),
+            _pending: true,
+          } as ProdProductionPlanning,
+        ]);
+        flash("Rencana produksi tersimpan lokal, akan dikirim saat online.");
+        setNewPlanningForm((prev) => ({
+          ...prev,
+          [stId]: { part_number: "", qty_rencana: "", jam_mulai: "", jam_selesai: "" },
+        }));
+      } else {
+        flash("Gagal menambah rencana produksi: " + (err?.message || JSON.stringify(err)), true);
+      }
     }
   };
 
@@ -1485,14 +1504,30 @@ export default function MachineDetailClient({ lineId, lineName, machineType }: M
       if (editingDowntimeId) {
         const { error } = await supabase.from("prod_downtime_log" as any).update(payload).eq("id", editingDowntimeId);
         if (error) throw error;
+        cancelDowntime();
+        await loadData();
       } else {
         const { data: { session } } = await supabase.auth.getSession();
-        const { error } = await supabase.from("prod_downtime_log" as any).insert({ ...payload, created_by: session?.user?.id });
-        if (error) throw error;
+        const insertPayload = { ...payload, created_by: session?.user?.id };
+        try {
+          const { error } = await supabase.from("prod_downtime_log" as any).insert(insertPayload);
+          if (error) throw error;
+          cancelDowntime();
+          await loadData();
+        } catch (insertErr: any) {
+          if (isNetworkError(insertErr)) {
+            enqueueOffline("prod_downtime_log", insertPayload);
+            refreshPendingCount();
+            setDowntimeList((prev) => [
+              { ...insertPayload, id: "pending_" + Date.now(), _pending: true } as ProdDowntimeLogRow,
+              ...prev,
+            ]);
+            cancelDowntime();
+          } else {
+            throw insertErr;
+          }
+        }
       }
-
-      cancelDowntime();
-      await loadData();
     } catch (err: any) {
       flash("Gagal menyimpan downtime: " + (err?.message || JSON.stringify(err)), true);
     }

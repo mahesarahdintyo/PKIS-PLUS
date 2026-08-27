@@ -260,9 +260,16 @@ export default function DowntimeTab({
             </thead>
             <tbody>
               {downtimeRowsFiltered().map((row) => (
-                <tr key={row.id}>
+                <tr key={row.id} style={row._pending ? { opacity: 0.65 } : undefined}>
                   {config.stationConfig.mode !== "none" && <td>{row.stasiun || "-"}</td>}
-                  <td className="mono">{fmt(row.waktu_awal)}</td>
+                  <td className="mono">
+                    {fmt(row.waktu_awal)}
+                    {row._pending && (
+                      <span style={{ marginLeft: 4, fontSize: "0.65rem", background: "var(--status-warn-bg)", color: "var(--status-warn)", border: "1px solid var(--status-warn)", borderRadius: 4, padding: "1px 5px", verticalAlign: "middle", whiteSpace: "nowrap" }}>
+                        Belum tersinkron
+                      </span>
+                    )}
+                  </td>
                   <td className="mono">{fmt(row.waktu_akhir)}</td>
                   <td className="mono">{durasiMenit(row.waktu_awal, row.waktu_akhir)}</td>
                   <td><span className="badge">{row.kategori || "-"}</span></td>
@@ -270,7 +277,7 @@ export default function DowntimeTab({
                   <td title={row.penyebab || "-"}>{row.penyebab || "-"}</td>
                   <td title={row.countermeasure || "-"}>{row.countermeasure || "-"}</td>
                   <td>
-                    {isLeaderOrAdmin && (
+                    {isLeaderOrAdmin && !row._pending && (
                       <div className="flex gap-1">
                         <Button type="button" variant="ghost" size="sm" onClick={() => editDowntime(row)}>Edit</Button>
                         <Button type="button" variant="ghost" size="sm" onClick={() => deleteDowntime(row.id)}>Hapus</Button>

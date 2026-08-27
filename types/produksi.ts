@@ -133,6 +133,7 @@ export interface ProdProductionPlanning {
   created_at?: string;
   updated_at?: string;
   is_active?: boolean;
+  _pending?: boolean;
 }
 
 export interface ProdDowntimeRecord {
