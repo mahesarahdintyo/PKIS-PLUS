@@ -10,6 +10,7 @@ import "@/app/admin/(produksi)/produksi.css";
 import { getDocuments, type Document } from "@/lib/services/document";
 import { getFolders, type Folder } from "@/lib/services/folder";
 import { getLines, type Line } from "@/lib/services/line";
+import { isNetworkError } from "@/lib/produksi/offlineQueue";
 import { Tv, Factory } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -287,7 +288,11 @@ export default function OperatorPage({
         if (showError && isMountedRef.current) {
           setError(error instanceof Error ? error.message : "Gagal memuat line produksi");
         }
-        console.error("Failed to load lines", error);
+        if (isNetworkError(error)) {
+          console.warn("Failed to load lines (kemungkinan sedang offline):", error);
+        } else {
+          console.error("Failed to load lines", error);
+        }
       }
     },
     [isOperator, activeUserLineId]
