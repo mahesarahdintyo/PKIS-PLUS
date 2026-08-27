@@ -37,7 +37,7 @@ import { enqueueOffline, isNetworkError } from "@/lib/produksi/offlineQueue";
 import { useOfflineSync } from "@/hooks/produksi/useOfflineSync";
 import { useFlash } from "@/hooks/produksi/useFlash";
 import { usePanggilLeader } from "@/hooks/produksi/useAndon";
-import { Bell } from "lucide-react";
+import { Bell, WifiOff, RefreshCw } from "lucide-react";
 
 import ProduksiTab from "./ProduksiTab";
 import RiwayatTab from "./RiwayatTab";
@@ -667,7 +667,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType }: M
     return stationList().map((st) => st.id);
   }, [stationList]);
 
-  const { refreshPendingCount } = useOfflineSync({
+  const { refreshPendingCount, pendingCount, syncing, isOnline } = useOfflineSync({
     onSynced: (synced) => {
       flash(`${synced} data offline berhasil disinkron.`);
       loadData();
@@ -1756,6 +1756,21 @@ export default function MachineDetailClient({ lineId, lineName, machineType }: M
           </h1>
         </div>
       </div>
+
+      {/* Indikator Status Koneksi & Sinkronisasi Offline */}
+      {!isOnline ? (
+        <div className="offline-status-bar offline-warn">
+          <WifiOff size={16} className="shrink-0" />
+          <span>
+            Anda sedang offline — data produksi tetap bisa disimpan, akan otomatis terkirim saat koneksi kembali.
+          </span>
+        </div>
+      ) : pendingCount > 0 ? (
+        <div className="offline-status-bar offline-syncing">
+          <RefreshCw size={16} className={`shrink-0 ${syncing ? "animate-spin" : ""}`} />
+          <span>{pendingCount} data menunggu disinkronkan...</span>
+        </div>
+      ) : null}
 
       <div className="panggil-leader-row">
         <Button

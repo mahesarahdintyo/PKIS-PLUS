@@ -8,6 +8,9 @@ export interface UseOfflineSyncOptions {
 
 export function useOfflineSync(opts: UseOfflineSyncOptions = {}) {
   const { onSynced } = opts;
+  const [isOnline, setIsOnline] = useState<boolean>(() => {
+    return typeof navigator !== "undefined" ? navigator.onLine : true;
+  });
   const [pendingCount, setPendingCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
   const syncingRef = useRef(false);
@@ -19,7 +22,7 @@ export function useOfflineSync(opts: UseOfflineSyncOptions = {}) {
   }, []);
 
   const syncNow = useCallback(async () => {
-    if (syncingRef.current || !navigator.onLine) return;
+    if (syncingRef.current || (typeof navigator !== "undefined" && !navigator.onLine)) return;
     syncingRef.current = true;
     setSyncing(true);
     const { synced } = await trySyncOfflineQueue();
@@ -35,15 +38,25 @@ export function useOfflineSync(opts: UseOfflineSyncOptions = {}) {
     refreshPendingCount();
     syncNow();
 
-    const handleOnline = () => syncNow();
+    const handleOnline = () => {
+      setIsOnline(true);
+      syncNow();
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+    };
+
     window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
     const interval = setInterval(() => syncNow(), 20000);
 
     return () => {
       window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
       clearInterval(interval);
     };
   }, [syncNow, refreshPendingCount]);
 
-  return { pendingCount, syncing, syncNow, refreshPendingCount };
+  return { pendingCount, syncing, isOnline, syncNow, refreshPendingCount };
 }
