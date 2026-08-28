@@ -433,67 +433,27 @@ export default function ProduksiTab({
                     <p className="text-[11px] text-muted-foreground">
                       Pilih dari Planning kalau ada, atau pilih Part Number lain di bawah.
                     </p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="field col-span-2">
-                        <label className="text-[11px] block text-muted-foreground mb-1 font-semibold uppercase tracking-wider">
-                          Part Number
-                        </label>
-                        <Combobox
-                          className="w-full"
-                          inputClassName="h-9 text-xs font-semibold"
-                          placeholder="Pilih / ketik Part Number..."
-                          value={line.form.part_number}
-                          onChange={(v) => linesHook.setFormField(st.id, "part_number", v)}
-                          options={masterParts.map((part) => {
-                            const partNumber = part.kode_part || part.value || part.nama_part || "";
-                            return {
-                              value: partNumber,
-                              label: part.nama_part && part.nama_part !== partNumber ? `${partNumber} - ${part.nama_part}` : partNumber,
-                            };
-                          })}
-                        />
-                      </div>
-                      <div className="field">
-                        <label className="text-[11px] block text-muted-foreground mb-1 font-semibold uppercase tracking-wider">
-                          Qty
-                        </label>
-                        <Input
-                          type="number"
-                          className="h-9 text-xs font-semibold"
-                          value={line.form.qty}
-                          onChange={(e) => linesHook.setFormField(st.id, "qty", e.target.value === "" ? "" : Number(e.target.value))}
-                        />
-                      </div>
-                      <div className="field">
-                        <label className="text-[11px] block text-muted-foreground mb-1 font-semibold uppercase tracking-wider">
-                          Jumlah MP
-                        </label>
-                        <Input
-                          type="number"
-                          className="h-9 text-xs font-semibold"
-                          value={line.form.manpower}
-                          onChange={(e) => linesHook.setFormField(st.id, "manpower", e.target.value === "" ? "" : Number(e.target.value))}
-                        />
-                      </div>
-                      {config.extraFields.map((f) => (
-                        <div className="field" key={f.key}>
-                          <label className="text-[11px] block text-muted-foreground mb-1 font-semibold uppercase tracking-wider">
-                            {f.label}
-                          </label>
-                          <Input
-                            type={f.type}
-                            className="h-9 text-xs font-semibold"
-                            value={line.form[f.key] ?? ""}
-                            onChange={(e) =>
-                              linesHook.setFormField(
-                                st.id,
-                                f.key,
-                                f.type === "number" ? (e.target.value === "" ? "" : Number(e.target.value)) : e.target.value
-                              )
-                            }
-                          />
-                        </div>
-                      ))}
+                    <div className="field">
+                      <label className="text-[11px] block text-muted-foreground mb-1 font-semibold uppercase tracking-wider">
+                        Part Number
+                      </label>
+                      <Combobox
+                        className="w-full"
+                        inputClassName="h-9 text-xs font-semibold"
+                        placeholder="Pilih / ketik Part Number..."
+                        value={line.form.part_number}
+                        onChange={(v) => {
+                          linesHook.setFormField(st.id, "part_number", v);
+                          if (v) linesHook.pushDocumentToDisplay(v);
+                        }}
+                        options={masterParts.map((part) => {
+                          const partNumber = part.kode_part || part.value || part.nama_part || "";
+                          return {
+                            value: partNumber,
+                            label: part.nama_part && part.nama_part !== partNumber ? `${partNumber} - ${part.nama_part}` : partNumber,
+                          };
+                        })}
+                      />
                     </div>
                     <Button
                       type="button"
@@ -520,32 +480,109 @@ export default function ProduksiTab({
                     </Button>
                   </div>
                 )}
-                {line.phase === "finished" && (
-                  <div className="space-y-2 p-2.5 rounded bg-teal-950/20 border border-teal-500/40">
-                    <p className="font-bold text-xs text-teal-300">
-                      Selesai jam {fmtClock(line.entryEnd)} — lanjut apa?
-                    </p>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="flex-1 text-xs"
-                        onClick={() => linesHook.chooseSetupNext(st.id)}
-                      >
-                        <Wrench size={13} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} /> Setup (ganti part)
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="flex-1 text-xs"
-                        onClick={() => linesHook.chooseNonProduksiNext(st.id)}
-                      >
-                        Non-Produksi
-                      </Button>
+                {line.phase === "finished" && (() => {
+                  const isQtyValid = line.form.qty !== "" && Number(line.form.qty) > 0;
+                  const isMpValid = line.form.manpower !== "" && Number(line.form.manpower) > 0;
+                  const isExtraFieldsValid = config.extraFields.every((f) => {
+                    const val = line.form[f.key];
+                    return val !== undefined && val !== null && String(val).trim() !== "";
+                  });
+                  const isFinishedFormValid = isQtyValid && isMpValid && isExtraFieldsValid;
+
+                  return (
+                    <div className="space-y-3 p-3 rounded-lg bg-teal-950/20 border border-teal-500/40">
+                      <div className="flex items-center justify-between">
+                        <p className="font-bold text-xs text-teal-300">
+                          Selesai jam {fmtClock(line.entryEnd)} — Input Hasil Aktual:
+                        </p>
+                        <span className="text-[11px] font-semibold text-teal-400/90">
+                          {line.form.part_number}
+                        </span>
+                      </div>
+
+                      {/* Form Hasil Aktual Produksi */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="field">
+                          <label className="text-[11px] block text-muted-foreground mb-1 font-semibold uppercase tracking-wider">
+                            Qty <span className="text-red-400">*</span>
+                          </label>
+                          <Input
+                            type="number"
+                            placeholder="Wajib diisi..."
+                            className="h-9 text-xs font-semibold"
+                            value={line.form.qty}
+                            onChange={(e) => linesHook.setFormField(st.id, "qty", e.target.value === "" ? "" : Number(e.target.value))}
+                          />
+                        </div>
+                        <div className="field">
+                          <label className="text-[11px] block text-muted-foreground mb-1 font-semibold uppercase tracking-wider">
+                            Jumlah MP <span className="text-red-400">*</span>
+                          </label>
+                          <Input
+                            type="number"
+                            placeholder="Wajib diisi..."
+                            className="h-9 text-xs font-semibold"
+                            value={line.form.manpower}
+                            onChange={(e) => linesHook.setFormField(st.id, "manpower", e.target.value === "" ? "" : Number(e.target.value))}
+                          />
+                        </div>
+                        {config.extraFields.map((f) => (
+                          <div className="field" key={f.key}>
+                            <label className="text-[11px] block text-muted-foreground mb-1 font-semibold uppercase tracking-wider">
+                              {f.label} <span className="text-red-400">*</span>
+                            </label>
+                            <Input
+                              type={f.type}
+                              placeholder={`Wajib diisi (${f.label})...`}
+                              className="h-9 text-xs font-semibold"
+                              value={line.form[f.key] ?? ""}
+                              onChange={(e) =>
+                                linesHook.setFormField(
+                                  st.id,
+                                  f.key,
+                                  f.type === "number" ? (e.target.value === "" ? "" : Number(e.target.value)) : e.target.value
+                                )
+                              }
+                            />
+                          </div>
+                        ))}
+                      </div>
+
+                      {!isFinishedFormValid && (
+                        <p className="text-[11px] text-amber-400 font-medium bg-amber-950/30 border border-amber-500/30 rounded px-2 py-1">
+                          ⚠️ Lengkapi Qty, Jumlah MP{config.extraFields.length > 0 ? ", dan data tambahan" : ""} di atas untuk memilih langkah berikutnya.
+                        </p>
+                      )}
+
+                      <div className="pt-1 border-t border-teal-500/20">
+                        <p className="text-[11px] text-muted-foreground mb-1.5 font-medium">
+                          Pilih kelanjutan setelah simpan:
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={!isFinishedFormValid}
+                            className="flex-1 text-xs font-semibold"
+                            onClick={() => linesHook.chooseSetupNext(st.id)}
+                          >
+                            <Wrench size={13} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} /> Setup (ganti part)
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            disabled={!isFinishedFormValid}
+                            className="flex-1 text-xs font-semibold"
+                            onClick={() => linesHook.chooseNonProduksiNext(st.id)}
+                          >
+                            Non-Produksi
+                          </Button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
                 {line.phase === "nonproduksi_running" && (
                   <div className="space-y-2 p-2.5 rounded bg-amber-950/20 border border-amber-500/40">
                     <p className="font-bold text-xs text-amber-400 flex items-center gap-1">
