@@ -582,6 +582,7 @@ export default function OperatorPage({
               lineId={selectedLine?.id ?? lineId}
               lineName={selectedLine?.name ?? selectedLineName}
               machineType={selectedLine?.machine_type}
+              userRole={userRole}
             />
           </div>
         )}

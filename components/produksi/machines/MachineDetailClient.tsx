@@ -189,9 +189,10 @@ interface MachineDetailClientProps {
   lineName?: string;
   /** machine_type langsung dari database – diutamakan daripada deteksi dari nama */
   machineType?: string | null;
+  userRole?: string;
 }
 
-export default function MachineDetailClient({ lineId, lineName, machineType }: MachineDetailClientProps) {
+export default function MachineDetailClient({ lineId, lineName, machineType, userRole }: MachineDetailClientProps) {
   const supabase = createClient();
   // Prioritas: machine_type dari DB > deteksi dari nama > generic
   const slug = machineType || (lineName ? getSlugFromName(lineName) : "");
@@ -212,8 +213,18 @@ export default function MachineDetailClient({ lineId, lineName, machineType }: M
     return saved === "lama" || saved === "baru" ? saved : null;
   });
 
-  const [profile, setProfile] = useState<ProdProfile | null>(null);
-  const isLeaderOrAdmin = Boolean(profile && ["admin", "leader"].includes(profile.role || ""));
+  const [profile, setProfile] = useState<ProdProfile | null>(() => {
+    if (userRole) {
+      return {
+        id: "",
+        role: userRole.trim().toLowerCase(),
+        nama: "",
+      } as ProdProfile;
+    }
+    return null;
+  });
+  const effectiveRole = (profile?.role || userRole || "").trim().toLowerCase();
+  const isLeaderOrAdmin = Boolean(["admin", "leader"].includes(effectiveRole));
 
   const { andonCalling, panggilLeader } = usePanggilLeader({
     line_id: lineId || null,
@@ -375,11 +386,20 @@ export default function MachineDetailClient({ lineId, lineName, machineType }: M
           .select("*")
           .eq("id", session.user.id)
           .maybeSingle();
-        if (data) setProfile(data as ProdProfile);
+        if (data) {
+          setProfile(data as ProdProfile);
+        } else {
+          const rawRole = (session.user.user_metadata?.role || session.user.app_metadata?.role || userRole || "operator") as string;
+          setProfile({
+            id: session.user.id,
+            role: rawRole.trim().toLowerCase(),
+            nama: session.user.user_metadata?.name || session.user.email || "",
+          } as ProdProfile);
+        }
       }
     }
     fetchProfile();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [userRole]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -616,12 +636,12 @@ export default function MachineDetailClient({ lineId, lineName, machineType }: M
   }, [fetchGabunganRange]);
 
   const canDeleteRow = (row: any): boolean => {
-    if (!profile) return false;
-    if (isLeaderOrAdmin) return true;
+    const role = (profile?.role || userRole || "").trim().toLowerCase();
+    if (["admin", "leader"].includes(role)) return true;
+    if (!profile || !profile.id) return false;
     const todayStr = new Date().toISOString().slice(0, 10);
     const rowDate = row.waktu_awal ? String(row.waktu_awal).slice(0, 10) : null;
     return (
-      profile.id != null &&
       row.data?.created_by === profile.id &&
       rowDate === todayStr
     );
@@ -673,8 +693,10 @@ export default function MachineDetailClient({ lineId, lineName, machineType }: M
       const { error } = await supabase.from("prod_dandori_log" as any).update(payload).eq("id", editingNonProduksiId);
       if (error) throw error;
       handleCancelEditNonProduksi();
+      await loadData();
       await fetchRiwayatGabungan();
       await fetchRiwayatHariIniData();
+      flash("Data non-produksi diperbarui.");
     } catch (err: any) {
       flash("Gagal menyimpan data non-produksi: " + (err?.message || JSON.stringify(err)), true);
     }
@@ -701,8 +723,10 @@ export default function MachineDetailClient({ lineId, lineName, machineType }: M
       const { error } = await supabase.from(table as any).update({ is_active: false }).eq("id", row.data.id);
       if (error) throw error;
       setRiwayatDeleteTarget(null);
+      await loadData();
       await fetchRiwayatGabungan();
       await fetchRiwayatHariIniData();
+      flash("Riwayat berhasil dihapus.");
     } catch (err: any) {
       flash("Gagal menghapus riwayat: " + (err?.message || JSON.stringify(err)), true);
     } finally {
@@ -755,6 +779,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType }: M
         break_menit: payload.break_menit,
         downtime_menit: 0,
         extra: payload.extra,
+        created_by: profile?.id || null,
       };
 
       try {
@@ -771,6 +796,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType }: M
         flash("Data produksi tersimpan.");
         loadData();
         fetchRiwayatHariIniData();
+        if (activeTab === "riwayat") fetchRiwayatGabungan();
       } catch (err: any) {
         if (isNetworkError(err)) {
           enqueueOffline("prod_production_log", row);
@@ -784,7 +810,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType }: M
         }
       }
     },
-    [loadData, fetchRiwayatHariIniData, refreshPendingCount, lineId] // eslint-disable-line react-hooks/exhaustive-deps
+    [loadData, fetchRiwayatHariIniData, fetchRiwayatGabungan, refreshPendingCount, lineId, profile?.id, activeTab] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const handleUpdateProduction = useCallback(
@@ -793,13 +819,14 @@ export default function MachineDetailClient({ lineId, lineName, machineType }: M
         const { error } = await supabase.from("prod_production_log" as any).update(payload).eq("id", id);
         if (error) throw error;
         flash("Data produksi diperbarui.");
-        loadData();
-        fetchRiwayatHariIniData();
+        await loadData();
+        await fetchRiwayatHariIniData();
+        await fetchRiwayatGabungan();
       } catch (err: any) {
         flash("Gagal memperbarui produksi: " + (err?.message || JSON.stringify(err)), true);
       }
     },
-    [loadData, fetchRiwayatHariIniData] // eslint-disable-line react-hooks/exhaustive-deps
+    [loadData, fetchRiwayatHariIniData, fetchRiwayatGabungan]
   );
 
   const handleSaveNonProduksiRow = useCallback(
@@ -814,6 +841,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType }: M
         part_dari: (payload as any).part_dari ?? null,
         part_ke: payload.part_ke,
         keterangan: payload.keterangan,
+        created_by: profile?.id || null,
       };
 
       try {
@@ -821,6 +849,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType }: M
         if (error) throw error;
         loadData();
         fetchRiwayatHariIniData();
+        if (activeTab === "riwayat") fetchRiwayatGabungan();
       } catch (err: any) {
         if (isNetworkError(err)) {
           enqueueOffline("prod_dandori_log", row);
@@ -834,7 +863,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType }: M
         }
       }
     },
-    [loadData, fetchRiwayatHariIniData, refreshPendingCount, lineId] // eslint-disable-line react-hooks/exhaustive-deps
+    [loadData, fetchRiwayatHariIniData, fetchRiwayatGabungan, refreshPendingCount, lineId, profile?.id, activeTab] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const linesHook = useProductionLines(activeStationIds, {
