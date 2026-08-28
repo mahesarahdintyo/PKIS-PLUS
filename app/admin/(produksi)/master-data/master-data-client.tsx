@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import "@/app/admin/(produksi)/produksi.css";
 
 interface MachineItem {
+  id?: string;
   slug: string;
   label: string;
   key: string;
@@ -64,6 +65,7 @@ export default function MasterDataClient() {
       }
 
       const mapped: MachineItem[] = (data || []).map((l: any) => ({
+        id: l.id,
         slug: normalizeMachineSlug(l.machine_type),
         label: l.name,
         key: normalizeMachineKey(l.machine_type),
@@ -172,17 +174,26 @@ export default function MasterDataClient() {
         });
       }
 
-      // 2. Part Numbers
-      const { data: pNumData, error: pNumErr } = await supabase
+      // 2. Part Numbers (check line_id OR mesin key)
+      const selectedLineId = selectedMachineItem?.id;
+      let pNumQuery = supabase
         .from("prod_part_numbers" as any)
         .select("*")
-        .eq("mesin", currentConfig.key)
         .eq("is_active", true)
         .order("value");
+
+      if (selectedLineId) {
+        pNumQuery = pNumQuery.or(`line_id.eq.${selectedLineId},mesin.eq.${currentConfig.key}`);
+      } else {
+        pNumQuery = pNumQuery.eq("mesin", currentConfig.key);
+      }
+
+      const { data: pNumData, error: pNumErr } = await pNumQuery;
 
       if (!pNumErr && pNumData) {
         const mappedParts: ProdMasterPart[] = pNumData.map((p: any) => ({
           id: p.id,
+          document_id: p.document_id,
           kode_part: p.value || p.kode_part || "",
           nama_part: p.nama_part || p.value || "",
           mesin: p.mesin,
@@ -229,7 +240,7 @@ export default function MasterDataClient() {
     } finally {
       setLoading(false);
     }
-  }, [currentConfig.key]);
+  }, [currentConfig.key, selectedMachineItem?.id]);
 
   useEffect(() => {
     loadData();
@@ -273,11 +284,13 @@ export default function MasterDataClient() {
     try {
       const supabase = createClient();
       const payload = {
+        line_id: selectedMachineItem?.id || null,
         mesin: currentConfig.key,
         value: newPartKode.trim(),
         std_ct: newPartStdCt === "" ? null : Number(newPartStdCt),
         harga_pcs: newPartHarga === "" ? null : Number(newPartHarga),
       };
+
 
       const { error } = await supabase.from("prod_part_numbers" as any).insert([payload]);
       if (error) throw error;
