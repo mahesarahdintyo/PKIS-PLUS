@@ -635,16 +635,9 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
     setRiwayatHariIni(gabungan);
   }, [fetchGabunganRange]);
 
-  const canDeleteRow = (row: any): boolean => {
+  const canDeleteRow = (_row: any): boolean => {
     const role = (profile?.role || userRole || "").trim().toLowerCase();
-    if (["admin", "leader"].includes(role)) return true;
-    if (!profile || !profile.id) return false;
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const rowDate = row.waktu_awal ? String(row.waktu_awal).slice(0, 10) : null;
-    return (
-      row.data?.created_by === profile.id &&
-      rowDate === todayStr
-    );
+    return ["admin", "leader"].includes(role);
   };
 
   const handleEditProductionRow = (data: any) => {
