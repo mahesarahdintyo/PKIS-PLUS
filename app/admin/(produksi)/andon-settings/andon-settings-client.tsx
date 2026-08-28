@@ -152,11 +152,15 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
       status: editForm.status,
     };
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("andon_calls")
         .update(payload)
-        .eq("id", editTarget.id);
+        .eq("id", editTarget.id)
+        .select();
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("Tidak ada data yang diperbarui. Periksa izin RLS role Anda.");
+      }
       toast.success("Riwayat panggilan diperbarui!");
       setEditTarget(null);
       fetchHistory(0);
@@ -171,11 +175,15 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
     if (!deleteTarget?.id) return;
     setIsDeleting(true);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("andon_calls")
         .delete()
-        .eq("id", deleteTarget.id);
+        .eq("id", deleteTarget.id)
+        .select();
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("Tidak ada data yang dihapus. Periksa izin RLS role Anda.");
+      }
       toast.success("Riwayat panggilan berhasil dihapus.");
       setDeleteTarget(null);
       fetchHistory(0);
@@ -185,6 +193,7 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
       setIsDeleting(false);
     }
   };
+
 
   const andonContent = (
     <>

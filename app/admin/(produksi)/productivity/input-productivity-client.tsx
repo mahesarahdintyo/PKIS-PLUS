@@ -131,30 +131,35 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
 
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!editTarget?.id) return;
     if (!editForm.tanggal || editForm.eh_jam === "") {
       flash("Isi tanggal & Earned Hours dulu.", true);
       return;
     }
     setIsSavingEdit(true);
-    const { error } = await supabase
+    const payload = {
+      tanggal: editForm.tanggal,
+      eh_jam: Number(editForm.eh_jam),
+    };
+    const { data, error } = await supabase
       .from("productivity_daily_reference")
-      .upsert(
-        {
-          tanggal: editForm.tanggal,
-          eh_jam: Number(editForm.eh_jam),
-          is_active: true,
-        },
-        { onConflict: "tanggal" }
-      );
+      .update(payload)
+      .eq("id", editTarget.id)
+      .select();
     setIsSavingEdit(false);
     if (error) {
       flash("Gagal simpan: " + error.message, true);
+      return;
+    }
+    if (!data || data.length === 0) {
+      flash("Gagal simpan: data tidak ditemukan atau perubahan ditolak.", true);
       return;
     }
     flash("Earned Hours " + editForm.tanggal + " diperbarui.");
     setEditTarget(null);
     await fetchRows(0);
   };
+
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
