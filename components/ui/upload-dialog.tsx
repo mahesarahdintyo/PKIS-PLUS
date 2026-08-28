@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Upload, X, Loader2, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { createClient } from '@/lib/supabase/client'
 
 const ALLOWED_FILE_TYPES = ['application/pdf', 'image/jpeg', 'image/png']
 const ALLOWED_FILE_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png']
@@ -62,6 +63,58 @@ export function UploadDialog({
   const [error, setError] = useState('')
   const [isDragging, setIsDragging] = useState(false)
 
+  // Part Number Relation state
+  const [partOption, setPartOption] = useState<'none' | 'existing' | 'new'>('none')
+  const [selectedPartNumberId, setSelectedPartNumberId] = useState('')
+  const [newPartNumberValue, setNewPartNumberValue] = useState('')
+  const [partNumbers, setPartNumbers] = useState<{ id: string; value: string }[]>([])
+  const [isLoadingPartNumbers, setIsLoadingPartNumbers] = useState(false)
+
+  useEffect(() => {
+    if (!isOpen || !lineId) return
+
+    async function fetchParts() {
+      try {
+        setIsLoadingPartNumbers(true)
+        const supabase = createClient()
+        let query = supabase
+          .from('prod_part_numbers' as any)
+          .select('id, value, is_active, line_id, mesin')
+          .eq('is_active', true)
+
+        if (lineId) {
+          const { data: lineData } = await supabase
+            .from('lines')
+            .select('name, machine_type')
+            .eq('id', lineId)
+            .maybeSingle()
+
+          const mesinKey = lineData?.machine_type ? lineData.machine_type.replace(/-/g, '_') : null
+          if (mesinKey) {
+            query = query.or(`line_id.eq.${lineId},mesin.eq.${mesinKey}`)
+          } else {
+            query = query.eq('line_id', lineId)
+          }
+        }
+        const { data, error } = await query.order('value')
+        if (!error && data) {
+          setPartNumbers(
+            data.map((p: any) => ({
+              id: p.id,
+              value: p.value || p.kode_part || p.nama_part || '-',
+            }))
+          )
+        }
+      } catch (err) {
+        console.warn('Gagal memuat part number:', err)
+      } finally {
+        setIsLoadingPartNumbers(false)
+      }
+    }
+
+    fetchParts()
+  }, [isOpen, lineId])
+
   const handleOpen = () => {
     setIsOpen(true)
     onOpenChange?.(true)
@@ -70,6 +123,9 @@ export function UploadDialog({
   const handleClose = () => {
     if (isLoading) return
     setIsOpen(false)
+    setPartOption('none')
+    setSelectedPartNumberId('')
+    setNewPartNumberValue('')
     onOpenChange?.(false)
   }
 
@@ -168,6 +224,17 @@ export function UploadDialog({
       return
     }
 
+    if (files.length === 1) {
+      if (partOption === 'existing' && !selectedPartNumberId) {
+        setError('Silakan pilih Part Number yang ingin dihubungkan atau pilih "Tidak dihubungkan".')
+        return
+      }
+      if (partOption === 'new' && !newPartNumberValue.trim()) {
+        setError('Silakan isi kode Part Number baru atau pilih "Tidak dihubungkan".')
+        return
+      }
+    }
+
     if ((targetDate || targetClock) && (!targetDate || !isValidTargetClock)) {
       setError('Target waktu harus diisi dengan tanggal dan jam format 24 jam, contoh 14:30')
       return
@@ -198,6 +265,14 @@ export function UploadDialog({
           formData.append('folderId', folderId.toString())
         }
 
+        if (files.length === 1) {
+          if (partOption === 'existing' && selectedPartNumberId) {
+            formData.append('partNumberId', selectedPartNumberId)
+          } else if (partOption === 'new' && newPartNumberValue.trim()) {
+            formData.append('newPartNumberValue', newPartNumberValue.trim())
+          }
+        }
+
         const response = await fetch('/api/upload', {
           method: 'POST',
           body: formData
@@ -217,6 +292,9 @@ export function UploadDialog({
       setDescription('')
       setTargetDate('')
       setTargetClock('')
+      setPartOption('none')
+      setSelectedPartNumberId('')
+      setNewPartNumberValue('')
       setIsOpen(false)
       onOpenChange?.(false)
 
@@ -251,7 +329,7 @@ export function UploadDialog({
           className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/50 backdrop-blur-[2px]"
           style={{ backgroundColor: 'rgba(0, 0, 0, 0.4)' }}
         >
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900">
                 Upload Document
@@ -352,6 +430,97 @@ export function UploadDialog({
                   </div>
                 </div>
               </div>
+
+              {/* Opsi Relasi Part Number (Hanya muncul jika files.length === 1) */}
+              {files.length === 1 && (
+                <div className="border border-gray-200 rounded-lg p-3.5 bg-gray-50/70 space-y-3">
+                  <label className="block text-sm font-semibold text-gray-800">
+                    Relasi Part Number (Opsional)
+                  </label>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="partOption"
+                        value="none"
+                        checked={partOption === 'none'}
+                        onChange={() => setPartOption('none')}
+                        className="text-blue-600 focus:ring-blue-500"
+                        disabled={isLoading}
+                      />
+                      <span>Tidak dihubungkan</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="partOption"
+                        value="existing"
+                        checked={partOption === 'existing'}
+                        onChange={() => setPartOption('existing')}
+                        className="text-blue-600 focus:ring-blue-500"
+                        disabled={isLoading}
+                      />
+                      <span>Hubungkan ke Part Number yang sudah ada</span>
+                    </label>
+
+                    {partOption === 'existing' && (
+                      <div className="pl-6 pt-1">
+                        {isLoadingPartNumbers ? (
+                          <div className="flex items-center gap-2 text-xs text-gray-500 py-1.5">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Memuat daftar part number...</span>
+                          </div>
+                        ) : partNumbers.length === 0 ? (
+                          <p className="text-xs text-amber-600 py-1 font-medium">
+                            Belum ada Part Number di line ini. Silakan buat baru di bawah.
+                          </p>
+                        ) : (
+                          <select
+                            value={selectedPartNumberId}
+                            onChange={(e) => setSelectedPartNumberId(e.target.value)}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 text-gray-900"
+                            disabled={isLoading}
+                          >
+                            <option value="">- Pilih Part Number -</option>
+                            {partNumbers.map((part) => (
+                              <option key={part.id} value={part.id}>
+                                {part.value}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    )}
+
+                    <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="partOption"
+                        value="new"
+                        checked={partOption === 'new'}
+                        onChange={() => setPartOption('new')}
+                        className="text-blue-600 focus:ring-blue-500"
+                        disabled={isLoading}
+                      />
+                      <span>Buat Part Number baru</span>
+                    </label>
+
+                    {partOption === 'new' && (
+                      <div className="pl-6 pt-1">
+                        <input
+                          type="text"
+                          value={newPartNumberValue}
+                          onChange={(e) => setNewPartNumberValue(e.target.value)}
+                          placeholder="Kode Part Number baru (contoh: 55301-BZ010)"
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 text-gray-900"
+                          disabled={isLoading}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
