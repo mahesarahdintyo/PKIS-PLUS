@@ -34,6 +34,11 @@ import {
   loadFromLocalStorage,
 } from "@/hooks/produksi/useProductionLines";
 import { enqueueOffline, isNetworkError } from "@/lib/produksi/offlineQueue";
+import {
+  getMachineSnapshotKey,
+  saveMachineSnapshot,
+  loadMachineSnapshot,
+} from "@/lib/produksi/machineSnapshot";
 import { useOfflineSync } from "@/hooks/produksi/useOfflineSync";
 import { useFlash } from "@/hooks/produksi/useFlash";
 import { usePanggilLeader } from "@/hooks/produksi/useAndon";
@@ -194,6 +199,8 @@ export default function MachineDetailClient({ lineId, lineName, machineType }: M
 
   const [activeTab, setActiveTab] = useState<"produksi" | "riwayat" | "performance" | "downtime" | "master_data">("produksi");
   const [loading, setLoading] = useState(true);
+  const [isShowingCachedSnapshot, setIsShowingCachedSnapshot] = useState(false);
+  const [cachedSnapshotTime, setCachedSnapshotTime] = useState<number | null>(null);
 
   const theme = useThemeListener();
 
@@ -484,8 +491,62 @@ export default function MachineDetailClient({ lineId, lineName, machineType }: M
       }
       const { data: planData } = await planQuery.order("jam_rencana_mulai", { ascending: true });
       if (planData) setPlanningList(planData as ProdProductionPlanning[]);
+
+      // Simpan snapshot lengkap setelah semua query di atas berhasil,
+      // supaya kalau nanti offline + reload, ada data terakhir yang bisa dipulihkan.
+      saveMachineSnapshot(getMachineSnapshotKey(lineId, config.key), {
+        mesinSettings: settingsData ? {
+          gsph_target_mode: settingsData.gsph_target_mode || "fixed",
+          gsph_target_fixed: Number(settingsData.gsph_target_fixed) || 0,
+          target_availability: Number(settingsData.target_availability) || 0,
+        } : null,
+        masterParts: pNumData || [],
+        productionRows: pRows || [],
+        downtimeList: dt || [],
+        problemList: probs || [],
+        nonProduksiRows: dRows || [],
+        nonProduksiTypes: npTypes || [],
+        planningList: planData || [],
+      });
+      setIsShowingCachedSnapshot(false);
+      setCachedSnapshotTime(null);
     } catch (err: any) {
       console.error("Machine load error:", err?.message || err?.details || JSON.stringify(err) || err);
+
+      // Coba pulihkan data dari snapshot localStorage supaya operator
+      // tidak lihat halaman kosong saat offline + baru reload.
+      const snapshot = loadMachineSnapshot(getMachineSnapshotKey(lineId, config.key));
+      if (snapshot) {
+        if (snapshot.mesinSettings) {
+          setMesinSettings(snapshot.mesinSettings);
+          setMesinSettingsDraft(snapshot.mesinSettings);
+        }
+        if (snapshot.masterParts?.length) {
+          const mappedParts: ProdMasterPart[] = snapshot.masterParts.map((p: any) => ({
+            id: p.id,
+            kode_part: p.value || p.kode_part || "",
+            nama_part: p.nama_part || p.value || "",
+            mesin: p.mesin,
+            std_ct: p.std_ct ?? (p.ct_detik ? p.ct_detik / 60 : undefined),
+            ct_detik: p.ct_detik ?? (p.std_ct ? p.std_ct * 60 : undefined),
+            std_mp: p.std_mp ?? p.mp_std,
+            mp_std: p.mp_std ?? p.std_mp,
+            next_process: p.next_process,
+            harga_rp: p.harga_rp,
+            is_active: p.is_active,
+          }));
+          setMasterParts(mappedParts);
+        }
+        if (snapshot.productionRows?.length) setProductionRows(snapshot.productionRows as ProdProductionLogRow[]);
+        if (snapshot.downtimeList?.length) setDowntimeList(snapshot.downtimeList as ProdDowntimeLogRow[]);
+        if (snapshot.problemList?.length) setProblemList(snapshot.problemList as ProdDowntimeProblem[]);
+        if (snapshot.nonProduksiRows?.length) setNonProduksiRows(snapshot.nonProduksiRows as ProdDandoriLogRow[]);
+        if (snapshot.nonProduksiTypes?.length) setNonProduksiTypes(snapshot.nonProduksiTypes as ProdNonProduksiType[]);
+        if (snapshot.planningList?.length) setPlanningList(snapshot.planningList as ProdProductionPlanning[]);
+
+        setIsShowingCachedSnapshot(true);
+        setCachedSnapshotTime(snapshot.savedAt);
+      }
     } finally {
       setLoading(false);
     }
@@ -1791,6 +1852,18 @@ export default function MachineDetailClient({ lineId, lineName, machineType }: M
           </h1>
         </div>
       </div>
+
+      {/* Badge peringatan data dari cache snapshot (offline + reload) */}
+      {isShowingCachedSnapshot && (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-600 mb-4">
+          <span>⚠️ Offline — menampilkan data tersimpan terakhir</span>
+          {cachedSnapshotTime && (
+            <span className="font-normal text-amber-600/80">
+              ({new Date(cachedSnapshotTime).toLocaleString("id-ID")})
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Indikator Status Koneksi & Sinkronisasi Offline */}
       {!isOnline ? (
