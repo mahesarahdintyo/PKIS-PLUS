@@ -104,6 +104,7 @@ export default function DocumentList({
                     type={document.type}
                     file={document.file}
                     targetTime={document.targetTime}
+                    linkedPartNumbers={document.linkedPartNumbers}
                     showOperatorActions
                   />
                 </div>

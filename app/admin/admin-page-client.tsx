@@ -31,6 +31,7 @@ interface Document {
   }
   targetTime?: string | null
   hiddenFromOperator?: boolean
+  linkedPartNumbers?: { id: string; value: string }[]
 }
 
 interface Folder {
@@ -662,6 +663,7 @@ export default function Page({ initialLines = [] }: AdminPageProps) {
                         file={doc.file}
                         targetTime={doc.targetTime}
                         hiddenFromOperator={doc.hiddenFromOperator}
+                        linkedPartNumbers={doc.linkedPartNumbers}
                         onDelete={handleDeleteSuccess}
                         onVisibilityChange={handleVisibilityChange}
                       />

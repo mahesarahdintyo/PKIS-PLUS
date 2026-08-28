@@ -12,6 +12,7 @@ export interface Document {
   };
   targetTime?: string | null;
   hiddenFromOperator?: boolean;
+  linkedPartNumbers?: { id: string; value: string }[];
 }
 
 interface DocumentQuery {

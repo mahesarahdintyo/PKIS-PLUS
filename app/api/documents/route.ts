@@ -39,6 +39,10 @@ export async function GET(request: Request) {
           id,
           name,
           line_id
+        ),
+        prod_part_numbers (
+          id,
+          value
         )
       `);
 
@@ -109,6 +113,12 @@ export async function GET(request: Request) {
       },
       targetTime: doc.target_time,
       hiddenFromOperator: doc.hidden_from_operator,
+      linkedPartNumbers: Array.isArray(doc.prod_part_numbers)
+        ? doc.prod_part_numbers.map((p: any) => ({
+            id: p.id,
+            value: p.value || "-",
+          }))
+        : [],
     }));
 
     return NextResponse.json(transformedDocuments);
