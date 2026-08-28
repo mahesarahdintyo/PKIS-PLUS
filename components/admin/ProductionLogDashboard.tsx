@@ -1,13 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   AlertTriangle,
   Calendar,
   ChevronDown,
+  Clock,
+  Coffee,
   Download,
   Filter,
+  Layers,
   Loader2,
   Pencil,
   Plus,
@@ -15,6 +18,7 @@ import {
   Search,
   SlidersHorizontal,
   Trash2,
+  Wrench,
   X,
 } from "lucide-react";
 import { getLines, type Line } from "@/lib/services/line";
@@ -24,25 +28,20 @@ import { toast } from "sonner";
 
 const LOG_REFRESH_INTERVAL_MS = 5000;
 
-interface ProdLog {
+export interface CombinedLogItem {
   id: string;
+  jenis: "produksi" | "non_produksi";
   line_id: string | null;
   mesin: string;
   stasiun: string | null;
   waktu_awal: string;
   waktu_akhir: string | null;
   part_number: string | null;
-  qty: number | null;
-  ng: number | null;
-  manpower: number | null;
-  dandori_menit: number | null;
-  downtime_menit: number | null;
-  break_menit: number | null;
-  is_active: boolean;
-  line?: { name: string } | null;
+  line_name?: string | null;
+  data: any;
 }
 
-interface EditForm {
+interface EditProductionForm {
   part_number: string;
   qty: string;
   ng: string;
@@ -52,13 +51,25 @@ interface EditForm {
   dandori_menit: string;
   downtime_menit: string;
   break_menit: string;
+  routing_type: "WIP" | "FG" | "";
+  routing_numbers: string;
 }
 
-interface CreateForm extends EditForm {
+interface EditNonProduksiForm {
+  waktu_awal: string;
+  waktu_akhir: string;
+  nama: string;
+}
+
+interface CreateForm extends EditProductionForm {
+  jenis: "produksi" | "non_produksi";
   line_id: string;
+  mesin: string;
+  stasiun: string;
+  nama_non_produksi: string;
 }
 
-const emptyEdit = (): EditForm => ({
+const emptyProductionEdit = (): EditProductionForm => ({
   part_number: "",
   qty: "",
   ng: "",
@@ -68,6 +79,8 @@ const emptyEdit = (): EditForm => ({
   dandori_menit: "",
   downtime_menit: "",
   break_menit: "",
+  routing_type: "",
+  routing_numbers: "",
 });
 
 function toLocalInput(iso: string | null | undefined): string {
@@ -78,20 +91,22 @@ function toLocalInput(iso: string | null | undefined): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-function formatDate(iso: string | null | undefined): string {
+function fmt(iso?: string | null): string {
   if (!iso) return "-";
   const d = new Date(iso);
   if (isNaN(d.getTime())) return String(iso);
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`;
+  return d.toLocaleString("id-ID", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
-function formatTime(iso: string | null | undefined): string {
-  if (!iso) return "-";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return String(iso);
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${p(d.getHours())}:${p(d.getMinutes())}`;
+function fmtNum(n: number | null | undefined): string {
+  if (n === null || n === undefined || isNaN(n)) return "-";
+  return n.toLocaleString("id-ID");
 }
 
 const inputCls =
@@ -106,117 +121,10 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function EditFields({
-  form,
-  partOptions,
-  onChange,
-}: {
-  form: EditForm;
-  partOptions: string[];
-  onChange: (f: Partial<EditForm>) => void;
-}) {
-  return (
-    <div className="grid grid-cols-2 gap-3">
-      <div className="col-span-2">
-        <Field label="Part Number">
-          <input
-            list="part-options-list"
-            value={form.part_number}
-            onChange={(e) => onChange({ part_number: e.target.value })}
-            placeholder="Pilih atau ketik part number..."
-            className={inputCls}
-          />
-          <datalist id="part-options-list">
-            {partOptions.map((p) => (
-              <option key={p} value={p} />
-            ))}
-          </datalist>
-        </Field>
-      </div>
-      <Field label="Waktu Mulai *">
-        <input
-          type="datetime-local"
-          value={form.waktu_awal}
-          onChange={(e) => onChange({ waktu_awal: e.target.value })}
-          className={inputCls}
-        />
-      </Field>
-      <Field label="Waktu Selesai">
-        <input
-          type="datetime-local"
-          value={form.waktu_akhir}
-          onChange={(e) => onChange({ waktu_akhir: e.target.value })}
-          className={inputCls}
-        />
-      </Field>
-      <Field label="QTY">
-        <input
-          type="number"
-          min={0}
-          value={form.qty}
-          onChange={(e) => onChange({ qty: e.target.value })}
-          className={inputCls}
-          placeholder="0"
-        />
-      </Field>
-      <Field label="NG">
-        <input
-          type="number"
-          min={0}
-          value={form.ng}
-          onChange={(e) => onChange({ ng: e.target.value })}
-          className={inputCls}
-          placeholder="0"
-        />
-      </Field>
-      <Field label="Manpower">
-        <input
-          type="number"
-          min={0}
-          value={form.manpower}
-          onChange={(e) => onChange({ manpower: e.target.value })}
-          className={inputCls}
-          placeholder="0"
-        />
-      </Field>
-      <Field label="Dandori (menit)">
-        <input
-          type="number"
-          min={0}
-          value={form.dandori_menit}
-          onChange={(e) => onChange({ dandori_menit: e.target.value })}
-          className={inputCls}
-          placeholder="0"
-        />
-      </Field>
-      <Field label="Downtime (menit)">
-        <input
-          type="number"
-          min={0}
-          value={form.downtime_menit}
-          onChange={(e) => onChange({ downtime_menit: e.target.value })}
-          className={inputCls}
-          placeholder="0"
-        />
-      </Field>
-      <Field label="Break (menit)">
-        <input
-          type="number"
-          min={0}
-          value={form.break_menit}
-          onChange={(e) => onChange({ break_menit: e.target.value })}
-          className={inputCls}
-          placeholder="0"
-        />
-      </Field>
-    </div>
-  );
-}
-
 export default function ProductionLogDashboard() {
   const supabase = createClient();
 
-  const [logs, setLogs] = useState<ProdLog[]>([]);
+  const [logs, setLogs] = useState<CombinedLogItem[]>([]);
   const [lines, setLines] = useState<Line[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -224,6 +132,7 @@ export default function ProductionLogDashboard() {
 
   // Filters
   const [selectedLineId, setSelectedLineId] = useState("all");
+  const [selectedJenis, setSelectedJenis] = useState<"all" | "produksi" | "non_produksi">("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -232,14 +141,19 @@ export default function ProductionLogDashboard() {
   const [partOptions, setPartOptions] = useState<string[]>([]);
 
   // Edit modal
-  const [editTarget, setEditTarget] = useState<ProdLog | null>(null);
-  const [editForm, setEditForm] = useState<EditForm>(emptyEdit());
+  const [editTarget, setEditTarget] = useState<CombinedLogItem | null>(null);
+  const [editProdForm, setEditProdForm] = useState<EditProductionForm>(emptyProductionEdit());
+  const [editNonProdForm, setEditNonProdForm] = useState<EditNonProduksiForm>({
+    waktu_awal: "",
+    waktu_akhir: "",
+    nama: "",
+  });
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isEditClosing, setIsEditClosing] = useState(false);
   const [editError, setEditError] = useState("");
 
   // Delete modal
-  const [deleteTarget, setDeleteTarget] = useState<ProdLog | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CombinedLogItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteClosing, setIsDeleteClosing] = useState(false);
   const [deleteError, setDeleteError] = useState("");
@@ -250,12 +164,15 @@ export default function ProductionLogDashboard() {
   const [isSavingCreate, setIsSavingCreate] = useState(false);
   const [createError, setCreateError] = useState("");
   const [createForm, setCreateForm] = useState<CreateForm>({
-    ...emptyEdit(),
+    ...emptyProductionEdit(),
+    jenis: "produksi",
     line_id: "",
+    mesin: "",
+    stasiun: "",
+    nama_non_produksi: "",
   });
 
-  // ----- Data loaders -----
-
+  // ----- Data Fetching -----
   const loadLogs = useCallback(
     async ({ showLoading = true }: { showLoading?: boolean } = {}) => {
       const reqId = ++requestIdRef.current;
@@ -263,30 +180,73 @@ export default function ProductionLogDashboard() {
         if (showLoading) setIsLoading(true);
         setError("");
 
-        let query = supabase
+        // 1. Fetch Production Logs
+        let prodQuery = supabase
           .from("prod_production_log" as any)
           .select("*, line:lines(name)")
           .eq("is_active", true)
           .order("waktu_awal", { ascending: false })
           .limit(500);
 
+        // 2. Fetch Non-Production Logs (Dandori/Setup/etc)
+        let nonProdQuery = supabase
+          .from("prod_dandori_log" as any)
+          .select("*, line:lines(name)")
+          .eq("is_active", true)
+          .order("waktu_awal", { ascending: false })
+          .limit(500);
+
         if (selectedLineId !== "all") {
-          query = query.eq("line_id", selectedLineId);
+          prodQuery = prodQuery.eq("line_id", selectedLineId);
+          nonProdQuery = nonProdQuery.eq("line_id", selectedLineId);
         }
         if (startDate) {
-          query = query.gte("waktu_awal", `${startDate}T00:00:00`);
+          prodQuery = prodQuery.gte("waktu_awal", `${startDate}T00:00:00`);
+          nonProdQuery = nonProdQuery.gte("waktu_awal", `${startDate}T00:00:00`);
         }
         if (endDate) {
-          query = query.lte("waktu_awal", `${endDate}T23:59:59`);
+          prodQuery = prodQuery.lte("waktu_awal", `${endDate}T23:59:59`);
+          nonProdQuery = nonProdQuery.lte("waktu_awal", `${endDate}T23:59:59`);
         }
 
-        const { data, error: qErr } = await query;
+        const [{ data: prodData, error: prodErr }, { data: nonProdData, error: nonProdErr }] =
+          await Promise.all([prodQuery, nonProdQuery]);
+
         if (requestIdRef.current !== reqId) return;
-        if (qErr) throw qErr;
-        setLogs((data as ProdLog[]) ?? []);
+        if (prodErr) throw prodErr;
+        if (nonProdErr) throw nonProdErr;
+
+        const combined: CombinedLogItem[] = [
+          ...(prodData || []).map((row: any) => ({
+            id: row.id,
+            jenis: "produksi" as const,
+            line_id: row.line_id,
+            mesin: row.mesin,
+            stasiun: row.stasiun,
+            waktu_awal: row.waktu_awal,
+            waktu_akhir: row.waktu_akhir,
+            part_number: row.part_number,
+            line_name: row.line?.name ?? null,
+            data: row,
+          })),
+          ...(nonProdData || []).map((row: any) => ({
+            id: row.id,
+            jenis: "non_produksi" as const,
+            line_id: row.line_id,
+            mesin: row.mesin,
+            stasiun: null,
+            waktu_awal: row.waktu_awal,
+            waktu_akhir: row.waktu_akhir,
+            part_number: row.part_ke || row.part_dari || row.keterangan || null,
+            line_name: row.line?.name ?? null,
+            data: row,
+          })),
+        ].sort((a, b) => new Date(b.waktu_awal).getTime() - new Date(a.waktu_awal).getTime());
+
+        setLogs(combined);
       } catch (err) {
         if (requestIdRef.current !== reqId) return;
-        const msg = err instanceof Error ? err.message : "Gagal memuat data log produksi";
+        const msg = err instanceof Error ? err.message : "Gagal memuat riwayat produksi";
         setError(msg);
         console.error(err);
       } finally {
@@ -300,16 +260,17 @@ export default function ProductionLogDashboard() {
     try {
       let q = supabase
         .from("prod_part_numbers" as any)
-        .select("value")
+        .select("value, kode_part, nama_part")
         .eq("is_active", true);
       if (lineId && lineId !== "all") {
         q = q.eq("line_id", lineId);
       }
       const { data } = await q.order("value");
       if (data) {
-        setPartOptions(
-          Array.from(new Set((data as any[]).map((p: any) => p.value ?? "").filter(Boolean)))
-        );
+        const parts = (data as any[])
+          .map((p) => p.kode_part || p.value || p.nama_part)
+          .filter(Boolean);
+        setPartOptions(Array.from(new Set(parts)));
       }
     } catch {
       setPartOptions([]);
@@ -335,113 +296,167 @@ export default function ProductionLogDashboard() {
 
   useEffect(() => {
     const refresh = () => void loadLogs({ showLoading: false });
-    const channel = supabase
-      .channel("admin-prod-log-dashboard")
+    const channelProd = supabase
+      .channel("admin-prod-log-channel")
       .on("postgres_changes", { event: "*", schema: "public", table: "prod_production_log" }, refresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "prod_dandori_log" }, refresh)
       .subscribe();
     const interval = window.setInterval(refresh, LOG_REFRESH_INTERVAL_MS);
     window.addEventListener("focus", refresh);
     return () => {
       window.clearInterval(interval);
       window.removeEventListener("focus", refresh);
-      void supabase.removeChannel(channel);
+      void supabase.removeChannel(channelProd);
     };
   }, [loadLogs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ----- Client-side filter -----
   const filtered = useMemo(() => {
-    if (!searchQuery.trim()) return logs;
-    const q = searchQuery.toLowerCase();
-    return logs.filter(
-      (log) =>
-        (log.part_number ?? "").toLowerCase().includes(q) ||
-        (log.line?.name ?? "").toLowerCase().includes(q) ||
-        (log.mesin ?? "").toLowerCase().includes(q) ||
-        (log.stasiun ?? "").toLowerCase().includes(q)
-    );
-  }, [logs, searchQuery]);
-
-  // ----- Stats -----
-  const stats = useMemo(() => {
-    let totalQty = 0,
-      totalNg = 0;
-    const uniqueLines = new Set<string>();
-    filtered.forEach((l) => {
-      totalQty += l.qty ?? 0;
-      totalNg += l.ng ?? 0;
-      if (l.line_id) uniqueLines.add(l.line_id);
+    return logs.filter((log) => {
+      if (selectedJenis !== "all" && log.jenis !== selectedJenis) return false;
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      const code = (log.data.kode ?? "").toLowerCase();
+      const part = (log.part_number ?? "").toLowerCase();
+      const lineName = (log.line_name ?? "").toLowerCase();
+      const machine = (log.mesin ?? "").toLowerCase();
+      const station = (log.stasiun ?? "").toLowerCase();
+      return (
+        code.includes(q) ||
+        part.includes(q) ||
+        lineName.includes(q) ||
+        machine.includes(q) ||
+        station.includes(q)
+      );
     });
+  }, [logs, selectedJenis, searchQuery]);
+
+  // ----- KPI Stats (identical aggregation) -----
+  const stats = useMemo(() => {
+    let totalQty = 0;
+    let totalDandori = 0;
+    let totalDT = 0;
+    let totalBreak = 0;
+    let prodCount = 0;
+    let nonProdCount = 0;
+    const uniqueLines = new Set<string>();
+
+    filtered.forEach((l) => {
+      if (l.line_id) uniqueLines.add(l.line_id);
+      if (l.jenis === "produksi") {
+        prodCount++;
+        totalQty += l.data.qty ?? 0;
+        totalDandori += l.data.dandori_menit ?? 0;
+        totalDT += l.data.downtime_menit ?? 0;
+        totalBreak += l.data.break_menit ?? 0;
+      } else {
+        nonProdCount++;
+      }
+    });
+
     return {
       totalQty,
-      totalNg,
-      totalOk: totalQty - totalNg,
-      ngRate: totalQty > 0 ? (totalNg / totalQty) * 100 : 0,
+      totalDandori,
+      totalDT,
+      totalBreak,
+      prodCount,
+      nonProdCount,
+      totalRows: filtered.length,
       activeLinesCount: uniqueLines.size,
-      rowCount: filtered.length,
     };
   }, [filtered]);
 
   const handleResetFilters = () => {
     setSelectedLineId("all");
+    setSelectedJenis("all");
     setStartDate("");
     setEndDate("");
     setSearchQuery("");
   };
 
+  // ----- CSV Export -----
   const handleExportCSV = () => {
     if (filtered.length === 0) return;
     const headers = [
-      "Tanggal","Waktu Mulai","Waktu Selesai","Line","Mesin","Stasiun",
-      "Part Number","QTY","NG","OK","Manpower","Dandori (m)","Downtime (m)","Break (m)",
+      "Kode",
+      "Jenis",
+      "Line",
+      "Stasiun",
+      "Waktu Awal",
+      "Waktu Akhir",
+      "Part Number / Keterangan",
+      "Qty",
+      "MP",
+      "Dandori (mnt)",
+      "DT (mnt)",
+      "Break (mnt)",
+      "Routing",
     ];
-    const rows = filtered.map((l) =>
-      [
-        formatDate(l.waktu_awal),
-        formatTime(l.waktu_awal),
-        formatTime(l.waktu_akhir),
-        l.line?.name ?? "-",
-        l.mesin,
-        l.stasiun ?? "-",
-        l.part_number ?? "-",
-        l.qty ?? 0,
-        l.ng ?? 0,
-        (l.qty ?? 0) - (l.ng ?? 0),
-        l.manpower ?? "-",
-        l.dandori_menit ?? 0,
-        l.downtime_menit ?? 0,
-        l.break_menit ?? 0,
-      ]
-        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-        .join(",")
-    );
+
+    const rows = filtered.map((row) => {
+      const data = row.data;
+      const isProd = row.jenis === "produksi";
+      const routing = isProd && data.extra?.routing_type
+        ? `${data.extra.routing_type}${data.extra.routing_numbers ? ` ${data.extra.routing_numbers.join(",")}` : ""}`
+        : "-";
+
+      return [
+        isProd ? (data.kode || "-") : "-",
+        isProd ? "Produksi" : "Non-Produksi",
+        row.line_name ?? row.mesin,
+        data.stasiun ?? "-",
+        fmt(row.waktu_awal),
+        fmt(row.waktu_akhir),
+        row.part_number ?? "-",
+        isProd ? (data.qty ?? 0) : "-",
+        isProd ? (data.manpower ?? "-") : "-",
+        isProd ? (data.dandori_menit ?? 0) : "-",
+        isProd ? (data.downtime_menit ?? 0) : "-",
+        isProd ? (data.break_menit ?? 0) : "-",
+        routing,
+      ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
+    });
+
     const csv = [headers.join(","), ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `Log_Produksi_${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `Riwayat_Produksi_${new Date().toISOString().split("T")[0]}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
-  // ----- Edit -----
-  const openEdit = (log: ProdLog) => {
-    setEditTarget(log);
-    setEditForm({
-      part_number: log.part_number ?? "",
-      qty: log.qty !== null ? String(log.qty) : "",
-      ng: log.ng !== null ? String(log.ng) : "",
-      manpower: log.manpower !== null ? String(log.manpower) : "",
-      waktu_awal: toLocalInput(log.waktu_awal),
-      waktu_akhir: toLocalInput(log.waktu_akhir),
-      dandori_menit: log.dandori_menit !== null ? String(log.dandori_menit) : "",
-      downtime_menit: log.downtime_menit !== null ? String(log.downtime_menit) : "",
-      break_menit: log.break_menit !== null ? String(log.break_menit) : "",
-    });
+  // ----- Edit Handlers -----
+  const openEdit = (item: CombinedLogItem) => {
+    setEditTarget(item);
     setEditError("");
-    void loadPartOptions(log.line_id ?? undefined);
+    const data = item.data;
+
+    if (item.jenis === "produksi") {
+      setEditProdForm({
+        part_number: data.part_number ?? "",
+        qty: data.qty !== null && data.qty !== undefined ? String(data.qty) : "",
+        ng: data.ng !== null && data.ng !== undefined ? String(data.ng) : "",
+        manpower: data.manpower !== null && data.manpower !== undefined ? String(data.manpower) : "",
+        waktu_awal: toLocalInput(data.waktu_awal),
+        waktu_akhir: toLocalInput(data.waktu_akhir),
+        dandori_menit: data.dandori_menit !== null && data.dandori_menit !== undefined ? String(data.dandori_menit) : "",
+        downtime_menit: data.downtime_menit !== null && data.downtime_menit !== undefined ? String(data.downtime_menit) : "",
+        break_menit: data.break_menit !== null && data.break_menit !== undefined ? String(data.break_menit) : "",
+        routing_type: (data.extra?.routing_type as "WIP" | "FG") ?? "",
+        routing_numbers: data.extra?.routing_numbers ? data.extra.routing_numbers.join(",") : "",
+      });
+      void loadPartOptions(item.line_id ?? undefined);
+    } else {
+      setEditNonProdForm({
+        waktu_awal: toLocalInput(data.waktu_awal),
+        waktu_akhir: toLocalInput(data.waktu_akhir),
+        nama: data.part_ke || data.keterangan || data.part_dari || "",
+      });
+    }
   };
 
   const closeEdit = () => {
@@ -459,37 +474,66 @@ export default function ProductionLogDashboard() {
     try {
       setIsSavingEdit(true);
       setEditError("");
-      const payload: Record<string, unknown> = {
-        part_number: editForm.part_number || null,
-        qty: editForm.qty !== "" ? Number(editForm.qty) : null,
-        ng: editForm.ng !== "" ? Number(editForm.ng) : null,
-        manpower: editForm.manpower !== "" ? Number(editForm.manpower) : null,
-        waktu_akhir: editForm.waktu_akhir ? new Date(editForm.waktu_akhir).toISOString() : null,
-        dandori_menit: editForm.dandori_menit !== "" ? Number(editForm.dandori_menit) : null,
-        downtime_menit: editForm.downtime_menit !== "" ? Number(editForm.downtime_menit) : null,
-        break_menit: editForm.break_menit !== "" ? Number(editForm.break_menit) : null,
-      };
-      if (editForm.waktu_awal) {
-        payload.waktu_awal = new Date(editForm.waktu_awal).toISOString();
+
+      if (editTarget.jenis === "produksi") {
+        const extra = { ...(editTarget.data.extra || {}) };
+        if (editProdForm.routing_type) {
+          extra.routing_type = editProdForm.routing_type;
+          extra.routing_numbers = editProdForm.routing_numbers
+            ? editProdForm.routing_numbers.split(",").map((n) => Number(n.trim())).filter((n) => !isNaN(n))
+            : [];
+        } else {
+          delete extra.routing_type;
+          delete extra.routing_numbers;
+        }
+
+        const payload: Record<string, any> = {
+          part_number: editProdForm.part_number || null,
+          qty: editProdForm.qty !== "" ? Number(editProdForm.qty) : null,
+          ng: editProdForm.ng !== "" ? Number(editProdForm.ng) : null,
+          manpower: editProdForm.manpower !== "" ? Number(editProdForm.manpower) : null,
+          waktu_akhir: editProdForm.waktu_akhir ? new Date(editProdForm.waktu_akhir).toISOString() : null,
+          dandori_menit: editProdForm.dandori_menit !== "" ? Number(editProdForm.dandori_menit) : null,
+          downtime_menit: editProdForm.downtime_menit !== "" ? Number(editProdForm.downtime_menit) : null,
+          break_menit: editProdForm.break_menit !== "" ? Number(editProdForm.break_menit) : null,
+          extra,
+        };
+        if (editProdForm.waktu_awal) {
+          payload.waktu_awal = new Date(editProdForm.waktu_awal).toISOString();
+        }
+
+        const { error: err } = await supabase
+          .from("prod_production_log" as any)
+          .update(payload)
+          .eq("id", editTarget.id);
+        if (err) throw err;
+      } else {
+        const payload: Record<string, any> = {
+          waktu_awal: new Date(editNonProdForm.waktu_awal).toISOString(),
+          waktu_akhir: editNonProdForm.waktu_akhir ? new Date(editNonProdForm.waktu_akhir).toISOString() : null,
+          part_ke: editNonProdForm.nama,
+          keterangan: editNonProdForm.nama,
+        };
+        const { error: err } = await supabase
+          .from("prod_dandori_log" as any)
+          .update(payload)
+          .eq("id", editTarget.id);
+        if (err) throw err;
       }
-      const { error: saveErr } = await supabase
-        .from("prod_production_log" as any)
-        .update(payload)
-        .eq("id", editTarget.id);
-      if (saveErr) throw saveErr;
-      toast.success("Log produksi berhasil diperbarui!");
+
+      toast.success("Data riwayat berhasil diperbarui!");
       closeEdit();
       void loadLogs({ showLoading: false });
     } catch (err) {
-      setEditError(err instanceof Error ? err.message : "Gagal menyimpan");
+      setEditError(err instanceof Error ? err.message : "Gagal menyimpan perubahan");
     } finally {
       setIsSavingEdit(false);
     }
   };
 
-  // ----- Delete -----
-  const openDelete = (log: ProdLog) => {
-    setDeleteTarget(log);
+  // ----- Delete Handlers -----
+  const openDelete = (item: CombinedLogItem) => {
+    setDeleteTarget(item);
     setDeleteError("");
   };
 
@@ -508,26 +552,32 @@ export default function ProductionLogDashboard() {
     try {
       setIsDeleting(true);
       setDeleteError("");
-      const { error: delErr } = await supabase
-        .from("prod_production_log" as any)
+      const table = deleteTarget.jenis === "produksi" ? "prod_production_log" : "prod_dandori_log";
+      const { error: err } = await supabase
+        .from(table as any)
         .update({ is_active: false })
         .eq("id", deleteTarget.id);
-      if (delErr) throw delErr;
-      toast.success("Log produksi berhasil dihapus.");
+      if (err) throw err;
+
+      toast.success("Baris riwayat berhasil dihapus (soft-delete).");
       setLogs((prev) => prev.filter((l) => l.id !== deleteTarget.id));
       closeDelete();
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : "Gagal menghapus");
+      setDeleteError(err instanceof Error ? err.message : "Gagal menghapus baris riwayat");
     } finally {
       setIsDeleting(false);
     }
   };
 
-  // ----- Create -----
+  // ----- Create Handlers -----
   const openCreate = () => {
     setCreateForm({
-      ...emptyEdit(),
+      ...emptyProductionEdit(),
+      jenis: "produksi",
       line_id: selectedLineId !== "all" ? selectedLineId : "",
+      mesin: "",
+      stasiun: "",
+      nama_non_produksi: "",
     });
     setCreateError("");
     setShowCreate(true);
@@ -557,68 +607,68 @@ export default function ProductionLogDashboard() {
       setIsSavingCreate(true);
       setCreateError("");
       const selectedLine = lines.find((l) => l.id === createForm.line_id);
-      const payload = {
-        line_id: createForm.line_id,
-        mesin: selectedLine?.machine_type ?? "blanking",
-        waktu_awal: new Date(createForm.waktu_awal).toISOString(),
-        waktu_akhir: createForm.waktu_akhir ? new Date(createForm.waktu_akhir).toISOString() : null,
-        part_number: createForm.part_number || null,
-        qty: createForm.qty !== "" ? Number(createForm.qty) : null,
-        ng: createForm.ng !== "" ? Number(createForm.ng) : null,
-        manpower: createForm.manpower !== "" ? Number(createForm.manpower) : null,
-        dandori_menit: createForm.dandori_menit !== "" ? Number(createForm.dandori_menit) : null,
-        downtime_menit: createForm.downtime_menit !== "" ? Number(createForm.downtime_menit) : null,
-        break_menit: createForm.break_menit !== "" ? Number(createForm.break_menit) : null,
-        is_active: true,
-      };
-      const { error: insErr } = await supabase
-        .from("prod_production_log" as any)
-        .insert(payload);
-      if (insErr) throw insErr;
-      toast.success("Log produksi baru berhasil ditambahkan!");
+      const machineType = selectedLine?.machine_type ?? "blanking";
+
+      if (createForm.jenis === "produksi") {
+        const extra: Record<string, any> = {};
+        if (createForm.routing_type) {
+          extra.routing_type = createForm.routing_type;
+          extra.routing_numbers = createForm.routing_numbers
+            ? createForm.routing_numbers.split(",").map((n) => Number(n.trim())).filter((n) => !isNaN(n))
+            : [];
+        }
+
+        const payload = {
+          line_id: createForm.line_id,
+          mesin: machineType,
+          stasiun: createForm.stasiun || null,
+          waktu_awal: new Date(createForm.waktu_awal).toISOString(),
+          waktu_akhir: createForm.waktu_akhir ? new Date(createForm.waktu_akhir).toISOString() : null,
+          part_number: createForm.part_number || null,
+          qty: createForm.qty !== "" ? Number(createForm.qty) : null,
+          ng: createForm.ng !== "" ? Number(createForm.ng) : null,
+          manpower: createForm.manpower !== "" ? Number(createForm.manpower) : null,
+          dandori_menit: createForm.dandori_menit !== "" ? Number(createForm.dandori_menit) : null,
+          downtime_menit: createForm.downtime_menit !== "" ? Number(createForm.downtime_menit) : null,
+          break_menit: createForm.break_menit !== "" ? Number(createForm.break_menit) : null,
+          extra,
+          is_active: true,
+        };
+
+        const { error: insErr } = await supabase.from("prod_production_log" as any).insert(payload);
+        if (insErr) throw insErr;
+      } else {
+        const payload = {
+          line_id: createForm.line_id,
+          mesin: machineType,
+          waktu_awal: new Date(createForm.waktu_awal).toISOString(),
+          waktu_akhir: createForm.waktu_akhir ? new Date(createForm.waktu_akhir).toISOString() : null,
+          part_ke: createForm.nama_non_produksi || "Non-Produksi",
+          keterangan: createForm.nama_non_produksi || "Non-Produksi",
+          is_active: true,
+        };
+        const { error: insErr } = await supabase.from("prod_dandori_log" as any).insert(payload);
+        if (insErr) throw insErr;
+      }
+
+      toast.success("Entri baru berhasil ditambahkan!");
       closeCreate();
       void loadLogs({ showLoading: false });
     } catch (err) {
-      setCreateError(err instanceof Error ? err.message : "Gagal menyimpan");
+      setCreateError(err instanceof Error ? err.message : "Gagal menambah data");
     } finally {
       setIsSavingCreate(false);
     }
   };
 
-  // ===================== RENDER =====================
-
-  const statCards = [
-    { label: "Total QTY", value: stats.totalQty, color: "blue", sub: "Semua produksi" },
-    {
-      label: "QTY OK",
-      value: stats.totalOk,
-      color: "emerald",
-      sub:
-        stats.totalQty > 0
-          ? `${((stats.totalOk / stats.totalQty) * 100).toFixed(1)}% dari total`
-          : "0%",
-    },
-    { label: "QTY NG", value: stats.totalNg, color: "rose", sub: `Rate: ${stats.ngRate.toFixed(1)}%` },
-    { label: "Line Aktif", value: stats.activeLinesCount, color: "purple", sub: "Line beraktivitas" },
-    { label: "Total Entri", value: stats.rowCount, color: "amber", sub: "Baris ditampilkan" },
-  ];
-
-  const colorMap: Record<string, { border: string; bg: string; text: string; badge: string; bar: string }> = {
-    blue:    { border: "border-blue-100",    bg: "from-blue-50",    text: "text-blue-600",    badge: "bg-blue-100",    bar: "bg-blue-500" },
-    emerald: { border: "border-emerald-100", bg: "from-emerald-50", text: "text-emerald-600", badge: "bg-emerald-100", bar: "bg-emerald-500" },
-    rose:    { border: "border-rose-100",    bg: "from-rose-50",    text: "text-rose-600",    badge: "bg-rose-100",    bar: "bg-rose-500" },
-    purple:  { border: "border-purple-100",  bg: "from-purple-50",  text: "text-purple-600",  badge: "bg-purple-100",  bar: "bg-purple-500" },
-    amber:   { border: "border-amber-100",   bg: "from-amber-50",   text: "text-amber-600",   badge: "bg-amber-100",   bar: "bg-amber-500" },
-  };
-
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Riwayat Produksi Semua Line</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Riwayat Produksi (All Lines)</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Data log produksi seluruh mesin/line. Admin dapat menambah, mengedit, atau menghapus entri.
+            Tampilan riwayat lengkap seluruh line sesuai format operator (Kode, Line, Stasiun, Waktu, Qty, MP, Dandori, DT, Break, Routing).
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -650,27 +700,80 @@ export default function ProductionLogDashboard() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        {statCards.map((card) => {
-          const c = colorMap[card.color];
-          return (
-            <div
-              key={card.label}
-              className={`relative overflow-hidden rounded-xl border ${c.border} bg-gradient-to-br ${c.bg} to-white p-5 shadow-sm transition-all duration-200 hover:shadow-md`}
-            >
-              <div className="flex items-center justify-between">
-                <span className={`text-xs font-semibold uppercase tracking-wider ${c.text}`}>{card.label}</span>
-                <div className={`rounded-lg ${c.badge} p-2 ${c.text}`}>
-                  <Activity className="h-4 w-4" />
-                </div>
-              </div>
-              <div className="mt-4">
-                <h3 className="text-3xl font-bold text-slate-900">{card.value}</h3>
-                <p className={`mt-1 text-xs font-medium ${c.text}`}>{card.sub}</p>
-              </div>
-              <div className={`absolute bottom-0 left-0 right-0 h-1 ${c.bar}`} />
+        {/* Total Produksi (Qty) */}
+        <div className="relative overflow-hidden rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white p-4 shadow-sm transition-all duration-200 hover:shadow-md">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-blue-600">Total Qty</span>
+            <div className="rounded-lg bg-blue-100 p-2 text-blue-600">
+              <Activity className="h-4 w-4" />
             </div>
-          );
-        })}
+          </div>
+          <div className="mt-3">
+            <h3 className="text-2xl font-bold text-slate-900">{fmtNum(stats.totalQty)}</h3>
+            <p className="mt-0.5 text-xs text-blue-600 font-medium">{stats.prodCount} baris produksi</p>
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-500" />
+        </div>
+
+        {/* Total Dandori */}
+        <div className="relative overflow-hidden rounded-xl border border-amber-100 bg-gradient-to-br from-amber-50 to-white p-4 shadow-sm transition-all duration-200 hover:shadow-md">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-amber-600">Total Dandori</span>
+            <div className="rounded-lg bg-amber-100 p-2 text-amber-600">
+              <Wrench className="h-4 w-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <h3 className="text-2xl font-bold text-slate-900">{fmtNum(stats.totalDandori)} mnt</h3>
+            <p className="mt-0.5 text-xs text-amber-600 font-medium">Waktu pergantian part</p>
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-amber-500" />
+        </div>
+
+        {/* Total Downtime */}
+        <div className="relative overflow-hidden rounded-xl border border-rose-100 bg-gradient-to-br from-rose-50 to-white p-4 shadow-sm transition-all duration-200 hover:shadow-md">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-rose-600">Total DT</span>
+            <div className="rounded-lg bg-rose-100 p-2 text-rose-600">
+              <AlertTriangle className="h-4 w-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <h3 className="text-2xl font-bold text-slate-900">{fmtNum(stats.totalDT)} mnt</h3>
+            <p className="mt-0.5 text-xs text-rose-600 font-medium">Downtime tercatat</p>
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-rose-500" />
+        </div>
+
+        {/* Total Break */}
+        <div className="relative overflow-hidden rounded-xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-4 shadow-sm transition-all duration-200 hover:shadow-md">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-emerald-600">Total Break</span>
+            <div className="rounded-lg bg-emerald-100 p-2 text-emerald-600">
+              <Coffee className="h-4 w-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <h3 className="text-2xl font-bold text-slate-900">{fmtNum(stats.totalBreak)} mnt</h3>
+            <p className="mt-0.5 text-xs text-emerald-600 font-medium">Istirahat operator</p>
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500" />
+        </div>
+
+        {/* Active Lines & Rows */}
+        <div className="relative overflow-hidden rounded-xl border border-purple-100 bg-gradient-to-br from-purple-50 to-white p-4 shadow-sm transition-all duration-200 hover:shadow-md">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-purple-600">Line &amp; Entri</span>
+            <div className="rounded-lg bg-purple-100 p-2 text-purple-600">
+              <Layers className="h-4 w-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <h3 className="text-2xl font-bold text-slate-900">{stats.activeLinesCount} Line</h3>
+            <p className="mt-0.5 text-xs text-purple-600 font-medium">{stats.totalRows} baris total</p>
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-purple-500" />
+        </div>
       </div>
 
       {/* Filter Panel */}
@@ -679,8 +782,8 @@ export default function ProductionLogDashboard() {
           <SlidersHorizontal className="h-5 w-5 text-slate-500" />
           <h2 className="font-semibold text-base">Panel Filter &amp; Pencarian</h2>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-          {/* Line */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+          {/* Line Selection */}
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Line Produksi</label>
             <div className="relative">
@@ -693,6 +796,23 @@ export default function ProductionLogDashboard() {
                 {lines.map((l) => (
                   <option key={l.id} value={l.id}>{l.name}</option>
                 ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            </div>
+          </div>
+
+          {/* Jenis Selection */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Kategori / Jenis</label>
+            <div className="relative">
+              <select
+                value={selectedJenis}
+                onChange={(e) => setSelectedJenis(e.target.value as any)}
+                className="w-full pl-3 pr-8 py-2 text-sm border border-slate-200 bg-slate-50/50 rounded-xl text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 appearance-none font-medium transition cursor-pointer"
+              >
+                <option value="all">Semua (Produksi + Non)</option>
+                <option value="produksi">Hanya Produksi</option>
+                <option value="non_produksi">Hanya Non-Produksi</option>
               </select>
               <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             </div>
@@ -732,7 +852,7 @@ export default function ProductionLogDashboard() {
             <div className="relative flex items-center rounded border border-slate-300 bg-white hover:border-slate-400 transition-colors px-3">
               <input
                 type="text"
-                placeholder="Part Number / Mesin / Line..."
+                placeholder="Kode / Part / Mesin..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="h-9 w-full bg-transparent text-sm text-slate-700 outline-none pr-6"
@@ -744,10 +864,9 @@ export default function ProductionLogDashboard() {
 
         <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3 border-t border-slate-100">
           <p className="text-xs font-medium text-slate-500">
-            Menampilkan{" "}
-            <span className="font-semibold text-slate-800">{filtered.length}</span> entri log produksi.
+            Menampilkan <span className="font-semibold text-slate-800">{filtered.length}</span> baris riwayat produksi.
           </p>
-          {(selectedLineId !== "all" || startDate || endDate || searchQuery) && (
+          {(selectedLineId !== "all" || selectedJenis !== "all" || startDate || endDate || searchQuery) && (
             <button
               onClick={handleResetFilters}
               className="text-xs font-semibold text-red-600 hover:text-red-700 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0 self-start sm:self-center"
@@ -758,7 +877,7 @@ export default function ProductionLogDashboard() {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Main Table - Exact Columns as Operator RiwayatTab */}
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         {error && (
           <div className="m-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
@@ -774,9 +893,9 @@ export default function ProductionLogDashboard() {
             <div className="mx-auto h-12 w-12 rounded-full bg-slate-50 flex items-center justify-center border border-slate-200">
               <Filter className="h-5 w-5 text-slate-400" />
             </div>
-            <h3 className="mt-4 text-sm font-semibold text-slate-900">Tidak ada log produksi</h3>
+            <h3 className="mt-4 text-sm font-semibold text-slate-900">Belum ada data riwayat</h3>
             <p className="mt-1 text-xs text-slate-500 max-w-sm mx-auto">
-              Tidak ada data yang cocok dengan filter saat ini. Ubah filter atau tambahkan entri baru.
+              Tidak ada data yang cocok dengan kriteria filter saat ini. Ubah filter atau tambahkan entri baru.
             </p>
           </div>
         ) : (
@@ -784,97 +903,131 @@ export default function ProductionLogDashboard() {
             <table className="w-full text-left text-sm border-collapse">
               <thead>
                 <tr className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200 select-none">
-                  <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Tanggal</th>
-                  <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Line</th>
-                  <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Stasiun</th>
-                  <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Part Number</th>
-                  <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-center">Mulai – Selesai</th>
-                  <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-right">QTY OK</th>
-                  <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-right">QTY NG</th>
-                  <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-right">NG Rate</th>
-                  <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-center">MP</th>
-                  <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-center">Aksi</th>
+                  <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider">Kode</th>
+                  <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider">Line</th>
+                  <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider">Stasiun</th>
+                  <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider">Waktu Awal</th>
+                  <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider">Waktu Akhir</th>
+                  <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider">Part Number</th>
+                  <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider text-right">Qty</th>
+                  <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider text-center">MP</th>
+                  <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider text-right">Dandori</th>
+                  <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider text-right">DT</th>
+                  <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider text-right">Break</th>
+                  <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider text-center">Routing</th>
+                  <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider text-center">Aksi</th>
                 </tr>
               </thead>
               <tbody
-                key={`${selectedLineId}-${startDate}-${endDate}`}
+                key={`${selectedLineId}-${selectedJenis}-${startDate}-${endDate}`}
                 className="divide-y divide-slate-100 animate-in fade-in slide-in-from-bottom-2 duration-500"
               >
-                {filtered.map((log, index) => {
-                  const qty = log.qty ?? 0;
-                  const ng = log.ng ?? 0;
-                  const ok = qty - ng;
-                  const ngRate = qty > 0 ? (ng / qty) * 100 : 0;
-                  const isNgHigh = ng > 0;
+                {filtered.map((row, index) => {
+                  const data = row.data;
+                  const isProd = row.jenis === "produksi";
+                  const routing = isProd && data.extra?.routing_type
+                    ? `${data.extra.routing_type}${data.extra.routing_numbers ? ` ${data.extra.routing_numbers.join(",")}` : ""}`
+                    : "-";
+                  const hasDt = isProd && (data.downtime_menit ?? 0) > 0;
+
                   return (
                     <tr
-                      key={log.id}
+                      key={`${row.jenis}-${data.id || index}`}
                       className="hover:bg-slate-50 transition-colors duration-200 animate-in fade-in slide-in-from-bottom-1 duration-300 fill-mode-backwards"
-                      style={{ animationDelay: `${Math.min(index * 25, 300)}ms` }}
+                      style={{ animationDelay: `${Math.min(index * 20, 300)}ms` }}
                     >
-                      <td className="py-3.5 px-4 font-medium text-slate-900 whitespace-nowrap">
-                        <div>{formatDate(log.waktu_awal)}</div>
-                        <div className="text-xs text-slate-400">{formatTime(log.waktu_awal)}</div>
+                      {/* Kode */}
+                      <td className="py-3 px-3 font-mono text-xs text-slate-700 whitespace-nowrap">
+                        {isProd ? data.kode || "-" : (
+                          <span className="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                            Non-Prod
+                          </span>
+                        )}
                       </td>
-                      <td className="py-3.5 px-4 font-semibold text-slate-700 whitespace-nowrap">
-                        {log.line?.name ?? log.mesin}
+
+                      {/* Line */}
+                      <td className="py-3 px-3 font-semibold text-xs text-slate-700 whitespace-nowrap">
+                        {row.line_name ?? row.mesin}
                       </td>
-                      <td className="py-3.5 px-4 text-slate-500 whitespace-nowrap text-xs">
-                        {log.stasiun ?? "-"}
+
+                      {/* Stasiun */}
+                      <td className="py-3 px-3 font-mono text-xs text-slate-500 whitespace-nowrap">
+                        {data.stasiun || "-"}
                       </td>
-                      <td className="py-3.5 px-4 font-semibold text-slate-800 whitespace-nowrap font-mono">
-                        {log.part_number ?? "-"}
+
+                      {/* Waktu Awal */}
+                      <td className="py-3 px-3 font-mono text-xs text-slate-700 whitespace-nowrap">
+                        {fmt(row.waktu_awal)}
                       </td>
-                      <td className="py-3.5 px-4 text-center text-slate-600 whitespace-nowrap font-medium text-xs">
-                        {formatTime(log.waktu_awal)} – {formatTime(log.waktu_akhir)}
+
+                      {/* Waktu Akhir */}
+                      <td className="py-3 px-3 font-mono text-xs text-slate-700 whitespace-nowrap">
+                        {fmt(row.waktu_akhir)}
                       </td>
-                      <td className="py-3.5 px-4 text-right text-slate-800 font-bold whitespace-nowrap">
-                        {ok}
+
+                      {/* Part Number */}
+                      <td className="py-3 px-3 font-semibold text-xs text-slate-900 whitespace-nowrap font-mono">
+                        {row.part_number || "-"}
                       </td>
-                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                        <span
-                          className={`font-bold ${
-                            isNgHigh
-                              ? "text-red-600 bg-red-50 border border-red-100 rounded px-1.5 py-0.5"
-                              : "text-slate-500"
-                          }`}
-                        >
-                          {ng}
-                        </span>
+
+                      {/* Qty */}
+                      <td className="py-3 px-3 text-right font-mono text-xs font-bold text-slate-800 whitespace-nowrap">
+                        {isProd ? fmtNum(data.qty) : "-"}
                       </td>
-                      <td className="py-3.5 px-4 text-right font-semibold whitespace-nowrap">
-                        <span
-                          className={
-                            isNgHigh
-                              ? ngRate > 5
-                                ? "text-red-700"
-                                : "text-amber-700"
-                              : "text-slate-400 font-normal"
-                          }
-                        >
-                          {ngRate.toFixed(1)}%
-                        </span>
+
+                      {/* MP */}
+                      <td className="py-3 px-3 text-center font-mono text-xs text-slate-700 whitespace-nowrap">
+                        {isProd ? fmtNum(data.manpower) : "-"}
                       </td>
-                      <td className="py-3.5 px-4 text-center text-slate-600 whitespace-nowrap">
-                        {log.manpower ?? "-"}
+
+                      {/* Dandori */}
+                      <td className="py-3 px-3 text-right font-mono text-xs text-slate-600 whitespace-nowrap">
+                        {isProd ? (data.dandori_menit ? `${fmtNum(data.dandori_menit)} mnt` : "-") : "-"}
                       </td>
-                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+
+                      {/* DT */}
+                      <td className="py-3 px-3 text-right font-mono text-xs whitespace-nowrap">
+                        {isProd ? (
+                          hasDt ? (
+                            <span className="text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                              {fmtNum(data.downtime_menit)} mnt
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">-</span>
+                          )
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+
+                      {/* Break */}
+                      <td className="py-3 px-3 text-right font-mono text-xs text-slate-600 whitespace-nowrap">
+                        {isProd ? (data.break_menit ? `${fmtNum(data.break_menit)} mnt` : "-") : "-"}
+                      </td>
+
+                      {/* Routing */}
+                      <td className="py-3 px-3 text-center text-xs text-slate-600 whitespace-nowrap font-mono">
+                        {routing}
+                      </td>
+
+                      {/* Aksi */}
+                      <td className="py-3 px-3 text-center whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
                             type="button"
-                            onClick={() => openEdit(log)}
-                            className="inline-flex items-center justify-center h-8 w-8 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors duration-200 cursor-pointer"
+                            onClick={() => openEdit(row)}
+                            className="inline-flex items-center justify-center h-7 w-7 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors duration-200 cursor-pointer"
                             title="Edit"
                           >
-                            <Pencil className="h-4 w-4" />
+                            <Pencil className="h-3.5 w-3.5" />
                           </button>
                           <button
                             type="button"
-                            onClick={() => openDelete(log)}
-                            className="inline-flex items-center justify-center h-8 w-8 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors duration-200 cursor-pointer"
+                            onClick={() => openDelete(row)}
+                            className="inline-flex items-center justify-center h-7 w-7 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors duration-200 cursor-pointer"
                             title="Hapus"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
                       </td>
@@ -887,7 +1040,7 @@ export default function ProductionLogDashboard() {
         )}
       </div>
 
-      {/* ===== EDIT MODAL ===== */}
+      {/* ===================== EDIT MODAL ===================== */}
       {editTarget && (
         <div
           className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-[2px] ${
@@ -908,9 +1061,11 @@ export default function ProductionLogDashboard() {
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <div>
-                <h3 className="text-lg font-bold text-slate-900">Edit Log Produksi</h3>
+                <h3 className="text-lg font-bold text-slate-900">
+                  Edit Riwayat {editTarget.jenis === "produksi" ? "Produksi" : "Non-Produksi"}
+                </h3>
                 <p className="text-xs text-slate-500">
-                  {editTarget.line?.name ?? editTarget.mesin} — {formatDate(editTarget.waktu_awal)}
+                  {editTarget.line_name ?? editTarget.mesin} — {fmt(editTarget.waktu_awal)}
                 </p>
               </div>
               <button
@@ -920,32 +1075,167 @@ export default function ProductionLogDashboard() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="p-6 max-h-[65vh] overflow-y-auto">
-              <EditFields
-                form={editForm}
-                partOptions={partOptions}
-                onChange={(f) => setEditForm((prev) => ({ ...prev, ...f }))}
-              />
+
+            <div className="p-6 max-h-[65vh] overflow-y-auto space-y-3">
+              {editTarget.jenis === "produksi" ? (
+                <>
+                  <Field label="Part Number">
+                    <input
+                      list="edit-part-options"
+                      value={editProdForm.part_number}
+                      onChange={(e) => setEditProdForm((p) => ({ ...p, part_number: e.target.value }))}
+                      placeholder="Pilih atau ketik part number..."
+                      className={inputCls}
+                    />
+                    <datalist id="edit-part-options">
+                      {partOptions.map((p) => (
+                        <option key={p} value={p} />
+                      ))}
+                    </datalist>
+                  </Field>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Waktu Awal">
+                      <input
+                        type="datetime-local"
+                        value={editProdForm.waktu_awal}
+                        onChange={(e) => setEditProdForm((p) => ({ ...p, waktu_awal: e.target.value }))}
+                        className={inputCls}
+                      />
+                    </Field>
+                    <Field label="Waktu Akhir">
+                      <input
+                        type="datetime-local"
+                        value={editProdForm.waktu_akhir}
+                        onChange={(e) => setEditProdForm((p) => ({ ...p, waktu_akhir: e.target.value }))}
+                        className={inputCls}
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Qty">
+                      <input
+                        type="number"
+                        min={0}
+                        value={editProdForm.qty}
+                        onChange={(e) => setEditProdForm((p) => ({ ...p, qty: e.target.value }))}
+                        className={inputCls}
+                        placeholder="0"
+                      />
+                    </Field>
+                    <Field label="Manpower (MP)">
+                      <input
+                        type="number"
+                        min={0}
+                        value={editProdForm.manpower}
+                        onChange={(e) => setEditProdForm((p) => ({ ...p, manpower: e.target.value }))}
+                        className={inputCls}
+                        placeholder="0"
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <Field label="Dandori (mnt)">
+                      <input
+                        type="number"
+                        min={0}
+                        value={editProdForm.dandori_menit}
+                        onChange={(e) => setEditProdForm((p) => ({ ...p, dandori_menit: e.target.value }))}
+                        className={inputCls}
+                        placeholder="0"
+                      />
+                    </Field>
+                    <Field label="Downtime (mnt)">
+                      <input
+                        type="number"
+                        min={0}
+                        value={editProdForm.downtime_menit}
+                        onChange={(e) => setEditProdForm((p) => ({ ...p, downtime_menit: e.target.value }))}
+                        className={inputCls}
+                        placeholder="0"
+                      />
+                    </Field>
+                    <Field label="Break (mnt)">
+                      <input
+                        type="number"
+                        min={0}
+                        value={editProdForm.break_menit}
+                        onChange={(e) => setEditProdForm((p) => ({ ...p, break_menit: e.target.value }))}
+                        className={inputCls}
+                        placeholder="0"
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Routing Type">
+                      <select
+                        value={editProdForm.routing_type}
+                        onChange={(e) => setEditProdForm((p) => ({ ...p, routing_type: e.target.value as any }))}
+                        className={inputCls}
+                      >
+                        <option value="">- Tidak Ada -</option>
+                        <option value="WIP">WIP</option>
+                        <option value="FG">FG</option>
+                      </select>
+                    </Field>
+                    <Field label="Routing Numbers (mis: 1,2,3)">
+                      <input
+                        type="text"
+                        value={editProdForm.routing_numbers}
+                        onChange={(e) => setEditProdForm((p) => ({ ...p, routing_numbers: e.target.value }))}
+                        className={inputCls}
+                        placeholder="1,2,3"
+                      />
+                    </Field>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Field label="Jenis / Nama Non-Produksi">
+                    <input
+                      type="text"
+                      value={editNonProdForm.nama}
+                      onChange={(e) => setEditNonProdForm((p) => ({ ...p, nama: e.target.value }))}
+                      className={inputCls}
+                      placeholder="Contoh: Briefing, 5R, Setup, dll."
+                    />
+                  </Field>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Waktu Awal">
+                      <input
+                        type="datetime-local"
+                        value={editNonProdForm.waktu_awal}
+                        onChange={(e) => setEditNonProdForm((p) => ({ ...p, waktu_awal: e.target.value }))}
+                        className={inputCls}
+                      />
+                    </Field>
+                    <Field label="Waktu Akhir">
+                      <input
+                        type="datetime-local"
+                        value={editNonProdForm.waktu_akhir}
+                        onChange={(e) => setEditNonProdForm((p) => ({ ...p, waktu_akhir: e.target.value }))}
+                        className={inputCls}
+                      />
+                    </Field>
+                  </div>
+                </>
+              )}
+
               {editError && (
                 <p className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg p-2">
                   {editError}
                 </p>
               )}
             </div>
+
             <div className="border-t border-slate-100 px-6 py-4 flex gap-3">
-              <Button
-                onClick={closeEdit}
-                disabled={isSavingEdit}
-                variant="outline"
-                className="flex-1 h-10 cursor-pointer"
-              >
+              <Button onClick={closeEdit} disabled={isSavingEdit} variant="outline" className="flex-1 h-10 cursor-pointer">
                 Batal
               </Button>
-              <Button
-                onClick={handleSaveEdit}
-                disabled={isSavingEdit}
-                className="flex-1 h-10 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
-              >
+              <Button onClick={handleSaveEdit} disabled={isSavingEdit} className="flex-1 h-10 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer">
                 {isSavingEdit ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -960,7 +1250,7 @@ export default function ProductionLogDashboard() {
         </div>
       )}
 
-      {/* ===== CREATE MODAL ===== */}
+      {/* ===================== CREATE MODAL ===================== */}
       {showCreate && (
         <div
           className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-[2px] ${
@@ -981,8 +1271,8 @@ export default function ProductionLogDashboard() {
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <div>
-                <h3 className="text-lg font-bold text-slate-900">Tambah Entri Log Produksi</h3>
-                <p className="text-xs text-slate-500">Buat entri manual (untuk koreksi atau data operator yang terlewat)</p>
+                <h3 className="text-lg font-bold text-slate-900">Tambah Entri Riwayat</h3>
+                <p className="text-xs text-slate-500">Tambah data produksi atau non-produksi secara manual</p>
               </div>
               <button
                 onClick={closeCreate}
@@ -991,10 +1281,39 @@ export default function ProductionLogDashboard() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="p-6 max-h-[65vh] overflow-y-auto space-y-4">
-              {/* Line selector */}
+
+            <div className="p-6 max-h-[65vh] overflow-y-auto space-y-3">
+              {/* Jenis Switcher */}
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block">Line *</label>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block">Kategori Entri *</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCreateForm((p) => ({ ...p, jenis: "produksi" }))}
+                    className={`py-2 text-xs font-bold rounded-lg border transition cursor-pointer ${
+                      createForm.jenis === "produksi"
+                        ? "border-blue-600 bg-blue-50 text-blue-700"
+                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    Produksi
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCreateForm((p) => ({ ...p, jenis: "non_produksi" }))}
+                    className={`py-2 text-xs font-bold rounded-lg border transition cursor-pointer ${
+                      createForm.jenis === "non_produksi"
+                        ? "border-amber-600 bg-amber-50 text-amber-700"
+                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    Non-Produksi (Setup/5R/dll)
+                  </button>
+                </div>
+              </div>
+
+              {/* Line Selector */}
+              <Field label="Line *">
                 <div className="relative">
                   <select
                     value={createForm.line_id}
@@ -1002,7 +1321,7 @@ export default function ProductionLogDashboard() {
                       setCreateForm((p) => ({ ...p, line_id: e.target.value, part_number: "" }));
                       void loadPartOptions(e.target.value);
                     }}
-                    className="w-full pl-3 pr-8 py-2 text-sm border border-slate-300 rounded-lg bg-white text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 appearance-none cursor-pointer"
+                    className={inputCls}
                   >
                     <option value="">— Pilih Line —</option>
                     {lines.map((l) => (
@@ -1011,32 +1330,178 @@ export default function ProductionLogDashboard() {
                   </select>
                   <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                 </div>
-              </div>
-              <EditFields
-                form={createForm}
-                partOptions={partOptions}
-                onChange={(f) => setCreateForm((prev) => ({ ...prev, ...f }))}
-              />
+              </Field>
+
+              {createForm.jenis === "produksi" ? (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Part Number">
+                      <input
+                        list="create-part-options"
+                        value={createForm.part_number}
+                        onChange={(e) => setCreateForm((p) => ({ ...p, part_number: e.target.value }))}
+                        placeholder="Pilih/ketik..."
+                        className={inputCls}
+                      />
+                      <datalist id="create-part-options">
+                        {partOptions.map((p) => (
+                          <option key={p} value={p} />
+                        ))}
+                      </datalist>
+                    </Field>
+                    <Field label="Stasiun (Opsional)">
+                      <input
+                        type="text"
+                        value={createForm.stasiun}
+                        onChange={(e) => setCreateForm((p) => ({ ...p, stasiun: e.target.value }))}
+                        placeholder="ST1, OP10, dll."
+                        className={inputCls}
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Waktu Mulai *">
+                      <input
+                        type="datetime-local"
+                        value={createForm.waktu_awal}
+                        onChange={(e) => setCreateForm((p) => ({ ...p, waktu_awal: e.target.value }))}
+                        className={inputCls}
+                      />
+                    </Field>
+                    <Field label="Waktu Selesai">
+                      <input
+                        type="datetime-local"
+                        value={createForm.waktu_akhir}
+                        onChange={(e) => setCreateForm((p) => ({ ...p, waktu_akhir: e.target.value }))}
+                        className={inputCls}
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Qty">
+                      <input
+                        type="number"
+                        min={0}
+                        value={createForm.qty}
+                        onChange={(e) => setCreateForm((p) => ({ ...p, qty: e.target.value }))}
+                        className={inputCls}
+                        placeholder="0"
+                      />
+                    </Field>
+                    <Field label="Manpower (MP)">
+                      <input
+                        type="number"
+                        min={0}
+                        value={createForm.manpower}
+                        onChange={(e) => setCreateForm((p) => ({ ...p, manpower: e.target.value }))}
+                        className={inputCls}
+                        placeholder="0"
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <Field label="Dandori (mnt)">
+                      <input
+                        type="number"
+                        min={0}
+                        value={createForm.dandori_menit}
+                        onChange={(e) => setCreateForm((p) => ({ ...p, dandori_menit: e.target.value }))}
+                        className={inputCls}
+                        placeholder="0"
+                      />
+                    </Field>
+                    <Field label="Downtime (mnt)">
+                      <input
+                        type="number"
+                        min={0}
+                        value={createForm.downtime_menit}
+                        onChange={(e) => setCreateForm((p) => ({ ...p, downtime_menit: e.target.value }))}
+                        className={inputCls}
+                        placeholder="0"
+                      />
+                    </Field>
+                    <Field label="Break (mnt)">
+                      <input
+                        type="number"
+                        min={0}
+                        value={createForm.break_menit}
+                        onChange={(e) => setCreateForm((p) => ({ ...p, break_menit: e.target.value }))}
+                        className={inputCls}
+                        placeholder="0"
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Routing Type">
+                      <select
+                        value={createForm.routing_type}
+                        onChange={(e) => setCreateForm((p) => ({ ...p, routing_type: e.target.value as any }))}
+                        className={inputCls}
+                      >
+                        <option value="">- Tidak Ada -</option>
+                        <option value="WIP">WIP</option>
+                        <option value="FG">FG</option>
+                      </select>
+                    </Field>
+                    <Field label="Routing Numbers">
+                      <input
+                        type="text"
+                        value={createForm.routing_numbers}
+                        onChange={(e) => setCreateForm((p) => ({ ...p, routing_numbers: e.target.value }))}
+                        placeholder="1,2,3"
+                        className={inputCls}
+                      />
+                    </Field>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Field label="Jenis / Nama Non-Produksi *">
+                    <input
+                      type="text"
+                      value={createForm.nama_non_produksi}
+                      onChange={(e) => setCreateForm((p) => ({ ...p, nama_non_produksi: e.target.value }))}
+                      placeholder="Briefing, 5R, Setup, Maintenance, dll."
+                      className={inputCls}
+                    />
+                  </Field>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Waktu Mulai *">
+                      <input
+                        type="datetime-local"
+                        value={createForm.waktu_awal}
+                        onChange={(e) => setCreateForm((p) => ({ ...p, waktu_awal: e.target.value }))}
+                        className={inputCls}
+                      />
+                    </Field>
+                    <Field label="Waktu Selesai">
+                      <input
+                        type="datetime-local"
+                        value={createForm.waktu_akhir}
+                        onChange={(e) => setCreateForm((p) => ({ ...p, waktu_akhir: e.target.value }))}
+                        className={inputCls}
+                      />
+                    </Field>
+                  </div>
+                </>
+              )}
+
               {createError && (
                 <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg p-2">
                   {createError}
                 </p>
               )}
             </div>
+
             <div className="border-t border-slate-100 px-6 py-4 flex gap-3">
-              <Button
-                onClick={closeCreate}
-                disabled={isSavingCreate}
-                variant="outline"
-                className="flex-1 h-10 cursor-pointer"
-              >
+              <Button onClick={closeCreate} disabled={isSavingCreate} variant="outline" className="flex-1 h-10 cursor-pointer">
                 Batal
               </Button>
-              <Button
-                onClick={handleSaveCreate}
-                disabled={isSavingCreate}
-                className="flex-1 h-10 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
-              >
+              <Button onClick={handleSaveCreate} disabled={isSavingCreate} className="flex-1 h-10 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer">
                 {isSavingCreate ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -1051,7 +1516,7 @@ export default function ProductionLogDashboard() {
         </div>
       )}
 
-      {/* ===== DELETE MODAL ===== */}
+      {/* ===================== DELETE MODAL ===================== */}
       {deleteTarget && (
         <div
           className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-[2px] ${
@@ -1081,17 +1546,11 @@ export default function ProductionLogDashboard() {
                 <AlertTriangle className="h-5 w-5" />
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-bold text-slate-900">Hapus Log Produksi</h3>
+                <h3 className="text-lg font-bold text-slate-900">Hapus Baris Riwayat</h3>
                 <p className="mt-2 text-sm text-slate-500 leading-relaxed">
-                  Hapus entri{" "}
-                  <span className="font-semibold text-slate-800">
-                    {deleteTarget.part_number ?? "-"}
-                  </span>{" "}
-                  pada{" "}
-                  <span className="font-semibold text-slate-800">
-                    {formatDate(deleteTarget.waktu_awal)}
-                  </span>{" "}
-                  ({deleteTarget.line?.name ?? deleteTarget.mesin})?
+                  Hapus entri <span className="font-semibold text-slate-800">{deleteTarget.part_number ?? "-"}</span>{" "}
+                  pada <span className="font-semibold text-slate-800">{fmt(deleteTarget.waktu_awal)}</span>{" "}
+                  ({deleteTarget.line_name ?? deleteTarget.mesin})?
                 </p>
                 <p className="mt-1 text-xs text-slate-400">
                   Data akan disembunyikan (soft-delete), bukan dihapus permanen.
@@ -1133,10 +1592,21 @@ function ProductionLogTableSkeleton() {
         <thead>
           <tr className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
             {[
-              "Tanggal","Line","Stasiun","Part Number","Mulai – Selesai",
-              "QTY OK","QTY NG","NG Rate","MP","Aksi",
+              "Kode",
+              "Line",
+              "Stasiun",
+              "Waktu Awal",
+              "Waktu Akhir",
+              "Part Number",
+              "Qty",
+              "MP",
+              "Dandori",
+              "DT",
+              "Break",
+              "Routing",
+              "Aksi",
             ].map((h) => (
-              <th key={h} className="py-4 px-4 font-bold text-xs uppercase tracking-wider">
+              <th key={h} className="py-4 px-3 font-bold text-xs uppercase tracking-wider">
                 {h}
               </th>
             ))}
@@ -1145,16 +1615,19 @@ function ProductionLogTableSkeleton() {
         <tbody className="divide-y divide-slate-100">
           {Array.from({ length: 7 }).map((_, i) => (
             <tr key={i}>
-              <td className="py-3.5 px-4"><div className="h-4 bg-slate-200 rounded w-20" /></td>
-              <td className="py-3.5 px-4"><div className="h-4 bg-slate-200 rounded w-24" /></td>
-              <td className="py-3.5 px-4"><div className="h-4 bg-slate-200 rounded w-16" /></td>
-              <td className="py-3.5 px-4"><div className="h-4 bg-slate-200 rounded w-24 font-mono" /></td>
-              <td className="py-3.5 px-4"><div className="h-4 bg-slate-200 rounded w-24 mx-auto" /></td>
-              <td className="py-3.5 px-4"><div className="h-4 bg-slate-200 rounded w-12 ml-auto" /></td>
-              <td className="py-3.5 px-4"><div className="h-4 bg-slate-200 rounded w-8 ml-auto" /></td>
-              <td className="py-3.5 px-4"><div className="h-4 bg-slate-200 rounded w-12 ml-auto" /></td>
-              <td className="py-3.5 px-4"><div className="h-4 bg-slate-200 rounded w-8 mx-auto" /></td>
-              <td className="py-3.5 px-4"><div className="h-7 bg-slate-200 rounded-lg w-16 mx-auto" /></td>
+              <td className="py-3 px-3"><div className="h-4 bg-slate-200 rounded w-16" /></td>
+              <td className="py-3 px-3"><div className="h-4 bg-slate-200 rounded w-20" /></td>
+              <td className="py-3 px-3"><div className="h-4 bg-slate-200 rounded w-14" /></td>
+              <td className="py-3 px-3"><div className="h-4 bg-slate-200 rounded w-28" /></td>
+              <td className="py-3 px-3"><div className="h-4 bg-slate-200 rounded w-28" /></td>
+              <td className="py-3 px-3"><div className="h-4 bg-slate-200 rounded w-24 font-mono" /></td>
+              <td className="py-3 px-3 text-right"><div className="h-4 bg-slate-200 rounded w-12 ml-auto" /></td>
+              <td className="py-3 px-3 text-center"><div className="h-4 bg-slate-200 rounded w-8 mx-auto" /></td>
+              <td className="py-3 px-3 text-right"><div className="h-4 bg-slate-200 rounded w-12 ml-auto" /></td>
+              <td className="py-3 px-3 text-right"><div className="h-4 bg-slate-200 rounded w-12 ml-auto" /></td>
+              <td className="py-3 px-3 text-right"><div className="h-4 bg-slate-200 rounded w-12 ml-auto" /></td>
+              <td className="py-3 px-3 text-center"><div className="h-4 bg-slate-200 rounded w-14 mx-auto" /></td>
+              <td className="py-3 px-3 text-center"><div className="h-6 bg-slate-200 rounded-lg w-14 mx-auto" /></td>
             </tr>
           ))}
         </tbody>
