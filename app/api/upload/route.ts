@@ -115,8 +115,8 @@ export async function POST(request: Request) {
           console.error('Gagal menghubungkan dokumen ke part number:', updatePartErr)
         }
       } else if (newPartNumberValue && newPartNumberValue.trim()) {
-        // Determine mesin for the line
-        let mesin = 'blanking'
+        // Determine mesin for the line using the exact getMachineConfig matching logic
+        let mesin = ''
         if (lineId) {
           const { data: lineRow } = await supabase
             .from('lines')
@@ -125,14 +125,29 @@ export async function POST(request: Request) {
             .maybeSingle()
 
           if (lineRow) {
-            const rawType = (lineRow.machine_type || lineRow.name || '').toLowerCase().replace(/-/g, '_')
-            if (['blanking', 'pc200t', 'tandem', 'transfer_2000t', 'transfer_800t'].includes(rawType)) {
-              mesin = rawType
-            } else if (rawType.includes('blanking')) mesin = 'blanking'
-            else if (rawType.includes('pc200') || rawType.includes('pc_200')) mesin = 'pc200t'
-            else if (rawType.includes('tandem')) mesin = 'tandem'
-            else if (rawType.includes('2000')) mesin = 'transfer_2000t'
-            else if (rawType.includes('800')) mesin = 'transfer_800t'
+            const rawType = (lineRow.machine_type || lineRow.name || '').trim()
+            const slug = rawType.toLowerCase()
+
+            const KNOWN_CONFIG_KEYS: Record<string, string> = {
+              blanking: 'blanking',
+              pc200t: 'pc200t',
+              tandem: 'tandem',
+              'transfer-2000t': 'transfer_2000t',
+              'transfer-800t': 'transfer_800t',
+              transfer_2000t: 'transfer_2000t',
+              transfer_800t: 'transfer_800t',
+            }
+
+            if (KNOWN_CONFIG_KEYS[slug]) {
+              mesin = KNOWN_CONFIG_KEYS[slug]
+            } else {
+              const dashed = slug.replace(/_/g, '-')
+              if (KNOWN_CONFIG_KEYS[dashed]) {
+                mesin = KNOWN_CONFIG_KEYS[dashed]
+              } else {
+                mesin = slug.replace(/-/g, '_')
+              }
+            }
           }
         }
 
@@ -140,7 +155,7 @@ export async function POST(request: Request) {
           .from('prod_part_numbers' as any)
           .insert({
             line_id: lineId || null,
-            mesin,
+            mesin: mesin || null,
             value: newPartNumberValue.trim(),
             document_id: uploadedDoc.id,
             is_active: true,
@@ -151,6 +166,7 @@ export async function POST(request: Request) {
         }
       }
     }
+
 
     return NextResponse.json(
       {
