@@ -39,7 +39,7 @@ export async function login(state: any, formData: FormData) {
   // Ambil role dan line_id dari tabel profiles
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("role, line_id, land_id")
+    .select("role, line_id")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -49,7 +49,7 @@ export async function login(state: any, formData: FormData) {
 
   const rawRole = (profile?.role || user.user_metadata?.role || user.app_metadata?.role || "operator") as string;
   const role = rawRole.trim().toLowerCase();
-  const lineId = profile?.line_id ?? (profile as any)?.land_id ?? user.user_metadata?.line_id ?? user.user_metadata?.land_id ?? null;
+  const lineId = profile?.line_id ?? user.user_metadata?.line_id ?? null;
 
   const redirectUrl = "/";
 

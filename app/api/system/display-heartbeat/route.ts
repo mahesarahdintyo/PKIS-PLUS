@@ -99,7 +99,7 @@ export async function DELETE(request: Request) {
     const { error } = await supabase
       .from('display_heartbeats')
       .delete()
-      .or(`line_id.eq.${lineId},land_id.eq.${lineId}`)
+      .eq('line_id', lineId)
 
     if (error && !isMissingHeartbeatTableError(error)) {
       throw error
