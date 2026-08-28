@@ -149,6 +149,7 @@ export default function InputAttendanceClient({ userId: initialUserId, embedded 
 
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!editTarget?.id) return;
     setIsSavingEdit(true);
     const payload = {
       tanggal: editForm.tanggal,
@@ -159,25 +160,28 @@ export default function InputAttendanceClient({ userId: initialUserId, embedded 
       absen: Number(editForm.absen),
       overtime_jam: Number(editForm.overtime_jam),
       updated_by: userId,
-      is_active: true,
     };
 
     try {
       const res = await supabase
         .from("prod_attendance_log")
-        .upsert(payload, { onConflict: "tanggal,shift" });
+        .update(payload)
+        .eq("id", editTarget.id)
+        .select();
       if (res.error) throw res.error;
+      if (!res.data || res.data.length === 0) {
+        throw new Error("Tidak ada baris yang diperbarui (data tidak ditemukan atau izin RLS ditolak).");
+      }
 
       flash("Data absensi diperbarui!");
       setEditTarget(null);
       fetchRows(0);
     } catch (err: any) {
       if (isNetworkError(err)) {
-        enqueueOffline("prod_attendance_log", payload);
-        setRows((prev) => [
-          { ...payload, id: "pending_" + Date.now(), _pending: true },
-          ...prev,
-        ]);
+        enqueueOffline("prod_attendance_log", { ...payload, id: editTarget.id, is_active: true });
+        setRows((prev) =>
+          prev.map((r) => (r.id === editTarget.id ? { ...r, ...payload } : r))
+        );
         setEditTarget(null);
       } else {
         flash("Gagal menyimpan: " + (err?.message || "Unknown error"), true);
@@ -186,6 +190,7 @@ export default function InputAttendanceClient({ userId: initialUserId, embedded 
       setIsSavingEdit(false);
     }
   };
+
 
   const handleDelete = async () => {
     if (!deleteTarget) return;

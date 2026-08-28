@@ -142,6 +142,7 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
 
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!editTarget?.id) return;
     setIsSavingEdit(true);
     const payload = {
       tahun: Number(editForm.tahun),
@@ -149,25 +150,28 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
       scrap_value_kidr: Number(editForm.scrap_value_kidr),
       total_value_kidr: Number(editForm.total_value_kidr),
       target_rasio: Number(editForm.target_rasio),
-      is_active: true,
     };
 
     try {
       const res = await supabase
         .from("prod_scrap_top_end")
-        .upsert(payload, { onConflict: "tahun,bulan" });
+        .update(payload)
+        .eq("id", editTarget.id)
+        .select();
       if (res.error) throw res.error;
+      if (!res.data || res.data.length === 0) {
+        throw new Error("Tidak ada baris yang diperbarui (data tidak ditemukan atau izin RLS ditolak).");
+      }
 
       flash("Data scrap diperbarui!");
       setEditTarget(null);
       fetchRows(0);
     } catch (err: any) {
       if (isNetworkError(err)) {
-        enqueueOffline("prod_scrap_top_end", payload);
-        setRows((prev) => [
-          { ...payload, id: "pending_" + Date.now(), _pending: true },
-          ...prev,
-        ]);
+        enqueueOffline("prod_scrap_top_end", { ...payload, id: editTarget.id, is_active: true });
+        setRows((prev) =>
+          prev.map((r) => (r.id === editTarget.id ? { ...r, ...payload } : r))
+        );
         setEditTarget(null);
       } else {
         flash("Gagal menyimpan: " + (err?.message || "Unknown error"), true);
@@ -176,6 +180,7 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
       setIsSavingEdit(false);
     }
   };
+
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
