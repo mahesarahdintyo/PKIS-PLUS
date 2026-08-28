@@ -78,6 +78,7 @@ export interface ProdMachineConfig {
 
 export interface ProdMasterPart {
   id?: string;
+  document_id?: string | null;
   kode_part: string;
   nama_part?: string;
   mesin: string;

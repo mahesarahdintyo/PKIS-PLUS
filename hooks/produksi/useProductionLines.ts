@@ -5,6 +5,7 @@
 // =========================================================
 
 import { useState, useCallback, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
 import type {
   ProdStationPhase,
   ProdLineState,
@@ -200,6 +201,7 @@ export interface NonProdPayload {
 }
 
 export interface UseProductionLinesOptions {
+  lineId?: string;
   config: ProdMachineConfig;
   tandemVariant: string | null;
   /** Semua baris production_log mesin ini (untuk lastEventEnd) */
@@ -232,6 +234,7 @@ export interface UseProductionLinesOptions {
 
 export function useProductionLines(stationIds: string[], opts: UseProductionLinesOptions) {
   const {
+    lineId,
     config,
     tandemVariant,
     productionRows,
@@ -494,8 +497,85 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
         phase: "running",
         actualStartConfirmedAt: new Date().toISOString(),
       });
+
+      // Otomatis ganti tampilan Display jika Part Number terhubung ke dokumen
+      const currentPartNumber = line.form.part_number;
+      (async () => {
+        try {
+          let docId: string | null = null;
+          const foundInMaster = masterParts.find(
+            (p) => (p.value === currentPartNumber || p.kode_part === currentPartNumber) && p.document_id
+          );
+
+          if (foundInMaster?.document_id) {
+            docId = foundInMaster.document_id;
+          } else {
+            const supabase = createClient();
+            let query = supabase
+              .from("prod_part_numbers" as any)
+              .select("id, value, document_id, line_id, mesin")
+              .eq("is_active", true)
+              .eq("value", currentPartNumber);
+
+            if (lineId) {
+              query = query.or(`line_id.eq.${lineId},mesin.eq.${config.key}`);
+            } else {
+              query = query.eq("mesin", config.key);
+            }
+
+            const { data: partRow } = await query.maybeSingle();
+            if (partRow?.document_id) {
+              docId = partRow.document_id;
+            }
+          }
+
+          if (!docId) return;
+
+          const supabase = createClient();
+          const { data: docData, error: docErr } = await supabase
+            .from("documents")
+            .select("id, title, description, file_name, file_path, file_size, file_type, target_time, updated_at, line_id")
+            .eq("id", docId)
+            .single();
+
+          if (docErr || !docData) {
+            console.error("Gagal mengambil data dokumen terhubung:", docErr);
+            return;
+          }
+
+          const payload = {
+            id: docData.id,
+            lineId: lineId || docData.line_id || undefined,
+            title: docData.title,
+            description: docData.description || undefined,
+            category: undefined,
+            type: docData.file_type || "application/pdf",
+            file: {
+              name: docData.file_name,
+              path: docData.file_path,
+              size: docData.file_size,
+            },
+            targetTime: docData.target_time || null,
+            updatedAt: docData.updated_at ? new Date(docData.updated_at).getTime() : Date.now(),
+          };
+
+          const res = await fetch("/api/display-document", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          });
+
+          if (!res.ok) {
+            console.error("Gagal push dokumen ke display:", await res.text());
+          }
+        } catch (err) {
+          console.error("Gagal memperbarui display saat konfirmasi mulai produksi:", err);
+        }
+      })();
     },
-    [lines, onError, mutateLine]
+    [lines, onError, mutateLine, masterParts, lineId, config.key]
   );
 
   /** Hentikan produksi */

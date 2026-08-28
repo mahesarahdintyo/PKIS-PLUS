@@ -418,6 +418,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType }: M
       if (!pNumErr && pNumData) {
         const mappedParts: ProdMasterPart[] = pNumData.map((p: any) => ({
           id: p.id,
+          document_id: p.document_id,
           kode_part: p.value || p.kode_part || "",
           nama_part: p.nama_part || p.value || "",
           mesin: p.mesin,
@@ -524,6 +525,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType }: M
         if (snapshot.masterParts?.length) {
           const mappedParts: ProdMasterPart[] = snapshot.masterParts.map((p: any) => ({
             id: p.id,
+            document_id: p.document_id,
             kode_part: p.value || p.kode_part || "",
             nama_part: p.nama_part || p.value || "",
             mesin: p.mesin,
@@ -836,6 +838,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType }: M
   );
 
   const linesHook = useProductionLines(activeStationIds, {
+    lineId: (lineId as string) || undefined,
     config,
     tandemVariant,
     productionRows,
