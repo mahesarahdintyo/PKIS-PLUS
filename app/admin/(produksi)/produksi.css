@@ -1435,6 +1435,12 @@ table.table-compact .status-badge {
   border-top: 1px dashed var(--border);
 }
 
+/* Operator view: planning column is hidden, aktual takes full width */
+.planning-actual-grid--operator {
+  grid-template-columns: 1fr;
+}
+
+
 .panel-subtitle {
   font-family: var(--font-display);
   font-size: 13px;

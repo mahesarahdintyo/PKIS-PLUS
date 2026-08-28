@@ -593,9 +593,9 @@ export default function ProduksiTab({
               </div>
 
               {/* Planning vs Aktual Grid */}
-              <div className="planning-actual-grid">
-                {/* Kolom Kiri: PLANNING PRODUKSI */}
-                <div className="planning-col">
+              <div className={isLeaderOrAdmin ? "planning-actual-grid" : "planning-actual-grid planning-actual-grid--operator"}>
+                {/* Kolom Kiri: PLANNING PRODUKSI - hanya admin/leader */}
+                {isLeaderOrAdmin && <div className="planning-col">
                   <p className="panel-subtitle">PLANNING PRODUKSI</p>
 
                   {/* Touch & Tablet Friendly Planning Form */}
@@ -816,7 +816,7 @@ export default function ProduksiTab({
                       </p>
                     )}
                   </div>
-                </div>
+                </div>}
 
                 {/* Kolom Kanan: AKTUAL PRODUKSI (HARI INI) */}
                 <div className="planning-col">
