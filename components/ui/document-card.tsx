@@ -11,9 +11,11 @@ import {
   FileText,
   FileVideoCamera,
   HardDrive,
+  Link2,
   Loader2,
   MonitorUp,
   Pencil,
+  Plus,
   RotateCcw,
   Presentation,
   Save,
@@ -24,6 +26,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 import { toast } from 'sonner'
+import { createClient } from '@/lib/supabase/client'
 
 const DISPLAY_DOCUMENT_STORAGE_KEY = 'futaba.display.document'
 
@@ -45,6 +48,7 @@ interface DocumentCardProps {
   }
   targetTime?: string | null
   hiddenFromOperator?: boolean
+  linkedPartNumbers?: { id: string; value: string }[]
   onDelete?: (id: string) => void | Promise<void>
   onVisibilityChange?: (id: string, hiddenFromOperator: boolean) => void
   showOperatorActions?: boolean
@@ -298,6 +302,7 @@ export function DocumentCard({
   file,
   targetTime,
   hiddenFromOperator = false,
+  linkedPartNumbers,
   onDelete,
   onVisibilityChange,
   showOperatorActions = false
@@ -311,6 +316,16 @@ export function DocumentCard({
   const [currentTargetTime, setCurrentTargetTime] = useState<string | null>(targetTime ?? null)
   const [currentHiddenFromOperator, setCurrentHiddenFromOperator] = useState(hiddenFromOperator)
   const [targetTimeInput, setTargetTimeInput] = useState(() => toLocalDateTimeInputValue(targetTime))
+
+  const [currentLinkedPartNumbers, setCurrentLinkedPartNumbers] = useState<{ id: string; value: string }[]>(
+    () => linkedPartNumbers ?? []
+  )
+  const [isLinkingPart, setIsLinkingPart] = useState(false)
+  const [isUnlinkingPartId, setIsUnlinkingPartId] = useState<string | null>(null)
+  const [showPartSelector, setShowPartSelector] = useState(false)
+  const [availablePartNumbers, setAvailablePartNumbers] = useState<{ id: string; value: string }[]>([])
+  const [isLoadingAvailableParts, setIsLoadingAvailableParts] = useState(false)
+  const [selectedPartIdToLink, setSelectedPartIdToLink] = useState('')
 
   const [currentFileName, setCurrentFileName] = useState(file.name)
   const [isEditingFileName, setIsEditingFileName] = useState(false)
@@ -339,6 +354,54 @@ export function DocumentCard({
   }, [targetTime])
 
   useEffect(() => {
+    setCurrentLinkedPartNumbers(linkedPartNumbers ?? [])
+  }, [linkedPartNumbers])
+
+  useEffect(() => {
+    if (!showPartSelector || !lineId) return
+
+    async function fetchAvailableParts() {
+      try {
+        setIsLoadingAvailableParts(true)
+        const supabase = createClient()
+        let query = supabase
+          .from('prod_part_numbers' as any)
+          .select('id, value, is_active, line_id, mesin')
+          .eq('is_active', true)
+
+        const { data: lineData } = await supabase
+          .from('lines')
+          .select('name, machine_type')
+          .eq('id', lineId)
+          .maybeSingle()
+
+        const mesinKey = lineData?.machine_type ? lineData.machine_type.replace(/-/g, '_') : null
+        if (mesinKey) {
+          query = query.or(`line_id.eq.${lineId},mesin.eq.${mesinKey}`)
+        } else {
+          query = query.eq('line_id', lineId)
+        }
+
+        const { data, error } = await query.order('value')
+        if (!error && data) {
+          setAvailablePartNumbers(
+            data.map((p: any) => ({
+              id: p.id,
+              value: p.value || '-',
+            }))
+          )
+        }
+      } catch (err) {
+        console.warn('Gagal memuat part number:', err)
+      } finally {
+        setIsLoadingAvailableParts(false)
+      }
+    }
+
+    fetchAvailableParts()
+  }, [showPartSelector, lineId])
+
+  useEffect(() => {
     setCurrentHiddenFromOperator(hiddenFromOperator)
   }, [hiddenFromOperator])
 
@@ -349,6 +412,68 @@ export function DocumentCard({
   useEffect(() => {
     setCurrentTitle(title)
   }, [title])
+
+  const handleLinkPartNumber = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!selectedPartIdToLink) return
+
+    try {
+      setIsLinkingPart(true)
+      const response = await fetch(`/api/documents/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ linkPartNumberId: selectedPartIdToLink }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null)
+        throw new Error(data?.error ?? 'Gagal menghubungkan part number')
+      }
+
+      const linkedPart = availablePartNumbers.find((p) => p.id === selectedPartIdToLink)
+      if (linkedPart) {
+        setCurrentLinkedPartNumbers((prev) => [
+          ...prev.filter((p) => p.id !== linkedPart.id),
+          linkedPart,
+        ])
+      }
+      setSelectedPartIdToLink('')
+      setShowPartSelector(false)
+      toast.success('Part number berhasil dihubungkan')
+      router.refresh()
+    } catch (err) {
+      console.error('Link part number error:', err)
+      toast.error(err instanceof Error ? err.message : 'Gagal menghubungkan part number')
+    } finally {
+      setIsLinkingPart(false)
+    }
+  }
+
+  const handleUnlinkPartNumber = async (e: React.MouseEvent, partId: string) => {
+    e.stopPropagation()
+    try {
+      setIsUnlinkingPartId(partId)
+      const response = await fetch(`/api/documents/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ unlinkPartNumberId: partId }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null)
+        throw new Error(data?.error ?? 'Gagal memutuskan hubungan part number')
+      }
+
+      setCurrentLinkedPartNumbers((prev) => prev.filter((p) => p.id !== partId))
+      toast.success('Hubungan part number berhasil dihapus')
+      router.refresh()
+    } catch (err) {
+      console.error('Unlink part number error:', err)
+      toast.error(err instanceof Error ? err.message : 'Gagal memutuskan hubungan part number')
+    } finally {
+      setIsUnlinkingPartId(null)
+    }
+  }
 
   const handleView = async () => {
     try {
@@ -1003,6 +1128,126 @@ export function DocumentCard({
                     )}
                     Reset
                   </Button>
+                </div>
+              )}
+
+              {/* Part Number Terhubung Section (Admin Only) */}
+              {isAdmin && (
+                <div
+                  className="mt-3 pt-3 border-t border-border/60"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <Link2 className="h-3.5 w-3.5" />
+                      Part Number Terhubung
+                    </span>
+                    {!showPartSelector && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowPartSelector(true)
+                          setSelectedPartIdToLink('')
+                        }}
+                        className="text-xs font-medium text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-1 px-2 py-0.5 rounded-md hover:bg-primary/10 cursor-pointer"
+                        title="Hubungkan part number"
+                      >
+                        <Plus className="h-3 w-3" />
+                        Hubungkan
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Badges / Chips */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {currentLinkedPartNumbers.length > 0 ? (
+                      currentLinkedPartNumbers.map((part) => (
+                        <span
+                          key={part.id}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-xs font-semibold"
+                        >
+                          <span>{part.value}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => handleUnlinkPartNumber(e, part.id)}
+                            disabled={isUnlinkingPartId === part.id}
+                            className="text-blue-500 hover:text-red-600 dark:hover:text-red-400 p-0.5 rounded transition-colors disabled:opacity-50 cursor-pointer"
+                            title={`Putuskan hubungan dengan ${part.value}`}
+                          >
+                            {isUnlinkingPartId === part.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <X className="h-3 w-3" />
+                            )}
+                          </button>
+                        </span>
+                      ))
+                    ) : (
+                      !showPartSelector && (
+                        <span className="text-xs text-muted-foreground italic">
+                          Belum terhubung ke part number
+                        </span>
+                      )
+                    )}
+                  </div>
+
+                  {/* Dropdown Selector Form */}
+                  {showPartSelector && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2 p-2.5 rounded-lg border border-border bg-muted/50">
+                      <div className="flex-1 min-w-[200px]">
+                        <select
+                          value={selectedPartIdToLink}
+                          onChange={(e) => setSelectedPartIdToLink(e.target.value)}
+                          disabled={isLoadingAvailableParts || isLinkingPart}
+                          className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
+                        >
+                          <option value="">
+                            {isLoadingAvailableParts
+                              ? 'Memuat daftar part number...'
+                              : availablePartNumbers.length === 0
+                              ? 'Tidak ada part number di line ini'
+                              : '-- Pilih Part Number --'}
+                          </option>
+                          {availablePartNumbers
+                            .filter((p) => !currentLinkedPartNumbers.some((cl) => cl.id === p.id))
+                            .map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.value}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleLinkPartNumber}
+                          disabled={!selectedPartIdToLink || isLinkingPart}
+                          className="h-8 px-3 text-xs bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"
+                        >
+                          {isLinkingPart ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                          ) : (
+                            <Save className="h-3.5 w-3.5 mr-1" />
+                          )}
+                          Simpan
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setShowPartSelector(false)
+                            setSelectedPartIdToLink('')
+                          }}
+                          disabled={isLinkingPart}
+                          className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                        >
+                          Batal
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

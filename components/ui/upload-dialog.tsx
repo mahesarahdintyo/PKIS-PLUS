@@ -101,7 +101,7 @@ export function UploadDialog({
           setPartNumbers(
             data.map((p: any) => ({
               id: p.id,
-              value: p.value || p.kode_part || p.nama_part || '-',
+              value: p.value || '-',
             }))
           )
         }

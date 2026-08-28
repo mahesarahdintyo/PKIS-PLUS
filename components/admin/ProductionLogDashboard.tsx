@@ -260,7 +260,7 @@ export default function ProductionLogDashboard() {
     try {
       let q = supabase
         .from("prod_part_numbers" as any)
-        .select("value, kode_part, nama_part")
+        .select("value")
         .eq("is_active", true);
       if (lineId && lineId !== "all") {
         q = q.eq("line_id", lineId);
@@ -268,7 +268,7 @@ export default function ProductionLogDashboard() {
       const { data } = await q.order("value");
       if (data) {
         const parts = (data as any[])
-          .map((p) => p.kode_part || p.value || p.nama_part)
+          .map((p) => p.value)
           .filter(Boolean);
         setPartOptions(Array.from(new Set(parts)));
       }
