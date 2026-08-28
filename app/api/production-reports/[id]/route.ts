@@ -18,7 +18,7 @@ export async function DELETE(
     const supabase = await createClient();
 
     const { error } = await supabase
-      .from("production_reports")
+      .from("prod_production_log" as any)
       .update({ is_active: false })
       .eq("id", id);
 

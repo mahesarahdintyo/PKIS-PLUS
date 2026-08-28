@@ -214,7 +214,6 @@ export default function RecycleBinClient() {
     return productionReports.filter(r =>
       r.operator_name.toLowerCase().includes(q) ||
       r.part_number.toLowerCase().includes(q) ||
-      r.shift.toLowerCase().includes(q) ||
       (r.line?.name || '').toLowerCase().includes(q)
     )
   }, [searchQuery, productionReports])
@@ -505,7 +504,6 @@ export default function RecycleBinClient() {
                               <th className="py-3 px-2">Tanggal</th>
                               <th className="py-3 px-2">Line</th>
                               <th className="py-3 px-2">Operator</th>
-                              <th className="py-3 px-2">Shift</th>
                               <th className="py-3 px-2">Part Number</th>
                               <th className="py-3 px-2">QTY</th>
                               <th className="py-3 px-2 text-right">Aksi</th>
@@ -517,7 +515,6 @@ export default function RecycleBinClient() {
                                 <td className="py-3 px-2 font-semibold text-slate-800">{formatDate(report.report_date)}</td>
                                 <td className="py-3 px-2 text-slate-600">{report.line?.name ?? '-'}</td>
                                 <td className="py-3 px-2 text-slate-600">{report.operator_name}</td>
-                                <td className="py-3 px-2 text-slate-500">{report.shift}</td>
                                 <td className="py-3 px-2 text-slate-500">{report.part_number}</td>
                                 <td className="py-3 px-2 text-xs text-slate-400">
                                   {report.qty} / {report.ng_qty} NG / {formatTime(report.start_time)}-{formatTime(report.end_time)}
