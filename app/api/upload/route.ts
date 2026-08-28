@@ -100,6 +100,58 @@ export async function POST(request: Request) {
       )
     }
 
+    const uploadedDoc = docData[0]
+    const partNumberId = formData.get('partNumberId') as string | null
+    const newPartNumberValue = formData.get('newPartNumberValue') as string | null
+
+    if (uploadedDoc?.id) {
+      if (partNumberId) {
+        const { error: updatePartErr } = await supabase
+          .from('prod_part_numbers' as any)
+          .update({ document_id: uploadedDoc.id })
+          .eq('id', partNumberId)
+
+        if (updatePartErr) {
+          console.error('Gagal menghubungkan dokumen ke part number:', updatePartErr)
+        }
+      } else if (newPartNumberValue && newPartNumberValue.trim()) {
+        // Determine mesin for the line
+        let mesin = 'blanking'
+        if (lineId) {
+          const { data: lineRow } = await supabase
+            .from('lines')
+            .select('name, machine_type')
+            .eq('id', lineId)
+            .maybeSingle()
+
+          if (lineRow) {
+            const rawType = (lineRow.machine_type || lineRow.name || '').toLowerCase().replace(/-/g, '_')
+            if (['blanking', 'pc200t', 'tandem', 'transfer_2000t', 'transfer_800t'].includes(rawType)) {
+              mesin = rawType
+            } else if (rawType.includes('blanking')) mesin = 'blanking'
+            else if (rawType.includes('pc200') || rawType.includes('pc_200')) mesin = 'pc200t'
+            else if (rawType.includes('tandem')) mesin = 'tandem'
+            else if (rawType.includes('2000')) mesin = 'transfer_2000t'
+            else if (rawType.includes('800')) mesin = 'transfer_800t'
+          }
+        }
+
+        const { error: insertPartErr } = await supabase
+          .from('prod_part_numbers' as any)
+          .insert({
+            line_id: lineId || null,
+            mesin,
+            value: newPartNumberValue.trim(),
+            document_id: uploadedDoc.id,
+            is_active: true,
+          })
+
+        if (insertPartErr) {
+          console.error('Gagal membuat part number baru untuk dokumen:', insertPartErr)
+        }
+      }
+    }
+
     return NextResponse.json(
       {
         success: true,
