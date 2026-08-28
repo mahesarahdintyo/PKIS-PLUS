@@ -2,7 +2,6 @@ export interface ProductionReport {
   id: string;
   line_id: string;
   report_date: string; // YYYY-MM-DD
-  shift: string;
   operator_name: string;
   start_time: string; // HH:MM or HH:MM:SS
   end_time: string; // HH:MM or HH:MM:SS
@@ -12,7 +11,7 @@ export interface ProductionReport {
   ng_category?: string | null;
   break_minutes: number;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
   line?: {
     name: string;
   } | null;

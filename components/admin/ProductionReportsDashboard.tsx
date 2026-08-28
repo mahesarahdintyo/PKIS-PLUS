@@ -41,7 +41,6 @@ export default function ProductionReportsDashboard() {
   const [selectedLineId, setSelectedLineId] = useState("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [selectedShift, setSelectedShift] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
   // Modal Delete state
@@ -144,7 +143,7 @@ export default function ProductionReportsDashboard() {
       .channel("admin-production-reports")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "production_reports" },
+        { event: "*", schema: "public", table: "prod_production_log" },
         refreshReports
       )
       .subscribe();
@@ -166,23 +165,17 @@ export default function ProductionReportsDashboard() {
     setSelectedLineId("all");
     setStartDate("");
     setEndDate("");
-    setSelectedShift("all");
     setSearchQuery("");
   };
 
-  // Client-side filtering for shift and search query
+  // Client-side filtering for search query
   const filteredReports = useMemo(() => {
     return reports.filter((report) => {
-      // Shift filter
-      if (selectedShift !== "all" && report.shift !== selectedShift) {
-        return false;
-      }
-
-      // Text search (operator_name or part_number)
+      // Text search (operator_name or part_number or line name)
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
-        const matchesOperator = report.operator_name.toLowerCase().includes(query);
-        const matchesPartNumber = report.part_number.toLowerCase().includes(query);
+        const matchesOperator = (report.operator_name || "").toLowerCase().includes(query);
+        const matchesPartNumber = (report.part_number || "").toLowerCase().includes(query);
         const matchesLineName = (report.line?.name ?? "").toLowerCase().includes(query);
         if (!matchesOperator && !matchesPartNumber && !matchesLineName) {
           return false;
@@ -191,7 +184,7 @@ export default function ProductionReportsDashboard() {
 
       return true;
     });
-  }, [reports, selectedShift, searchQuery]);
+  }, [reports, searchQuery]);
 
   // Aggregate statistics calculation
   const stats = useMemo(() => {
@@ -228,7 +221,6 @@ export default function ProductionReportsDashboard() {
       "Tanggal",
       "Line/Card",
       "Operator",
-      "Shift",
       "Part Number",
       "Mulai",
       "Selesai",
@@ -236,6 +228,7 @@ export default function ProductionReportsDashboard() {
       "QTY Total",
       "QTY OK",
       "QTY NG",
+      "Kategori NG",
       "NG Rate (%)",
     ];
 
@@ -245,19 +238,20 @@ export default function ProductionReportsDashboard() {
       const okQty = report.qty - report.ng_qty;
       const ngRate = report.qty > 0 ? ((report.ng_qty / report.qty) * 100).toFixed(1) : "0.0";
       const lineName = report.line?.name ?? "Unknown Line";
+      const ngCat = report.ng_category ?? "-";
 
       const values = [
         report.report_date,
         lineName,
-        report.operator_name,
-        report.shift,
-        report.part_number,
-        report.start_time,
-        report.end_time,
-        report.break_minutes,
-        report.qty,
+        report.operator_name || "-",
+        report.part_number || "-",
+        report.start_time || "-",
+        report.end_time || "-",
+        report.break_minutes ?? 0,
+        report.qty ?? 0,
         okQty,
-        report.ng_qty,
+        report.ng_qty ?? 0,
+        ngCat,
         `${ngRate}%`,
       ].map((val) => {
         const escaped = ("" + val).replace(/"/g, '""');
@@ -301,7 +295,7 @@ export default function ProductionReportsDashboard() {
 
   // Helper formatting time
   const formatTime = (timeStr: string) => {
-    if (!timeStr) return "-";
+    if (!timeStr || timeStr === "-") return "-";
     // HH:MM:SS -> HH:MM
     const parts = timeStr.split(":");
     if (parts.length >= 2) {
@@ -312,7 +306,7 @@ export default function ProductionReportsDashboard() {
 
   // Helper formatting date to standard dd/mm/yyyy
   const formatDate = (dateStr: string) => {
-    if (!dateStr) return "-";
+    if (!dateStr || dateStr === "-") return "-";
     const [year, month, day] = dateStr.split("-");
     if (year && month && day) {
       return `${day}/${month}/${year}`;
@@ -322,7 +316,7 @@ export default function ProductionReportsDashboard() {
 
   // Helper formatting date to Indonesian representation (e.g. 09 Juli 2026)
   const formatDateIndo = (dateStr: string) => {
-    if (!dateStr) return "-";
+    if (!dateStr || dateStr === "-") return "-";
     const [year, month, day] = dateStr.split("-");
     if (!year || !month || !day) return dateStr;
 
@@ -379,7 +373,6 @@ LAPORAN PRODUKSI
 Tanggal: ${formatDateIndo(detailReport.report_date)}
 Operator: ${detailReport.operator_name}
 Line: ${lineName}
-Shift: ${detailReport.shift}
 Part Number: ${detailReport.part_number}
 Qty Total: ${detailReport.qty}
 Qty OK: ${detailReport.qty - detailReport.ng_qty}
@@ -533,7 +526,7 @@ Istirahat: ${breakMin}
           <h2 className="font-semibold text-base">Panel Filter & Pencarian</h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           {/* Line Selection */}
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
@@ -551,25 +544,6 @@ Istirahat: ${breakMin}
                     {line.name}
                   </option>
                 ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-            </div>
-          </div>
-
-          {/* Shift Selection */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">
-              Shift
-            </label>
-            <div className="relative rounded border border-slate-300 bg-white hover:border-slate-400 transition-colors duration-200">
-              <select
-                value={selectedShift}
-                onChange={(e) => setSelectedShift(e.target.value)}
-                className="h-10 w-full appearance-none bg-transparent px-3 pr-9 text-sm font-medium text-slate-700 outline-none"
-              >
-                <option value="all">Semua Shift</option>
-                <option value="Shift 1">Shift 1</option>
-                <option value="Shift 2">Shift 2</option>
               </select>
               <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             </div>
@@ -630,7 +604,7 @@ Istirahat: ${breakMin}
           <p className="text-xs font-medium text-slate-500">
             Menampilkan <span className="font-semibold text-slate-800">{filteredReports.length}</span> laporan produksi.
           </p>
-          {(selectedLineId !== "all" || startDate || endDate || selectedShift !== "all" || searchQuery) && (
+          {(selectedLineId !== "all" || startDate || endDate || searchQuery) && (
             <button
               onClick={handleResetFilters}
               className="text-xs font-semibold text-red-600 hover:text-red-700 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0 self-start sm:self-center"
@@ -670,7 +644,6 @@ Istirahat: ${breakMin}
                   <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Tanggal</th>
                   <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Line/Card</th>
                   <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Operator</th>
-                  <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Shift</th>
                   <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Part Number</th>
                   <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-center">Mulai - Selesai</th>
                   <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-center">Istirahat</th>
@@ -681,7 +654,7 @@ Istirahat: ${breakMin}
                 </tr>
               </thead>
               <tbody
-                key={`${selectedLineId}-${startDate}-${endDate}-${selectedShift}`}
+                key={`${selectedLineId}-${startDate}-${endDate}`}
                 className="divide-y divide-slate-100 animate-in fade-in slide-in-from-bottom-2 duration-500"
               >
                 {filteredReports.map((report, index) => {
@@ -708,18 +681,6 @@ Istirahat: ${breakMin}
                       {/* Operator Name */}
                       <td className="py-3.5 px-4 text-slate-600 whitespace-nowrap">
                         {report.operator_name}
-                      </td>
-
-                      {/* Shift */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-semibold ${report.shift === "Shift 1"
-                            ? "bg-sky-50 text-sky-700 border border-sky-100"
-                            : "bg-indigo-50 text-indigo-700 border border-indigo-100"
-                            }`}
-                        >
-                          {report.shift}
-                        </span>
                       </td>
 
                       {/* Part Number */}
@@ -839,7 +800,7 @@ Istirahat: ${breakMin}
             <div className="py-5 space-y-6">
 
               {/* Section 1: Informasi Umum */}
-              <div className="grid grid-cols-2 gap-4 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+              <div className="grid grid-cols-3 gap-4 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider select-none">Tanggal</span>
                   <div className="text-sm font-semibold text-slate-800 mt-1">{formatDateIndo(detailReport.report_date)}</div>
@@ -851,17 +812,6 @@ Istirahat: ${breakMin}
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider select-none">Line (Card)</span>
                   <div className="text-sm font-semibold text-slate-800 mt-1">{detailReport.line?.name ?? "Unknown Line"}</div>
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider select-none">Shift</span>
-                  <div className="mt-1">
-                    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ${detailReport.shift === "Shift 1"
-                      ? "bg-sky-50 text-sky-700 border border-sky-100"
-                      : "bg-indigo-50 text-indigo-700 border border-indigo-100"
-                      }`}>
-                      {detailReport.shift}
-                    </span>
-                  </div>
                 </div>
               </div>
 
@@ -1043,7 +993,6 @@ function ProductionReportsTableSkeleton() {
             <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Tanggal</th>
             <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Line/Card</th>
             <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Operator</th>
-            <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Shift</th>
             <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Part Number</th>
             <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-center">Mulai - Selesai</th>
             <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-center">Istirahat</th>
@@ -1059,7 +1008,6 @@ function ProductionReportsTableSkeleton() {
               <td className="py-3.5 px-4"><div className="h-4 bg-slate-200 rounded w-20" /></td>
               <td className="py-3.5 px-4"><div className="h-4 bg-slate-200 rounded w-24" /></td>
               <td className="py-3.5 px-4"><div className="h-4 bg-slate-200 rounded w-28" /></td>
-              <td className="py-3.5 px-4"><div className="h-5 bg-slate-200 rounded-md w-14" /></td>
               <td className="py-3.5 px-4"><div className="h-4 bg-slate-200 rounded w-24 font-mono" /></td>
               <td className="py-3.5 px-4 text-center"><div className="h-4 bg-slate-200 rounded w-20 mx-auto" /></td>
               <td className="py-3.5 px-4 text-center"><div className="h-4 bg-slate-200 rounded w-10 mx-auto" /></td>
