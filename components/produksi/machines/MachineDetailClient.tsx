@@ -201,6 +201,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
 
   const [activeTab, setActiveTab] = useState<"produksi" | "riwayat" | "performance" | "downtime" | "master_data">("produksi");
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isShowingCachedSnapshot, setIsShowingCachedSnapshot] = useState(false);
   const [cachedSnapshotTime, setCachedSnapshotTime] = useState<number | null>(null);
 
@@ -774,18 +775,10 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
         return;
       }
 
-      toast.info("Ada pembaruan data riwayat", {
+      toast.info("Ada pembaruan data riwayat dari sistem.", {
         id: "realtime-riwayat-update",
-        action: {
-          label: "Refresh",
-          onClick: () => {
-            fetchRiwayatHariIniData();
-            if (activeTab === "riwayat") {
-              fetchRiwayatGabungan();
-            }
-          },
-        },
-        duration: 8000,
+        description: "Gunakan tombol Refresh di atas untuk memuat data terbaru.",
+        duration: 6000,
       });
     };
 
@@ -827,6 +820,22 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       supabase.removeChannel(channel);
     };
   }, [lineId, config.key, activeTab, fetchRiwayatHariIniData, fetchRiwayatGabungan]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleManualRefresh = useCallback(async () => {
+    try {
+      setIsRefreshing(true);
+      await loadData();
+      await fetchRiwayatHariIniData();
+      if (activeTab === "riwayat") {
+        await fetchRiwayatGabungan();
+      }
+      flash("Data berhasil diperbarui.");
+    } catch (err: any) {
+      flash("Gagal memperbarui data: " + (err?.message || JSON.stringify(err)), true);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [loadData, fetchRiwayatHariIniData, fetchRiwayatGabungan, activeTab, flash]);
 
   const activeStationIds = React.useMemo(() => {
     return stationList().map((st) => st.id);
@@ -1966,6 +1975,16 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
             {config.label}
           </h1>
         </div>
+
+        <button
+          type="button"
+          onClick={handleManualRefresh}
+          disabled={isRefreshing || loading}
+          className="inline-flex items-center gap-2 min-h-[40px] px-3.5 py-2 text-xs font-bold rounded-xl border border-border bg-card text-foreground hover:bg-muted active:scale-95 transition-all cursor-pointer touch-manipulation shadow-xs"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing || loading ? "animate-spin" : ""}`} />
+          <span>Refresh</span>
+        </button>
       </div>
 
       {/* Badge peringatan data dari cache snapshot (offline + reload) */}
