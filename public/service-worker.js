@@ -1,4 +1,7 @@
 const CACHE_NAME = 'futaba-pkis-v3';
+const DOCS_CACHE_NAME = `${CACHE_NAME}-documents`;
+const CURRENT_CACHES = [CACHE_NAME, DOCS_CACHE_NAME];
+
 const STATIC_ASSETS = [
   '/',
   '/offline',
@@ -24,7 +27,7 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate event: Clean up old caches
+// Activate event: Clean up old caches (including obsolete document caches)
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
@@ -32,7 +35,7 @@ self.addEventListener('activate', (event) => {
       .then((cacheNames) => {
         return Promise.all(
           cacheNames
-            .filter((name) => name !== CACHE_NAME)
+            .filter((name) => !CURRENT_CACHES.includes(name))
             .map((name) => caches.delete(name))
         );
       })
@@ -88,7 +91,41 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // 1. NETWORK-ONLY: Never cache Supabase requests, /api/* endpoints, or non-GET requests
+  // 1. SUPABASE STORAGE DOCUMENTS: Stale-While-Revalidate (Cache-first with background revalidation)
+  // Allows the last opened document/SOP to remain viewable even if network is disconnected.
+  const isSupabaseStorage =
+    url.hostname.includes('supabase.co') &&
+    url.pathname.includes('/storage/v1/object/');
+
+  if (isSupabaseStorage && request.method === 'GET') {
+    event.respondWith(
+      caches.open(DOCS_CACHE_NAME).then(async (cache) => {
+        const cachedResponse = await cache.match(request);
+
+        const networkFetch = fetch(request)
+          .then((networkResponse) => {
+            if (
+              networkResponse &&
+              (networkResponse.status === 200 || networkResponse.type === 'opaque')
+            ) {
+              cache.put(request, networkResponse.clone());
+            }
+            return networkResponse;
+          })
+          .catch((fetchError) => {
+            if (cachedResponse) {
+              return cachedResponse;
+            }
+            throw fetchError;
+          });
+
+        return cachedResponse || networkFetch;
+      })
+    );
+    return;
+  }
+
+  // 2. NETWORK-ONLY: Never cache Supabase non-storage requests (REST/Auth/Realtime), Next.js /api/* endpoints, or non-GET requests
   if (
     url.hostname.includes('supabase.co') ||
     url.pathname.startsWith('/api/') ||
@@ -97,7 +134,7 @@ self.addEventListener('fetch', (event) => {
     return; // Default browser network fetch
   }
 
-  // 2. NETWORK-FIRST for page navigations (HTML)
+  // 3. NETWORK-FIRST for page navigations (HTML)
   // Network-first with fallback to /offline page if disconnected
   const isNavigation =
     request.mode === 'navigate' ||
@@ -121,7 +158,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. CACHE-FIRST for static assets (_next/static, public images, icons, fonts)
+  // 4. CACHE-FIRST for static assets (_next/static, public images, icons, fonts)
   if (
     url.pathname.startsWith('/_next/static/') ||
     url.pathname.match(/\.(png|jpg|jpeg|svg|gif|webp|ico|woff|woff2|ttf|otf|css|js)$/i)
