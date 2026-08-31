@@ -429,11 +429,15 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
   /** Otomatis ganti tampilan Display jika Part Number terhubung ke dokumen */
   const pushDocumentToDisplay = useCallback(
     async (partNumber: string) => {
-      if (!partNumber) return;
+      if (!partNumber || !partNumber.trim()) return;
       try {
         let docId: string | null = null;
+        const normalized = partNumber.trim().toLowerCase();
         const foundInMaster = masterParts.find(
-          (p) => (p.value === partNumber || p.kode_part === partNumber) && p.document_id
+          (p) =>
+            ((p.value && p.value.trim().toLowerCase() === normalized) ||
+             (p.kode_part && p.kode_part.trim().toLowerCase() === normalized)) &&
+            p.document_id
         );
 
         if (foundInMaster?.document_id) {
@@ -444,15 +448,16 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
             .from("prod_part_numbers" as any)
             .select("id, value, document_id, line_id, mesin")
             .eq("is_active", true)
-            .eq("value", partNumber);
+            .ilike("value", partNumber.trim());
 
           if (lineId) {
             query = query.or(`line_id.eq.${lineId},mesin.eq.${config.key}`);
-          } else {
+          } else if (config.key) {
             query = query.eq("mesin", config.key);
           }
 
-          const { data: partRow } = await query.maybeSingle();
+          const { data: partRows } = await query.limit(1);
+          const partRow = partRows?.[0];
           if (partRow?.document_id) {
             docId = partRow.document_id;
           }
@@ -473,6 +478,7 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
         }
 
         const targetLineId = lineId || docData.line_id || undefined;
+        const now = Date.now();
         const payload = {
           id: docData.id,
           lineId: targetLineId,
@@ -486,7 +492,7 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
             size: docData.file_size,
           },
           targetTime: docData.target_time || null,
-          updatedAt: docData.updated_at ? new Date(docData.updated_at).getTime() : Date.now(),
+          updatedAt: now,
         };
 
         const res = await fetch("/api/display-document", {
