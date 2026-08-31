@@ -6,6 +6,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
 import type {
   ProdStationPhase,
   ProdLineState,
@@ -471,9 +472,10 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
           return;
         }
 
+        const targetLineId = lineId || docData.line_id || undefined;
         const payload = {
           id: docData.id,
-          lineId: lineId || docData.line_id || undefined,
+          lineId: targetLineId,
           title: docData.title,
           description: docData.description || undefined,
           category: undefined,
@@ -497,6 +499,15 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
 
         if (!res.ok) {
           console.error("Gagal push dokumen ke display:", await res.text());
+        } else {
+          const resData = await res.json().catch(() => null);
+          const nextDoc = resData?.document ?? payload;
+          const storageKey = targetLineId ? `futaba.display.document.${targetLineId}` : 'futaba.display.document';
+          try {
+            window.localStorage.setItem(storageKey, JSON.stringify(nextDoc));
+            window.dispatchEvent(new CustomEvent('futaba-display-document-change', { detail: nextDoc }));
+          } catch {}
+          toast.info(`📺 Menampilkan SOP: "${docData.title}" di display TV`);
         }
       } catch (err) {
         console.error("Gagal memperbarui display saat pemilihan part number:", err);
@@ -534,9 +545,12 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
         if (mp !== null) {
           mutateLine(stId, (prev) => ({ form: { ...prev.form, manpower: mp } }));
         }
+        if (value) {
+          pushDocumentToDisplay(value);
+        }
       }
     },
-    [masterParts, mutateLine]
+    [masterParts, mutateLine, pushDocumentToDisplay]
   );
 
   const setGapFormField = useCallback(
