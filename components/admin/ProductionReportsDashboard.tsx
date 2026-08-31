@@ -49,6 +49,13 @@ export default function ProductionReportsDashboard() {
   const [isDeleteClosing, setIsDeleteClosing] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
+  // Bulk Selection & Delete state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+  const [isBulkDeleteClosing, setIsBulkDeleteClosing] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [bulkDeleteError, setBulkDeleteError] = useState("");
+
   const closeDeleteModal = () => {
     if (!deleteTarget || isDeleteClosing) return;
     setIsDeleteClosing(true);
@@ -185,6 +192,75 @@ export default function ProductionReportsDashboard() {
       return true;
     });
   }, [reports, searchQuery]);
+
+  // Bulk Selection Helpers
+  const isAllSelected = useMemo(() => {
+    return filteredReports.length > 0 && filteredReports.every((r) => selectedIds.has(r.id));
+  }, [filteredReports, selectedIds]);
+
+  const isSomeSelected = useMemo(() => {
+    return filteredReports.some((r) => selectedIds.has(r.id)) && !isAllSelected;
+  }, [filteredReports, selectedIds, isAllSelected]);
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredReports.map((r) => r.id)));
+    }
+  };
+
+  const toggleSelectRow = (id: string, e?: React.MouseEvent | React.ChangeEvent) => {
+    if (e) e.stopPropagation();
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const openBulkDeleteModal = () => {
+    if (selectedIds.size === 0) return;
+    setBulkDeleteError("");
+    setIsBulkDeleteModalOpen(true);
+  };
+
+  const closeBulkDeleteModal = () => {
+    if (isBulkDeleting || isBulkDeleteClosing) return;
+    setIsBulkDeleteClosing(true);
+    setTimeout(() => {
+      setIsBulkDeleteModalOpen(false);
+      setIsBulkDeleteClosing(false);
+      setBulkDeleteError("");
+    }, 200);
+  };
+
+  const handleBulkDeleteConfirm = async () => {
+    if (selectedIds.size === 0) return;
+    try {
+      setIsBulkDeleting(true);
+      setBulkDeleteError("");
+      const idsToDelete = Array.from(selectedIds);
+
+      const supabase = createClient();
+      const { error: err } = await supabase
+        .from("prod_production_log" as any)
+        .update({ is_active: false })
+        .in("id", idsToDelete);
+
+      if (err) throw err;
+
+      toast.success(`${idsToDelete.length} laporan produksi berhasil dihapus.`);
+      setReports((prev) => prev.filter((r) => !selectedIds.has(r.id)));
+      setSelectedIds(new Set());
+      closeBulkDeleteModal();
+    } catch (err) {
+      setBulkDeleteError(err instanceof Error ? err.message : "Gagal menghapus laporan terpilih");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
 
   // Aggregate statistics calculation
   const stats = useMemo(() => {
@@ -615,6 +691,40 @@ Istirahat: ${breakMin}
         </div>
       </div>
 
+      {/* Bulk Action Floating Bar */}
+      {selectedIds.size > 0 && (
+        <div className="sticky top-4 z-30 flex items-center justify-between gap-3 p-3.5 bg-slate-900 text-white rounded-xl shadow-xl border border-slate-700 animate-in fade-in slide-in-from-top-3 duration-200">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs font-bold">
+              {selectedIds.size}
+            </span>
+            <span className="text-xs sm:text-sm font-semibold">Laporan Produksi Dipilih</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedIds(new Set())}
+              className="h-8 px-3 text-xs text-slate-300 hover:text-white hover:bg-slate-800"
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={openBulkDeleteModal}
+              className="h-8 px-3 text-xs font-bold bg-red-600 hover:bg-red-700 text-white flex items-center gap-1.5 shadow-sm cursor-pointer"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>Hapus ({selectedIds.size})</span>
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Main Table Card */}
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         {error && (
@@ -641,6 +751,18 @@ Istirahat: ${breakMin}
             <table className="w-full text-left text-sm border-collapse">
               <thead>
                 <tr className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200 select-none">
+                  <th className="py-4 pl-4 pr-2 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      checked={isAllSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = isSomeSelected;
+                      }}
+                      onChange={toggleSelectAll}
+                      aria-label="Pilih semua laporan"
+                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                    />
+                  </th>
                   <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Tanggal</th>
                   <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Line/Card</th>
                   <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Operator</th>
@@ -658,6 +780,7 @@ Istirahat: ${breakMin}
                 className="divide-y divide-slate-100 animate-in fade-in slide-in-from-bottom-2 duration-500"
               >
                 {filteredReports.map((report, index) => {
+                  const isSelected = selectedIds.has(report.id);
                   const okQty = report.qty - report.ng_qty;
                   const ngRate = report.qty > 0 ? (report.ng_qty / report.qty) * 100 : 0;
                   const isNgHigh = report.ng_qty > 0;
@@ -665,9 +788,22 @@ Istirahat: ${breakMin}
                   return (
                     <tr
                       key={report.id}
-                      className="hover:bg-slate-50 transition-colors duration-200 group animate-in fade-in slide-in-from-bottom-1 duration-300 fill-mode-backwards"
+                      onClick={() => toggleSelectRow(report.id)}
+                      className={`transition-colors duration-200 group cursor-pointer animate-in fade-in slide-in-from-bottom-1 duration-300 fill-mode-backwards ${
+                        isSelected ? "bg-blue-50/70 hover:bg-blue-50" : "hover:bg-slate-50"
+                      }`}
                       style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}
                     >
+                      {/* Checkbox Column */}
+                      <td className="py-3.5 pl-4 pr-2 text-center" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => toggleSelectRow(report.id, e)}
+                          aria-label={`Pilih laporan ${report.part_number}`}
+                          className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                        />
+                      </td>
                       {/* Tanggal */}
                       <td className="py-3.5 px-4 font-medium text-slate-900 whitespace-nowrap">
                         {formatDate(report.report_date)}
@@ -980,6 +1116,77 @@ Istirahat: ${breakMin}
           </div>
         </div>
       )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      {isBulkDeleteModalOpen && (
+        <div
+          className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs ${
+            isBulkDeleteClosing
+              ? "animate-out fade-out duration-200 [animation-fill-mode:forwards]"
+              : "animate-in fade-in duration-200"
+          }`}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isBulkDeleting) closeBulkDeleteModal();
+          }}
+        >
+          <div
+            className={`relative w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl ${
+              isBulkDeleteClosing
+                ? "animate-out fade-out zoom-out-95 duration-200 [animation-fill-mode:forwards]"
+                : "animate-in fade-in zoom-in-95 duration-200"
+            }`}
+          >
+            <button
+              onClick={closeBulkDeleteModal}
+              disabled={isBulkDeleting}
+              className="absolute right-4 top-4 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors duration-200 cursor-pointer"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="flex items-start gap-4">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-50 border border-red-100 text-red-600">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-slate-900">Hapus {selectedIds.size} Laporan Produksi</h3>
+                <p className="mt-2 text-sm text-slate-500 leading-relaxed">
+                  Apakah Anda yakin ingin menghapus <span className="font-bold text-slate-900">{selectedIds.size}</span> laporan produksi yang dipilih sekaligus?
+                </p>
+                <p className="mt-1 text-xs text-red-500 font-medium">
+                  Data yang dihapus akan dipindahkan ke Tempat Sampah (Recycle Bin).
+                </p>
+              </div>
+            </div>
+
+            {bulkDeleteError && (
+              <div className="mt-4 rounded-md bg-red-50 p-3 text-xs text-red-800 border border-red-100">
+                {bulkDeleteError}
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end gap-3">
+              <Button
+                type="button"
+                disabled={isBulkDeleting}
+                onClick={closeBulkDeleteModal}
+                className="h-10 bg-slate-500 hover:bg-slate-600 text-white font-semibold flex items-center justify-center cursor-pointer"
+              >
+                Batal
+              </Button>
+              <Button
+                type="button"
+                disabled={isBulkDeleting}
+                onClick={handleBulkDeleteConfirm}
+                className="h-10 bg-red-600 hover:bg-red-700 text-white font-semibold flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Trash2 className="h-4 w-4" />
+                {isBulkDeleting ? "Menghapus..." : `Ya, Hapus (${selectedIds.size})`}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -990,6 +1197,7 @@ function ProductionReportsTableSkeleton() {
       <table className="w-full text-left text-sm border-collapse">
         <thead>
           <tr className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+            <th className="py-4 pl-4 pr-2 w-10 text-center"><div className="h-4 w-4 bg-slate-200 rounded mx-auto" /></th>
             <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Tanggal</th>
             <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Line/Card</th>
             <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Operator</th>
@@ -1005,6 +1213,7 @@ function ProductionReportsTableSkeleton() {
         <tbody className="divide-y divide-slate-100">
           {Array.from({ length: 7 }).map((_, i) => (
             <tr key={i}>
+              <td className="py-3.5 pl-4 pr-2 text-center"><div className="h-4 w-4 bg-slate-200 rounded mx-auto" /></td>
               <td className="py-3.5 px-4"><div className="h-4 bg-slate-200 rounded w-20" /></td>
               <td className="py-3.5 px-4"><div className="h-4 bg-slate-200 rounded w-24" /></td>
               <td className="py-3.5 px-4"><div className="h-4 bg-slate-200 rounded w-28" /></td>
