@@ -1,0 +1,17 @@
+-- ==============================================================================
+-- MIGRATION: Keep machine_type on public.lines
+-- ==============================================================================
+-- CATATAN:
+-- Migration lama (20260822_drop_machine_type_from_lines.sql) yang bermaksud
+-- menghapus kolom machine_type SUDAH TIDAK BERLAKU / tidak pernah dieksekusi secara final.
+--
+-- Kolom `machine_type` TETAP DIPERTAHANKAN dan aktif digunakan di seluruh aplikasi:
+-- - CreateLineDialog.tsx / AdminLineCard.tsx
+-- - master-data-client.tsx / machine-picker-client.tsx
+-- - upload-dialog.tsx / document-card.tsx
+-- - ProductionLogDashboard.tsx / operator-page-client.tsx
+-- - lib/services/line.ts
+--
+-- File migration lama tetap disimpan untuk rekam jejak histori git, namun kolom
+-- `machine_type` pada tabel `lines` adalah kolom resmi dan aktif di database.
+-- ==============================================================================
