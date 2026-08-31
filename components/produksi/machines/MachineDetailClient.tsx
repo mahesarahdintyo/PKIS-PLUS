@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Chart from "chart.js/auto";
+import { toast } from "sonner";
 import { useThemeListener } from "@/hooks/produksi/useThemeListener";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -206,6 +207,10 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
   const theme = useThemeListener();
 
   const { flash } = useFlash();
+  const lastLocalActionTimeRef = useRef<number>(0);
+  const markLocalAction = useCallback(() => {
+    lastLocalActionTimeRef.current = Date.now();
+  }, []);
 
   const [tandemVariant, setTandemVariant] = useState<"lama" | "baru" | null>(() => {
     if (config.stationConfig.mode !== "variant") return null;
@@ -696,6 +701,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       keterangan: f.nama,
     };
     try {
+      markLocalAction();
       const { error } = await supabase.from("prod_dandori_log" as any).update(payload).eq("id", editingNonProduksiId);
       if (error) throw error;
       handleCancelEditNonProduksi();
@@ -725,6 +731,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
         : "prod_dandori_log";
 
     try {
+      markLocalAction();
       setIsDeletingRiwayat(true);
       const { error } = await supabase.from(table as any).update({ is_active: false }).eq("id", row.data.id);
       if (error) throw error;
@@ -755,6 +762,71 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       setRiwayatHariIni([]);
     });
   }, [activeTab, fetchRiwayatHariIniData]);
+
+  // Realtime subscription for Riwayat data changes (production, downtime, dandori) from other sources
+  useEffect(() => {
+    const channelName = `machine_riwayat_${lineId || config.key}_${Math.random().toString(36).slice(2)}`;
+    const filter = lineId ? `line_id=eq.${lineId}` : undefined;
+
+    const handleRealtimeChange = () => {
+      // Ignore changes triggered by operator's own recent local actions
+      if (Date.now() - lastLocalActionTimeRef.current < 3000) {
+        return;
+      }
+
+      toast.info("Ada pembaruan data riwayat", {
+        id: "realtime-riwayat-update",
+        action: {
+          label: "Refresh",
+          onClick: () => {
+            fetchRiwayatHariIniData();
+            if (activeTab === "riwayat") {
+              fetchRiwayatGabungan();
+            }
+          },
+        },
+        duration: 8000,
+      });
+    };
+
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "prod_production_log",
+          ...(filter ? { filter } : {}),
+        },
+        handleRealtimeChange
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "prod_downtime_log",
+          ...(filter ? { filter } : {}),
+        },
+        handleRealtimeChange
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "prod_dandori_log",
+          ...(filter ? { filter } : {}),
+        },
+        handleRealtimeChange
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [lineId, config.key, activeTab, fetchRiwayatHariIniData, fetchRiwayatGabungan]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeStationIds = React.useMemo(() => {
     return stationList().map((st) => st.id);
@@ -789,6 +861,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       };
 
       try {
+        markLocalAction();
         const { error } = await supabase.from("prod_production_log" as any).insert(row);
         if (error) throw error;
 
@@ -822,6 +895,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
   const handleUpdateProduction = useCallback(
     async (stId: string, stationDbId: string | null, id: string, payload: UpdatePayload) => {
       try {
+        markLocalAction();
         const { error } = await supabase.from("prod_production_log" as any).update(payload).eq("id", id);
         if (error) throw error;
         flash("Data produksi diperbarui.");
@@ -832,7 +906,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
         flash("Gagal memperbarui produksi: " + (err?.message || JSON.stringify(err)), true);
       }
     },
-    [loadData, fetchRiwayatHariIniData, fetchRiwayatGabungan]
+    [loadData, fetchRiwayatHariIniData, fetchRiwayatGabungan, markLocalAction]
   );
 
   const handleSaveNonProduksiRow = useCallback(
@@ -851,6 +925,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       };
 
       try {
+        markLocalAction();
         const { error } = await supabase.from("prod_dandori_log" as any).insert(row);
         if (error) throw error;
         loadData();
@@ -1598,6 +1673,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
     };
 
     try {
+      markLocalAction();
       if (f.problem) await learnProblem(f.problem);
 
       if (editingDowntimeId) {
@@ -1651,6 +1727,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
   const deleteDowntime = async (id: string) => {
     if (!confirm("Hapus data downtime ini?")) return;
     try {
+      markLocalAction();
       const { error } = await supabase.from("prod_downtime_log" as any).update({ is_active: false }).eq("id", id);
       if (error) throw error;
       await loadData();
