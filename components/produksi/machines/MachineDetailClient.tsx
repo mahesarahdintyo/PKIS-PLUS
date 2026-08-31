@@ -411,7 +411,82 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       } else {
         settingsQuery = settingsQuery.eq("mesin", config.key);
       }
-      const { data: settingsData } = await settingsQuery.maybeSingle();
+
+      // 2. Part Numbers (from prod_part_numbers)
+      let pNumQuery = supabase.from("prod_part_numbers" as any).select("*").eq("is_active", true);
+      if (lineId) {
+        pNumQuery = pNumQuery.or(`line_id.eq.${lineId},mesin.eq.${config.key}`);
+      } else {
+        pNumQuery = pNumQuery.eq("mesin", config.key);
+      }
+
+      // 3. Production Log
+      let pRowsQuery = supabase.from("prod_production_log" as any).select("*").eq("is_active", true);
+      if (lineId) {
+        pRowsQuery = pRowsQuery.or(`line_id.eq.${lineId},mesin.eq.${config.key}`);
+      } else {
+        pRowsQuery = pRowsQuery.eq("mesin", config.key);
+      }
+
+      // 4. Downtime Log
+      let dtQuery = supabase.from("prod_downtime_log" as any).select("*").eq("is_active", true);
+      if (lineId) {
+        dtQuery = dtQuery.or(`line_id.eq.${lineId},mesin.eq.${config.key}`);
+      } else {
+        dtQuery = dtQuery.eq("mesin", config.key);
+      }
+
+      // 5. Downtime Problems Master
+      let probsQuery = supabase.from("prod_downtime_problems" as any).select("*").eq("is_active", true);
+      if (lineId) {
+        probsQuery = probsQuery.or(`line_id.eq.${lineId},mesin.eq.${config.key}`);
+      } else {
+        probsQuery = probsQuery.eq("mesin", config.key);
+      }
+
+      // 6. Dandori / Non-Produksi Log
+      let dRowsQuery = supabase.from("prod_dandori_log" as any).select("*").eq("is_active", true);
+      if (lineId) {
+        dRowsQuery = dRowsQuery.or(`line_id.eq.${lineId},mesin.eq.${config.key}`);
+      } else {
+        dRowsQuery = dRowsQuery.eq("mesin", config.key);
+      }
+
+      // 7. Non-Produksi Types
+      let npTypesQuery = supabase.from("prod_nonproduksi_types" as any).select("*").eq("is_active", true);
+      if (lineId) {
+        npTypesQuery = npTypesQuery.or(`line_id.eq.${lineId},mesin.eq.${config.key}`);
+      } else {
+        npTypesQuery = npTypesQuery.eq("mesin", config.key);
+      }
+
+      // 8. Production Planning
+      let planQuery = supabase.from("prod_production_planning" as any).select("*").eq("is_active", true);
+      if (lineId) {
+        planQuery = planQuery.or(`line_id.eq.${lineId},mesin.eq.${config.key}`);
+      } else {
+        planQuery = planQuery.eq("mesin", config.key);
+      }
+
+      const [
+        { data: settingsData },
+        { data: pNumData, error: pNumErr },
+        { data: pRows },
+        { data: dt },
+        { data: probs },
+        { data: dRows },
+        { data: npTypes },
+        { data: planData },
+      ] = await Promise.all([
+        settingsQuery.maybeSingle(),
+        pNumQuery.order("value"),
+        pRowsQuery.order("waktu_awal", { ascending: false }).limit(500),
+        dtQuery.order("waktu_awal", { ascending: false }).limit(500),
+        probsQuery.order("value", { ascending: true }),
+        dRowsQuery.order("waktu_awal", { ascending: false }).limit(500),
+        npTypesQuery.order("nama", { ascending: true }),
+        planQuery.order("jam_rencana_mulai", { ascending: true }),
+      ]);
 
       if (settingsData) {
         setMesinSettings({
@@ -425,15 +500,6 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
           target_availability: settingsData.target_availability ?? 0,
         });
       }
-
-      // 2. Part Numbers (from prod_part_numbers)
-      let pNumQuery = supabase.from("prod_part_numbers" as any).select("*").eq("is_active", true);
-      if (lineId) {
-        pNumQuery = pNumQuery.or(`line_id.eq.${lineId},mesin.eq.${config.key}`);
-      } else {
-        pNumQuery = pNumQuery.eq("mesin", config.key);
-      }
-      const { data: pNumData, error: pNumErr } = await pNumQuery.order("value");
 
       if (!pNumErr && pNumData) {
         const mappedParts: ProdMasterPart[] = pNumData.map((p: any) => ({
@@ -453,64 +519,11 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
         setMasterParts(mappedParts);
       }
 
-      // 3. Production Log
-      let pRowsQuery = supabase.from("prod_production_log" as any).select("*").eq("is_active", true);
-      if (lineId) {
-        pRowsQuery = pRowsQuery.or(`line_id.eq.${lineId},mesin.eq.${config.key}`);
-      } else {
-        pRowsQuery = pRowsQuery.eq("mesin", config.key);
-      }
-      const { data: pRows } = await pRowsQuery.order("waktu_awal", { ascending: false }).limit(500);
       if (pRows) setProductionRows(pRows as ProdProductionLogRow[]);
-
-      // 4. Downtime Log
-      let dtQuery = supabase.from("prod_downtime_log" as any).select("*").eq("is_active", true);
-      if (lineId) {
-        dtQuery = dtQuery.or(`line_id.eq.${lineId},mesin.eq.${config.key}`);
-      } else {
-        dtQuery = dtQuery.eq("mesin", config.key);
-      }
-      const { data: dt } = await dtQuery.order("waktu_awal", { ascending: false }).limit(500);
       if (dt) setDowntimeList(dt as ProdDowntimeLogRow[]);
-
-      // 5. Downtime Problems Master
-      let probsQuery = supabase.from("prod_downtime_problems" as any).select("*").eq("is_active", true);
-      if (lineId) {
-        probsQuery = probsQuery.or(`line_id.eq.${lineId},mesin.eq.${config.key}`);
-      } else {
-        probsQuery = probsQuery.eq("mesin", config.key);
-      }
-      const { data: probs } = await probsQuery.order("value", { ascending: true });
       if (probs) setProblemList(probs as ProdDowntimeProblem[]);
-
-      // 6. Dandori / Non-Produksi Log
-      let dRowsQuery = supabase.from("prod_dandori_log" as any).select("*").eq("is_active", true);
-      if (lineId) {
-        dRowsQuery = dRowsQuery.or(`line_id.eq.${lineId},mesin.eq.${config.key}`);
-      } else {
-        dRowsQuery = dRowsQuery.eq("mesin", config.key);
-      }
-      const { data: dRows } = await dRowsQuery.order("waktu_awal", { ascending: false }).limit(500);
       if (dRows) setNonProduksiRows(dRows as ProdDandoriLogRow[]);
-
-      // 7. Non-Produksi Types
-      let npTypesQuery = supabase.from("prod_nonproduksi_types" as any).select("*").eq("is_active", true);
-      if (lineId) {
-        npTypesQuery = npTypesQuery.or(`line_id.eq.${lineId},mesin.eq.${config.key}`);
-      } else {
-        npTypesQuery = npTypesQuery.eq("mesin", config.key);
-      }
-      const { data: npTypes } = await npTypesQuery.order("nama", { ascending: true });
       if (npTypes) setNonProduksiTypes(npTypes as ProdNonProduksiType[]);
-
-      // 8. Production Planning
-      let planQuery = supabase.from("prod_production_planning" as any).select("*").eq("is_active", true);
-      if (lineId) {
-        planQuery = planQuery.or(`line_id.eq.${lineId},mesin.eq.${config.key}`);
-      } else {
-        planQuery = planQuery.eq("mesin", config.key);
-      }
-      const { data: planData } = await planQuery.order("jam_rencana_mulai", { ascending: true });
       if (planData) setPlanningList(planData as ProdProductionPlanning[]);
 
       // Simpan snapshot lengkap setelah semua query di atas berhasil,
