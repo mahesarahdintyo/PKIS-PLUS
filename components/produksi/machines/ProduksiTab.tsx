@@ -416,17 +416,23 @@ export default function ProduksiTab({
                       <div className="space-y-1.5">
                         <p className="text-[11px] text-muted-foreground">Rencana produksi:</p>
                         <div className="flex flex-wrap gap-1.5">
-                          {stPlanning.map((plan) => (
-                            <button
-                              key={plan.id || `${plan.part_number}-${plan.jam_rencana_mulai}`}
-                              type="button"
-                              className={`chip text-xs ${line.planningId === plan.id ? "chip-active" : ""}`}
-                              onClick={() => linesHook.choosePlannedPart(st.id, plan)}
-                            >
-                              {plan.part_number}
-                              {plan.qty_rencana ? ` (${fmtNum(plan.qty_rencana)})` : ""}
-                            </button>
-                          ))}
+                          {stPlanning.map((plan) => {
+                            const hasDoc = masterParts.some(
+                              (p) => (p.value === plan.part_number || p.kode_part === plan.part_number) && p.document_id
+                            );
+                            return (
+                              <button
+                                key={plan.id || `${plan.part_number}-${plan.jam_rencana_mulai}`}
+                                type="button"
+                                className={`chip text-xs ${line.planningId === plan.id ? "chip-active" : ""}`}
+                                onClick={() => linesHook.choosePlannedPart(st.id, plan)}
+                              >
+                                {plan.part_number}
+                                {hasDoc ? " 📄" : ""}
+                                {plan.qty_rencana ? ` (${fmtNum(plan.qty_rencana)})` : ""}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -434,9 +440,19 @@ export default function ProduksiTab({
                       Pilih dari Planning kalau ada, atau pilih Part Number lain di bawah.
                     </p>
                     <div className="field">
-                      <label className="text-[11px] block text-muted-foreground mb-1 font-semibold uppercase tracking-wider">
-                        Part Number
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[11px] block text-muted-foreground font-semibold uppercase tracking-wider">
+                          Part Number
+                        </label>
+                        {masterParts.find(
+                          (p) => (p.value === line.form.part_number || p.kode_part === line.form.part_number) && p.document_id
+                        ) && (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-1.5 py-0.5 rounded font-medium">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            📺 SOP Terhubung ke TV
+                          </span>
+                        )}
+                      </div>
                       <Combobox
                         className="w-full"
                         inputClassName="h-9 text-xs font-semibold"
@@ -444,13 +460,13 @@ export default function ProduksiTab({
                         value={line.form.part_number}
                         onChange={(v) => {
                           linesHook.setFormField(st.id, "part_number", v);
-                          if (v) linesHook.pushDocumentToDisplay(v);
                         }}
                         options={masterParts.map((part) => {
                           const partNumber = part.kode_part || part.value || part.nama_part || "";
+                          const hasDoc = Boolean(part.document_id);
                           return {
                             value: partNumber,
-                            label: part.nama_part && part.nama_part !== partNumber ? `${partNumber} - ${part.nama_part}` : partNumber,
+                            label: part.nama_part && part.nama_part !== partNumber ? `${partNumber} - ${part.nama_part}${hasDoc ? " [📄 SOP]" : ""}` : `${partNumber}${hasDoc ? " [📄 SOP]" : ""}`,
                           };
                         })}
                       />
