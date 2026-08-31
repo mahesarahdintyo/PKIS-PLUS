@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentUserProfile } from '@/lib/services/auth-server'
 import { NextResponse } from 'next/server'
 
 export async function PATCH(
@@ -7,6 +8,12 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params
+
+    const userProfile = await getCurrentUserProfile()
+    if (!userProfile.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const body = await request.json()
 
     if (!id) {
@@ -227,6 +234,10 @@ export async function DELETE(
     }
 
     const supabase = await createClient()
+    const userProfile = await getCurrentUserProfile()
+    if (!userProfile.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
     // --- Hapus referensi dari layar display agar langsung hilang di layar TV ---
     await supabase.from('display_documents').delete().eq('document_id', id)

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentUserProfile } from "@/lib/services/auth-server";
 import { NextResponse } from "next/server";
 
 export async function DELETE(
@@ -16,6 +17,10 @@ export async function DELETE(
     }
 
     const supabase = await createClient();
+    const userProfile = await getCurrentUserProfile();
+    if (!userProfile.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const { error } = await supabase
       .from("prod_production_log" as any)

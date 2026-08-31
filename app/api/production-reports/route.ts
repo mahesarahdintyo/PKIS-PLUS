@@ -39,6 +39,9 @@ export async function GET(request: Request) {
     const showTrash = searchParams.get("trash") === "true";
 
     const userProfile = await getCurrentUserProfile();
+    if (!userProfile.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const lineId = userProfile.role === "operator" && userProfile.lineId ? userProfile.lineId : reqLineId;
 
     const supabase = await createClient();
@@ -148,6 +151,9 @@ export async function POST(request: Request) {
     } = body;
 
     const userProfile = await getCurrentUserProfile();
+    if (!userProfile.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const line_id = userProfile.role === "operator" && userProfile.lineId ? userProfile.lineId : reqLineId;
 
     // Validate required fields

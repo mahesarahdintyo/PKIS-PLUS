@@ -16,6 +16,9 @@ export async function GET(request: Request) {
     const showTrash = searchParams.get("trash") === "true";
 
     const userProfile = await getCurrentUserProfile();
+    if (!userProfile.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const lineId = userProfile.role === "operator" && userProfile.lineId ? userProfile.lineId : reqLineId;
 
     const supabase = await createClient();
@@ -156,6 +159,10 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const { data, error } = await supabase
       .from("documents")

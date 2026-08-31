@@ -85,6 +85,10 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     // Cek duplikat nama (case-insensitive)
     const { data: existing } = await supabase
@@ -164,6 +168,10 @@ export async function PUT(request: Request) {
     }
 
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     // Cek duplikat nama (case-insensitive), kecuali line yang sedang diedit
     const { data: existing } = await supabase
@@ -224,6 +232,10 @@ export async function PATCH(request: Request) {
     }
 
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const { data: updatedLine, error } = await supabase
       .from("lines")
@@ -267,6 +279,10 @@ export async function DELETE(request: Request) {
     }
 
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     // 1. Get all folders of this line
     const { data: folders } = await supabase
