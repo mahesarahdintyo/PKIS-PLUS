@@ -1979,9 +1979,11 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       </div>
 
       {loading ? (
-        <p className="empty-state">Memuat data mesin...</p>
+        <div className="rounded-xl border border-border bg-card p-10 text-center text-muted-foreground shadow-sm animate-pulse">
+          Memuat data mesin...
+        </div>
       ) : (
-        <>
+        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards">
           {activeTab === "produksi" && (
             <ProduksiTab
               config={config}
@@ -2132,7 +2134,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
               fmtNum={fmtNum}
             />
           )}
-        </>
+        </div>
       )}
 
       {/* Modal Konfirmasi Hapus Riwayat */}
