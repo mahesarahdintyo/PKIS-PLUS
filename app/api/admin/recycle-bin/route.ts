@@ -2,6 +2,33 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
+/** Verify the caller is an authenticated admin or leader. Returns 401/403 response on failure. */
+async function requireAdminOrLeader(): Promise<NextResponse | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const role = (profile?.role ?? user.user_metadata?.role ?? user.app_metadata?.role ?? "") as string;
+
+  if (role !== "admin" && role !== "leader") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  return null; // guard passed
+}
+
 // All production tables that support soft-delete via is_active
 const PROD_LOG_TABLES: Record<string, string> = {
   attendance_log: "prod_attendance_log",
@@ -20,6 +47,9 @@ const PROD_LOG_TABLES: Record<string, string> = {
 
 // DELETE - Delete single item permanently or empty the whole Recycle Bin
 export async function DELETE(request: Request) {
+  const authResponse = await requireAdminOrLeader();
+  if (authResponse) return authResponse;
+
   try {
     const supabase = createAdminClient();
 
@@ -363,6 +393,9 @@ export async function DELETE(request: Request) {
 }
 // POST - Restore a single item (set is_active = true, and recursively activate its dependencies)
 export async function POST(request: Request) {
+  const authResponse = await requireAdminOrLeader();
+  if (authResponse) return authResponse;
+
   try {
     const body = await request.json();
     const { type, id } = body;
@@ -374,7 +407,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     if (type === "line" || type === "land") {
       // 1. Restore the line itself
@@ -508,6 +541,9 @@ export async function POST(request: Request) {
 
 // GET - Fetch trashed (is_active = false) production module records
 export async function GET(request: Request) {
+  const authResponse = await requireAdminOrLeader();
+  if (authResponse) return authResponse;
+
   try {
     const { searchParams } = new URL(request.url);
     const group = searchParams.get("group"); // "log_produksi" | "master_data" | "andon"

@@ -14,6 +14,9 @@ export async function GET(request: Request) {
     const parentId = parentIdStr ? parseInt(parentIdStr) : null
 
     const userProfile = await getCurrentUserProfile()
+    if (!userProfile.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const lineId = userProfile.role === 'operator' && userProfile.lineId ? userProfile.lineId : reqLineId
 
     const supabase = await createClient()
@@ -127,6 +130,9 @@ export async function POST(request: Request) {
     }
 
     const userProfile = await getCurrentUserProfile()
+    if (!userProfile.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const lineId = userProfile.role === 'operator' && userProfile.lineId ? userProfile.lineId : reqLineId
 
     const baseName = name.trim()
@@ -210,6 +216,10 @@ export async function DELETE(request: Request) {
 
     const rootId = parseInt(idStr)
     const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
     // Kumpulkan semua folder ID secara rekursif (BFS)
     const allFolderIds: number[] = [rootId]

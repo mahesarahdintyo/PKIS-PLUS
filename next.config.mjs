@@ -19,9 +19,6 @@ const localNetworkOrigins = [
 
 const nextConfig = {
   allowedDevOrigins: localNetworkOrigins,
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   images: {
     unoptimized: true,
   },

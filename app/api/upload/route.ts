@@ -25,6 +25,9 @@ export async function POST(request: Request) {
     const targetTime = formData.get('targetTime') as string | null
 
     const userProfile = await getCurrentUserProfile()
+    if (!userProfile.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const lineId = userProfile.role === 'operator' && userProfile.lineId ? userProfile.lineId : reqLineId
 
     if (!file) {
@@ -51,7 +54,9 @@ export async function POST(request: Request) {
     const supabase = await createClient()
 
     // Check if storage bucket exists, if not it will be created automatically
-    const fileName = `${Date.now()}-${file.name}`
+    // Sanitize file name: keep only alphanumeric, dot, dash, underscore to prevent path traversal
+    const rawName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')
+    const fileName = `${Date.now()}-${rawName}`
     const filePath = `documents/${fileName}`
 
     // Upload file to Supabase Storage
