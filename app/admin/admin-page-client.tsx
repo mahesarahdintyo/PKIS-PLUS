@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
-import { Bell, ChevronLeft, ChevronRight, Database, FileText, FolderKanban, History, LayoutDashboard, Menu, Shield, Trash2, Users, Wrench, X, Zap } from 'lucide-react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
+import { AlertTriangle, Bell, ChevronLeft, ChevronRight, Database, FileText, FolderKanban, History, LayoutDashboard, Menu, Shield, Trash2, Users, Wrench, X, Zap } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -99,6 +99,12 @@ export default function Page({ initialLines = [] }: AdminPageProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(false)
   const [isAnyDialogOpen, setIsAnyDialogOpen] = useState(false)
+
+  // ── Bulk select state ──────────────────────────────────────────────────────
+  const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set())
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false)
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false)
+  const [bulkDeleteError, setBulkDeleteError] = useState('')
   const pageTitle = {
     workspace: 'Workspace',
   }[activeView]
@@ -301,7 +307,46 @@ export default function Page({ initialLines = [] }: AdminPageProps) {
   }
 
   const handleDeleteSuccess = (deletedId: string) => {
-    setDocuments(documents.filter(doc => doc.id !== deletedId))
+    setDocuments(prev => prev.filter(doc => doc.id !== deletedId))
+    setSelectedDocIds(prev => { const next = new Set(prev); next.delete(deletedId); return next })
+  }
+
+  const toggleDocSelect = useCallback((id: string) => {
+    setSelectedDocIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const handleBulkDeleteDocs = async () => {
+    if (selectedDocIds.size === 0) return
+    try {
+      setIsBulkDeleting(true)
+      setBulkDeleteError('')
+
+      const ids = Array.from(selectedDocIds)
+      const res = await fetch('/api/documents', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error ?? 'Gagal menghapus dokumen')
+      }
+
+      toast.success(`${ids.length} dokumen berhasil dipindahkan ke Tempat Sampah.`)
+      setDocuments(prev => prev.filter(d => !selectedDocIds.has(d.id)))
+      setSelectedDocIds(new Set())
+      setShowBulkDeleteModal(false)
+    } catch (err: any) {
+      setBulkDeleteError(err?.message ?? 'Gagal menghapus dokumen.')
+    } finally {
+      setIsBulkDeleting(false)
+    }
   }
 
   const handleVisibilityChange = (documentId: string, hiddenFromOperator: boolean) => {
@@ -362,6 +407,11 @@ export default function Page({ initialLines = [] }: AdminPageProps) {
     fetchFolders()
   }
 
+  // Clear selection when navigating away from a line
+  useEffect(() => {
+    setSelectedDocIds(new Set())
+  }, [currentFolder, selectedLine, showLineList])
+
   const filteredLines = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
     if (!query) return lines
@@ -391,6 +441,25 @@ export default function Page({ initialLines = [] }: AdminPageProps) {
       folder.name.toLowerCase().includes(searchQuery.toLowerCase())
     )
   }, [searchQuery, folders])
+
+  // ── Bulk select computed values (need filteredDocuments) ──────────────────
+  const isAllDocsSelected = useMemo(() =>
+    filteredDocuments.length > 0 && filteredDocuments.every(d => selectedDocIds.has(d.id)),
+    [filteredDocuments, selectedDocIds]
+  )
+
+  const isDocIndeterminate = useMemo(() =>
+    filteredDocuments.some(d => selectedDocIds.has(d.id)) && !isAllDocsSelected,
+    [filteredDocuments, selectedDocIds, isAllDocsSelected]
+  )
+
+  const toggleSelectAllDocs = () => {
+    if (isAllDocsSelected) {
+      setSelectedDocIds(new Set())
+    } else {
+      setSelectedDocIds(new Set(filteredDocuments.map(d => d.id)))
+    }
+  }
 
   const showEmptyState = filteredDocuments.length === 0 && filteredFolders.length === 0
 
@@ -616,9 +685,55 @@ export default function Page({ initialLines = [] }: AdminPageProps) {
               <div className="space-y-3">
                 {!showLineList && !isLoading && filteredDocuments.length > 0 && (
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                      Dokumen ({filteredDocuments.length})
-                    </h3>
+                    <div className="flex items-center gap-2.5">
+                      <input
+                        type="checkbox"
+                        checked={isAllDocsSelected}
+                        ref={(el) => { if (el) el.indeterminate = isDocIndeterminate }}
+                        onChange={toggleSelectAllDocs}
+                        aria-label="Pilih semua dokumen"
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                      />
+                      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                        Dokumen ({filteredDocuments.length})
+                      </h3>
+                    </div>
+                    {selectedDocIds.size > 0 && (
+                      <span className="text-xs text-blue-600 font-semibold">{selectedDocIds.size} dipilih</span>
+                    )}
+                  </div>
+                )}
+
+                {/* Floating Bulk Action Bar */}
+                {selectedDocIds.size > 0 && !showLineList && (
+                  <div className="sticky top-4 z-30 flex items-center justify-between gap-3 p-3.5 bg-slate-900 text-white rounded-xl shadow-xl border border-slate-700 animate-in fade-in slide-in-from-top-3 duration-200">
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs font-bold">
+                        {selectedDocIds.size}
+                      </span>
+                      <span className="text-xs sm:text-sm font-semibold">Dokumen Dipilih</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedDocIds(new Set())}
+                        className="h-8 px-3 text-xs text-slate-300 hover:text-white hover:bg-slate-800"
+                      >
+                        Batal
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => { setBulkDeleteError(''); setShowBulkDeleteModal(true) }}
+                        className="h-8 px-3 text-xs font-bold bg-red-600 hover:bg-red-700 text-white flex items-center gap-1.5 shadow-sm cursor-pointer"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>Hapus ({selectedDocIds.size})</span>
+                      </Button>
+                    </div>
                   </div>
                 )}
 
@@ -666,6 +781,8 @@ export default function Page({ initialLines = [] }: AdminPageProps) {
                         linkedPartNumbers={doc.linkedPartNumbers}
                         onDelete={handleDeleteSuccess}
                         onVisibilityChange={handleVisibilityChange}
+                        isSelected={selectedDocIds.has(doc.id)}
+                        onToggleSelect={toggleDocSelect}
                       />
                     ))}
                   </div>
@@ -708,6 +825,55 @@ export default function Page({ initialLines = [] }: AdminPageProps) {
                   </div>
                 )}
               </div>
+
+              {/* Bulk Delete Modal */}
+              {showBulkDeleteModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm p-4">
+                  <div className="w-full max-w-md rounded-2xl bg-card border border-border shadow-2xl p-6 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="flex items-start gap-4 mb-5">
+                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-50 border border-red-100 text-red-600">
+                        <AlertTriangle className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold text-foreground">Hapus {selectedDocIds.size} Dokumen?</h3>
+                        <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                          Apakah Anda yakin ingin menghapus <strong className="text-foreground">{selectedDocIds.size} dokumen</strong> yang dipilih?
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground/70">
+                          Dokumen akan dipindahkan ke Tempat Sampah (soft-delete).
+                        </p>
+                      </div>
+                    </div>
+
+                    {bulkDeleteError && (
+                      <div className="mb-4 p-3 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs">
+                        {bulkDeleteError}
+                      </div>
+                    )}
+
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        disabled={isBulkDeleting}
+                        onClick={() => setShowBulkDeleteModal(false)}
+                      >
+                        Batal
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        disabled={isBulkDeleting}
+                        onClick={handleBulkDeleteDocs}
+                        className="bg-red-600 hover:bg-red-700 text-white font-bold flex items-center gap-2"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        {isBulkDeleting ? 'Menghapus...' : `Ya, Hapus (${selectedDocIds.size})`}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
         </main>
 

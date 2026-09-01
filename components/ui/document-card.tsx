@@ -52,6 +52,9 @@ interface DocumentCardProps {
   onDelete?: (id: string) => void | Promise<void>
   onVisibilityChange?: (id: string, hiddenFromOperator: boolean) => void
   showOperatorActions?: boolean
+  /** Bulk selection */
+  isSelected?: boolean
+  onToggleSelect?: (id: string) => void
 }
 
 interface FileIconMeta {
@@ -305,7 +308,9 @@ export function DocumentCard({
   linkedPartNumbers,
   onDelete,
   onVisibilityChange,
-  showOperatorActions = false
+  showOperatorActions = false,
+  isSelected = false,
+  onToggleSelect,
 }: DocumentCardProps) {
   const router = useRouter()
   const [isDeleting, setIsDeleting] = useState(false)
@@ -833,20 +838,50 @@ export function DocumentCard({
     }
   }
 
+  const isBulkMode = Boolean(onToggleSelect)
+
+  const handleCardClick = () => {
+    if (isBulkMode) {
+      onToggleSelect?.(id)
+    } else if (!showOperatorActions) {
+      handleView()
+    }
+  }
+
   return (
     <>
       <div
-        onClick={showOperatorActions ? undefined : handleView}
-        className={`bg-card border rounded-lg p-4 shadow-sm hover:shadow-md active:scale-[0.99] active:shadow-sm transition-all duration-200 group select-none text-foreground ${showOperatorActions ? '' : 'cursor-pointer'
-          } ${currentHiddenFromOperator
+        onClick={handleCardClick}
+        className={`relative bg-card border rounded-lg p-4 shadow-sm hover:shadow-md active:scale-[0.99] active:shadow-sm transition-all duration-200 group select-none text-foreground ${isBulkMode || showOperatorActions ? 'cursor-pointer' : 'cursor-pointer'
+          } ${isSelected
+            ? 'border-blue-400 bg-blue-50/60 dark:bg-blue-950/30 ring-2 ring-blue-400/40'
+            : currentHiddenFromOperator
             ? 'border-amber-200 bg-amber-50/40 hover:border-amber-300'
             : 'border-border hover:border-primary'
           }`}
-        title={showOperatorActions ? undefined : 'Klik kartu ini untuk melihat/membuka dokumen'}
+        title={isBulkMode ? (isSelected ? 'Batalkan pilihan' : 'Pilih dokumen ini') : (showOperatorActions ? undefined : 'Klik kartu ini untuk melihat/membuka dokumen')}
       >
+        {/* Bulk select — custom circular badge, replaces raw browser checkbox */}
+        {isBulkMode && (
+          <button
+            type="button"
+            aria-label={isSelected ? `Batalkan pilihan dokumen ${title}` : `Pilih dokumen ${title}`}
+            onClick={(e) => { e.stopPropagation(); onToggleSelect?.(id) }}
+            className={`absolute top-3 left-3 z-10 flex h-6 w-6 items-center justify-center rounded-full border-2 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500
+              ${isSelected
+                ? 'border-blue-500 bg-blue-500 text-white shadow-sm'
+                : 'border-slate-300 bg-white/90 text-transparent hover:border-blue-400 hover:bg-blue-50 group-hover:opacity-100 opacity-60 dark:bg-slate-800/90 dark:border-slate-600'
+              }`}
+          >
+            {/* Checkmark SVG */}
+            <svg className="h-3.5 w-3.5" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="2,6 5,9 10,3" />
+            </svg>
+          </button>
+        )}
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           {/* Main Content Area */}
-          <div className="flex items-start gap-4 min-w-0 flex-1">
+          <div className={`flex items-start gap-4 min-w-0 flex-1 transition-all duration-150 ${isBulkMode ? 'pl-7' : ''}`}>
             <div className="flex-shrink-0">
               <div
                 className={`flex items-center justify-center w-12 h-12 rounded-lg transition-all duration-200 ${fileIconMeta.containerClassName}`}
