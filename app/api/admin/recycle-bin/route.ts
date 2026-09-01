@@ -45,7 +45,138 @@ const PROD_LOG_TABLES: Record<string, string> = {
   downtime_problem: "prod_downtime_problems",
 };
 
-// DELETE - Delete single item permanently or empty the whole Recycle Bin
+// Helper to hard delete a single record according to its type
+async function hardDeleteRecord(supabase: any, type: string, id: string | number): Promise<{ success: boolean; error?: string }> {
+  if (type === "line" || type === "land") {
+    const { data: folders } = await supabase
+      .from("folders")
+      .select("id")
+      .eq("line_id", id);
+    const folderIds = (folders ?? []).map((f: any) => f.id);
+
+    const { data: docsInLine } = await supabase
+      .from("documents")
+      .select("id, file_path")
+      .eq("line_id", id);
+
+    let docsInFolders: { id: number | string; file_path: string | null }[] = [];
+    if (folderIds.length > 0) {
+      const { data: df } = await supabase
+        .from("documents")
+        .select("id, file_path")
+        .in("folder_id", folderIds);
+      docsInFolders = df ?? [];
+    }
+
+    const allDocs = [...(docsInLine ?? []), ...docsInFolders];
+    const uniqueDocsMap = new Map();
+    allDocs.forEach((d) => uniqueDocsMap.set(d.id, d));
+    const docs = Array.from(uniqueDocsMap.values());
+
+    const filePaths = docs
+      .map((d: any) => d.file_path)
+      .filter((p: any): p is string => typeof p === "string" && p.length > 0);
+
+    if (filePaths.length > 0) {
+      await supabase.storage.from("documents").remove(filePaths);
+    }
+
+    const docIds = docs.map((d: any) => d.id);
+    if (docIds.length > 0) {
+      await supabase.from("display_documents").delete().in("document_id", docIds);
+      for (const dId of docIds) {
+        await supabase.from("display_documents").delete().eq("document->id", dId);
+      }
+      await supabase.from("documents").delete().in("id", docIds);
+    }
+
+    if (folderIds.length > 0) {
+      await supabase.from("folders").delete().in("id", folderIds);
+    }
+
+    await supabase.from("production_reports").delete().eq("line_id", id);
+    await supabase.from("display_heartbeats").delete().eq("line_id", id);
+
+    const { error } = await supabase.from("lines").delete().eq("id", id);
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } else if (type === "folder") {
+    const folderId = typeof id === "string" ? parseInt(id) : id;
+
+    const allFolderIds: number[] = [folderId];
+    const queue: number[] = [folderId];
+
+    while (queue.length > 0) {
+      const currentIds = queue.splice(0, queue.length);
+      const { data: children } = await supabase
+        .from("folders")
+        .select("id")
+        .in("parent_id", currentIds);
+
+      if (children && children.length > 0) {
+        const childIds = children.map((f: any) => f.id as number);
+        allFolderIds.push(...childIds);
+        queue.push(...childIds);
+      }
+    }
+
+    const { data: docs } = await supabase
+      .from("documents")
+      .select("id, file_path")
+      .in("folder_id", allFolderIds);
+
+    if (docs && docs.length > 0) {
+      const filePaths = docs
+        .map((d: any) => d.file_path)
+        .filter((p: any): p is string => typeof p === "string" && p.length > 0);
+
+      if (filePaths.length > 0) {
+        await supabase.storage.from("documents").remove(filePaths);
+      }
+
+      const docIds = docs.map((d: any) => d.id);
+      await supabase.from("display_documents").delete().in("document_id", docIds);
+      for (const dId of docIds) {
+        await supabase.from("display_documents").delete().eq("document->id", dId);
+      }
+      await supabase.from("documents").delete().in("id", docIds);
+    }
+
+    const { error } = await supabase.from("folders").delete().in("id", allFolderIds);
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } else if (type === "document") {
+    const { data: doc } = await supabase
+      .from("documents")
+      .select("id, file_path")
+      .eq("id", id)
+      .single();
+
+    if (doc?.file_path) {
+      await supabase.storage.from("documents").remove([doc.file_path]);
+    }
+
+    await supabase.from("display_documents").delete().eq("document_id", id);
+    await supabase.from("display_documents").delete().eq("document->id", id);
+
+    const { error } = await supabase.from("documents").delete().eq("id", id);
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } else if (type === "production_report") {
+    const { error } = await supabase.from("production_reports").delete().eq("id", id);
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } else if (PROD_LOG_TABLES[type]) {
+    const tableName = PROD_LOG_TABLES[type];
+    const { error } = await supabase.from(tableName as any).delete().eq("id", id);
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } else {
+    return { success: false, error: `Tipe tidak valid: ${type}` };
+  }
+}
+
+// DELETE - Delete single item, bulk items, or empty the whole Recycle Bin
 export async function DELETE(request: Request) {
   const authResponse = await requireAdminOrLeader();
   if (authResponse) return authResponse;
@@ -55,184 +186,77 @@ export async function DELETE(request: Request) {
 
     let type: string | null = null;
     let id: string | number | null = null;
+    let items: Array<{ type: string; id: string | number }> | null = null;
+    let action: string | null = null;
 
     try {
       const body = await request.json();
       type = body?.type ?? null;
       id = body?.id ?? null;
+      items = Array.isArray(body?.items) ? body.items : null;
+      action = body?.action ?? null;
     } catch {
       // JSON body was empty or not sent
     }
 
-    if (!type || !id) {
+    if (!type && !id && !items && !action) {
       const { searchParams } = new URL(request.url);
       type = searchParams.get("type");
       id = searchParams.get("id");
+      action = searchParams.get("action");
+    }
+
+    // -------------------------------------------------------------
+    // Bulk Items Permanent Hard Delete
+    // -------------------------------------------------------------
+    if (items && items.length > 0) {
+      const errors: string[] = [];
+      let deletedCount = 0;
+
+      for (const item of items) {
+        if (!item.type || !item.id) continue;
+        const res = await hardDeleteRecord(supabase, item.type, item.id);
+        if (res.success) {
+          deletedCount++;
+        } else if (res.error) {
+          errors.push(res.error);
+        }
+      }
+
+      if (errors.length > 0 && deletedCount === 0) {
+        return NextResponse.json({ error: errors.join(", ") }, { status: 500 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        deletedCount,
+        message: `${deletedCount} item berhasil dihapus secara permanen.`,
+      });
     }
 
     // -------------------------------------------------------------
     // Single Item Permanent Hard Delete
     // -------------------------------------------------------------
     if (type && id) {
-      if (type === "line" || type === "land") {
-        const { data: folders } = await supabase
-          .from("folders")
-          .select("id")
-          .eq("line_id", id);
-        const folderIds = (folders ?? []).map((f) => f.id);
-
-        const { data: docsInLine } = await supabase
-          .from("documents")
-          .select("id, file_path")
-          .eq("line_id", id);
-
-        let docsInFolders: { id: number | string; file_path: string | null }[] = [];
-        if (folderIds.length > 0) {
-          const { data: df } = await supabase
-            .from("documents")
-            .select("id, file_path")
-            .in("folder_id", folderIds);
-          docsInFolders = df ?? [];
-        }
-
-        const allDocs = [...(docsInLine ?? []), ...docsInFolders];
-        const uniqueDocsMap = new Map();
-        allDocs.forEach((d) => uniqueDocsMap.set(d.id, d));
-        const docs = Array.from(uniqueDocsMap.values());
-
-        const filePaths = docs
-          .map((d) => d.file_path)
-          .filter((p): p is string => typeof p === "string" && p.length > 0);
-
-        if (filePaths.length > 0) {
-          await supabase.storage.from("documents").remove(filePaths);
-        }
-
-        const docIds = docs.map((d) => d.id);
-        if (docIds.length > 0) {
-          await supabase.from("display_documents").delete().in("document_id", docIds);
-          for (const dId of docIds) {
-            await supabase.from("display_documents").delete().eq("document->id", dId);
-          }
-          await supabase.from("documents").delete().in("id", docIds);
-        }
-
-        if (folderIds.length > 0) {
-          await supabase.from("folders").delete().in("id", folderIds);
-        }
-
-        await supabase.from("production_reports").delete().eq("line_id", id);
-        await supabase.from("display_heartbeats").delete().eq("line_id", id);
-
-        const { error } = await supabase.from("lines").delete().eq("id", id);
-        if (error) {
-          return NextResponse.json({ error: error.message }, { status: 500 });
-        }
-
-        return NextResponse.json({
-          success: true,
-          message: "Line produksi berhasil dihapus secara permanen.",
-        });
-      } else if (type === "folder") {
-        const folderId = typeof id === "string" ? parseInt(id) : id;
-
-        const allFolderIds: number[] = [folderId];
-        const queue: number[] = [folderId];
-
-        while (queue.length > 0) {
-          const currentIds = queue.splice(0, queue.length);
-          const { data: children } = await supabase
-            .from("folders")
-            .select("id")
-            .in("parent_id", currentIds);
-
-          if (children && children.length > 0) {
-            const childIds = children.map((f) => f.id as number);
-            allFolderIds.push(...childIds);
-            queue.push(...childIds);
-          }
-        }
-
-        const { data: docs } = await supabase
-          .from("documents")
-          .select("id, file_path")
-          .in("folder_id", allFolderIds);
-
-        if (docs && docs.length > 0) {
-          const filePaths = docs
-            .map((d) => d.file_path)
-            .filter((p): p is string => typeof p === "string" && p.length > 0);
-
-          if (filePaths.length > 0) {
-            await supabase.storage.from("documents").remove(filePaths);
-          }
-
-          const docIds = docs.map((d) => d.id);
-          await supabase.from("display_documents").delete().in("document_id", docIds);
-          for (const dId of docIds) {
-            await supabase.from("display_documents").delete().eq("document->id", dId);
-          }
-          await supabase.from("documents").delete().in("id", docIds);
-        }
-
-        const { error } = await supabase.from("folders").delete().in("id", allFolderIds);
-        if (error) {
-          return NextResponse.json({ error: error.message }, { status: 500 });
-        }
-
-        return NextResponse.json({
-          success: true,
-          message: "Folder berhasil dihapus secara permanen.",
-        });
-      } else if (type === "document") {
-        const { data: doc } = await supabase
-          .from("documents")
-          .select("id, file_path")
-          .eq("id", id)
-          .single();
-
-        if (doc?.file_path) {
-          await supabase.storage.from("documents").remove([doc.file_path]);
-        }
-
-        await supabase.from("display_documents").delete().eq("document_id", id);
-        await supabase.from("display_documents").delete().eq("document->id", id);
-
-        const { error } = await supabase.from("documents").delete().eq("id", id);
-        if (error) {
-          return NextResponse.json({ error: error.message }, { status: 500 });
-        }
-
-        return NextResponse.json({
-          success: true,
-          message: "Dokumen berhasil dihapus secara permanen.",
-        });
-      } else if (type === "production_report") {
-        const { error } = await supabase.from("production_reports").delete().eq("id", id);
-        if (error) {
-          return NextResponse.json({ error: error.message }, { status: 500 });
-        }
-
-        return NextResponse.json({
-          success: true,
-          message: "Laporan produksi berhasil dihapus secara permanen.",
-        });
-      } else if (PROD_LOG_TABLES[type]) {
-        // Hard-delete a single production module record
-        const tableName = PROD_LOG_TABLES[type];
-        const { error } = await supabase.from(tableName as any).delete().eq("id", id);
-        if (error) {
-          return NextResponse.json({ error: error.message }, { status: 500 });
-        }
-        return NextResponse.json({ success: true, message: "Data berhasil dihapus secara permanen." });
-      } else {
-        return NextResponse.json({ error: "Invalid type specified" }, { status: 400 });
+      const res = await hardDeleteRecord(supabase, type, id);
+      if (!res.success) {
+        return NextResponse.json({ error: res.error ?? "Gagal menghapus item" }, { status: 500 });
       }
+      return NextResponse.json({
+        success: true,
+        message: "Item berhasil dihapus secara permanen.",
+      });
     }
 
     // -------------------------------------------------------------
-    // Empty Entire Recycle Bin (All is_active = false records)
+    // Empty Entire Recycle Bin (Only when action === 'empty_all')
     // -------------------------------------------------------------
+    if (action !== "empty_all") {
+      return NextResponse.json(
+        { error: "Parameter type/id, items, atau action=empty_all diperlukan" },
+        { status: 400 }
+      );
+    }
 
     // 1. Fetch all inactive records first so deletes can be scoped by explicit IDs.
     const { data: documents, error: docsFetchError } = await supabase
