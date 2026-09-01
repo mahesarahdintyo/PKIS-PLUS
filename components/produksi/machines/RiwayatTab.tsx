@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,12 @@ interface RiwayatTabProps {
   setRiwayatDeleteTarget: (row: any) => void;
   fmt: (iso?: string | null) => string;
   fmtNum: (n: number | null | undefined) => string;
+  // Bulk select props
+  selectedIds: Set<string>;
+  isAllSelected: boolean;
+  isIndeterminate: boolean;
+  onToggleSelect: (id: string) => void;
+  onToggleSelectAll: () => void;
 }
 
 export default function RiwayatTab({
@@ -46,7 +52,33 @@ export default function RiwayatTab({
   setRiwayatDeleteTarget,
   fmt,
   fmtNum,
+  selectedIds,
+  isAllSelected,
+  isIndeterminate,
+  onToggleSelect,
+  onToggleSelectAll,
 }: RiwayatTabProps) {
+  // Ref callback to set indeterminate on the select-all checkbox
+  // (HTML checkbox has no native indeterminate prop in React)
+  const selectAllRef = useRef<HTMLInputElement | null>(null);
+
+  const setSelectAllRef = (el: HTMLInputElement | null) => {
+    selectAllRef.current = el;
+    if (el) el.indeterminate = isIndeterminate;
+  };
+
+  // Keep indeterminate in sync when it changes
+  React.useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = isIndeterminate;
+    }
+  }, [isIndeterminate]);
+
+  // Compute total colspan for empty state row
+  const baseColspan = config.stationConfig.mode !== "none"
+    ? (config.routingMax > 0 ? 13 : 12)
+    : (config.routingMax > 0 ? 12 : 11);
+
   return (
     <Card className="dash-panel card-glow-info">
       <div className="flex flex-wrap justify-between gap-3 mb-4">
@@ -94,6 +126,17 @@ export default function RiwayatTab({
         <table>
           <thead>
             <tr>
+              {/* Select-all checkbox column */}
+              <th style={{ width: 36, paddingLeft: 8, paddingRight: 4, textAlign: "center" }}>
+                <input
+                  type="checkbox"
+                  ref={setSelectAllRef}
+                  checked={isAllSelected}
+                  onChange={onToggleSelectAll}
+                  aria-label="Pilih semua baris riwayat"
+                  className="h-4 w-4 rounded border-slate-300 cursor-pointer accent-blue-600"
+                />
+              </th>
               <th className="col-hide-mobile">Kode</th>
               {config.stationConfig.mode !== "none" && <th className="col-hide-mobile">Stasiun</th>}
               <th className="col-hide-mobile">Waktu Awal</th>
@@ -111,20 +154,48 @@ export default function RiwayatTab({
           <tbody>
             {riwayatGabungan.map((row: any, idx) => {
               const data = row.data;
+              const rowId = data.id as string;
               const routing = data.extra?.routing_type
                 ? `${data.extra.routing_type}${data.extra.routing_numbers ? ` ${data.extra.routing_numbers.join(",")}` : ""}`
                 : "-";
-              const canEditRowPerm = canDeleteRow(row) && (row.jenis === "produksi" || row.jenis === "non_produksi");
-              const rowClick = canEditRowPerm
+              const canEdit = canDeleteRow(row) && (row.jenis === "produksi" || row.jenis === "non_produksi");
+              const canSelect = canDeleteRow(row) && (row.jenis === "produksi" || row.jenis === "non_produksi");
+              const isSelected = canSelect && selectedIds.has(rowId);
+              const rowClick = canEdit
                 ? () => (row.jenis === "produksi" ? handleEditProductionRow(data) : handleEditNonProduksiRow(data))
                 : undefined;
 
               return (
                 <tr
-                  key={`${row.jenis}-${data.id || idx}`}
-                  className={canEditRowPerm ? "row-clickable" : ""}
+                  key={`${row.jenis}-${rowId || idx}`}
+                  className={`${canEdit ? "row-clickable" : ""} ${isSelected ? "bg-blue-50/60" : ""}`}
                   onClick={rowClick}
                 >
+                  {/* Per-row checkbox */}
+                  <td
+                    style={{ width: 36, paddingLeft: 8, paddingRight: 4, textAlign: "center" }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {canSelect ? (
+                      <input
+                        type="checkbox"
+                        key={rowId}
+                        checked={isSelected}
+                        onChange={() => onToggleSelect(rowId)}
+                        aria-label={`Pilih baris ${row.part_number || rowId}`}
+                        className="h-4 w-4 rounded border-slate-300 cursor-pointer accent-blue-600"
+                      />
+                    ) : (
+                      // Non-selectable rows: show a disabled, invisible placeholder to keep column aligned
+                      <input
+                        type="checkbox"
+                        disabled
+                        aria-hidden="true"
+                        className="h-4 w-4 opacity-0 pointer-events-none"
+                      />
+                    )}
+                  </td>
+
                   <td className="mono col-hide-mobile">{row.jenis === "produksi" ? (data.kode || "-") : "-"}</td>
                   {config.stationConfig.mode !== "none" && <td className="mono col-hide-mobile">{data.stasiun || "-"}</td>}
                   <td className="mono col-hide-mobile">{fmt(row.waktu_awal)}</td>
@@ -189,7 +260,7 @@ export default function RiwayatTab({
             })}
             {riwayatGabungan.length === 0 && (
               <tr>
-                <td colSpan={config.stationConfig.mode !== "none" ? (config.routingMax > 0 ? 12 : 11) : (config.routingMax > 0 ? 11 : 10)} className="empty-state text-center py-6">
+                <td colSpan={baseColspan} className="empty-state text-center py-6">
                   Belum ada data untuk filter ini.
                 </td>
               </tr>
