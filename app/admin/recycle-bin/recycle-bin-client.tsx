@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -29,6 +29,14 @@ type RestoreType = 'line' | 'land' | 'folder' | 'document' | 'production_report'
   | 'attendance_log' | 'productivity_ref' | 'scrap' | 'safety_log'
   | 'production_log' | 'downtime_log' | 'dandori_log' | 'production_planning'
   | 'part_number' | 'nonproduksi_type' | 'downtime_problem' | 'andon_leader'
+
+// Selectable item shape used by bulk-select
+interface SelectableItem {
+  key: string           // unique key for Set
+  type: RestoreType
+  id: string | number
+  name: string
+}
 
 const LOG_LABEL: Record<string, string> = {
   attendance_log: 'Absensi',
@@ -76,6 +84,34 @@ function getItemDisplayName(item: any): string {
   return item.id?.toString?.() ?? '-'
 }
 
+// ─── Checkbox with indeterminate support ──────────────────────────────────────
+function IndeterminateCheckbox({
+  checked,
+  indeterminate,
+  onChange,
+  'aria-label': ariaLabel,
+}: {
+  checked: boolean
+  indeterminate: boolean
+  onChange: () => void
+  'aria-label'?: string
+}) {
+  const ref = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = indeterminate
+  }, [indeterminate])
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      aria-label={ariaLabel}
+      className="h-4 w-4 rounded border-slate-300 cursor-pointer accent-blue-600"
+    />
+  )
+}
+
 export default function RecycleBinClient() {
   const [activeTab, setActiveTab] = useState<TrashTab>('lines')
   const [searchQuery, setSearchQuery] = useState('')
@@ -83,6 +119,12 @@ export default function RecycleBinClient() {
   const [isActionLoading, setIsActionLoading] = useState(false)
   const [showEmptyConfirm, setShowEmptyConfirm] = useState(false)
   const [itemToDelete, setItemToDelete] = useState<{ type: RestoreType; id: string | number; name: string } | null>(null)
+
+  // Bulk select state
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set())
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false)
+  const [bulkDeleteError, setBulkDeleteError] = useState('')
 
   const [lines, setLines] = useState<Line[]>([])
   const [folders, setFolders] = useState<FolderType[]>([])
@@ -92,7 +134,12 @@ export default function RecycleBinClient() {
   const [masterDataItems, setMasterDataItems] = useState<any[]>([])
   const [andonItems, setAndonItems] = useState<any[]>([])
 
-  const loadData = async () => {
+  // Reset selection when tab changes
+  useEffect(() => {
+    setSelectedKeys(new Set())
+  }, [activeTab])
+
+  const loadData = useCallback(async () => {
     try {
       setIsLoading(true)
       const [linesData, foldersData, documentsData, productionReportsData, logData, masterData, andonData] = await Promise.all([
@@ -112,17 +159,18 @@ export default function RecycleBinClient() {
       setLogProduksiItems(Array.isArray(logData) ? logData : [])
       setMasterDataItems(Array.isArray(masterData) ? masterData : [])
       setAndonItems(Array.isArray(andonData) ? andonData : [])
+      setSelectedKeys(new Set())
     } catch (error) {
       console.error('Gagal mengambil data tempat sampah:', error)
       toast.error('Gagal memuat data dari tempat sampah')
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     void loadData()
-  }, [])
+  }, [loadData])
 
   const handleRestore = async (type: RestoreType, id: string | number) => {
     try {
@@ -190,6 +238,40 @@ export default function RecycleBinClient() {
     }
   }
 
+  // ─── Bulk delete handler ────────────────────────────────────────────────────
+  const handleBulkDelete = async () => {
+    const items = currentSelectableItems.filter(i => selectedKeys.has(i.key))
+    if (items.length === 0) return
+    try {
+      setIsBulkDeleting(true)
+      setBulkDeleteError('')
+      const results = await Promise.allSettled(
+        items.map(item =>
+          fetch('/api/admin/recycle-bin', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: item.type, id: item.id }),
+          }).then(r => r.json().then(j => ({ ok: r.ok, result: j })))
+        )
+      )
+      const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.ok))
+      if (failed.length > 0) {
+        setBulkDeleteError(`${failed.length} item gagal dihapus. Silakan coba lagi.`)
+        return
+      }
+      const n = items.length
+      setShowBulkDeleteConfirm(false)
+      setSelectedKeys(new Set())
+      await loadData()
+      toast.success(`${n} item berhasil dihapus secara permanen.`)
+    } catch (err) {
+      setBulkDeleteError(err instanceof Error ? err.message : 'Gagal menghapus item terpilih')
+    } finally {
+      setIsBulkDeleting(false)
+    }
+  }
+
+  // ─── Filtered lists ─────────────────────────────────────────────────────────
   const filteredLines = useMemo(() => {
     const q = searchQuery.toLowerCase()
     return lines.filter(l => l.name.toLowerCase().includes(q) || (l.description || '').toLowerCase().includes(q))
@@ -244,6 +326,52 @@ export default function RecycleBinClient() {
     })
   }, [searchQuery, andonItems])
 
+  // ─── Selectable items for the active tab ────────────────────────────────────
+  const currentSelectableItems = useMemo((): SelectableItem[] => {
+    if (activeTab === 'lines')
+      return filteredLines.map(l => ({ key: `line-${l.id}`, type: 'line' as RestoreType, id: l.id, name: l.name }))
+    if (activeTab === 'folders')
+      return filteredFolders.map(f => ({ key: `folder-${f.id}`, type: 'folder' as RestoreType, id: f.id, name: f.name }))
+    if (activeTab === 'documents')
+      return filteredDocuments.map(d => ({ key: `document-${d.id}`, type: 'document' as RestoreType, id: d.id, name: d.title }))
+    if (activeTab === 'productionReports')
+      return filteredProductionReports.map(r => ({ key: `pr-${r.id}`, type: 'production_report' as RestoreType, id: r.id, name: `Laporan ${r.operator_name} (${r.part_number})` }))
+    if (activeTab === 'logProduksi')
+      return filteredLogProduksi.map((item, i) => ({ key: `log-${item._type}-${item.id}-${i}`, type: item._type as RestoreType, id: item.id, name: getItemDisplayName(item) }))
+    if (activeTab === 'masterData')
+      return filteredMasterData.map((item, i) => ({ key: `md-${item._type}-${item.id}-${i}`, type: item._type as RestoreType, id: item.id, name: item.value || item.nama || item.kode_part || String(item.id) }))
+    if (activeTab === 'andon')
+      return filteredAndon.map((item: any, i: number) => ({ key: `andon-${item.id}-${i}`, type: 'andon_leader' as RestoreType, id: item.id, name: `${item.profiles?.full_name || item.user_id} — ${item.mesin} Tier ${item.tier}` }))
+    return []
+  }, [activeTab, filteredLines, filteredFolders, filteredDocuments, filteredProductionReports, filteredLogProduksi, filteredMasterData, filteredAndon])
+
+  const isAllSelected = useMemo(
+    () => currentSelectableItems.length > 0 && currentSelectableItems.every(i => selectedKeys.has(i.key)),
+    [currentSelectableItems, selectedKeys]
+  )
+  const isSomeSelected = useMemo(
+    () => currentSelectableItems.some(i => selectedKeys.has(i.key)) && !isAllSelected,
+    [currentSelectableItems, selectedKeys, isAllSelected]
+  )
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedKeys(new Set())
+    } else {
+      setSelectedKeys(new Set(currentSelectableItems.map(i => i.key)))
+    }
+  }
+
+  const toggleSelect = (key: string) => {
+    setSelectedKeys(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  // ─── Helpers ────────────────────────────────────────────────────────────────
   const formatBytes = (bytes?: number, decimals = 2) => {
     if (!bytes) return '0 B'
     const k = 1024
@@ -277,6 +405,19 @@ export default function RecycleBinClient() {
   ]
 
   const totalItemsCount = lines.length + folders.length + documents.length + productionReports.length + logProduksiItems.length + masterDataItems.length + andonItems.length
+  const selectedCount = selectedKeys.size
+
+  // ─── Shared checkbox column header (select all) ─────────────────────────────
+  const SelectAllTh = () => (
+    <th className="py-3 pl-3 pr-1 w-9 text-center">
+      <IndeterminateCheckbox
+        checked={isAllSelected}
+        indeterminate={isSomeSelected}
+        onChange={toggleSelectAll}
+        aria-label="Pilih semua item"
+      />
+    </th>
+  )
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-zinc-100 text-slate-900 font-sans pb-16">
@@ -304,9 +445,9 @@ export default function RecycleBinClient() {
             size="sm"
             disabled={totalItemsCount === 0 || isLoading || isActionLoading}
             onClick={() => setShowEmptyConfirm(true)}
-            className="bg-red-600 hover:bg-red-700 text-white font-semibold transition-all duration-200 shadow-sm shadow-red-100 border border-transparent active:scale-95 w-full sm:w-auto"
+            className="bg-rose-600 hover:bg-rose-700 disabled:bg-rose-300 disabled:text-white/70 text-white font-semibold transition-all duration-200 shadow-sm shadow-rose-200 border border-rose-700/20 active:scale-95 w-full sm:w-auto"
           >
-            <Trash2 className="w-4 h-4 mr-1" />
+            <Trash2 className="w-4 h-4 mr-1.5" />
             Kosongkan Tempat Sampah
           </Button>
         </div>
@@ -369,13 +510,45 @@ export default function RecycleBinClient() {
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Cari item terhapus..."
+                placeholder="Cari di tempat sampah..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-4 py-2 text-sm border border-border bg-card rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200"
               />
             </div>
           </div>
+
+          {/* ── Floating bulk-action bar ── */}
+          {selectedCount > 0 && (
+            <div className="flex items-center justify-between gap-3 px-4 py-3 bg-slate-900 text-white border-b border-slate-700 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs font-bold">
+                  {selectedCount}
+                </span>
+                <span className="text-xs sm:text-sm font-semibold">Item Dipilih</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedKeys(new Set())}
+                  className="h-8 px-3 text-xs text-slate-300 hover:text-white hover:bg-slate-800"
+                >
+                  Batal
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => { setBulkDeleteError(''); setShowBulkDeleteConfirm(true) }}
+                  className="h-8 px-3 text-xs font-bold bg-red-600 hover:bg-red-700 text-white flex items-center gap-1.5 shadow-sm cursor-pointer"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Hapus Permanen ({selectedCount})</span>
+                </Button>
+              </div>
+            </div>
+          )}
 
           <div className="p-6">
             {isLoading ? (
@@ -389,21 +562,44 @@ export default function RecycleBinClient() {
                 {activeTab === 'lines' && (
                   <>
                     {filteredLines.length === 0 ? (
-                      <EmptyState icon={Layers} message={searchQuery ? 'Pencarian tidak ditemukan' : 'Tidak ada line produksi di tempat sampah'} />
+                      <EmptyState icon={Layers} message={searchQuery ? 'Tidak ada hasil pencarian' : 'Tidak ada line produksi di tempat sampah'} />
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {filteredLines.map((line) => (
-                          <div key={line.id} className="p-5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between hover:border-slate-300 transition duration-200 group">
-                            <div className="min-w-0 pr-4">
-                              <h4 className="font-bold text-slate-800 truncate">{line.name}</h4>
-                              <p className="text-xs text-slate-400 truncate mt-1">{line.description || 'Tidak ada deskripsi'}</p>
+                        {/* Select-all header row for card layout */}
+                        <div className="md:col-span-2 flex items-center gap-2 pb-2 border-b border-slate-100">
+                          <IndeterminateCheckbox
+                            checked={isAllSelected}
+                            indeterminate={isSomeSelected}
+                            onChange={toggleSelectAll}
+                            aria-label="Pilih semua line"
+                          />
+                          <span className="text-xs text-slate-500 font-medium">Pilih Semua ({filteredLines.length})</span>
+                        </div>
+                        {filteredLines.map((line) => {
+                          const key = `line-${line.id}`
+                          const isSelected = selectedKeys.has(key)
+                          return (
+                            <div key={line.id} className={`p-5 border rounded-2xl flex items-center justify-between transition duration-200 group ${isSelected ? 'bg-blue-50 border-blue-300' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}>
+                              <div className="flex items-center gap-3 min-w-0 pr-4">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => toggleSelect(key)}
+                                  aria-label={`Pilih ${line.name}`}
+                                  className="h-4 w-4 rounded border-slate-300 cursor-pointer accent-blue-600 shrink-0"
+                                />
+                                <div className="min-w-0">
+                                  <h4 className="font-bold text-slate-800 truncate">{line.name}</h4>
+                                  <p className="text-xs text-slate-400 truncate mt-1">{line.description || 'Tidak ada deskripsi'}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <RestoreButton disabled={isActionLoading} onClick={() => handleRestore('line', line.id)} />
+                                <DeleteButton disabled={isActionLoading} onClick={() => setItemToDelete({ type: 'line', id: line.id, name: line.name })} />
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <RestoreButton disabled={isActionLoading} onClick={() => handleRestore('line', line.id)} />
-                              <DeleteButton disabled={isActionLoading} onClick={() => setItemToDelete({ type: 'line', id: line.id, name: line.name })} />
-                            </div>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     )}
                   </>
@@ -413,35 +609,43 @@ export default function RecycleBinClient() {
                 {activeTab === 'folders' && (
                   <>
                     {filteredFolders.length === 0 ? (
-                      <EmptyState icon={Folder} message={searchQuery ? 'Pencarian tidak ditemukan' : 'Tidak ada folder di tempat sampah'} />
+                      <EmptyState icon={Folder} message={searchQuery ? 'Tidak ada hasil pencarian' : 'Tidak ada folder di tempat sampah'} />
                     ) : (
                       <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                           <thead>
                             <tr className="border-b border-slate-200 text-xs font-semibold text-slate-400 uppercase">
+                              <SelectAllTh />
                               <th className="py-3 px-2">Nama Folder</th>
                               <th className="py-3 px-2">ID Folder</th>
                               <th className="py-3 px-2 text-right">Aksi</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {filteredFolders.map((folder) => (
-                              <tr key={folder.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors text-sm">
-                                <td className="py-3 px-2 font-semibold text-slate-800">
-                                  <div className="flex items-center gap-2">
-                                    <Folder className="w-4 h-4 text-emerald-500 shrink-0" />
-                                    <span>{folder.name}</span>
-                                  </div>
-                                </td>
-                                <td className="py-3 px-2 text-xs text-slate-400">#{folder.id}</td>
-                                <td className="py-3 px-2 text-right">
-                                  <div className="flex items-center justify-end gap-2">
-                                    <RestoreButton disabled={isActionLoading} onClick={() => handleRestore('folder', folder.id)} />
-                                    <DeleteButton disabled={isActionLoading} onClick={() => setItemToDelete({ type: 'folder', id: folder.id, name: folder.name })} />
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
+                            {filteredFolders.map((folder) => {
+                              const key = `folder-${folder.id}`
+                              const isSelected = selectedKeys.has(key)
+                              return (
+                                <tr key={folder.id} className={`border-b border-slate-100 transition-colors text-sm ${isSelected ? 'bg-blue-50' : 'hover:bg-slate-50/50'}`}>
+                                  <td className="py-3 pl-3 pr-1 text-center" onClick={e => e.stopPropagation()}>
+                                    <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(key)} aria-label={`Pilih ${folder.name}`} className="h-4 w-4 rounded border-slate-300 cursor-pointer accent-blue-600" />
+                                  </td>
+                                  <td className="py-3 px-2 font-semibold text-slate-800">
+                                    <div className="flex items-center gap-2">
+                                      <Folder className="w-4 h-4 text-emerald-500 shrink-0" />
+                                      <span>{folder.name}</span>
+                                    </div>
+                                  </td>
+                                  <td className="py-3 px-2 text-xs text-slate-400">#{folder.id}</td>
+                                  <td className="py-3 px-2 text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                      <RestoreButton disabled={isActionLoading} onClick={() => handleRestore('folder', folder.id)} />
+                                      <DeleteButton disabled={isActionLoading} onClick={() => setItemToDelete({ type: 'folder', id: folder.id, name: folder.name })} />
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            })}
                           </tbody>
                         </table>
                       </div>
@@ -453,12 +657,13 @@ export default function RecycleBinClient() {
                 {activeTab === 'documents' && (
                   <>
                     {filteredDocuments.length === 0 ? (
-                      <EmptyState icon={FileText} message={searchQuery ? 'Pencarian tidak ditemukan' : 'Tidak ada dokumen di tempat sampah'} />
+                      <EmptyState icon={FileText} message={searchQuery ? 'Tidak ada hasil pencarian' : 'Tidak ada dokumen di tempat sampah'} />
                     ) : (
                       <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                           <thead>
                             <tr className="border-b border-slate-200 text-xs font-semibold text-slate-400 uppercase">
+                              <SelectAllTh />
                               <th className="py-3 px-2">Judul Dokumen</th>
                               <th className="py-3 px-2">Nama File</th>
                               <th className="py-3 px-2">Tipe / Ukuran</th>
@@ -466,24 +671,31 @@ export default function RecycleBinClient() {
                             </tr>
                           </thead>
                           <tbody>
-                            {filteredDocuments.map((doc) => (
-                              <tr key={doc.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors text-sm">
-                                <td className="py-3 px-2 font-semibold text-slate-800">
-                                  <div className="flex items-center gap-2">
-                                    <FileText className="w-4 h-4 text-purple-500 shrink-0" />
-                                    <span>{doc.title}</span>
-                                  </div>
-                                </td>
-                                <td className="py-3 px-2 text-xs text-slate-500 max-w-[200px] truncate">{doc.file.name}</td>
-                                <td className="py-3 px-2 text-xs text-slate-400">{doc.type.toUpperCase()} / {formatBytes(doc.file.size)}</td>
-                                <td className="py-3 px-2 text-right">
-                                  <div className="flex items-center justify-end gap-2">
-                                    <RestoreButton disabled={isActionLoading} onClick={() => handleRestore('document', doc.id)} />
-                                    <DeleteButton disabled={isActionLoading} onClick={() => setItemToDelete({ type: 'document', id: doc.id, name: doc.title })} />
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
+                            {filteredDocuments.map((doc) => {
+                              const key = `document-${doc.id}`
+                              const isSelected = selectedKeys.has(key)
+                              return (
+                                <tr key={doc.id} className={`border-b border-slate-100 transition-colors text-sm ${isSelected ? 'bg-blue-50' : 'hover:bg-slate-50/50'}`}>
+                                  <td className="py-3 pl-3 pr-1 text-center">
+                                    <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(key)} aria-label={`Pilih ${doc.title}`} className="h-4 w-4 rounded border-slate-300 cursor-pointer accent-blue-600" />
+                                  </td>
+                                  <td className="py-3 px-2 font-semibold text-slate-800">
+                                    <div className="flex items-center gap-2">
+                                      <FileText className="w-4 h-4 text-purple-500 shrink-0" />
+                                      <span>{doc.title}</span>
+                                    </div>
+                                  </td>
+                                  <td className="py-3 px-2 text-xs text-slate-500 max-w-[200px] truncate">{doc.file.name}</td>
+                                  <td className="py-3 px-2 text-xs text-slate-400">{doc.type.toUpperCase()} / {formatBytes(doc.file.size)}</td>
+                                  <td className="py-3 px-2 text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                      <RestoreButton disabled={isActionLoading} onClick={() => handleRestore('document', doc.id)} />
+                                      <DeleteButton disabled={isActionLoading} onClick={() => setItemToDelete({ type: 'document', id: doc.id, name: doc.title })} />
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            })}
                           </tbody>
                         </table>
                       </div>
@@ -495,12 +707,13 @@ export default function RecycleBinClient() {
                 {activeTab === 'productionReports' && (
                   <>
                     {filteredProductionReports.length === 0 ? (
-                      <EmptyState icon={ClipboardList} message={searchQuery ? 'Pencarian tidak ditemukan' : 'Tidak ada laporan produksi di tempat sampah'} />
+                      <EmptyState icon={ClipboardList} message={searchQuery ? 'Tidak ada hasil pencarian' : 'Tidak ada laporan produksi di tempat sampah'} />
                     ) : (
                       <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                           <thead>
                             <tr className="border-b border-slate-200 text-xs font-semibold text-slate-400 uppercase">
+                              <SelectAllTh />
                               <th className="py-3 px-2">Tanggal</th>
                               <th className="py-3 px-2">Line</th>
                               <th className="py-3 px-2">Operator</th>
@@ -510,23 +723,30 @@ export default function RecycleBinClient() {
                             </tr>
                           </thead>
                           <tbody>
-                            {filteredProductionReports.map((report) => (
-                              <tr key={report.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors text-sm">
-                                <td className="py-3 px-2 font-semibold text-slate-800">{formatDate(report.report_date)}</td>
-                                <td className="py-3 px-2 text-slate-600">{report.line?.name ?? '-'}</td>
-                                <td className="py-3 px-2 text-slate-600">{report.operator_name}</td>
-                                <td className="py-3 px-2 text-slate-500">{report.part_number}</td>
-                                <td className="py-3 px-2 text-xs text-slate-400">
-                                  {report.qty} / {report.ng_qty} NG / {formatTime(report.start_time)}-{formatTime(report.end_time)}
-                                </td>
-                                <td className="py-3 px-2 text-right">
-                                  <div className="flex items-center justify-end gap-2">
-                                    <RestoreButton disabled={isActionLoading} onClick={() => handleRestore('production_report', report.id)} />
-                                    <DeleteButton disabled={isActionLoading} onClick={() => setItemToDelete({ type: 'production_report', id: report.id, name: `Laporan ${report.operator_name} (${report.part_number})` })} />
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
+                            {filteredProductionReports.map((report) => {
+                              const key = `pr-${report.id}`
+                              const isSelected = selectedKeys.has(key)
+                              return (
+                                <tr key={report.id} className={`border-b border-slate-100 transition-colors text-sm ${isSelected ? 'bg-blue-50' : 'hover:bg-slate-50/50'}`}>
+                                  <td className="py-3 pl-3 pr-1 text-center">
+                                    <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(key)} aria-label={`Pilih laporan ${report.operator_name}`} className="h-4 w-4 rounded border-slate-300 cursor-pointer accent-blue-600" />
+                                  </td>
+                                  <td className="py-3 px-2 font-semibold text-slate-800">{formatDate(report.report_date)}</td>
+                                  <td className="py-3 px-2 text-slate-600">{report.line?.name ?? '-'}</td>
+                                  <td className="py-3 px-2 text-slate-600">{report.operator_name}</td>
+                                  <td className="py-3 px-2 text-slate-500">{report.part_number}</td>
+                                  <td className="py-3 px-2 text-xs text-slate-400">
+                                    {report.qty} / {report.ng_qty} NG / {formatTime(report.start_time)}-{formatTime(report.end_time)}
+                                  </td>
+                                  <td className="py-3 px-2 text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                      <RestoreButton disabled={isActionLoading} onClick={() => handleRestore('production_report', report.id)} />
+                                      <DeleteButton disabled={isActionLoading} onClick={() => setItemToDelete({ type: 'production_report', id: report.id, name: `Laporan ${report.operator_name} (${report.part_number})` })} />
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            })}
                           </tbody>
                         </table>
                       </div>
@@ -538,12 +758,13 @@ export default function RecycleBinClient() {
                 {activeTab === 'logProduksi' && (
                   <>
                     {filteredLogProduksi.length === 0 ? (
-                      <EmptyState icon={BarChart2} message={searchQuery ? 'Pencarian tidak ditemukan' : 'Tidak ada log produksi di tempat sampah'} />
+                      <EmptyState icon={BarChart2} message={searchQuery ? 'Tidak ada hasil pencarian' : 'Tidak ada log produksi di tempat sampah'} />
                     ) : (
                       <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                           <thead>
                             <tr className="border-b border-slate-200 text-xs font-semibold text-slate-400 uppercase">
+                              <SelectAllTh />
                               <th className="py-3 px-2">Tipe</th>
                               <th className="py-3 px-2">Mesin</th>
                               <th className="py-3 px-2">Detail</th>
@@ -552,26 +773,33 @@ export default function RecycleBinClient() {
                             </tr>
                           </thead>
                           <tbody>
-                            {filteredLogProduksi.map((item, idx) => (
-                              <tr key={`${item._type}-${item.id}-${idx}`} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors text-sm">
-                                <td className="py-3 px-2">
-                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${LOG_COLORS[item._type] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                                    {LOG_LABEL[item._type] || item._type}
-                                  </span>
-                                </td>
-                                <td className="py-3 px-2 text-slate-600 text-xs">{item.mesin || '-'}</td>
-                                <td className="py-3 px-2 font-medium text-slate-800 text-xs">{getItemDisplayName(item)}</td>
-                                <td className="py-3 px-2 text-xs text-slate-400">
-                                  {item.updated_at ? new Date(item.updated_at).toLocaleDateString('id-ID') : '-'}
-                                </td>
-                                <td className="py-3 px-2 text-right">
-                                  <div className="flex items-center justify-end gap-2">
-                                    <RestoreButton disabled={isActionLoading} onClick={() => handleRestore(item._type as RestoreType, item.id)} />
-                                    <DeleteButton disabled={isActionLoading} onClick={() => setItemToDelete({ type: item._type as RestoreType, id: item.id, name: getItemDisplayName(item) })} />
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
+                            {filteredLogProduksi.map((item, idx) => {
+                              const key = `log-${item._type}-${item.id}-${idx}`
+                              const isSelected = selectedKeys.has(key)
+                              return (
+                                <tr key={key} className={`border-b border-slate-100 transition-colors text-sm ${isSelected ? 'bg-blue-50' : 'hover:bg-slate-50/50'}`}>
+                                  <td className="py-3 pl-3 pr-1 text-center">
+                                    <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(key)} aria-label={`Pilih ${getItemDisplayName(item)}`} className="h-4 w-4 rounded border-slate-300 cursor-pointer accent-blue-600" />
+                                  </td>
+                                  <td className="py-3 px-2">
+                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${LOG_COLORS[item._type] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                                      {LOG_LABEL[item._type] || item._type}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-2 text-slate-600 text-xs">{item.mesin || '-'}</td>
+                                  <td className="py-3 px-2 font-medium text-slate-800 text-xs">{getItemDisplayName(item)}</td>
+                                  <td className="py-3 px-2 text-xs text-slate-400">
+                                    {item.updated_at ? new Date(item.updated_at).toLocaleDateString('id-ID') : '-'}
+                                  </td>
+                                  <td className="py-3 px-2 text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                      <RestoreButton disabled={isActionLoading} onClick={() => handleRestore(item._type as RestoreType, item.id)} />
+                                      <DeleteButton disabled={isActionLoading} onClick={() => setItemToDelete({ type: item._type as RestoreType, id: item.id, name: getItemDisplayName(item) })} />
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            })}
                           </tbody>
                         </table>
                       </div>
@@ -583,12 +811,13 @@ export default function RecycleBinClient() {
                 {activeTab === 'masterData' && (
                   <>
                     {filteredMasterData.length === 0 ? (
-                      <EmptyState icon={Database} message={searchQuery ? 'Pencarian tidak ditemukan' : 'Tidak ada master data di tempat sampah'} />
+                      <EmptyState icon={Database} message={searchQuery ? 'Tidak ada hasil pencarian' : 'Tidak ada master data di tempat sampah'} />
                     ) : (
                       <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                           <thead>
                             <tr className="border-b border-slate-200 text-xs font-semibold text-slate-400 uppercase">
+                              <SelectAllTh />
                               <th className="py-3 px-2">Tipe</th>
                               <th className="py-3 px-2">Mesin</th>
                               <th className="py-3 px-2">Nama / Kode</th>
@@ -596,23 +825,30 @@ export default function RecycleBinClient() {
                             </tr>
                           </thead>
                           <tbody>
-                            {filteredMasterData.map((item, idx) => (
-                              <tr key={`${item._type}-${item.id}-${idx}`} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors text-sm">
-                                <td className="py-3 px-2">
-                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${LOG_COLORS[item._type] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                                    {LOG_LABEL[item._type] || item._type}
-                                  </span>
-                                </td>
-                                <td className="py-3 px-2 text-slate-600 text-xs">{item.mesin || '-'}</td>
-                                <td className="py-3 px-2 font-medium text-slate-800">{item.value || item.nama || item.kode_part || '-'}</td>
-                                <td className="py-3 px-2 text-right">
-                                  <div className="flex items-center justify-end gap-2">
-                                    <RestoreButton disabled={isActionLoading} onClick={() => handleRestore(item._type as RestoreType, item.id)} />
-                                    <DeleteButton disabled={isActionLoading} onClick={() => setItemToDelete({ type: item._type as RestoreType, id: item.id, name: item.value || item.nama || item.kode_part || item.id })} />
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
+                            {filteredMasterData.map((item, idx) => {
+                              const key = `md-${item._type}-${item.id}-${idx}`
+                              const isSelected = selectedKeys.has(key)
+                              return (
+                                <tr key={key} className={`border-b border-slate-100 transition-colors text-sm ${isSelected ? 'bg-blue-50' : 'hover:bg-slate-50/50'}`}>
+                                  <td className="py-3 pl-3 pr-1 text-center">
+                                    <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(key)} aria-label={`Pilih ${item.value || item.nama || item.kode_part || item.id}`} className="h-4 w-4 rounded border-slate-300 cursor-pointer accent-blue-600" />
+                                  </td>
+                                  <td className="py-3 px-2">
+                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${LOG_COLORS[item._type] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                                      {LOG_LABEL[item._type] || item._type}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-2 text-slate-600 text-xs">{item.mesin || '-'}</td>
+                                  <td className="py-3 px-2 font-medium text-slate-800">{item.value || item.nama || item.kode_part || '-'}</td>
+                                  <td className="py-3 px-2 text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                      <RestoreButton disabled={isActionLoading} onClick={() => handleRestore(item._type as RestoreType, item.id)} />
+                                      <DeleteButton disabled={isActionLoading} onClick={() => setItemToDelete({ type: item._type as RestoreType, id: item.id, name: item.value || item.nama || item.kode_part || item.id })} />
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            })}
                           </tbody>
                         </table>
                       </div>
@@ -624,12 +860,13 @@ export default function RecycleBinClient() {
                 {activeTab === 'andon' && (
                   <>
                     {filteredAndon.length === 0 ? (
-                      <EmptyState icon={Bell} message={searchQuery ? 'Pencarian tidak ditemukan' : 'Tidak ada andon leader di tempat sampah'} />
+                      <EmptyState icon={Bell} message={searchQuery ? 'Tidak ada hasil pencarian' : 'Tidak ada andon leader di tempat sampah'} />
                     ) : (
                       <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                           <thead>
                             <tr className="border-b border-slate-200 text-xs font-semibold text-slate-400 uppercase">
+                              <SelectAllTh />
                               <th className="py-3 px-2">Leader</th>
                               <th className="py-3 px-2">Mesin</th>
                               <th className="py-3 px-2">Tier</th>
@@ -637,21 +874,28 @@ export default function RecycleBinClient() {
                             </tr>
                           </thead>
                           <tbody>
-                            {filteredAndon.map((item: any, idx: number) => (
-                              <tr key={`andon-${item.id}-${idx}`} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors text-sm">
-                                <td className="py-3 px-2 font-medium text-slate-800">
-                                  {item.profiles?.full_name || item.profiles?.email || item.user_id}
-                                </td>
-                                <td className="py-3 px-2 text-slate-600">{item.mesin}</td>
-                                <td className="py-3 px-2 text-slate-500">Tier {item.tier}</td>
-                                <td className="py-3 px-2 text-right">
-                                  <div className="flex items-center justify-end gap-2">
-                                    <RestoreButton disabled={isActionLoading} onClick={() => handleRestore('andon_leader', item.id)} />
-                                    <DeleteButton disabled={isActionLoading} onClick={() => setItemToDelete({ type: 'andon_leader', id: item.id, name: `${item.profiles?.full_name || item.user_id} — ${item.mesin} Tier ${item.tier}` })} />
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
+                            {filteredAndon.map((item: any, idx: number) => {
+                              const key = `andon-${item.id}-${idx}`
+                              const isSelected = selectedKeys.has(key)
+                              return (
+                                <tr key={key} className={`border-b border-slate-100 transition-colors text-sm ${isSelected ? 'bg-blue-50' : 'hover:bg-slate-50/50'}`}>
+                                  <td className="py-3 pl-3 pr-1 text-center">
+                                    <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(key)} aria-label={`Pilih ${item.profiles?.full_name || item.user_id}`} className="h-4 w-4 rounded border-slate-300 cursor-pointer accent-blue-600" />
+                                  </td>
+                                  <td className="py-3 px-2 font-medium text-slate-800">
+                                    {item.profiles?.full_name || item.profiles?.email || item.user_id}
+                                  </td>
+                                  <td className="py-3 px-2 text-slate-600">{item.mesin}</td>
+                                  <td className="py-3 px-2 text-slate-500">Tier {item.tier}</td>
+                                  <td className="py-3 px-2 text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                      <RestoreButton disabled={isActionLoading} onClick={() => handleRestore('andon_leader', item.id)} />
+                                      <DeleteButton disabled={isActionLoading} onClick={() => setItemToDelete({ type: 'andon_leader', id: item.id, name: `${item.profiles?.full_name || item.user_id} — ${item.mesin} Tier ${item.tier}` })} />
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            })}
                           </tbody>
                         </table>
                       </div>
@@ -664,6 +908,7 @@ export default function RecycleBinClient() {
         </div>
       </main>
 
+      {/* ── Modal: Hapus satu item permanen ── */}
       {itemToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-all duration-300">
           <div className="bg-card rounded-3xl border border-border shadow-2xl p-6 max-w-md w-full select-none animate-in fade-in zoom-in duration-200">
@@ -690,6 +935,7 @@ export default function RecycleBinClient() {
         </div>
       )}
 
+      {/* ── Modal: Kosongkan tempat sampah ── */}
       {showEmptyConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-all duration-300">
           <div className="bg-card rounded-3xl border border-border shadow-2xl p-6 max-w-md w-full select-none animate-in fade-in zoom-in duration-200">
@@ -710,6 +956,56 @@ export default function RecycleBinClient() {
               </Button>
               <Button variant="destructive" size="sm" onClick={handleEmptyTrash} className="bg-red-600 hover:bg-red-700 text-white font-semibold shadow-sm shadow-red-100">
                 Ya, Hapus Permanen
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: Bulk delete konfirmasi ── */}
+      {showBulkDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-card rounded-3xl border border-border shadow-2xl p-6 max-w-md w-full select-none animate-in fade-in zoom-in duration-200">
+            <div className="flex items-start gap-4 mb-4">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-50 border border-red-100 text-red-600">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-foreground">Hapus {selectedCount} Item Permanen?</h3>
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                  Apakah Anda yakin ingin menghapus{' '}
+                  <strong className="text-foreground">{selectedCount} item</strong>{' '}
+                  yang dipilih secara <strong>permanen</strong>? Data tidak dapat dipulihkan kembali.
+                </p>
+              </div>
+            </div>
+            {bulkDeleteError && (
+              <div className="mb-4 rounded-md bg-red-50 p-3 text-xs text-red-800 border border-red-100">
+                {bulkDeleteError}
+              </div>
+            )}
+            <div className="flex items-center justify-end gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isBulkDeleting}
+                onClick={() => { setShowBulkDeleteConfirm(false); setBulkDeleteError('') }}
+                className="border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground font-semibold"
+              >
+                Batal
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={isBulkDeleting}
+                onClick={handleBulkDelete}
+                className="bg-red-600 hover:bg-red-700 text-white font-semibold flex items-center gap-2"
+              >
+                {isBulkDeleting ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Menghapus...</>
+                ) : (
+                  <><Trash2 className="h-4 w-4" /> Ya, Hapus Permanen ({selectedCount})</>
+                )}
               </Button>
             </div>
           </div>
