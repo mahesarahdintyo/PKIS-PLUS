@@ -193,3 +193,46 @@ export async function POST(request: Request) {
     );
   }
 }
+// DELETE - Bulk soft-delete documents
+export async function DELETE(request: Request) {
+  try {
+    const body = await request.json().catch(() => ({}))
+    const ids: string[] = Array.isArray(body?.ids) ? body.ids : []
+
+    if (ids.length === 0) {
+      return NextResponse.json(
+        { error: "No document IDs provided" },
+        { status: 400 }
+      )
+    }
+
+    const supabase = await createClient()
+    const userProfile = await getCurrentUserProfile()
+    if (!userProfile.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Remove from display_documents first
+    await supabase.from("display_documents").delete().in("document_id", ids)
+
+    // Soft-delete all documents
+    const { error } = await supabase
+      .from("documents")
+      .update({ is_active: false })
+      .in("id", ids)
+
+    if (error) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({ success: true, deleted: ids.length })
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    )
+  }
+}
