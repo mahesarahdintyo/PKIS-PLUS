@@ -217,7 +217,11 @@ export default function RecycleBinClient() {
     try {
       setIsActionLoading(true)
       setShowEmptyConfirm(false)
-      const response = await fetch('/api/admin/recycle-bin', { method: 'DELETE' })
+      const response = await fetch('/api/admin/recycle-bin', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'empty_all' }),
+      })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error ?? 'Gagal mengosongkan tempat sampah')
       const deleted = result.deleted
@@ -245,21 +249,17 @@ export default function RecycleBinClient() {
     try {
       setIsBulkDeleting(true)
       setBulkDeleteError('')
-      const results = await Promise.allSettled(
-        items.map(item =>
-          fetch('/api/admin/recycle-bin', {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: item.type, id: item.id }),
-          }).then(r => r.json().then(j => ({ ok: r.ok, result: j })))
-        )
-      )
-      const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.ok))
-      if (failed.length > 0) {
-        setBulkDeleteError(`${failed.length} item gagal dihapus. Silakan coba lagi.`)
-        return
-      }
-      const n = items.length
+      const response = await fetch('/api/admin/recycle-bin', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: items.map(item => ({ type: item.type, id: item.id })),
+        }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error ?? 'Gagal menghapus item terpilih')
+      
+      const n = result.deletedCount ?? items.length
       setShowBulkDeleteConfirm(false)
       setSelectedKeys(new Set())
       await loadData()
