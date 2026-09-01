@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Chart from "chart.js/auto";
 import { toast } from "sonner";
 import { useThemeListener } from "@/hooks/produksi/useThemeListener";
@@ -43,7 +43,7 @@ import {
 import { useOfflineSync } from "@/hooks/produksi/useOfflineSync";
 import { useFlash } from "@/hooks/produksi/useFlash";
 import { usePanggilLeader } from "@/hooks/produksi/useAndon";
-import { Bell, WifiOff, RefreshCw } from "lucide-react";
+import { Bell, WifiOff, RefreshCw, Trash2, AlertTriangle } from "lucide-react";
 
 import ProduksiTab from "./ProduksiTab";
 import RiwayatTab from "./RiwayatTab";
@@ -297,6 +297,12 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
   const [downtimeFilterLabel, setDowntimeFilterLabel] = useState("");
   const [riwayatDeleteTarget, setRiwayatDeleteTarget] = useState<any | null>(null);
   const [isDeletingRiwayat, setIsDeletingRiwayat] = useState(false);
+
+  // Bulk select / bulk delete riwayat
+  const [selectedRiwayatIds, setSelectedRiwayatIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteRiwayatOpen, setBulkDeleteRiwayatOpen] = useState(false);
+  const [isBulkDeletingRiwayat, setIsBulkDeletingRiwayat] = useState(false);
+  const [bulkDeleteRiwayatError, setBulkDeleteRiwayatError] = useState("");
   const [editingNonProduksiId, setEditingNonProduksiId] = useState<string | null>(null);
   const [nonProduksiEditForm, setNonProduksiEditForm] = useState<{
     waktu_awal: string;
@@ -657,6 +663,82 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
   const canDeleteRow = (_row: any): boolean => {
     const role = (profile?.role || userRole || "").trim().toLowerCase();
     return ["admin", "leader"].includes(role);
+  };
+
+  // Bulk-select computed values — only rows that canDeleteRow can be selected
+  const selectableRiwayatIds = useMemo(
+    () => riwayatGabungan.filter((r) => canDeleteRow(r) && (r.jenis === "produksi" || r.jenis === "non_produksi")).map((r) => r.data.id as string),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [riwayatGabungan, profile, userRole]
+  );
+
+  const isAllRiwayatSelected = useMemo(
+    () => selectableRiwayatIds.length > 0 && selectableRiwayatIds.every((id) => selectedRiwayatIds.has(id)),
+    [selectableRiwayatIds, selectedRiwayatIds]
+  );
+
+  const isRiwayatIndeterminate = useMemo(
+    () => selectableRiwayatIds.some((id) => selectedRiwayatIds.has(id)) && !isAllRiwayatSelected,
+    [selectableRiwayatIds, selectedRiwayatIds, isAllRiwayatSelected]
+  );
+
+  const toggleRiwayatSelect = (id: string) => {
+    setSelectedRiwayatIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleRiwayatSelectAll = () => {
+    if (isAllRiwayatSelected) {
+      setSelectedRiwayatIds(new Set());
+    } else {
+      setSelectedRiwayatIds(new Set(selectableRiwayatIds));
+    }
+  };
+
+  const handleBulkDeleteRiwayatConfirm = async () => {
+    if (selectedRiwayatIds.size === 0) return;
+    try {
+      setIsBulkDeletingRiwayat(true);
+      setBulkDeleteRiwayatError("");
+      markLocalAction();
+
+      const selectedItems = riwayatGabungan.filter((r) => selectedRiwayatIds.has(r.data.id));
+      const prodIds = selectedItems.filter((r) => r.jenis === "produksi").map((r) => r.data.id as string);
+      const nonProdIds = selectedItems.filter((r) => r.jenis === "non_produksi").map((r) => r.data.id as string);
+
+      const promises = [];
+      if (prodIds.length > 0) {
+        promises.push(
+          supabase.from("prod_production_log" as any).update({ is_active: false }).in("id", prodIds)
+        );
+      }
+      if (nonProdIds.length > 0) {
+        promises.push(
+          supabase.from("prod_dandori_log" as any).update({ is_active: false }).in("id", nonProdIds)
+        );
+      }
+
+      const results = await Promise.all(promises);
+      for (const res of results) {
+        if (res.error) throw res.error;
+      }
+
+      const n = selectedRiwayatIds.size;
+      setSelectedRiwayatIds(new Set());
+      setBulkDeleteRiwayatOpen(false);
+      await loadData();
+      await fetchRiwayatGabungan();
+      await fetchRiwayatHariIniData();
+      toast.success(`${n} baris riwayat berhasil dihapus.`);
+    } catch (err: any) {
+      setBulkDeleteRiwayatError(err instanceof Error ? err.message : "Gagal menghapus riwayat terpilih");
+    } finally {
+      setIsBulkDeletingRiwayat(false);
+    }
   };
 
   const handleEditProductionRow = (data: any) => {
@@ -2114,25 +2196,65 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
           )}
 
           {activeTab === "riwayat" && (
-            <RiwayatTab
-              config={config}
-              masterParts={masterParts}
-              riwayatTanggalDari={riwayatTanggalDari}
-              setRiwayatTanggalDari={setRiwayatTanggalDari}
-              riwayatTanggalSampai={riwayatTanggalSampai}
-              setRiwayatTanggalSampai={setRiwayatTanggalSampai}
-              riwayatPartNumber={riwayatPartNumber}
-              setRiwayatPartNumber={setRiwayatPartNumber}
-              resetRiwayatFilter={resetRiwayatFilter}
-              riwayatGabungan={riwayatGabungan}
-              canDeleteRow={canDeleteRow}
-              handleEditProductionRow={handleEditProductionRow}
-              handleEditNonProduksiRow={handleEditNonProduksiRow}
-              handleViewDowntimeForProduction={handleViewDowntimeForProduction}
-              setRiwayatDeleteTarget={setRiwayatDeleteTarget}
-              fmt={fmt}
-              fmtNum={fmtNum}
-            />
+            <>
+              {/* Floating bulk-action bar */}
+              {selectedRiwayatIds.size > 0 && (
+                <div className="sticky top-4 z-30 flex items-center justify-between gap-3 p-3.5 bg-slate-900 text-white rounded-xl shadow-xl border border-slate-700 mb-4 animate-in fade-in slide-in-from-top-3 duration-200">
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs font-bold">
+                      {selectedRiwayatIds.size}
+                    </span>
+                    <span className="text-xs sm:text-sm font-semibold">Baris Riwayat Dipilih</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedRiwayatIds(new Set())}
+                      className="h-8 px-3 text-xs text-slate-300 hover:text-white hover:bg-slate-800"
+                    >
+                      Batal
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => { setBulkDeleteRiwayatError(""); setBulkDeleteRiwayatOpen(true); }}
+                      className="h-8 px-3 text-xs font-bold bg-red-600 hover:bg-red-700 text-white flex items-center gap-1.5 shadow-sm cursor-pointer"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>Hapus ({selectedRiwayatIds.size})</span>
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <RiwayatTab
+                config={config}
+                masterParts={masterParts}
+                riwayatTanggalDari={riwayatTanggalDari}
+                setRiwayatTanggalDari={setRiwayatTanggalDari}
+                riwayatTanggalSampai={riwayatTanggalSampai}
+                setRiwayatTanggalSampai={setRiwayatTanggalSampai}
+                riwayatPartNumber={riwayatPartNumber}
+                setRiwayatPartNumber={setRiwayatPartNumber}
+                resetRiwayatFilter={resetRiwayatFilter}
+                riwayatGabungan={riwayatGabungan}
+                canDeleteRow={canDeleteRow}
+                handleEditProductionRow={handleEditProductionRow}
+                handleEditNonProduksiRow={handleEditNonProduksiRow}
+                handleViewDowntimeForProduction={handleViewDowntimeForProduction}
+                setRiwayatDeleteTarget={setRiwayatDeleteTarget}
+                fmt={fmt}
+                fmtNum={fmtNum}
+                selectedIds={selectedRiwayatIds}
+                isAllSelected={isAllRiwayatSelected}
+                isIndeterminate={isRiwayatIndeterminate}
+                onToggleSelect={toggleRiwayatSelect}
+                onToggleSelectAll={toggleRiwayatSelectAll}
+              />
+            </>
           )}
 
           {activeTab === "performance" && (
@@ -2274,6 +2396,55 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
                 {isDeletingRiwayat ? "Menghapus…" : "Ya, Hapus"}
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Modal Konfirmasi Bulk Delete Riwayat */}
+      {bulkDeleteRiwayatOpen && (
+        <Dialog open={bulkDeleteRiwayatOpen} onOpenChange={(open) => { if (!open && !isBulkDeletingRiwayat) { setBulkDeleteRiwayatOpen(false); setBulkDeleteRiwayatError(""); } }}>
+          <DialogContent onClose={() => { if (!isBulkDeletingRiwayat) { setBulkDeleteRiwayatOpen(false); setBulkDeleteRiwayatError(""); } }} maxWidth="max-w-md">
+            <div className="flex items-start gap-4">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-50 border border-red-100 text-red-600">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-[var(--text)]">Hapus {selectedRiwayatIds.size} Baris Riwayat</h3>
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                  Apakah Anda yakin ingin menghapus{" "}
+                  <span className="font-bold text-[var(--text)]">{selectedRiwayatIds.size}</span>{" "}
+                  data riwayat yang dipilih?
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground/70">
+                  Data akan disembunyikan (soft-delete), bukan dihapus permanen.
+                </p>
+              </div>
+            </div>
+            {bulkDeleteRiwayatError && (
+              <div className="mt-4 rounded-md bg-red-50 p-3 text-xs text-red-800 border border-red-100">
+                {bulkDeleteRiwayatError}
+              </div>
+            )}
+            <div className="mt-6 flex justify-end gap-3">
+              <Button
+                type="button"
+                disabled={isBulkDeletingRiwayat}
+                onClick={() => { setBulkDeleteRiwayatOpen(false); setBulkDeleteRiwayatError(""); }}
+                variant="secondary"
+              >
+                Batal
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={isBulkDeletingRiwayat}
+                onClick={handleBulkDeleteRiwayatConfirm}
+                className="flex items-center gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                {isBulkDeletingRiwayat ? "Menghapus..." : `Ya, Hapus (${selectedRiwayatIds.size})`}
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       )}
