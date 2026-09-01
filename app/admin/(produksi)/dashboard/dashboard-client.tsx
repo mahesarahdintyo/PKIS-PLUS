@@ -205,6 +205,7 @@ export default function DashboardClient() {
     setDowntimeModal({ open: true, loading: true, title: "", rows: [] });
     const { start, end } = bounds();
     let q = supabase.from("prod_downtime_log").select("*")
+      .eq("is_active", true)
       .gte("waktu_awal", start.toISOString()).lt("waktu_awal", end.toISOString())
       .order("waktu_awal", { ascending: false })
       .limit(200);
