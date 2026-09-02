@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Clock, FileText, Monitor } from 'lucide-react'
+import Link from 'next/link'
+import { AlertCircle, ArrowLeft, Clock, FileText, Loader2, Maximize, Minimize, Monitor, Tv } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 
 const DISPLAY_DOCUMENT_STORAGE_KEY = 'futaba.display.document'
@@ -163,6 +164,42 @@ export default function DisplayPageClient({ lineId: routeLineId }: DisplayPageCl
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [currentTime, setCurrentTime] = useState(() => Date.now())
+  const [isFullscreen, setIsFullscreen] = useState(false)
+
+  const toggleFullscreen = () => {
+    if (!window.document.fullscreenElement) {
+      window.document.documentElement.requestFullscreen().catch(() => {})
+    } else {
+      if (window.document.exitFullscreen) {
+        window.document.exitFullscreen().catch(() => {})
+      }
+    }
+  }
+
+  useEffect(() => {
+    // Otomatis full screen saat masuk ke display
+    const enterFullscreen = async () => {
+      try {
+        if (!window.document.fullscreenElement) {
+          await window.document.documentElement.requestFullscreen()
+        }
+      } catch (err) {
+        console.warn('Fullscreen auto-trigger ignored by browser policy:', err)
+      }
+    }
+    enterFullscreen()
+
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!window.document.fullscreenElement)
+    }
+    window.document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => {
+      window.document.removeEventListener('fullscreenchange', handleFullscreenChange)
+      if (window.document.fullscreenElement && window.document.exitFullscreen) {
+        window.document.exitFullscreen().catch(() => {})
+      }
+    }
+  }, [])
 
   const displayMode = useMemo(
     () => (document ? getDisplayMode(document) : 'frame'),
@@ -385,7 +422,59 @@ export default function DisplayPageClient({ lineId: routeLineId }: DisplayPageCl
 
   return (
     <main className="fixed inset-0 h-screen w-screen overflow-hidden bg-black text-white">
-      <section className="h-full w-full overflow-hidden">
+      {/* Floating Header Controls */}
+      <div className="pointer-events-auto fixed top-4 right-4 z-50 flex items-center gap-2">
+        <Link
+          href="/display"
+          className="flex items-center gap-1.5 text-xs font-semibold py-1.5 px-3 rounded-lg border border-slate-700/60 bg-slate-900/80 backdrop-blur-md text-slate-200 hover:bg-slate-800 hover:text-white transition shadow-lg cursor-pointer"
+          title="Kembali ke Pemilihan Mesin / Line"
+        >
+          <ArrowLeft size={15} />
+          <span>Pilih Mesin</span>
+        </Link>
+        <button
+          type="button"
+          onClick={toggleFullscreen}
+          className="flex items-center justify-center p-2 rounded-lg border border-slate-700/60 bg-slate-900/80 backdrop-blur-md text-slate-200 hover:bg-slate-800 hover:text-white transition shadow-lg cursor-pointer"
+          title={isFullscreen ? "Exit Fullscreen (F11)" : "Fullscreen (F11)"}
+        >
+          {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
+        </button>
+      </div>
+
+      <section className="h-full w-full overflow-hidden flex items-center justify-center">
+        {isLoading && (
+          <div className="flex flex-col items-center justify-center p-8 text-center">
+            <Loader2 className="h-10 w-10 text-emerald-400 animate-spin mb-4" />
+            <p className="text-slate-300 font-medium text-sm">Memuat dokumen display...</p>
+          </div>
+        )}
+
+        {!isLoading && error && (
+          <div className="max-w-md p-8 rounded-2xl bg-slate-900/80 border border-amber-500/30 text-center shadow-2xl backdrop-blur-md">
+            <AlertCircle className="h-12 w-12 text-amber-400 mx-auto mb-4" />
+            <h3 className="text-lg font-bold text-white mb-2">File Dokumen Belum Tersedia</h3>
+            <p className="text-sm text-slate-300 leading-relaxed mb-4">
+              {error.includes('Object not found')
+                ? 'File dokumen yang tersimpan sebelumnya tidak ditemukan di storage. Silakan pilih dan tampilkan dokumen kerja kembali melalui halaman Operator.'
+                : error}
+            </p>
+            <p className="text-xs text-slate-500">
+              Layar akan otomatis memperbarui tampilan saat operator menekan tombol &ldquo;Tampilkan&rdquo;.
+            </p>
+          </div>
+        )}
+
+        {!isLoading && !error && !document && (
+          <div className="max-w-md p-8 rounded-2xl bg-slate-900/60 border border-slate-800 text-center shadow-2xl">
+            <Tv className="h-12 w-12 text-slate-500 mx-auto mb-4" />
+            <h3 className="text-lg font-bold text-white mb-2">Menunggu Dokumen Kerja</h3>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              Silakan pilih line produksi dan tampilkan dokumen melalui halaman Operator untuk memunculkannya pada layar ini.
+            </p>
+          </div>
+        )}
+
         {document && fileUrl && !isLoading && !error && displayMode === 'image' && (
           <img
             key={`${document.id}-${document.file.path}-${document.updatedAt}`}
