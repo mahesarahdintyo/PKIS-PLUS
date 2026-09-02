@@ -292,7 +292,7 @@ export default function MasterDataTab({
         </form>
 
         {/* Tabel Part Number */}
-        <div className="table-wrap">
+        <div className="table-wrap max-h-[480px] overflow-y-auto">
           <table>
             <thead>
               <tr>
