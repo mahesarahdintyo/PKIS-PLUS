@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase/server'
-import { getCurrentUserProfile } from '@/lib/services/auth-server'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
@@ -15,10 +14,6 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createClient()
-    const userProfile = await getCurrentUserProfile()
-    if (!userProfile.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
 
     // Generate signed URL valid for 1 hour
     const { data, error } = await supabase.storage

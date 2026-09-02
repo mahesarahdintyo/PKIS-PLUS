@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Monitor, Tv, ArrowRight, Activity, Loader2 } from "lucide-react";
+import { Monitor, Tv, ArrowRight, Activity, Loader2, Maximize, Minimize } from "lucide-react";
 import { getLines, type Line } from "@/lib/services/line";
 
 export default function DisplayPage() {
@@ -11,6 +11,27 @@ export default function DisplayPage() {
   const [lines, setLines] = useState<Line[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -64,9 +85,19 @@ export default function DisplayPage() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-900/50 px-4 py-2 text-xs text-slate-400">
-          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span>Sistem Online</span>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="flex items-center justify-center p-2 rounded-lg border border-slate-800 bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white transition cursor-pointer"
+            title={isFullscreen ? "Exit Fullscreen (F11)" : "Fullscreen (F11)"}
+          >
+            {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
+          </button>
+          <div className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-900/50 px-4 py-2 text-xs text-slate-400">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Sistem Online</span>
+          </div>
         </div>
       </header>
 
