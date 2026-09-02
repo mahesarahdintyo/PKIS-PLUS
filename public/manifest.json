@@ -1,9 +1,12 @@
 {
+  "id": "/",
   "name": "Futaba PKIS",
   "short_name": "PKIS",
   "description": "Production & Knowledge Information System - PT Futaba",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#ffffff",
   "theme_color": "#00A545",
   "icons": [
