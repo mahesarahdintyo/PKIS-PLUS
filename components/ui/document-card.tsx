@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Clock,
@@ -331,6 +331,9 @@ export function DocumentCard({
   const [availablePartNumbers, setAvailablePartNumbers] = useState<{ id: string; value: string }[]>([])
   const [isLoadingAvailableParts, setIsLoadingAvailableParts] = useState(false)
   const [selectedPartIdToLink, setSelectedPartIdToLink] = useState('')
+  const [partSearch, setPartSearch] = useState('')
+  const [showPartDropdown, setShowPartDropdown] = useState(false)
+  const partSearchRef = useRef<HTMLDivElement>(null)
 
   const [currentFileName, setCurrentFileName] = useState(file.name)
   const [isEditingFileName, setIsEditingFileName] = useState(false)
@@ -405,6 +408,26 @@ export function DocumentCard({
 
     fetchAvailableParts()
   }, [showPartSelector, lineId])
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (partSearchRef.current && !partSearchRef.current.contains(e.target as Node)) {
+        setShowPartDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Reset search & selection when part selector is closed
+  useEffect(() => {
+    if (!showPartSelector) {
+      setPartSearch('')
+      setSelectedPartIdToLink('')
+      setShowPartDropdown(false)
+    }
+  }, [showPartSelector])
 
   useEffect(() => {
     setCurrentHiddenFromOperator(hiddenFromOperator)
@@ -1229,28 +1252,89 @@ export function DocumentCard({
                   {/* Dropdown Selector Form */}
                   {showPartSelector && (
                     <div className="mt-2 flex flex-wrap items-center gap-2 p-2.5 rounded-lg border border-border bg-muted/50">
-                      <div className="flex-1 min-w-[200px]">
-                        <select
-                          value={selectedPartIdToLink}
-                          onChange={(e) => setSelectedPartIdToLink(e.target.value)}
-                          disabled={isLoadingAvailableParts || isLinkingPart}
-                          className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
-                        >
-                          <option value="">
-                            {isLoadingAvailableParts
-                              ? 'Memuat daftar part number...'
-                              : availablePartNumbers.length === 0
-                              ? 'Tidak ada part number di line ini'
-                              : '-- Pilih Part Number --'}
-                          </option>
-                          {availablePartNumbers
-                            .filter((p) => !currentLinkedPartNumbers.some((cl) => cl.id === p.id))
-                            .map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.value}
-                              </option>
-                            ))}
-                        </select>
+                      <div className="flex-1 min-w-[200px] relative" ref={partSearchRef}>
+                        {/* Live Search Input */}
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={partSearch}
+                            onChange={(e) => { setPartSearch(e.target.value); setShowPartDropdown(true); }}
+                            onFocus={() => setShowPartDropdown(true)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Escape') { setShowPartDropdown(false); }
+                              if (e.key === 'Enter') {
+                                const filtered = availablePartNumbers.filter(
+                                  (p) => !currentLinkedPartNumbers.some((cl) => cl.id === p.id)
+                                    && p.value.toLowerCase().includes(partSearch.toLowerCase())
+                                );
+                                if (filtered.length === 1) {
+                                  setSelectedPartIdToLink(filtered[0].id);
+                                  setPartSearch(filtered[0].value);
+                                  setShowPartDropdown(false);
+                                }
+                              }
+                            }}
+                            disabled={isLoadingAvailableParts || isLinkingPart}
+                            placeholder={
+                              isLoadingAvailableParts
+                                ? 'Memuat...'
+                                : availablePartNumbers.length === 0
+                                ? 'Tidak ada part number di line ini'
+                                : selectedPartIdToLink
+                                ? (availablePartNumbers.find((p) => p.id === selectedPartIdToLink)?.value ?? 'Cari part number...')
+                                : 'Cari part number...'
+                            }
+                            className="h-8 w-full rounded-md border border-border bg-background pl-2 pr-7 text-xs text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 disabled:opacity-60"
+                          />
+                          {/* Clear button */}
+                          {(partSearch || selectedPartIdToLink) && !isLoadingAvailableParts && (
+                            <button
+                              type="button"
+                              onClick={() => { setPartSearch(''); setSelectedPartIdToLink(''); setShowPartDropdown(false); }}
+                              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Dropdown List */}
+                        {showPartDropdown && !isLoadingAvailableParts && (() => {
+                          const filtered = availablePartNumbers.filter(
+                            (p) => !currentLinkedPartNumbers.some((cl) => cl.id === p.id)
+                              && (partSearch === '' || p.value.toLowerCase().includes(partSearch.toLowerCase()))
+                          );
+                          if (filtered.length === 0) return null;
+                          return (
+                            <div
+                              className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-md border border-border bg-background shadow-lg"
+                              onMouseDown={(e) => e.preventDefault()} // prevent blur on click
+                            >
+                              {filtered.map((p) => (
+                                <div
+                                  key={p.id}
+                                  onClick={() => {
+                                    setSelectedPartIdToLink(p.id);
+                                    setPartSearch(p.value);
+                                    setShowPartDropdown(false);
+                                  }}
+                                  className={`px-3 py-1.5 text-xs cursor-pointer hover:bg-primary/10 hover:text-primary transition-colors ${
+                                    selectedPartIdToLink === p.id ? 'bg-primary/15 text-primary font-semibold' : 'text-foreground'
+                                  }`}
+                                >
+                                  {partSearch
+                                    ? p.value.split(new RegExp(`(${partSearch})`, 'i')).map((part, i) =>
+                                        part.toLowerCase() === partSearch.toLowerCase()
+                                          ? <mark key={i} className="bg-yellow-200 dark:bg-yellow-600/40 text-current rounded-sm px-px">{part}</mark>
+                                          : part
+                                      )
+                                    : p.value
+                                  }
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
                       </div>
                       <div className="flex items-center gap-1">
                         <Button
@@ -1274,6 +1358,7 @@ export function DocumentCard({
                           onClick={() => {
                             setShowPartSelector(false)
                             setSelectedPartIdToLink('')
+                            setPartSearch('')
                           }}
                           disabled={isLinkingPart}
                           className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
