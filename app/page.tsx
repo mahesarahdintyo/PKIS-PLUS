@@ -47,7 +47,7 @@ export default async function HomePage() {
             </p>
 
             <div className="space-y-3 text-left">
-              {(profile?.role === "admin" || profile?.role === "leader") ? (
+              {profile?.role === "admin" ? (
                 <>
                   <Link
                     href="/admin"

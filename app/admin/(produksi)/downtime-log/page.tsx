@@ -18,7 +18,7 @@ export default async function AdminDowntimeLogPage() {
     .eq("id", user.id)
     .single();
 
-  if (!profile || (profile.role !== "admin" && profile.role !== "leader")) {
+  if (!profile || profile.role !== "admin") {
     redirect("/operator");
   }
 
