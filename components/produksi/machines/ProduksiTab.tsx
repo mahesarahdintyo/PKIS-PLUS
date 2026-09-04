@@ -85,6 +85,7 @@ interface ProduksiTabProps {
   riwayatHariIni: any[];
   isLeaderOrAdmin: boolean;
   canDeleteRow: (row: any) => boolean;
+  canEditRow?: (row: any) => boolean;
   handleEditProductionRow: (data: any) => void;
   handleEditNonProduksiRow: (data: any) => void;
   handleViewDowntimeForProduction: (row: any) => void;
@@ -116,6 +117,7 @@ export default function ProduksiTab({
   riwayatHariIni,
   isLeaderOrAdmin,
   canDeleteRow,
+  canEditRow,
   handleEditProductionRow,
   handleEditNonProduksiRow,
   handleViewDowntimeForProduction,
@@ -891,37 +893,41 @@ export default function ProduksiTab({
                         <span className="hint text-xs text-muted-foreground">
                           {r.qty ?? "-"}pcs · {fmtClock(r.waktu_awal)}-{fmtClock(r.waktu_akhir)}
                         </span>
-                        {isLeaderOrAdmin && r.id && !r._pending && (
+                        {r.id && !r._pending && (
                           <div className="flex gap-1 ml-auto shrink-0">
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              size="sm"
-                              className="px-1.5 py-0.5 text-xs"
-                              title="Edit baris produksi ini"
-                              onClick={(e) => { e.stopPropagation(); handleEditProductionRow(r); }}
-                            >
-                              <Pencil size={12} />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="sm"
-                              className="px-1.5 py-0.5 text-xs"
-                              title="Hapus baris produksi ini"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setRiwayatDeleteTarget({
-                                  jenis: "produksi",
-                                  waktu_awal: r.waktu_awal,
-                                  waktu_akhir: r.waktu_akhir,
-                                  part_number: r.part_number,
-                                  data: r,
-                                });
-                              }}
-                            >
-                              <X size={12} />
-                            </Button>
+                            {(canEditRow ? canEditRow({ jenis: "produksi", data: r }) : isLeaderOrAdmin) && (
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                className="px-1.5 py-0.5 text-xs"
+                                title="Edit baris produksi ini"
+                                onClick={(e) => { e.stopPropagation(); handleEditProductionRow(r); }}
+                              >
+                                <Pencil size={12} />
+                              </Button>
+                            )}
+                            {isLeaderOrAdmin && (
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                                className="px-1.5 py-0.5 text-xs"
+                                title="Hapus baris produksi ini"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setRiwayatDeleteTarget({
+                                    jenis: "produksi",
+                                    waktu_awal: r.waktu_awal,
+                                    waktu_akhir: r.waktu_akhir,
+                                    part_number: r.part_number,
+                                    data: r,
+                                  });
+                                }}
+                              >
+                                <X size={12} />
+                              </Button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -972,7 +978,7 @@ export default function ProduksiTab({
                 const routing = data.extra?.routing_type
                   ? `${data.extra.routing_type}${data.extra.routing_numbers ? ` ${data.extra.routing_numbers.join(",")}` : ""}`
                   : "-";
-                const canEditRowPerm = canDeleteRow(row) && (row.jenis === "produksi" || row.jenis === "non_produksi");
+                const canEditRowPerm = (canEditRow ? canEditRow(row) : canDeleteRow(row)) && (row.jenis === "produksi" || row.jenis === "non_produksi");
                 const rowClick = canEditRowPerm
                   ? () => (row.jenis === "produksi" ? handleEditProductionRow(data) : handleEditNonProduksiRow(data))
                   : undefined;
@@ -1012,7 +1018,7 @@ export default function ProduksiTab({
                     {config.routingMax > 0 && <td className="col-hide-mobile">{row.jenis === "produksi" ? routing : "-"}</td>}
                     <td>
                       <div className="flex gap-1.5">
-                        {row.jenis === "produksi" && canDeleteRow(row) && (
+                        {row.jenis === "produksi" && canEditRowPerm && (
                           <Button
                             type="button"
                             variant="secondary"
@@ -1023,7 +1029,7 @@ export default function ProduksiTab({
                             <Pencil size={13} />
                           </Button>
                         )}
-                        {row.jenis === "non_produksi" && canDeleteRow(row) && (
+                        {row.jenis === "non_produksi" && canEditRowPerm && (
                           <Button
                             type="button"
                             variant="secondary"

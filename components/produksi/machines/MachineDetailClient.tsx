@@ -666,6 +666,11 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
     return ["admin", "leader"].includes(role);
   };
 
+  const canEditRow = (_row?: any): boolean => {
+    const role = (profile?.role || userRole || "").trim().toLowerCase();
+    return ["admin", "leader", "operator"].includes(role);
+  };
+
   // Bulk-select computed values — only rows that canDeleteRow can be selected
   const selectableRiwayatIds = useMemo(
     () => riwayatGabungan.filter((r) => canDeleteRow(r) && (r.jenis === "produksi" || r.jenis === "non_produksi")).map((r) => r.data.id as string),
@@ -2198,6 +2203,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
               riwayatHariIni={riwayatHariIni}
               isLeaderOrAdmin={isLeaderOrAdmin}
               canDeleteRow={canDeleteRow}
+              canEditRow={canEditRow}
               handleEditProductionRow={handleEditProductionRow}
               handleEditNonProduksiRow={handleEditNonProduksiRow}
               handleViewDowntimeForProduction={handleViewDowntimeForProduction}
@@ -2259,6 +2265,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
                 resetRiwayatFilter={resetRiwayatFilter}
                 riwayatGabungan={riwayatGabungan}
                 canDeleteRow={canDeleteRow}
+                canEditRow={canEditRow}
                 handleEditProductionRow={handleEditProductionRow}
                 handleEditNonProduksiRow={handleEditNonProduksiRow}
                 handleViewDowntimeForProduction={handleViewDowntimeForProduction}
