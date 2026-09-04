@@ -238,12 +238,17 @@ export function useAndonLeaders(userId: string | null | undefined) {
   const daftarLeader = useCallback(
     async (mesin: string, tier: 1 | 2): Promise<{ error: string | null }> => {
       if (!userId) return { error: "Belum login." };
+      // Gunakan upsert agar jika baris lama ada (is_active=false karena pernah dihapus),
+      // baris tersebut diaktifkan kembali tanpa melanggar unique constraint.
       const { error } = await supabase
         .from("andon_leaders" as any)
-        .insert({ user_id: userId, mesin, tier, is_active: true });
+        .upsert(
+          { user_id: userId, mesin, tier, is_active: true },
+          { onConflict: "user_id,mesin,tier" }
+        );
       if (error) {
         await fetchMyLeaders();
-        return { error: error.code === "23505" ? "Sudah terdaftar utk line & tier ini." : error.message };
+        return { error: error.message };
       }
       await fetchMyLeaders();
       return { error: null };
