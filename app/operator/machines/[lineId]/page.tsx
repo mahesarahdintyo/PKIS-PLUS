@@ -45,6 +45,7 @@ export default async function MachineHubPage({ params }: PageProps) {
       lineId={activeLine.id}
       selectedLineName={activeLine.name}
       userRole={profile.role ?? "operator"}
+      userId={profile.user?.id}
       userLineId={profile.lineId}
       initialLines={initialLines}
       initialFolders={initialFolders}
