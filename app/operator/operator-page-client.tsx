@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import OperatorHeader from "@/components/operator/OperatorHeader";
-import LineSelector from "@/components/operator/LineSelector";
 import SearchBar from "@/components/operator/SearchBar";
 import DocumentList from "@/components/operator/DocumentList";
 import MachineDetailClient from "@/components/produksi/machines/MachineDetailClient";
@@ -329,13 +328,6 @@ export default function OperatorPage({
     };
   }, [loadLines]);
 
-  const handleLineChange = (line: Line) => {
-    setSelectedLine(line);
-    setCurrentFolder(null);
-    setFolderPathHistory([]);
-    setSearchQuery("");
-    clearOperatorFolderLocation(line);
-  };
 
   const loadWorkspaceData = useCallback(
     async ({ showLoading = true }: { showLoading?: boolean } = {}) => {
@@ -497,13 +489,6 @@ export default function OperatorPage({
           </Link>
         </div>
 
-        {userRole === "admin" && (
-          <LineSelector
-            value={selectedLine}
-            lines={lines}
-            onChange={handleLineChange}
-          />
-        )}
 
         {/* Menu Tabs Switcher */}
         <div className="flex border-b border-border overflow-x-auto gap-2">
