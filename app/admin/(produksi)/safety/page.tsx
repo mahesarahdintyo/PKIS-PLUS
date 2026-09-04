@@ -11,14 +11,14 @@ export default async function InputSafetyPage() {
   // Guard: harus login
   if (!user) redirect("/");
 
-  // Guard: hanya admin & leader
+  // Guard: hanya admin
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
     .eq("id", user.id)
     .single();
 
-  if (!profile || (profile.role !== "admin" && profile.role !== "leader")) {
+  if (!profile || profile.role !== "admin") {
     redirect("/operator");
   }
 

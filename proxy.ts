@@ -51,10 +51,10 @@ export async function proxy(request: NextRequest) {
 
     const rawRole = (profile?.role || user.user_metadata?.role || user.app_metadata?.role || '') as string
     const cleanRole = typeof rawRole === 'string' ? rawRole.trim().toLowerCase() : ''
-    const isAdminOrLeader = cleanRole === 'admin' || cleanRole === 'leader'
+    const isAdmin = cleanRole === 'admin'
 
-    // Jika mencoba akses /admin tapi bukan admin atau leader
-    if (path.startsWith('/admin') && !isAdminOrLeader) {
+    // Jika mencoba akses /admin tapi bukan admin
+    if (path.startsWith('/admin') && !isAdmin) {
       return NextResponse.redirect(new URL('/operator', request.url))
     }
   }
