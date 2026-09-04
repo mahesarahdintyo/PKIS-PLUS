@@ -875,13 +875,15 @@ export function DocumentCard({
     <>
       <div
         onClick={handleCardClick}
-        className={`relative bg-card border rounded-lg p-4 shadow-sm hover:shadow-md active:scale-[0.99] active:shadow-sm transition-all duration-200 group select-none text-foreground ${isBulkMode || showOperatorActions ? 'cursor-pointer' : 'cursor-pointer'
+        className={`relative bg-card border rounded-lg p-4 shadow-sm hover:shadow-md active:shadow-sm transition-all duration-200 group select-none text-foreground ${
+          showPartSelector || isEditingTitle || isEditingFileName ? '' : 'active:scale-[0.99]'
+        } ${isBulkMode || showOperatorActions ? 'cursor-pointer' : 'cursor-pointer'
           } ${isSelected
             ? 'border-blue-400 bg-blue-50/60 dark:bg-blue-950/30 ring-2 ring-blue-400/40'
             : currentHiddenFromOperator
             ? 'border-amber-200 bg-amber-50/40 hover:border-amber-300'
             : 'border-border hover:border-primary'
-          }`}
+          } ${showPartDropdown ? 'z-40' : showPartSelector ? 'z-20' : 'z-0'}`}
         title={isBulkMode ? (isSelected ? 'Batalkan pilihan' : 'Pilih dokumen ini') : (showOperatorActions ? undefined : 'Klik kartu ini untuk melihat/membuka dokumen')}
       >
         {/* Bulk select — custom circular badge, replaces raw browser checkbox */}
@@ -1203,7 +1205,8 @@ export function DocumentCard({
                     {!showPartSelector && (
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation()
                           setShowPartSelector(true)
                           setSelectedPartIdToLink('')
                         }}
@@ -1251,7 +1254,10 @@ export function DocumentCard({
 
                   {/* Dropdown Selector Form */}
                   {showPartSelector && (
-                    <div className="mt-2 flex flex-wrap items-center gap-2 p-2.5 rounded-lg border border-border bg-muted/50">
+                    <div
+                      className="mt-2 flex flex-wrap items-center gap-2 p-2.5 rounded-lg border border-border bg-muted/50"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <div className="flex-1 min-w-[200px] relative" ref={partSearchRef}>
                         {/* Live Search Input */}
                         <div className="relative">
@@ -1267,7 +1273,7 @@ export function DocumentCard({
                                   (p) => !currentLinkedPartNumbers.some((cl) => cl.id === p.id)
                                     && p.value.toLowerCase().includes(partSearch.toLowerCase())
                                 );
-                                if (filtered.length === 1) {
+                                if (filtered.length > 0) {
                                   setSelectedPartIdToLink(filtered[0].id);
                                   setPartSearch(filtered[0].value);
                                   setShowPartDropdown(false);
@@ -1290,7 +1296,12 @@ export function DocumentCard({
                           {(partSearch || selectedPartIdToLink) && !isLoadingAvailableParts && (
                             <button
                               type="button"
-                              onClick={() => { setPartSearch(''); setSelectedPartIdToLink(''); setShowPartDropdown(false); }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPartSearch('');
+                                setSelectedPartIdToLink('');
+                                setShowPartDropdown(false);
+                              }}
                               className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                             >
                               <X className="h-3 w-3" />
@@ -1308,17 +1319,26 @@ export function DocumentCard({
                           return (
                             <div
                               className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-md border border-border bg-background shadow-lg"
-                              onMouseDown={(e) => e.preventDefault()} // prevent blur on click
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                              }}
+                              onClick={(e) => e.stopPropagation()}
                             >
                               {filtered.map((p) => (
                                 <div
                                   key={p.id}
-                                  onClick={() => {
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     setSelectedPartIdToLink(p.id);
                                     setPartSearch(p.value);
                                     setShowPartDropdown(false);
                                   }}
-                                  className={`px-3 py-1.5 text-xs cursor-pointer hover:bg-primary/10 hover:text-primary transition-colors ${
+                                  className={`px-3 py-2 text-xs cursor-pointer hover:bg-primary/10 hover:text-primary transition-colors ${
                                     selectedPartIdToLink === p.id ? 'bg-primary/15 text-primary font-semibold' : 'text-foreground'
                                   }`}
                                 >
@@ -1355,10 +1375,11 @@ export function DocumentCard({
                           type="button"
                           size="sm"
                           variant="ghost"
-                          onClick={() => {
-                            setShowPartSelector(false)
-                            setSelectedPartIdToLink('')
-                            setPartSearch('')
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowPartSelector(false);
+                            setSelectedPartIdToLink('');
+                            setPartSearch('');
                           }}
                           disabled={isLinkingPart}
                           className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
