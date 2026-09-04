@@ -20,6 +20,7 @@ interface RiwayatTabProps {
   resetRiwayatFilter: () => void;
   riwayatGabungan: any[];
   canDeleteRow: (row: any) => boolean;
+  canEditRow?: (row: any) => boolean;
   handleEditProductionRow: (data: any) => void;
   handleEditNonProduksiRow: (data: any) => void;
   handleViewDowntimeForProduction: (row: any) => void;
@@ -46,6 +47,7 @@ export default function RiwayatTab({
   resetRiwayatFilter,
   riwayatGabungan,
   canDeleteRow,
+  canEditRow,
   handleEditProductionRow,
   handleEditNonProduksiRow,
   handleViewDowntimeForProduction,
@@ -158,7 +160,7 @@ export default function RiwayatTab({
               const routing = data.extra?.routing_type
                 ? `${data.extra.routing_type}${data.extra.routing_numbers ? ` ${data.extra.routing_numbers.join(",")}` : ""}`
                 : "-";
-              const canEdit = canDeleteRow(row) && (row.jenis === "produksi" || row.jenis === "non_produksi");
+              const canEdit = (canEditRow ? canEditRow(row) : canDeleteRow(row)) && (row.jenis === "produksi" || row.jenis === "non_produksi");
               const canSelect = canDeleteRow(row) && (row.jenis === "produksi" || row.jenis === "non_produksi");
               const isSelected = canSelect && selectedIds.has(rowId);
               const rowClick = canEdit
@@ -220,7 +222,7 @@ export default function RiwayatTab({
                   {config.routingMax > 0 && <td className="col-hide-mobile">{row.jenis === "produksi" ? routing : "-"}</td>}
                   <td>
                     <div className="flex gap-1.5">
-                      {row.jenis === "produksi" && canDeleteRow(row) && (
+                      {row.jenis === "produksi" && canEdit && (
                         <Button
                           type="button"
                           variant="secondary"
@@ -231,7 +233,7 @@ export default function RiwayatTab({
                           <Pencil size={13} />
                         </Button>
                       )}
-                      {row.jenis === "non_produksi" && canDeleteRow(row) && (
+                      {row.jenis === "non_produksi" && canEdit && (
                         <Button
                           type="button"
                           variant="secondary"
