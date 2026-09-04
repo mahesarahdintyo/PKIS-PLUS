@@ -1042,11 +1042,11 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
     <div className="app-shell">
       <main className="main max-w-6xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-500 pb-16">
         <Link
-          href="/admin"
+          href={role === "leader" ? "/operator" : "/admin"}
           className="inline-flex items-center gap-1.5 self-start min-h-[40px] px-3 py-2 mb-4 text-xs font-semibold rounded-lg border border-border bg-card text-foreground hover:bg-muted transition-colors touch-manipulation shadow-xs"
         >
           <ArrowLeft className="h-4 w-4 shrink-0" />
-          Kembali ke Admin
+          {role === "leader" ? "Kembali ke Operator" : "Kembali ke Admin"}
         </Link>
 
         {andonContent}

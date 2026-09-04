@@ -52,10 +52,16 @@ export async function proxy(request: NextRequest) {
     const rawRole = (profile?.role || user.user_metadata?.role || user.app_metadata?.role || '') as string
     const cleanRole = typeof rawRole === 'string' ? rawRole.trim().toLowerCase() : ''
     const isAdmin = cleanRole === 'admin'
+    const isLeader = cleanRole === 'leader'
 
     // Jika mencoba akses /admin tapi bukan admin
-    if (path.startsWith('/admin') && !isAdmin) {
-      return NextResponse.redirect(new URL('/operator', request.url))
+    if (path.startsWith('/admin')) {
+      // Role leader diizinkan khusus mengakses halaman /admin/andon-settings
+      const isAllowedLeaderPath = isLeader && (path === '/admin/andon-settings' || path.startsWith('/admin/andon-settings/'))
+
+      if (!isAdmin && !isAllowedLeaderPath) {
+        return NextResponse.redirect(new URL('/operator', request.url))
+      }
     }
   }
 
