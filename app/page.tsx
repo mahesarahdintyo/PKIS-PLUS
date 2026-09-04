@@ -4,7 +4,7 @@ import { LogoutButton } from "@/components/ui/logout-button";
 import Link from "next/link";
 import Image from "next/image";
 import { AppHeader } from "@/components/ui/app-header";
-import { ArrowRight, ShieldCheck, User, Tv, Activity } from "lucide-react";
+import { ArrowRight, ShieldCheck, User, Tv, Activity, Bell } from "lucide-react";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -73,6 +73,35 @@ export default async function HomePage() {
                   >
                     <Activity className="h-5 w-5 text-slate-500" />
                     <span>Status & Monitoring Sistem</span>
+                    <ArrowRight className="h-4 w-4 ml-auto text-slate-400" />
+                  </Link>
+                </>
+              ) : profile?.role === "leader" ? (
+                <>
+                  <Link
+                    href="/admin/andon-settings"
+                    className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-md hover:shadow-lg"
+                  >
+                    <Bell className="h-5 w-5" />
+                    <span>Pengaturan Andon</span>
+                    <ArrowRight className="h-4 w-4 ml-auto" />
+                  </Link>
+
+                  <Link
+                    href="/operator"
+                    className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl transition duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-md hover:shadow-lg"
+                  >
+                    <User className="h-5 w-5" />
+                    <span>Ke Dashboard Operator</span>
+                    <ArrowRight className="h-4 w-4 ml-auto" />
+                  </Link>
+
+                  <Link
+                    href="/display"
+                    className="w-full h-11 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm rounded-xl transition duration-200 flex items-center justify-center gap-2 cursor-pointer border border-slate-200"
+                  >
+                    <Tv className="h-5 w-5 text-slate-500" />
+                    <span>Lihat Status Display</span>
                     <ArrowRight className="h-4 w-4 ml-auto text-slate-400" />
                   </Link>
                 </>
