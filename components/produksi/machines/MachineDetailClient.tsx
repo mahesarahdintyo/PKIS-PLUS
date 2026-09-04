@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import Link from "next/link";
 import Chart from "chart.js/auto";
 import { toast } from "sonner";
 import { useThemeListener } from "@/hooks/produksi/useThemeListener";
@@ -43,7 +44,7 @@ import {
 import { useOfflineSync } from "@/hooks/produksi/useOfflineSync";
 import { useFlash } from "@/hooks/produksi/useFlash";
 import { usePanggilLeader } from "@/hooks/produksi/useAndon";
-import { Bell, WifiOff, RefreshCw, Trash2, AlertTriangle } from "lucide-react";
+import { Bell, WifiOff, RefreshCw, Trash2, AlertTriangle, Settings } from "lucide-react";
 
 import ProduksiTab from "./ProduksiTab";
 import RiwayatTab from "./RiwayatTab";
@@ -2097,20 +2098,36 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       ) : null}
 
       <div className="panggil-leader-row">
-        <Button
-          type="button"
-          variant="destructive"
-          size="sm"
-          className="btn-panggil-leader w-full"
-          onClick={() => {
-            const alasan = prompt("Alasan panggilan (opsional):");
-            if (alasan === null) return;
-            panggilLeader(alasan);
-          }}
-          disabled={andonCalling}
-        >
-          <Bell size={16} style={{ display: "inline", verticalAlign: "middle", marginRight: 6 }} /> Panggil Leader
-        </Button>
+        {effectiveRole === "leader" ? (
+          // Leader tidak perlu memanggil dirinya sendiri — arahkan ke halaman pengaturan Andon
+          <Link href="/admin/andon-settings" className="w-full block">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="btn-panggil-leader w-full"
+            >
+              <Settings size={16} style={{ display: "inline", verticalAlign: "middle", marginRight: 6 }} />
+              Pengaturan Andon
+            </Button>
+          </Link>
+        ) : (
+          // Operator & admin: tombol panggil leader seperti biasa
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            className="btn-panggil-leader w-full"
+            onClick={() => {
+              const alasan = prompt("Alasan panggilan (opsional):");
+              if (alasan === null) return;
+              panggilLeader(alasan);
+            }}
+            disabled={andonCalling}
+          >
+            <Bell size={16} style={{ display: "inline", verticalAlign: "middle", marginRight: 6 }} /> Panggil Leader
+          </Button>
+        )}
       </div>
 
       <div className="machine-tabs-bar flex items-center gap-2.5 flex-wrap mb-6">
