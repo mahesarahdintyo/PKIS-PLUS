@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { Toaster } from 'sonner'
 import { IosTouchListener } from '@/components/ui/ios-touch-listener'
 import { PwaRegister } from '@/components/pwa-register'
+import { GlobalAndonAlert } from '@/components/produksi/GlobalAndonAlert'
 import './globals.css'
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
@@ -66,6 +67,7 @@ export default function RootLayout({
       <body className="font-sans antialiased" suppressHydrationWarning>
         <IosTouchListener />
         <PwaRegister />
+        <GlobalAndonAlert />
         {children}
         <Toaster richColors position="bottom-right" closeButton />
         {process.env.NODE_ENV === 'production' && <Analytics />}

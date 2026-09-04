@@ -1,4 +1,4 @@
-const CACHE_NAME = 'futaba-pkis-v3';
+const CACHE_NAME = 'futaba-pkis-v4';
 const DOCS_CACHE_NAME = `${CACHE_NAME}-documents`;
 const CURRENT_CACHES = [CACHE_NAME, DOCS_CACHE_NAME];
 
@@ -57,11 +57,16 @@ self.addEventListener('push', (event) => {
     body: payload.body || 'Operator memanggil leader',
     icon: '/icon-192.png',
     badge: '/icon-192.png',
-    vibrate: [200, 100, 200, 100, 200],
+    // Pola getar panjang darurat (khas panggilan masuk)
+    vibrate: [500, 250, 500, 250, 500, 250, 800, 300, 800, 300, 1000],
     tag: payload.call_id ? `andon-${payload.call_id}` : 'andon-call',
     renotify: true,
     requireInteraction: true,
+    silent: false,
     data: payload,
+    actions: [
+      { action: 'open', title: 'Buka & Respon Panggilan' }
+    ]
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
