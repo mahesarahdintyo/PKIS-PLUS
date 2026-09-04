@@ -16,7 +16,7 @@ export default async function AndonSettingsPage() {
     .eq("id", user.id)
     .single();
 
-  if (!profile || profile.role !== "admin") {
+  if (!profile || !["admin", "leader"].includes(profile.role)) {
     redirect("/operator");
   }
 
