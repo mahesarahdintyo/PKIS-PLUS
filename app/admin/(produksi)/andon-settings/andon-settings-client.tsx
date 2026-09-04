@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
-import { ArrowLeft, RefreshCw, Plus, Pencil, Trash2, Search, Filter, AlertTriangle, Bell, PhoneCall } from "lucide-react";
+import { ArrowLeft, RefreshCw, Plus, Pencil, Trash2, Search, Filter, AlertTriangle, Bell, PhoneCall, Volume2, VolumeX } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { ProdProfile } from "@/types/produksi";
 import { useAndonAlerts, useAndonLeaders, andonSubscribePush, AndonCall } from "@/hooks/produksi/useAndon";
@@ -18,6 +18,60 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+
+// Web Audio API Synthesizer untuk nada alarm industri Andon (dual-tone beeps)
+function playAndonAlarmBeep(audioCtx: AudioContext) {
+  try {
+    const now = audioCtx.currentTime;
+
+    // Beep 1 (Frekuensi 880 Hz - nada A5 tegas)
+    const osc1 = audioCtx.createOscillator();
+    const gain1 = audioCtx.createGain();
+    osc1.type = "sine";
+    osc1.frequency.setValueAtTime(880, now);
+    gain1.gain.setValueAtTime(0.0001, now);
+    gain1.gain.exponentialRampToValueAtTime(0.35, now + 0.02);
+    gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+    osc1.connect(gain1);
+    gain1.connect(audioCtx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.17);
+
+    // Beep 2 (Frekuensi 1174.66 Hz - nada D6 darurat lebih tinggi)
+    const osc2 = audioCtx.createOscillator();
+    const gain2 = audioCtx.createGain();
+    osc2.type = "sine";
+    osc2.frequency.setValueAtTime(1174.66, now + 0.18);
+    gain2.gain.setValueAtTime(0.0001, now + 0.18);
+    gain2.gain.exponentialRampToValueAtTime(0.4, now + 0.20);
+    gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.38);
+    osc2.connect(gain2);
+    gain2.connect(audioCtx.destination);
+    osc2.start(now + 0.18);
+    osc2.stop(now + 0.39);
+  } catch (err) {
+    console.warn("Audio alarm warning:", err);
+  }
+}
+
+// Getaran perangkat jika didukung oleh browser/OS (smartphone/tablet Android)
+function triggerAndonVibration() {
+  if (typeof window !== "undefined" && typeof navigator !== "undefined" && "vibrate" in navigator) {
+    try {
+      navigator.vibrate([350, 150, 350]);
+    } catch {
+      // Abaikan jika ditolak oleh OS/browser
+    }
+  }
+}
+
+function stopAndonVibration() {
+  if (typeof window !== "undefined" && typeof navigator !== "undefined" && "vibrate" in navigator) {
+    try {
+      navigator.vibrate(0);
+    } catch {}
+  }
+}
 
 const MESIN_LABELS: Record<string, string> = {
   blanking: "Blanking",
@@ -48,6 +102,70 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
   const { activeCalls, acknowledgeCall } = useAndonAlerts(!!isLeaderOrAdmin);
   const { myLeaders, daftarLeader, hapusLeader } = useAndonLeaders(userId);
   const [leaderForm, setLeaderForm] = useState<{ mesin: string; tier: 1 | 2 }>({ mesin: "tandem", tier: 1 });
+
+  // Alarm State (Loop audio & getaran terus-menerus sampai leader menekan tombol terima panggilan)
+  const [isAlarmMuted, setIsAlarmMuted] = useState(false);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  useEffect(() => {
+    // Jika tidak ada panggilan aktif yang pending/escalated, pastikan getaran berhenti
+    if (activeCalls.length === 0) {
+      stopAndonVibration();
+      return;
+    }
+
+    try {
+      const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtxClass && !audioCtxRef.current) {
+        audioCtxRef.current = new AudioCtxClass();
+      }
+    } catch (e) {
+      console.warn("Web Audio API not supported:", e);
+    }
+
+    const fireAlert = () => {
+      // 1. Getaran berulang
+      triggerAndonVibration();
+
+      // 2. Suara alarm berulang
+      if (!isAlarmMuted && audioCtxRef.current) {
+        const ctx = audioCtxRef.current;
+        if (ctx.state === "suspended") {
+          ctx.resume().then(() => {
+            playAndonAlarmBeep(ctx);
+          }).catch(() => {});
+        } else if (ctx.state === "running") {
+          playAndonAlarmBeep(ctx);
+        }
+      }
+    };
+
+    // Bunyikan langsung saat panggilan aktif masuk
+    fireAlert();
+
+    // Loop berulang setiap 1.5 detik sampai leader menekan terima panggilan
+    const intervalId = setInterval(fireAlert, 1500);
+
+    // Auto-resume AudioContext saat pengguna mengklik/menyentuh layar jika dibatasi autoplay policy browser
+    const handleUnlockAudio = () => {
+      if (audioCtxRef.current && audioCtxRef.current.state === "suspended") {
+        audioCtxRef.current.resume().then(() => {
+          if (!isAlarmMuted && audioCtxRef.current) {
+            playAndonAlarmBeep(audioCtxRef.current);
+          }
+        }).catch(() => {});
+      }
+    };
+    window.addEventListener("pointerdown", handleUnlockAudio, { passive: true });
+    window.addEventListener("keydown", handleUnlockAudio, { passive: true });
+
+    return () => {
+      clearInterval(intervalId);
+      stopAndonVibration();
+      window.removeEventListener("pointerdown", handleUnlockAudio);
+      window.removeEventListener("keydown", handleUnlockAudio);
+    };
+  }, [activeCalls.length, isAlarmMuted]);
 
   const handleDaftarLeader = async () => {
     const { error } = await daftarLeader(leaderForm.mesin, leaderForm.tier);
@@ -364,6 +482,56 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
 
   const andonContent = (
     <>
+      {/* Layar Berkedip Darurat saat ada panggilan operator masuk */}
+      {activeCalls.length > 0 && <div className="andon-screen-flasher" aria-hidden="true" />}
+
+      {/* Emergency Alert Banner saat ada panggilan aktif */}
+      {activeCalls.length > 0 && (
+        <div className="andon-emergency-banner mb-6 p-4 rounded-2xl bg-gradient-to-r from-red-600 via-rose-600 to-red-700 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-4 border-2 border-red-300 animate-in fade-in zoom-in-95 duration-300">
+          <div className="flex items-center gap-3.5 w-full md:w-auto">
+            <div className="p-3 rounded-xl bg-white/20 animate-bounce shrink-0">
+              <AlertTriangle className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-black uppercase tracking-wider bg-white text-red-700 px-2.5 py-0.5 rounded-full shadow-xs">
+                  Panggilan Masuk!
+                </span>
+                <span className="font-extrabold text-sm sm:text-base tracking-tight">
+                  {activeCalls.length} Panggilan Operator Menunggu Respon
+                </span>
+              </div>
+              <p className="text-xs text-white/95 mt-1 font-medium">
+                Line: <strong className="underline underline-offset-2">{activeCalls[0]?.line_name || MESIN_LABELS[activeCalls[0]?.mesin] || activeCalls[0]?.mesin}</strong>
+                {activeCalls[0]?.stasiun ? ` • Stasiun ${activeCalls[0].stasiun}` : ""}
+                {activeCalls[0]?.alasan ? ` • "${activeCalls[0].alasan}"` : " • Operator memanggil leader"}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5 w-full md:w-auto justify-end shrink-0">
+            <Button
+              size="sm"
+              variant="secondary"
+              type="button"
+              onClick={() => setIsAlarmMuted((m) => !m)}
+              className="h-10 px-3.5 text-xs font-bold bg-white/20 hover:bg-white/30 text-white border-0 cursor-pointer backdrop-blur-xs transition-all"
+              title={isAlarmMuted ? "Bunyikan Alarm" : "Bisukan Suara Alarm"}
+            >
+              {isAlarmMuted ? <VolumeX className="h-4 w-4 mr-1.5" /> : <Volume2 className="h-4 w-4 mr-1.5" />}
+              {isAlarmMuted ? "Suara Bisu" : "Bunyi Aktif"}
+            </Button>
+            <Button
+              size="sm"
+              type="button"
+              onClick={() => acknowledgeCall(activeCalls[0].id, userId)}
+              className="h-10 px-5 text-xs font-black bg-white hover:bg-slate-100 text-red-700 cursor-pointer shadow-lg active:scale-95 transition-all ring-2 ring-white/50"
+            >
+              Terima Panggilan Sekarang
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div className="page-header mb-0">
           <h1 className="page-title text-2xl font-bold font-display">
@@ -503,17 +671,17 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
           </Card>
 
           {/* Card 3: Panggilan Aktif */}
-          <Card className="dash-panel card-glow-info p-5">
+          <Card className={`dash-panel card-glow-info p-5 transition-all ${activeCalls.length > 0 ? "border-rose-500 ring-2 ring-rose-500/60 shadow-xl shadow-rose-500/20" : ""}`}>
             <div className="flex items-center justify-between mb-3">
               <p className="dash-panel-title font-bold text-base flex items-center gap-2">
                 <span>Panggilan Aktif Saat Ini</span>
-                <span className="text-xs font-mono font-normal px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-600 font-bold border border-rose-500/30">
+                <span className={`text-xs font-mono px-2 py-0.5 rounded-full font-bold border ${activeCalls.length > 0 ? "bg-rose-500 text-white border-rose-600 animate-pulse" : "bg-rose-500/15 text-rose-600 border-rose-500/30"}`}>
                   {activeCalls.length} aktif
                 </span>
               </p>
             </div>
             <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-              Notifikasi realtime muncul otomatis di semua halaman selama app terbuka.
+              Notifikasi berulang (alarm, getaran, layar berkedip) beroperasi otomatis sampai tombol <strong>Terima Panggilan</strong> ditekan.
             </p>
             <div className="table-wrap overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs sm:text-sm">
@@ -544,7 +712,11 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
                         </span>
                       </td>
                       <td className="p-3 text-right">
-                        <Button size="sm" onClick={() => acknowledgeCall(c.id, userId)} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-8">
+                        <Button
+                          size="sm"
+                          onClick={() => acknowledgeCall(c.id, userId)}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold h-9 px-4 shadow-md ring-2 ring-emerald-400/60 hover:ring-emerald-400 active:scale-95 transition-all animate-pulse"
+                        >
                           Terima Panggilan
                         </Button>
                       </td>

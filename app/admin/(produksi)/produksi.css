@@ -2721,3 +2721,41 @@ table.table-compact .status-badge {
   }
 }
 
+/* =========================================================
+   ANDON EMERGENCY ALERT FLASHING ANIMATION
+   ========================================================= */
+@keyframes andonEmergencyFlash {
+  0%, 100% {
+    box-shadow: inset 0 0 0 10px rgba(239, 68, 68, 0.95), inset 0 0 80px rgba(239, 68, 68, 0.45);
+    background-color: rgba(239, 68, 68, 0.12);
+  }
+  50% {
+    box-shadow: inset 0 0 0 3px rgba(239, 68, 68, 0.35), inset 0 0 15px rgba(239, 68, 68, 0.08);
+    background-color: rgba(239, 68, 68, 0.02);
+  }
+}
+
+.andon-screen-flasher {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  animation: andonEmergencyFlash 0.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes andonEmergencyBannerPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 10px 25px -5px rgba(220, 38, 38, 0.6), 0 8px 10px -6px rgba(220, 38, 38, 0.5);
+  }
+  50% {
+    transform: scale(1.005);
+    box-shadow: 0 20px 35px -5px rgba(220, 38, 38, 0.85), 0 10px 15px -5px rgba(220, 38, 38, 0.7);
+  }
+}
+
+.andon-emergency-banner {
+  animation: andonEmergencyBannerPulse 1s ease-in-out infinite;
+}
+
+
