@@ -59,6 +59,7 @@ interface OperatorPageProps {
   lineId?: string;
   selectedLineName?: string;
   userRole?: string;
+  userId?: string;
   userLineId?: string | null;
   userLandId?: string | null;
   initialLines?: Line[];
@@ -71,6 +72,7 @@ export default function OperatorPage({
   lineId,
   selectedLineName,
   userRole = "operator",
+  userId,
   userLineId,
   userLandId,
   initialLines = [],
@@ -470,7 +472,11 @@ export default function OperatorPage({
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <OperatorHeader selectedLine={selectedLine?.name ?? ""} userRole={userRole} />
+      <OperatorHeader
+        selectedLine={selectedLine?.name ?? ""}
+        userRole={userRole}
+        userId={userId}
+      />
 
       <div className="mx-auto max-w-5xl space-y-4 sm:space-y-6 p-3 sm:p-6">
         {/* Active Machine & Ganti Mesin Link */}
