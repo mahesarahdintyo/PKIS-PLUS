@@ -468,12 +468,15 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
         const supabase = createClient();
         const { data: docData, error: docErr } = await supabase
           .from("documents")
-          .select("id, title, description, file_name, file_path, file_size, file_type, target_time, updated_at, line_id")
+          .select("id, title, description, file_name, file_path, file_size, file_type, target_time, line_id")
           .eq("id", docId)
           .single();
 
         if (docErr || !docData) {
           console.error("Gagal mengambil data dokumen terhubung:", docErr);
+          toast.error(
+            `Gagal mengambil SOP untuk part "${partNumber}": ${docErr?.message ?? "Dokumen tidak ditemukan"}. Cek koneksi atau hubungi admin.`
+          );
           return;
         }
 
@@ -504,7 +507,9 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
         });
 
         if (!res.ok) {
-          console.error("Gagal push dokumen ke display:", await res.text());
+          const errText = await res.text().catch(() => `HTTP ${res.status}`);
+          console.error("Gagal push dokumen ke display:", errText);
+          toast.error(`Gagal mengirim SOP ke display TV (${res.status}). Coba lagi atau hubungi admin.`);
         } else {
           const resData = await res.json().catch(() => null);
           const nextDoc = resData?.document ?? payload;
@@ -517,10 +522,12 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
         }
       } catch (err) {
         console.error("Gagal memperbarui display saat pemilihan part number:", err);
+        toast.error(`Terjadi kesalahan saat mengirim SOP ke display TV. Coba pilih part number lagi.`);
       }
     },
     [masterParts, lineId, config.key]
   );
+
 
   /** Pilih part dari daftar planning */
   const choosePlannedPart = useCallback(
