@@ -1,0 +1,656 @@
+id,mesin,value,created_at
+010318cc-737c-490c-a33d-dc3e027b7daf,blanking,Baut pad terlalu panjang,2026-07-17 06:35:11.487156+00
+025d9cf6-c701-4a6a-a817-16e362bb306e,blanking,Die gompal,2026-07-17 06:35:11.487156+00
+0273d467-6165-427c-93ef-9226f01496bb,blanking,FLYWHEEL BRAKE FAULT,2026-07-17 06:35:11.487156+00
+02a991cb-e055-430e-ac67-ef2ebe7f78a3,transfer_2000t,PAR NEMPEL DI UPPER DIES,2026-07-17 06:35:11.487156+00
+03a4dcad-82d9-49c4-86e7-c1c2f908c46a,transfer_800t,Pengecekan bearing as slider,2026-07-17 06:35:11.487156+00
+049d3594-c100-40b3-93aa-9df1b0fb6cc9,blanking,Scrap conveyor fault,2026-07-17 06:35:11.487156+00
+051281f9-30a4-4e09-bbe9-98e36232d7a7,blanking,Lifter belakang patah,2026-07-17 06:35:11.487156+00
+056afd7c-4136-4a70-8955-a2e62f3919db,transfer_800t,PENGARAH FINGGER RUSAK,2026-07-17 06:35:11.487156+00
+05fc7a3b-e9f1-4eb4-a13f-851d477516c4,transfer_800t,Clamper upper error' sensor,2026-07-17 06:35:11.487156+00
+0701978d-f8e9-4405-9167-d6d193514d2e,transfer_800t,MISSGRIP,2026-07-17 06:35:11.487156+00
+07069d3e-f0d7-475c-a4a2-dc691bce2507,transfer_2000t,Problem skid lifter up,2026-07-17 06:35:11.487156+00
+070abb25-1edb-4b1a-bbff-3f088f52063c,transfer_800t,Proses 6/8 ( lower gompal)dan 7/8 scurasi,2026-07-17 06:35:11.487156+00
+076ec6a5-666a-4068-859a-00b8b1734ce5,transfer_800t,LIFT MATRIAL FEEDER NABRAK,2026-07-17 06:35:11.487156+00
+07bee0ee-f0be-4484-83de-5a8d290bb65e,transfer_2000t,CEK FINGER ( AFTER PERBAIKAN INNER DISTANCE ),2026-07-17 06:35:11.487156+00
+0866bd17-2b30-470d-8984-23b46b0891ff,blanking,Part sering dakon,2026-07-17 06:35:11.487156+00
+08848b43-79b5-4c5d-914b-c40353ea1556,tandem,F/W brake fault + P/S lubrication off reset,2026-07-17 06:35:11.487156+00
+089c4576-c57c-42f2-8e00-cfc29f4d714b,blanking,dakon,2026-07-17 06:35:11.487156+00
+09050a07-1407-4a94-b9a3-ee9505308efb,blanking,Dakon dari leveller,2026-07-17 06:35:11.487156+00
+09451728-630b-453c-9f0c-80842d99153c,transfer_800t,SCRAP MAMPET,2026-07-17 06:35:11.487156+00
+09616e88-0c75-4ee8-bb6d-1d163fea4495,transfer_800t,Fingger R5 numpang,2026-07-17 06:35:11.487156+00
+09b4431b-6aa9-4eb4-a1b7-4ecbaedad44f,transfer_800t,Part jatuh F5 missgrip,2026-07-17 06:35:11.487156+00
+09c1a384-ae80-482d-a1ac-d45d3cd939a1,transfer_800t,FEEDBAR NUMPANG,2026-07-17 06:35:11.487156+00
+0a2a06fa-04cb-42a4-8210-00f08a2f0c76,blanking,lebar coil 329,2026-07-17 06:35:11.487156+00
+0a43c70e-7d54-40fe-b13b-af73f5c4f95c,tandem,Part pada saat diambil sulit,2026-07-17 06:35:11.487156+00
+0a57ca1f-496a-4977-bce6-dcf110c50cb0,transfer_800t,Part scratch (upper dies gompal),2026-07-17 06:35:11.487156+00
+0aa7a16e-e8c1-4cdb-b3fc-1fbec21605d0,transfer_800t,Fingger F7&R7 tidak pas dan setting ulang cylinder,2026-07-17 06:35:11.487156+00
+0b779714-28c9-46ec-9767-d73c0886b00e,transfer_800t,ASPIRATOR KOTOR/RUSAK,2026-07-17 06:35:11.487156+00
+0b7f2727-e196-4ba4-a1b7-d99bba68b0b0,transfer_800t,Finger F7&R7 nabrak,2026-07-17 06:35:11.487156+00
+0b8a7bfe-b7d9-4d99-8fba-d3462fb71867,blanking,baut lifter patah 1,2026-07-17 06:35:11.487156+00
+0bb38a68-f26b-4620-bc52-6726f2579ad3,transfer_800t,F3 material loncat,2026-07-17 06:35:11.487156+00
+0bda0295-b50a-4608-891a-6ff7a5a0e76a,blanking,Dakon dari lifter,2026-07-17 06:35:11.487156+00
+0c2a82b7-36dd-4b51-8dea-a7bfc9052654,transfer_2000t,R3/R4 perubahan posisi holder finger,2026-07-17 06:35:11.487156+00
+0c344df1-224a-437e-ae76-7f59d7a285f2,blanking,Part hatari,2026-07-17 06:35:11.487156+00
+0c390ebe-8459-4773-b504-3a0c3734875c,blanking,Evacuation drill,2026-07-17 06:35:11.487156+00
+0ca2ceac-8110-420f-b981-6bca33c66c2c,blanking,scrap mampet di Sutter die,2026-07-17 06:35:11.487156+00
+0d6bb447-1997-40ef-adae-d3bbd7202ee4,transfer_2000t,GASSPRING LOW,2026-07-17 06:35:11.487156+00
+0d860c54-7f63-415b-86b8-e5ce9c700fb0,transfer_800t,Bearing as slider pecah,2026-07-17 06:35:11.487156+00
+0e715433-1557-4a51-a108-f7fa8309a844,transfer_800t,Part burry,2026-07-17 06:35:11.487156+00
+0ed18497-46ea-46fe-8b12-2585887ee7da,blanking,PROBLEM SENSOR ERROR,2026-07-17 06:35:11.487156+00
+0f30b57f-24ee-4cb4-a0eb-677abd8db272,tandem,F/W BRAKE FAULT,2026-07-17 06:35:11.487156+00
+0f6f7b25-fc72-482b-9162-eee12855933e,blanking,Scrap chute over limit,2026-07-17 06:35:11.487156+00
+0fdd38be-ba78-48b2-86f0-4c0c90417293,tandem,Part jatuh pada saat dilempar ke conveyor,2026-07-17 06:35:11.487156+00
+10e8fd7a-52fa-4494-9771-5730b6c0808a,blanking,Sekat Sutter weldingan lepas,2026-07-17 06:35:11.487156+00
+115a9f63-06f8-4bfc-879d-e2cfd05974db,tandem,Part burry,2026-07-17 06:35:11.487156+00
+11ee944c-9034-4159-9948-17532e257e80,tandem,PA1&2 alarm scrap conveyor fault,2026-07-17 06:35:11.487156+00
+11f7aeb9-3e8d-454b-9985-b8596e122769,blanking,Scrath roller feeder,2026-07-17 06:35:11.487156+00
+12210f11-c6fa-4aca-bb80-df7c7b01e44b,blanking,Dakon dari feedroll,2026-07-17 06:35:11.487156+00
+12b9e1a5-6f1f-4fdb-851e-9367fc3d9e66,blanking,BAUT DIES KE PRESS,2026-07-17 06:35:11.487156+00
+12d96c5a-66b8-413b-ae86-5858c771c487,blanking,DAKON BERULANG,2026-07-17 06:35:11.487156+00
+12ec35a4-cfee-4a3e-a3c0-306f9a6d4ef6,blanking,Dakon berulang bagian atas,2026-07-17 06:35:11.487156+00
+12fc37d5-49de-4900-800b-2b05dd7265a9,transfer_800t,BLANKSHEET / SKETCH KARAT,2026-07-17 06:35:11.487156+00
+13537d8b-b23a-4fb5-9854-0c11ae0dcfcf,transfer_800t,DIES KOTOR,2026-07-17 06:35:11.487156+00
+1404fd27-f117-4aeb-a51e-629fb1a3a012,blanking,Bury hole,2026-07-17 06:35:11.487156+00
+14163479-46ae-4841-994c-bedccc319d05,transfer_2000t,MENUNGGU PALLET,2026-07-17 06:35:11.487156+00
+143a5c5e-302f-46b1-a73d-73f867300ec4,blanking,"Part burry,",2026-07-17 06:35:11.487156+00
+149b79d0-fe82-4291-833e-75560e744ed1,blanking,Coil melintir berulang ulang,2026-07-17 06:35:11.487156+00
+153e49f8-d6f3-443f-aafd-ed69f6b959ee,transfer_800t,Grif Jawa Drive macet,2026-07-17 06:35:11.487156+00
+158d76e3-01d1-4ddf-b47b-301fed51420d,transfer_800t,PART NUMPANG,2026-07-17 06:35:11.487156+00
+16d34cae-583f-45b6-8d80-a1a3dcaeef9b,transfer_800t,Limit switch rusak,2026-07-17 06:35:11.487156+00
+16ed15af-3c2b-4754-9a31-f8653ceb5d30,transfer_800t,Baut hook patah,2026-07-17 06:35:11.487156+00
+17016c26-e706-4b42-9dc5-c18831b59a4a,transfer_800t,SCRAP CHUTE ALARM,2026-07-17 06:35:11.487156+00
+171cdac7-0f13-48ce-a707-3263dc58c1e3,blanking,Scrap mampet di jalur scrap bawah,2026-07-17 06:35:11.487156+00
+17bf35c5-c7a9-4a68-bbf4-02789f369d41,blanking,Scrap mampet berulang2,2026-07-17 06:35:11.487156+00
+17cf6a0c-3e8a-4f1d-846d-0c53503bcc65,transfer_800t,Misgrip,2026-07-17 06:35:11.487156+00
+1815f4ee-4e9f-4616-9351-edf247c24e1e,blanking,Stopper die kurang 1,2026-07-17 06:35:11.487156+00
+1920be3e-9946-4f47-b52f-5e1d1e8ad279,blanking,Part burry trim,2026-07-17 06:35:11.487156+00
+1986096d-bbce-4b60-a5f0-c61ba6c7698f,blanking,Scrap chute limit swicth fault,2026-07-17 06:35:11.487156+00
+19ac4ddd-c780-493a-aca2-f47b42f1a4f3,blanking,Scrap conveyor fault (rantai jalur utama lepas),2026-07-17 06:35:11.487156+00
+1a03ca85-2f4a-4d43-b87a-c039d5c751ea,blanking,Scrap mumpet Dan buri,2026-07-17 06:35:11.487156+00
+1a0a25b4-3556-41b5-b82f-8bdc1cefb55f,tandem,PART Underfill,2026-07-17 06:35:11.487156+00
+1a259d76-ebe6-49e6-9c73-9bc7de19b135,blanking,Scrap belakang mampet di cerobong+ part ketarik pilot pin,2026-07-17 06:35:11.487156+00
+1a8228d1-8e54-48c4-8a60-e12fa499fe84,blanking,upper clamper fault,2026-07-17 06:35:11.487156+00
+1a94130f-e52a-469e-920a-b475a468b629,blanking,"Dakon,karena dies kotor",2026-07-17 06:35:11.487156+00
+1aa979d7-08d0-4a77-819c-8e8d620ef751,blanking,Marking tidak sesuai Dan part tidak balance,2026-07-17 06:35:11.487156+00
+1afae5a6-2431-4cf8-84d0-151d47177a2c,transfer_800t,Proses level up accuracy,2026-07-17 06:35:11.487156+00
+1b1bcd80-23be-499e-9da1-adc4ef02cb65,blanking,Oil pump pressure low,2026-07-17 06:35:11.487156+00
+1ba10665-058f-473d-bb46-1002f041235a,transfer_800t,Fingger nabrak F2 dan F3,2026-07-17 06:35:11.487156+00
+1bfee0dd-2a8f-4094-86d7-975e976dfe2e,transfer_2000t,PART NUMPANG,2026-07-17 06:35:11.487156+00
+1c0580e9-f067-4833-9cd7-480d8f7584e6,blanking,Scrap mampet di cerobong conveyor,2026-07-17 06:35:11.487156+00
+1c64ac5e-4755-4e6f-9de5-8e96ba8949ce,transfer_800t,CYLINDER F 7 RUSAK/LEMAH,2026-07-17 06:35:11.487156+00
+1d46aaf1-3ace-4147-bb41-1dfabef276fd,transfer_2000t,PART DAKON,2026-07-17 06:35:11.487156+00
+1d57653d-2528-4fe6-8e03-25e555580b0f,blanking,Dakon&bury,2026-07-17 06:35:11.487156+00
+1d7858d6-a32e-4ebb-877e-2f7441a36f63,transfer_800t,PART MEMBAL,2026-07-17 06:35:11.487156+00
+1d8c5bd1-c89f-4bf4-9c74-f3af937ad17d,blanking,End coil jatuh Dan ngelipat,2026-07-17 06:35:11.487156+00
+1dac76d3-0ce0-4130-85dd-a5a59c53edc0,blanking,Oil pump unit fault,2026-07-17 06:35:11.487156+00
+1e22094a-f556-49fc-ad0d-5e5db929b35a,blanking,MB inverter foult,2026-07-17 06:35:11.487156+00
+1f70d7ec-e965-4d55-a2ae-c9d439341d7b,transfer_2000t,BALANCER LOW,2026-07-17 06:35:11.487156+00
+1fd8e515-32b9-46e0-abf2-d69278c2a2d1,transfer_800t,Conveyor scrap alarm (conveyor utama trouble),2026-07-17 06:35:11.487156+00
+1ffbf1aa-56f5-438d-b308-9aeddf89e18c,blanking,Dakon berulang Dan baut upper patah 1,2026-07-17 06:35:11.487156+00
+201331ec-a325-40f4-abc2-4c78bcbde2a9,tandem,61212-KK010 PROBLEM UNDERFILL DAN HOLE TIDAK CENTER,2026-07-17 06:35:11.487156+00
+20e09ff8-e925-40d6-894e-1e59745b25d0,transfer_2000t,CONVEYOR PART FAULT,2026-07-17 06:35:11.487156+00
+2151a630-be1b-4339-a563-3a21b90e8f4b,blanking,PART NYANGKUT SHUTTER,2026-07-17 06:35:11.487156+00
+21870111-a223-4c02-9c97-32ec47b9980c,tandem,Shiwa underfill,2026-07-17 06:35:11.487156+00
+21d0c37f-0cf4-4271-a952-fb4e6dbfdf39,transfer_800t,TRANSFER MATERIAL MIRING,2026-07-17 06:35:11.487156+00
+21d387c8-e8fc-42c3-a6a0-02a894afa9fb,blanking,Scrap chute fault,2026-07-17 06:35:11.487156+00
+22ae70de-3228-4053-93bf-4ca9862ee5b7,blanking,Dakon roller end feeder,2026-07-17 06:35:11.487156+00
+22d64097-adcc-41b2-852e-fe884b6f2e93,blanking,PART SCRATCH,2026-07-17 06:35:11.487156+00
+2320ef6e-e0fe-4664-a180-49651d13db2d,blanking,Oli material mampet,2026-07-17 06:35:11.487156+00
+2371aec5-a66a-430b-b84a-812eac78d2da,tandem,Burry + Scrap tidak motong,2026-07-17 06:35:11.487156+00
+237a4892-8967-48e7-b552-759cad585c30,blanking,PROBLEM CLAMPER,2026-07-17 06:35:11.487156+00
+23af2510-32a3-4bec-9ee5-366ec8540b66,tandem,Tidak bisa dandory,2026-07-17 06:35:11.487156+00
+23f9dc02-2c2b-4a29-b5c4-b0afb4a0a4f8,blanking,Presentasi DX dengan sachou,2026-07-17 06:35:11.487156+00
+23fd3bf8-134b-4def-a687-326035ca6687,blanking,PROBLEM MARKING SAMAR,2026-07-17 06:35:11.487156+00
+2487b292-8bab-4b5d-8f77-b0687ead7cbd,blanking,Air balancer low,2026-07-17 06:35:11.487156+00
+24e9987f-43d9-43d5-a6f7-3acd2d2daa47,blanking,Coil melintir berulang2,2026-07-17 06:35:11.487156+00
+2517ed07-bbe3-4936-9925-0ba186b69a65,transfer_2000t,TUNGGU MATERIAL,2026-07-17 06:35:11.487156+00
+252cbf8f-3743-4465-9463-0b780510e6c6,blanking,PROBLEM STOPPER,2026-07-17 06:35:11.487156+00
+25851612-a43b-4832-92b9-98b0dcf0e61c,blanking,PART DAKON,2026-07-17 06:35:11.487156+00
+25e45cad-c59d-4448-af70-76c0e8a6bb15,transfer_2000t,PART MAKURE,2026-07-17 06:35:11.487156+00
+25f1b764-72da-4e14-9811-a6ca978c85e9,transfer_2000t,"Draw tidak stabil, SPM 15~16, setting stopper OP 10",2026-07-17 06:35:11.487156+00
+260f8a92-a9f7-40ab-8e8f-03782748ed9f,transfer_800t,Pin grip finger lepas,2026-07-17 06:35:11.487156+00
+2612309c-fb7c-49de-b82a-3760d29ef0c0,blanking,Dies gompal area hole,2026-07-17 06:35:11.487156+00
+262deea2-2f37-4a44-b777-6df3ecca36af,blanking,ADC fault,2026-07-17 06:35:11.487156+00
+2650f592-b7e2-4ead-a8b1-1f97f1abda18,blanking,Scrap tidak motong,2026-07-17 06:35:11.487156+00
+27bc803a-cf42-4f4a-a9cc-3a468e87c3b8,blanking,Part nyangkut di shutter,2026-07-17 06:35:11.487156+00
+289b8bda-c970-4206-b4b5-87df5a157890,transfer_2000t,Scrap tidak turun,2026-07-17 06:35:11.487156+00
+29093f11-59c5-420c-aa4e-8f2a2b3a39b6,transfer_800t,Stoper rusak,2026-07-17 06:35:11.487156+00
+2961e7a0-1da9-49ea-a1d4-aa0c4857abef,blanking,Konveyor scrap rantai lepas,2026-07-17 06:35:11.487156+00
+2a13440b-dc92-43be-b96e-56a27e2ddd87,tandem,Mesin sering mati sendiri,2026-07-17 06:35:11.487156+00
+2ace46c2-70a4-4023-bcc9-4371539cf34c,transfer_800t,HOOK FINGGER RUSAK,2026-07-17 06:35:11.487156+00
+2b7dd654-6667-4ef4-a270-90c8e7dd6ad7,blanking,PROBLEM LEVELER,2026-07-17 06:35:11.487156+00
+2befdd76-a115-4553-a02a-095fc1fe289f,transfer_800t,Carier homepost feeder over,2026-07-17 06:35:11.487156+00
+2c08c56c-bd38-451d-a562-221ebfde90cd,transfer_800t,NOZZLE OLI MAMPET,2026-07-17 06:35:11.487156+00
+2c582667-3892-495d-b6fe-2f1db9469f3e,transfer_800t,Air bosster pressure low (ADC),2026-07-17 06:35:11.487156+00
+2c5acd8d-050f-4db8-b9a0-e11e0e1e7f4b,tandem,Gasspring bocor,2026-07-17 06:35:11.487156+00
+2c919a86-8549-450b-bde4-74597b0b2431,tandem,Scrap conveyor gear lepas,2026-07-17 06:35:11.487156+00
+2cb70e1d-5588-4c44-8000-ed9a5a6bae40,transfer_2000t,PART BURRY,2026-07-17 06:35:11.487156+00
+2d354d6a-62dd-4dc8-ba31-9a1f89e37bc7,blanking,Dakon& burry,2026-07-17 06:35:11.487156+00
+2d479338-70c6-4d26-9202-ece432a08306,blanking,Insert gompal,2026-07-17 06:35:11.487156+00
+2d7f1298-1560-40fc-8363-4756f6f25319,transfer_800t,Finger F5 tidak pas (nabrak),2026-07-17 06:35:11.487156+00
+2d8e40e2-09ac-47d0-8d12-ed58a6c208a9,blanking,"Coil nyelip di roller, part tidak balance",2026-07-17 06:35:11.487156+00
+2d905af2-cc4a-455f-ae4f-6b5a96e5478e,transfer_800t,MENUNGGU PALLET,2026-07-17 06:35:11.487156+00
+2dbb000a-1b3e-4e46-a28a-594a470e28a9,blanking,Cover scrap chute rear mb L lepas,2026-07-17 06:35:11.487156+00
+2e1cf4e1-71ed-43a1-b7d2-d1ef2cb14506,blanking,Dies gompal,2026-07-17 06:35:11.487156+00
+2ec04772-7d85-46ed-b9cd-a1e93bcf9c25,blanking,Part burry hole dan trim,2026-07-17 06:35:11.487156+00
+2ec7cad6-b6d1-47de-abe2-c2ef96f9a027,tandem,Main motor Brake/fault,2026-07-17 06:35:11.487156+00
+2edfde1b-298e-43a9-ad02-315b654ebf47,blanking,Dakon berulang Dan baut upper die patah 2,2026-07-17 06:35:11.487156+00
+2f646889-6007-4d47-b178-d8434c9e7171,transfer_2000t,BLANKSHEET MELENGKUNG,2026-07-17 06:35:11.487156+00
+30010ee6-f2f2-4c3b-a1ee-f8fa6123422c,transfer_2000t,HOOK FINGGER RUSAK,2026-07-17 06:35:11.487156+00
+313e6964-5626-4853-86b4-976b7d2f1dd0,blanking,Monitor utama error (ngeblang),2026-07-17 06:35:11.487156+00
+315522c8-1db2-4d0e-aee6-5068f00ceb0f,blanking,Scrath lifter,2026-07-17 06:35:11.487156+00
+31b80f36-bbb3-48b2-84c5-78e59885e96d,blanking,DIES GOMPAL,2026-07-17 06:35:11.487156+00
+31c04418-7651-4786-be80-f5ce2ca57296,transfer_800t,Scrap conveyor alarm,2026-07-17 06:35:11.487156+00
+32ae7bbd-e66f-4f79-8503-981f5facce63,blanking,Cek dies produksi coil ke 2,2026-07-17 06:35:11.487156+00
+330824b1-e29d-4a0b-bfe0-b6623cc544fe,transfer_800t,DIES GOMPAL,2026-07-17 06:35:11.487156+00
+347b3a14-03be-41e7-84e5-81e9145ac1aa,blanking,"Mc sering tiba2 mati,",2026-07-17 06:35:11.487156+00
+3557497f-0b49-4b3d-867a-b716ab42da15,blanking,Nunggu crane,2026-07-17 06:35:11.487156+00
+355f6f91-e04e-4aca-aa8e-047fd2c163cf,transfer_800t,Fingger F2&R2 tidak pas,2026-07-17 06:35:11.487156+00
+357b4879-8244-4ae1-aa81-2a8911a643c0,transfer_2000t,PROBLEM SHUTTER SCRAP,2026-07-17 06:35:11.487156+00
+35dce797-aa4a-4c1f-919a-9e7e061720d3,transfer_800t,Lifter macet,2026-07-17 06:35:11.487156+00
+36283043-0abb-45cf-bfcb-bce2f1a5c8c3,blanking,Scrap chute rear fault,2026-07-17 06:35:11.487156+00
+365eb03b-b37e-48a2-8a7e-4ef8199c8e2b,transfer_800t,Modifikasi fingger (lubang baut tidak pas),2026-07-17 06:35:11.487156+00
+36960a2d-8937-4167-b87d-3c39b825599e,transfer_800t,Fingger F7 dan R7 nabrak,2026-07-17 06:35:11.487156+00
+375a1fcd-1825-4583-ab90-fb2db810445a,transfer_2000t,LIMIT SWITCH RUSAK,2026-07-17 06:35:11.487156+00
+37ad8ce5-6bc9-4b7f-be9b-b8a751b86202,blanking,Front guard tidak bisa nutup,2026-07-17 06:35:11.487156+00
+383423fc-0d92-4ed5-ba07-d669fdf111cd,transfer_2000t,PART UNDERFIL,2026-07-17 06:35:11.487156+00
+38e4eec7-f2f8-4f30-8030-6dd4863d3cda,blanking,Coil melintir berulang,2026-07-17 06:35:11.487156+00
+39ba7dc2-bad4-4fab-a13b-99eca8264ab2,blanking,Coil melintir,2026-07-17 06:35:11.487156+00
+39fe39a3-560f-4d5d-9542-df84b65e3485,blanking,Coil jatuh dan melipat di loop table,2026-07-17 06:35:11.487156+00
+3b2d7878-62f1-4850-aa6e-720b7fdb40da,blanking,MARKING SAMAR,2026-07-17 06:35:11.487156+00
+3b92b7ad-2c16-4ab6-b7da-95ce8bd9bdc2,transfer_2000t,MENUNGGU BLANKSHEET,2026-07-17 06:35:11.487156+00
+3c7dcba3-0c1a-43a5-acc7-742bf7e8c7cc,blanking,DAKON END FEEDER,2026-07-17 06:35:11.487156+00
+3ca46fd5-cc58-4404-aac4-c1ed11dd1e3c,tandem,Part 61211 Hole burry,2026-07-17 06:35:11.487156+00
+3cc864b7-15a9-4405-b86f-3da496abe955,transfer_2000t,PART MEMBAL,2026-07-17 06:35:11.487156+00
+3d13e52b-dc2c-443d-86e0-624fa5409680,tandem,Chusion tidak mau naik,2026-07-17 06:35:11.487156+00
+3d3fd75c-8d12-432a-b35a-f9b2871197af,transfer_2000t,Skun F6 putus,2026-07-17 06:35:11.487156+00
+3d6acc9c-8474-40e6-bc9f-3391f2151810,transfer_800t,BAUT HOOK KENDOR/RUSAK,2026-07-17 06:35:11.487156+00
+3e1200b7-658d-49fd-bf15-b7b48bf4f51e,transfer_2000t,"BL KEBALIK, NABRAK PILOT PIN",2026-07-17 06:35:11.487156+00
+3e79142e-27a5-4f3d-a749-4f299e21ad7c,blanking,AIR BALANCER LOW,2026-07-17 06:35:11.487156+00
+3ead0647-9efe-43ea-a569-d3e4a1decba6,transfer_800t,Die kotor,2026-07-17 06:35:11.487156+00
+3fe17b24-bbaa-4d73-acf0-d8d70c4148c7,blanking,Part burry,2026-07-17 06:35:11.487156+00
+3fff5e08-7b0a-4a95-b5d0-492b50dfce3e,transfer_2000t,PLN DOWN,2026-07-17 06:35:11.487156+00
+405a5c74-89f4-4e04-bb9f-a63f744d792d,transfer_800t,CONVEYOR PRODUK ALARM,2026-07-17 06:35:11.487156+00
+40fe975d-39f3-4f08-a501-2c3adeb7fb69,blanking,Upper clamper moving fault,2026-07-17 06:35:11.487156+00
+41876e03-3d5e-473a-87c4-c8721b0eec38,blanking,Pilot pin patah Dan dakon,2026-07-17 06:35:11.487156+00
+42343dc5-7200-455d-97f2-2d6d8f65e41e,blanking,Part sering nyangkut di Sutter die bagian F,2026-07-17 06:35:11.487156+00
+423c0a88-3e02-476a-942a-a9551b81c91e,blanking,MONITOR ERROR,2026-07-17 06:35:11.487156+00
+4250644e-d1c6-42ef-86e1-60ac78ebd818,transfer_800t,Fingger F2 skun kabel putus,2026-07-17 06:35:11.487156+00
+43703466-fe6b-4a94-af36-637984f87a45,transfer_2000t,BLANKSHEET / SKETCH KARAT,2026-07-17 06:35:11.487156+00
+443e8d60-18f8-4714-83f5-7431bdeea3ec,transfer_800t,Transfer material miring dari feeder,2026-07-17 06:35:11.487156+00
+444c9849-8beb-48af-9b84-f436e4d0fa82,blanking,MATI LISTRIK,2026-07-17 06:35:11.487156+00
+447452f3-00db-4816-b010-6212f2ab3800,transfer_800t,BLANKSHEET MELENGKUNG,2026-07-17 06:35:11.487156+00
+448f5829-c9d2-42e9-94e2-427b764bd5a1,transfer_800t,MATERIAL LENGKET,2026-07-17 06:35:11.487156+00
+44946998-1b09-429b-a6fc-f1930abbe2e0,blanking,Kupingan tidak balance,2026-07-17 06:35:11.487156+00
+44e3e10d-e20f-455a-86d2-e3b0061203da,blanking,Seting stoper part penyok,2026-07-17 06:35:11.487156+00
+45371763-1dd1-4d3b-af50-b222b3318e84,tandem,HOLE TIDAK TIDAK CENTER,2026-07-17 06:35:11.487156+00
+469a7bd5-5c79-45ad-bea3-4b94cdbf7ac2,blanking,PROBLEM CONVEYOR SCRAP,2026-07-17 06:35:11.487156+00
+46d1d019-ab7c-4725-906b-f1f07b50c8ef,transfer_800t,Vacum feeder tidak nyedot,2026-07-17 06:35:11.487156+00
+4728703b-c062-4447-8b35-9954a1807d73,transfer_800t,Problem feedbar naik,2026-07-17 06:35:11.487156+00
+48605008-712c-4d45-8ff8-4fff1452513a,transfer_800t,LIFTER SHUTER MACET,2026-07-17 06:35:11.487156+00
+48847724-8c9c-41fa-8b4b-3a025f3a22e5,blanking,Scrath lifter dies,2026-07-17 06:35:11.487156+00
+48cf5bdf-cc5e-4629-9b35-80ffd34d9215,transfer_2000t,PENGARAH FINGGER RUSAK,2026-07-17 06:35:11.487156+00
+48f0b3f1-d31e-4933-bbd9-eb3c169a69a3,blanking,Baut stopper kendor,2026-07-17 06:35:11.487156+00
+48f0c3ed-5357-498e-bbd3-5b43b51f9a3e,transfer_2000t,PROBLEM SHIWA,2026-07-17 06:35:11.487156+00
+49fe7f12-1e63-4169-9c6b-c3dad7b3c338,blanking,Slide adjuster fault,2026-07-17 06:35:11.487156+00
+4a62bf8d-4532-4eb9-af89-e5ca94b17f36,blanking,Part attari,2026-07-17 06:35:11.487156+00
+4a773e0c-423c-47d9-8165-1e41951a9ba3,blanking,Coil tidak bisa adc auto,2026-07-17 06:35:11.487156+00
+4a8017d3-54fe-4e81-bb80-559367528cd2,blanking,burry,2026-07-17 06:35:11.487156+00
+4aa8a31f-c2c0-43d6-ae05-2f13ffcee1e2,transfer_2000t,Pilot pin seret,2026-07-17 06:35:11.487156+00
+4afeb700-6060-46fe-81c3-ca085db5d7b7,transfer_800t,DIE NO MATCH,2026-07-17 06:35:11.487156+00
+4b0e21cf-759d-45b0-9ce8-8bb40e47a9f8,transfer_2000t,WD adj MTR OL thermal,2026-07-17 06:35:11.487156+00
+4b796990-f000-4c0a-9bed-43ecc19ada34,transfer_2000t,OTHER,2026-07-17 06:35:11.487156+00
+4b9174d8-d9a4-4af0-8257-69b317a4c0db,transfer_800t,Cylinder F7 telat,2026-07-17 06:35:11.487156+00
+4ba48ff5-d669-4bca-bb38-964c30105305,blanking,Part nyangkut sutter,2026-07-17 06:35:11.487156+00
+4c11331c-ef02-4846-a312-9365b4b27e14,transfer_800t,PART SCRATCH,2026-07-17 06:35:11.487156+00
+4cf711a6-25b8-42df-90db-962973edc8e8,blanking,S,2026-07-17 06:35:11.487156+00
+4cfd4393-010f-4844-8dfc-aad577374007,blanking,Skit Lifter patah,2026-07-17 06:35:11.487156+00
+4ddca266-3fd7-42c3-979e-05392a1b4556,blanking,Scrath dari lifter,2026-07-17 06:35:11.487156+00
+4e57b37d-65b0-4c18-a4fd-1c8ebf93c9ff,transfer_800t,F7 missgrip,2026-07-17 06:35:11.487156+00
+4e9bc1f8-933e-4732-b837-21cfcc8b3ebd,blanking,Sccrap mampet 2x,2026-07-17 06:35:11.487156+00
+500ea9f1-c449-4fe9-b68c-5008d3df5d38,tandem,Main Motor mati,2026-07-17 06:35:11.487156+00
+504e76e6-9482-45ed-94ec-4455b14d96a4,blanking,Scrap mumpet,2026-07-17 06:35:11.487156+00
+50657f95-0d43-44ee-8bcf-a2db9b40461b,transfer_800t,cylinder lemah part jatuh,2026-07-17 06:35:11.487156+00
+50982b8f-70aa-43ff-b929-a85e57ca3f92,transfer_800t,Limit switch rusak fingger f6,2026-07-17 06:35:11.487156+00
+50a82b5a-a750-4869-a026-29c92cc96043,blanking,Dakon upper die kotor,2026-07-17 06:35:11.487156+00
+51d56869-58c5-4b3c-966f-e271eed7f4df,blanking,Upper die clamp R2 bocor,2026-07-17 06:35:11.487156+00
+51d79f61-5dde-4326-93c4-eac015446ca3,blanking,Part front sering nyangkut di shutter,2026-07-17 06:35:11.487156+00
+521b91ea-63cf-4a2f-a705-c579d966e29a,blanking,Dakon 3x,2026-07-17 06:35:11.487156+00
+527e7c7c-4813-4bca-a6f8-6f0ce4e43370,blanking,Part bury,2026-07-17 06:35:11.487156+00
+5298b909-f72d-4b8c-9ca0-632bfd3a2103,transfer_2000t,Deformasi,2026-07-17 06:35:11.487156+00
+52eb0c2d-d676-49df-a5f0-6ba18e2c423b,tandem,Chusion pada saat naik tersendat sendat,2026-07-17 06:35:11.487156+00
+52fe8c88-618f-467f-b34d-98c46c39920f,blanking,Slide adjust fault,2026-07-17 06:35:11.487156+00
+54134456-df48-49a0-b5db-75a7ded0b759,blanking,Dakkon berulang2,2026-07-17 06:35:11.487156+00
+54e147e7-c584-4ba4-b1b0-bc6eecaabd10,transfer_800t,PROBLEM FEEDER,2026-07-17 06:35:11.487156+00
+55124dac-e230-4640-bd02-6ac077a1084a,blanking,Scrath dari end feeder,2026-07-17 06:35:11.487156+00
+551fd751-ee3b-4f4d-b369-0827f1196bae,transfer_800t,Fingger F4 dan R4 nabrak,2026-07-17 06:35:11.487156+00
+552d4ae0-9712-4fd7-a3d2-a04a710e50a3,transfer_2000t,MENUNGGU SOTO DANDORI,2026-07-17 06:35:11.487156+00
+5543cfec-c8d3-40a0-9ee9-93b3fe6ed423,blanking,CR03 tidak bisa arah N dan S,2026-07-17 06:35:11.487156+00
+556a5978-25fc-4130-8a03-ce236568fd60,blanking,Scrap mampet,2026-07-17 06:35:11.487156+00
+55939fee-b225-4c42-822d-2c6b24073d5f,blanking,MENUNGGU FORKLIFT,2026-07-17 06:35:11.487156+00
+55c88e37-e1ed-4bad-878f-41dc802009f0,blanking,Dakon roler,2026-07-17 06:35:11.487156+00
+563864c6-eb11-4ca5-b209-476ae2ecb993,transfer_800t,GRIPJAW DRIVE MACET (ADC AUTO),2026-07-17 06:35:11.487156+00
+56b0f449-6ea6-4df1-bddd-572269c75373,blanking,PROBLEM CONVEYOR PART,2026-07-17 06:35:11.487156+00
+577f8777-874f-4d99-898a-5e1d8e3a4abf,transfer_800t,MENUNGGU SOTO DANDORI,2026-07-17 06:35:11.487156+00
+57ba228c-a78f-467d-9cf3-cd6c4507c894,tandem,Underfil,2026-07-17 06:35:11.487156+00
+57ca5c1b-bed4-4cfe-baaf-7e78a668d780,blanking,"End coil jatuh,",2026-07-17 06:35:11.487156+00
+57ea3528-cbd7-49ba-8181-c08e8d70bd65,blanking,Rantai Conveyor lepas,2026-07-17 06:35:11.487156+00
+583931fa-5022-4ad7-ac07-0378803bb19c,blanking,Sensor leveller eror,2026-07-17 06:35:11.487156+00
+5851b460-3d9f-4bd7-a753-91df70dbe998,transfer_2000t,Asap di area Conveyor,2026-07-17 06:35:11.487156+00
+585353dd-2596-4df2-ad3f-e5eb7f6ad4d2,blanking,Dakon feeder Dan leveller,2026-07-17 06:35:11.487156+00
+58e2e827-6311-4338-a3a7-8c2ffcca6f60,tandem,Dies overload trs,2026-07-17 06:35:11.487156+00
+58fd0577-41bf-40fd-978f-bf3f950a269f,blanking,Sensor uncoiler setting coil fault,2026-07-17 06:35:11.487156+00
+590d886f-d346-4b8c-ab2d-69aa5dafc309,tandem,Tekanan cusion lama naiknya,2026-07-17 06:35:11.487156+00
+590eee79-0509-4c67-967c-21c53a2553a3,blanking,Baut lifter patah dan ke press di akhir produksi,2026-07-17 06:35:11.487156+00
+5992468c-b38d-4ab3-b74d-e065b02c9cea,transfer_800t,DB DETACTOR ERROR,2026-07-17 06:35:11.487156+00
+59dd6c8a-8ae0-4af9-82b5-56e8dd63810a,transfer_800t,Rotari cylinder lemah,2026-07-17 06:35:11.487156+00
+5b2fb34c-69a9-48a4-b107-76d73c739f56,blanking,Sensor coil car fault,2026-07-17 06:35:11.487156+00
+5b661ee0-8d50-4bfd-b279-cb77a0364940,transfer_800t,Misgrip f2 f5,2026-07-17 06:35:11.487156+00
+5bd645fb-c8d4-44c3-889d-66d67887d3e0,tandem,Crack + underfill,2026-07-17 06:35:11.487156+00
+5bff775d-94a0-40cf-9d29-48663a43f085,transfer_800t,Transfer material miring,2026-07-17 06:35:11.487156+00
+5d881038-a478-4b5c-af56-600ab92839d2,blanking,Dakon x scrap pierching naik,2026-07-17 06:35:11.487156+00
+5dee5e16-95e1-4673-8360-a31fb5e05034,blanking,SCRAP TIDAK TERPOTONG,2026-07-17 06:35:11.487156+00
+5dfa26b3-1209-4d2a-bd48-f938c23db216,blanking,Burry,2026-07-17 06:35:11.487156+00
+5e51d4d7-38f8-4cf5-b1e9-fed8da45f053,blanking,Pintu mc tidak bisa ditutup,2026-07-17 06:35:11.487156+00
+5e6b7ea6-a004-4c9c-8669-1e22ee15b1e0,transfer_800t,LIMIT SWITCH RUSAK,2026-07-17 06:35:11.487156+00
+5f0a677e-1a05-4c26-8fdd-91ad86e44994,transfer_2000t,PROBLEM CRACK,2026-07-17 06:35:11.487156+00
+60525c36-5146-4bd0-855b-f0105c35a1e6,transfer_800t,SENSOR MB FAULT(ADC),2026-07-17 06:35:11.487156+00
+60b72ddc-5461-4640-8db6-332623a98d9c,transfer_800t,Fingger F6&R6 nabrak,2026-07-17 06:35:11.487156+00
+60d2d3e1-819a-4df1-a433-8aaed6604b9d,blanking,PART ATARI,2026-07-17 06:35:11.487156+00
+60eee498-3db6-4139-ab98-ed5eee11e1ef,tandem,Dies tidak bisa keluar dandori,2026-07-17 06:35:11.487156+00
+61271065-5649-4334-b074-a5704f91215e,blanking,MARKING GAK SESUAI MODEL,2026-07-17 06:35:11.487156+00
+612ab2dc-64aa-4e70-869f-8517920ab834,transfer_800t,BLANKSHEET TIDAK RATA,2026-07-17 06:35:11.487156+00
+61eae176-c9cb-4cd4-a9e3-991add4dce28,blanking,"Pilot pin penyok, part jadi ketarik",2026-07-17 06:35:11.487156+00
+625810f1-fae5-43ed-974c-8d92dcc1b5fc,transfer_800t,Baut hook rusak,2026-07-17 06:35:11.487156+00
+62eb3638-45bb-4bb3-96c2-308df27c7758,transfer_800t,PART MAKURE,2026-07-17 06:35:11.487156+00
+63555fc2-41b5-46b6-bcee-87f8a77b6ac5,blanking,Stopper sempit,2026-07-17 06:35:11.487156+00
+63635b1e-4979-41a8-8ae3-9f12f336b28e,blanking,Scrap conveyor fault 2x,2026-07-17 06:35:11.487156+00
+6384bbdc-1851-4a64-9906-5e926b7672ec,blanking,Dies Kotor/ ngeflek karat di part,2026-07-17 06:35:11.487156+00
+6386faa8-60e2-434a-922e-3341a62a04a9,blanking,Coil line tidak bisa auto,2026-07-17 06:35:11.487156+00
+64f420fc-7b50-470e-920c-7f3c35fddfc5,tandem,Part underfil,2026-07-17 06:35:11.487156+00
+65d92f3c-166d-49fa-a6d6-fe4e2ef0dbbb,blanking,Baut pin ke press,2026-07-17 06:35:11.487156+00
+6610f848-7a4f-414d-9420-940b4afd8343,blanking,Kupingan tidak sama,2026-07-17 06:35:11.487156+00
+66391005-5061-4e4b-8f79-ec3b23bdde4c,blanking,Marking tidak sesuai & dakon,2026-07-17 06:35:11.487156+00
+668d495a-f6be-4fe5-86b1-8a668b9a346f,blanking,Part sering nyangkut di sutter,2026-07-17 06:35:11.487156+00
+670f4ac4-a18b-4875-a637-7cb4335a995c,transfer_800t,PROBLEM VACUM,2026-07-17 06:35:11.487156+00
+6793928b-a387-48f2-b687-a3ae644de059,transfer_800t,Sensor MB fault(ADC),2026-07-17 06:35:11.487156+00
+679a673d-5fb9-47cf-88d9-1f7436dc4603,tandem,Hole geser dan underfill,2026-07-17 06:35:11.487156+00
+67a908d4-ae6e-4912-9236-f2d9a85147eb,transfer_2000t,BLANKSHEET TERBALIK,2026-07-17 06:35:11.487156+00
+68139030-cffb-4447-b8fe-9a1b5134b1ac,transfer_800t,INLET AIR PRESSURE (12x),2026-07-17 06:35:11.487156+00
+6866a68a-1395-4a5a-9182-19b35eefe06f,blanking,Panel belakang error,2026-07-17 06:35:11.487156+00
+697a272a-8946-4a8d-a7a6-a89a0b9ef3a1,tandem,PA 9 scrap tidak turun,2026-07-17 06:35:11.487156+00
+698b2816-5dbf-4b09-8481-fcb9c209e64b,transfer_800t,Baut hook rusak fingger F4,2026-07-17 06:35:11.487156+00
+6b6b2c25-86e4-427e-8496-8a7b5d2ecf38,transfer_800t,SLIDER OVER RUN,2026-07-17 06:35:11.487156+00
+6b8a6aa0-f614-4d43-814b-f7e501a5a653,transfer_800t,Db Detactor eror,2026-07-17 06:35:11.487156+00
+6b97a51a-3741-4ff7-800b-bf8808a213a8,transfer_800t,Fingger F7&R7 nabrak,2026-07-17 06:35:11.487156+00
+6bd0dfe2-831f-4371-9b05-e2d7432beb08,transfer_800t,Fingger F7 nabrak,2026-07-17 06:35:11.487156+00
+6c336a08-57a1-4d08-a680-08554e0d64bf,blanking,Upper clamper fault,2026-07-17 06:35:11.487156+00
+6c6fc6f3-c53f-4f87-8096-7f0d496599fd,blanking,Dies retak,2026-07-17 06:35:11.487156+00
+6c826586-d0f1-4482-aa9e-527238fd1858,transfer_800t,Transfer material miring (vacum sliderup rusak),2026-07-17 06:35:11.487156+00
+6cd0028f-84d6-4449-b7fc-a271c98d511e,transfer_800t,Problem vacum,2026-07-17 06:35:11.487156+00
+6d02617c-7736-4da5-9c36-54038b0e47b0,tandem,Dakon,2026-07-17 06:35:11.487156+00
+6d8cae09-c1b9-41ec-b610-a5acf363b969,transfer_2000t,BLANKSHEET TIDAK RATA,2026-07-17 06:35:11.487156+00
+6da985dd-3fae-4823-8ef0-6d319ba4f803,tandem,Sesnsor clamper PA.6 tidak conneck,2026-07-17 06:35:11.487156+00
+6e9bc4dd-e2ac-48c5-b19b-b65e2e1253c7,transfer_800t,MAGNET FLOATER LEPAS,2026-07-17 06:35:11.487156+00
+6f2de3e4-e76f-4f40-8674-c314b2d774b2,pc200t,Burry (AISB),2026-07-17 06:35:11.487156+00
+70903f5c-f0c5-4ea4-aa91-a4789aeab820,tandem,Mesin PA6 mati,2026-07-17 06:35:11.487156+00
+70bddbc7-11b4-4cd8-955c-4a26e46b8903,blanking,Mesin mati,2026-07-17 06:35:11.487156+00
+722f16ff-bdd3-4fe7-a826-2c912a2c85ff,transfer_800t,Baut pengunci vacum patah,2026-07-17 06:35:11.487156+00
+732067e0-8a53-412f-a262-618ec73d7d54,transfer_800t,PART BURRY,2026-07-17 06:35:11.487156+00
+73c1989e-08bb-423a-951d-9aa025ac3561,transfer_800t,SENSOR CLAMPER ERORR,2026-07-17 06:35:11.487156+00
+741c9734-5dae-478e-b67f-55acf5ab3f31,blanking,Lebar coil -7mm dari master sample,2026-07-17 06:35:11.487156+00
+74e7e02f-ee42-4a2d-90e4-2a6f37c96d7a,transfer_2000t,OVERLOAD,2026-07-17 06:35:11.487156+00
+7539c2bd-eb83-4576-aafa-251279e5db4a,blanking,Marking ngemak/ terlalu tebal,2026-07-17 06:35:11.487156+00
+755f7693-b549-4133-a3ee-7b4afd5268a0,tandem,Spring Upper Dies 4/5 Patah,2026-07-17 06:35:11.487156+00
+7568c9ad-8fd1-46e5-a6cf-3b22d26251a8,blanking,End coil jatuh,2026-07-17 06:35:11.487156+00
+75ca76cc-77e0-4f88-8109-45c2cee249ab,transfer_800t,Proses 7/10 part scratch,2026-07-17 06:35:11.487156+00
+765d53ec-2d0b-42c3-b893-5bef6049916c,transfer_800t,Dies gompal,2026-07-17 06:35:11.487156+00
+76c8958f-b818-4e10-b844-59fad65add81,blanking,Problem dakon berulang,2026-07-17 06:35:11.487156+00
+76d718b3-ef67-4ab5-b02f-4c4e80b4d33b,transfer_800t,Metacon misgrip feedbar eror,2026-07-17 06:35:11.487156+00
+7762f093-d6ba-4873-b092-044869611da3,transfer_800t,Carrier homepost fault,2026-07-17 06:35:11.487156+00
+77b4a932-e606-4322-9c69-e7bb2b045e52,transfer_2000t,PRESSURE CUSSION UP/DOWN,2026-07-17 06:35:11.487156+00
+7906ffde-24ee-43ef-92bc-faa32cf7043d,blanking,Scrap mampet karena engsel jalur scrap mb left lepas,2026-07-17 06:35:11.487156+00
+79579a73-e6c3-49d7-9207-053e84afa49f,tandem,F/W brake fault,2026-07-17 06:35:11.487156+00
+79750b5b-7b80-4f14-acfb-62eb5e03baaa,blanking,Scrath dari endfeeder,2026-07-17 06:35:11.487156+00
+79842bee-fe2c-4d91-821b-d9ffc07c3f4d,transfer_800t,AIR BOSSTER PRESSURE LOW,2026-07-17 06:35:11.487156+00
+7a3f7925-3501-4dbf-9f82-09e7231eca66,transfer_800t,Proses 5/9 lifter macet,2026-07-17 06:35:11.487156+00
+7adc57df-6112-4c0f-962e-2cbbb1603f07,blanking,dandori marking,2026-07-17 06:35:11.487156+00
+7b69fdf1-92e4-4da9-8fb4-280364744f20,transfer_2000t,BL makure dari blanking,2026-07-17 06:35:11.487156+00
+7c778cc8-7b82-4e6c-a269-01af7193ec2a,blanking,Marking TIDAK sesuai model,2026-07-17 06:35:11.487156+00
+7cc44c28-6252-403b-8dd0-22c1504561ba,blanking,Upper clamper R3 not clamp,2026-07-17 06:35:11.487156+00
+7cd9ba7f-c4e7-4158-b516-dab393133d82,transfer_800t,CLAMP UNCLAMP FB EROR,2026-07-17 06:35:11.487156+00
+7d740ce7-ab8b-4efb-9f17-e1018721abc8,tandem,Balancer ps air off reset,2026-07-17 06:35:11.487156+00
+7dd371fc-4c21-4e75-ba55-327eb6e43fdf,transfer_800t,FINGER NABRAK,2026-07-17 06:35:11.487156+00
+7dda0e98-00a4-4e8b-baee-0d1287e43783,blanking,Part hatari/ngemak,2026-07-17 06:35:11.487156+00
+7e698144-110c-4f41-8ac4-a76562052f99,blanking,PROBLEM FEED LENGHT,2026-07-17 06:35:11.487156+00
+7e71eb72-83d1-4632-b5bc-4015eeff5468,transfer_800t,PROSES LEVEL UP ACCURACY,2026-07-17 06:35:11.487156+00
+7e7608d2-2400-4fbe-91b5-b8e072c564fc,transfer_2000t,SCRAP TIDAK MOTONG,2026-07-17 06:35:11.487156+00
+7e978c31-6bbe-42f6-98bb-1786b70dcbce,blanking,Part dakon2,2026-07-17 06:35:11.487156+00
+7e9f95ca-905e-4d68-8669-7bc8ee472504,blanking,Marking tidak sesuai,2026-07-17 06:35:11.487156+00
+7ec29944-e9bd-4153-bd08-94c44ce56599,transfer_2000t,BAUT HOOK KENDOR/RUSAK,2026-07-17 06:35:11.487156+00
+7f671a3d-307c-41fa-912b-662adc0668e2,blanking,Part nyangkut di belt conveyor yang sobek,2026-07-17 06:35:11.487156+00
+800dc129-6980-47e8-b415-677c86a525bf,transfer_800t,Air bosster pressure low,2026-07-17 06:35:11.487156+00
+80af5faa-3dfb-4f4d-aca5-7978d672b696,blanking,Scrath end feeder,2026-07-17 06:35:11.487156+00
+80cb5bc3-e399-4bb7-8bcb-852769bb9946,transfer_2000t,FB INNER DISTANCE,2026-07-17 06:35:11.487156+00
+80f4fab7-a18a-430c-b140-392fc87f7551,transfer_800t,OLI MATERIAL,2026-07-17 06:35:11.487156+00
+810f5f42-b13e-4644-8eb6-5886e60b15bb,transfer_800t,Fingger F2 tidak pas,2026-07-17 06:35:11.487156+00
+812e678c-6502-45dc-a01d-b9200ac6924e,tandem,Cussion pin nyangkut,2026-07-17 06:35:11.487156+00
+81347389-5559-450e-81f0-2fe84160c1b8,blanking,Monitor panel leveler error,2026-07-17 06:35:11.487156+00
+815f671a-07ca-4903-9a70-95168e5ba31d,blanking,Dakon dari roller endfeeder,2026-07-17 06:35:11.487156+00
+82ad3451-1d0d-4bf5-a9b8-2cfe0843760d,blanking,Part hike dan dakon berulang,2026-07-17 06:35:11.487156+00
+83308f1a-377f-4aae-85ca-3d4745923adc,blanking,Exit conveyor fault,2026-07-17 06:35:11.487156+00
+841e55ca-e95c-4344-a65a-3763b33d22ec,blanking,Conveyor scrap fault,2026-07-17 06:35:11.487156+00
+84b8c652-1910-4c67-94f9-3e47fd54bde7,transfer_800t,Problem feedbar,2026-07-17 06:35:11.487156+00
+84ea5d3b-7245-48f1-83a6-a4820d25a2bf,blanking,Rear guard unlock fault,2026-07-17 06:35:11.487156+00
+8562067b-d81f-48ff-8998-1a9033c91e8e,transfer_2000t,PROSES LEVEL UP ACCURACY,2026-07-17 06:35:11.487156+00
+856605bf-128a-4bb2-a4bd-29aff2c16a48,blanking,LEVELLER air pressure low,2026-07-17 06:35:11.487156+00
+8574b858-8215-4b65-aeb1-001d9df0f1b5,transfer_2000t,Prepare problem crane,2026-07-17 06:35:11.487156+00
+85aa0b06-8e46-4d56-a9d3-2ab1b84c2768,blanking,Limit swicth error,2026-07-17 06:35:11.487156+00
+86738989-aeea-4c26-91ff-9e38a986deda,tandem,Conveyor scrap rusak,2026-07-17 06:35:11.487156+00
+8674b89b-c127-4c9e-9fdb-886e63d8eef8,blanking,"Pilot pin patah, dakon berulang dan dies gompal",2026-07-17 06:35:11.487156+00
+86862572-f29c-4e8a-89dc-debe9381bbf1,blanking,Dakon berulang2,2026-07-17 06:35:11.487156+00
+86ccf23c-471f-47a9-b31a-45389386d61d,tandem,Cusion pin nyangkut,2026-07-17 06:35:11.487156+00
+870147b4-8795-4a54-a73b-a957c1f39a6b,blanking,Tutup dowelpin lepas dan ke press plus burry,2026-07-17 06:35:11.487156+00
+87617ef7-ac6b-4572-a401-3386c99de3a5,transfer_800t,PROBLEM FEEDBAR,2026-07-17 06:35:11.487156+00
+88acc8ee-4527-4018-a4b0-9fd00aac0d54,blanking,"Upper clamper R3 fault, tidak bisa maju maximal",2026-07-17 06:35:11.487156+00
+890e83d0-a696-4295-846d-2445bc9854cc,blanking,Scrap nyangkut berulang,2026-07-17 06:35:11.487156+00
+8ac3e513-17ce-4a34-a0a1-f83a383209f3,blanking,Dakon dari roller,2026-07-17 06:35:11.487156+00
+8b43a462-158b-4320-90cf-b773dd6bb563,blanking,SCRATCH END FEEDER,2026-07-17 06:35:11.487156+00
+8c505dc1-85e8-48b3-81de-6b5a97ef11cf,blanking,PART R&F TIDAK BALANCE,2026-07-17 06:35:11.487156+00
+8c68a35f-c41e-4a79-982d-1ebab01f885f,transfer_800t,DB detactor tiknes eror,2026-07-17 06:35:11.487156+00
+8d4a7d5e-0e12-4c8d-ac48-2d2e8fa6d03c,transfer_2000t,STOPPER RUSAK,2026-07-17 06:35:11.487156+00
+8d70110b-3a0b-4cfd-93b2-01a46f0123ee,transfer_800t,Inlite air pressure,2026-07-17 06:35:11.487156+00
+8d88697c-be04-4b91-be38-349e9aa4ed47,blanking,"Ganti marking, hasil ngemak",2026-07-17 06:35:11.487156+00
+8dae4bea-b391-4f61-b84a-4ff854027c43,blanking,Uchi dandori fault,2026-07-17 06:35:11.487156+00
+8e1169e1-770f-44c7-aad6-6b463614c99c,transfer_800t,SCRAP TIDAK MOTONG,2026-07-17 06:35:11.487156+00
+8eb43b66-0ac7-408c-b8f5-5be52cd03880,blanking,Sensor stop roll error,2026-07-17 06:35:11.487156+00
+8eb7ec28-1e14-494e-9ccb-22312b3d5104,blanking,MB L inverter foult,2026-07-17 06:35:11.487156+00
+8fd43839-afe8-4ace-bc0b-6529cd6b28c6,transfer_2000t,ROTARI CYLINDER RUSAK/LEMAH,2026-07-17 06:35:11.487156+00
+9006c44a-01d0-4fa8-9d07-d92d2681225a,blanking,Burry hole,2026-07-17 06:35:11.487156+00
+908d4698-3937-4de5-bd77-e64244951b23,transfer_800t,Feedbar gent clamp error',2026-07-17 06:35:11.487156+00
+9090ba89-b3f2-43c1-a755-28209304c999,transfer_2000t,Area Conveyor + hear box FB berasap,2026-07-17 06:35:11.487156+00
+90b6ccc8-e5a4-4de2-8678-7cff89dbe668,blanking,Dakon upper die,2026-07-17 06:35:11.487156+00
+90bf8e1d-a154-4d99-b452-512f515ad961,blanking,Scrath endfeeder,2026-07-17 06:35:11.487156+00
+91b6df40-dab4-4d88-8acd-f2ac1a550e98,blanking,Stopper die seret,2026-07-17 06:35:11.487156+00
+91e6b3b5-c3a3-4964-a848-bbbeb2660c42,transfer_800t,Fingger F5 missgrip eror,2026-07-17 06:35:11.487156+00
+92097ede-1212-4dca-adb4-f8d98291ba7c,tandem,Noby burry,2026-07-17 06:35:11.487156+00
+920a5adc-c6ef-4eda-8440-c944382b9e99,blanking,Kabel push button rusak,2026-07-17 06:35:11.487156+00
+922a1d42-20c7-4eb9-b744-3a8f0a8a4964,transfer_800t,STOPPER RUSAK,2026-07-17 06:35:11.487156+00
+9236b800-a9b2-463a-9d1c-32888fa79395,transfer_2000t,PART SCRATCH,2026-07-17 06:35:11.487156+00
+92b44545-9960-4381-94e0-ed4632b3bdee,transfer_800t,Finger F5 missgrip,2026-07-17 06:35:11.487156+00
+93751232-7deb-4942-aabf-21b3fe935c04,blanking,End coil jatuh 2 x,2026-07-17 06:35:11.487156+00
+93e573ad-e849-4a30-a2c9-2025a53016fc,transfer_2000t,F3 after repair,2026-07-17 06:35:11.487156+00
+93fa36ca-b7ad-40f0-b8ef-c35906467fb9,blanking,Cek dies &cleaning dies,2026-07-17 06:35:11.487156+00
+94c7a726-03f3-414d-9b55-5183617a0330,transfer_2000t,DIES KOTOR,2026-07-17 06:35:11.487156+00
+94f74987-196b-4a53-bd1c-70f7a3b4957c,blanking,Dakon feeder,2026-07-17 06:35:11.487156+00
+958e539d-9948-40b1-b06b-0f3bb883c055,transfer_2000t,NUNGGU PALET,2026-07-17 06:35:11.487156+00
+95b2cfe0-ec1f-473a-ace6-8ff4c41d72eb,transfer_800t,ROTARI CYLINDER LEMAH,2026-07-17 06:35:11.487156+00
+95f83fd4-7122-49b6-882e-ba9c9726e019,blanking,ADC FAULT,2026-07-17 06:35:11.487156+00
+96297f61-bf69-4855-b8b6-6a7175e4aae9,transfer_800t,Part burry proses 5/9,2026-07-17 06:35:11.487156+00
+96a68d23-24fa-4102-9a70-3d84b2d116c3,transfer_800t,PART NEMPEL DIUPPER DIES,2026-07-17 06:35:11.487156+00
+96b27488-660a-4114-8eb3-2605c23fadd5,blanking,DAKON berulang,2026-07-17 06:35:11.487156+00
+971ebca2-b579-4730-9b9d-5b2a53a5da54,transfer_800t,MAGNET FLOATER TIDAK PAS,2026-07-17 06:35:11.487156+00
+98eb2d3f-3232-45ad-90c4-53100b2f86ea,blanking,"Scrap mampet, karna shutter rusak",2026-07-17 06:35:11.487156+00
+994f5a20-0090-45f2-8efc-1ab67cc9df17,transfer_800t,PLN DOWN,2026-07-17 06:35:11.487156+00
+99c78c4e-6b84-4710-a3ab-de3702491663,transfer_800t,BAUT PENGARAH KENDOR/RUSAK,2026-07-17 06:35:11.487156+00
+99f61964-35c0-47e7-a59a-e029472fd303,tandem,Hole geser,2026-07-17 06:35:11.487156+00
+99fb477d-cb7d-4703-8b40-46c667dd52af,blanking,Sensor pintu F fault,2026-07-17 06:35:11.487156+00
+9a546b1a-c7dd-4d94-9102-0c6fddf7e30b,transfer_800t,PART HIKE,2026-07-17 06:35:11.487156+00
+9af26f10-52df-418f-89ba-378b04eb7f61,tandem,Scrap conveyor fault,2026-07-17 06:35:11.487156+00
+9c9f4434-bca4-4e78-8009-8051b9351730,blanking,ADC MB Fault,2026-07-17 06:35:11.487156+00
+9cf75e6f-f704-4dd0-871a-313a9023b189,blanking,Lifter macet,2026-07-17 06:35:11.487156+00
+9dde9182-45ed-4049-8e56-25679da88d29,blanking,PROBLEM PINTU MESIN,2026-07-17 06:35:11.487156+00
+9e045537-7b97-4c7b-9d89-7fa0ec68dcba,transfer_800t,PAR NEMPEL D UPPER DIES,2026-07-17 06:35:11.487156+00
+9e1eaf9f-811d-41ee-8bdd-0e828300ba05,blanking,Scrath dari feeder,2026-07-17 06:35:11.487156+00
+9e547679-1489-440b-a495-9caf92c3ef3d,transfer_800t,METACON FEEDBAR EROR,2026-07-17 06:35:11.487156+00
+9f04794a-1f43-4b72-8b7f-c52e5e818e27,blanking,Oil pump unit level low,2026-07-17 06:35:11.487156+00
+9f7f5679-4865-40fc-9770-f6b10036245a,blanking,Dakon karena dies kotor after budomari,2026-07-17 06:35:11.487156+00
+9fd86adf-05a5-466b-81fd-8abc6e5e7cb6,transfer_800t,MENUNGGU FORKLIFT,2026-07-17 06:35:11.487156+00
+9fdd819e-bb97-4975-a425-8453a5043646,blanking,Limit switch eror,2026-07-17 06:35:11.487156+00
+9fe48494-af78-4582-9eaa-994a96329993,tandem,Oli mesin banjir dan f/w brake fault,2026-07-17 06:35:11.487156+00
+a06692a5-e001-40ff-a042-b0e2e8c2f307,tandem,62311-73R00 GAS SPRING HABIS,2026-07-17 06:35:11.487156+00
+a0d980b9-ffd1-4e28-9e96-b9e5eff2ad60,blanking,LS MB RH/LH fault,2026-07-17 06:35:11.487156+00
+a13b1a1b-93f5-461f-ad37-be5c856a509e,tandem,Underfill,2026-07-17 06:35:11.487156+00
+a219546d-bc72-49f5-b0a9-53bc60cb6aaa,transfer_2000t,CONTROLLER ELECTRICAL MAGNET,2026-07-17 06:35:11.487156+00
+a2441f53-1a12-4baf-9243-7378a1f7c64d,tandem,61212 underfill,2026-07-17 06:35:11.487156+00
+a3b69422-ff85-4b84-bdf3-b2a14812e724,blanking,Cek mc oleh komatsu,2026-07-17 06:35:11.487156+00
+a3f99293-9021-46fe-a4bb-6877a48e3bd4,blanking,Sensor uncoiler fault,2026-07-17 06:35:11.487156+00
+a55f0711-0536-4787-83cd-417e259076a2,transfer_800t,Fingger R4 nabrak,2026-07-17 06:35:11.487156+00
+a6c23590-22fd-4d64-baa5-9ccb826b7823,transfer_800t,Limitswitch rusak,2026-07-17 06:35:11.487156+00
+a720d5b0-a584-4600-8ef4-c0e4af438051,tandem,Marking Miring,2026-07-17 06:35:11.487156+00
+a7791f41-1c8d-466c-b64d-c447619034a8,transfer_2000t,"Problem transfer cam, sudut 0°",2026-07-17 06:35:11.487156+00
+a79b634b-0356-4fa8-9a9f-28e287486a11,blanking,Marking tidak sesuai dengan model yang mau produksi,2026-07-17 06:35:11.487156+00
+a811443d-286e-4b30-b94b-ffed4928153a,blanking,Potong coil,2026-07-17 06:35:11.487156+00
+a88e9e36-e3a4-4356-ba76-9259d7509ace,blanking,Dakon,2026-07-17 06:35:11.487156+00
+a9080e16-74c1-4f57-b34d-556d4178214f,transfer_800t,Proses 5/9 lifter macet dan burry trim,2026-07-17 06:35:11.487156+00
+a92e2817-1dd6-4693-9412-abcc91f3f47a,transfer_800t,Problem feedbar naik (after perbaikan MC),2026-07-17 06:35:11.487156+00
+a976607e-a0fa-4843-9a5d-5b509bbe71a0,transfer_800t,Bolster down,2026-07-17 06:35:11.487156+00
+a9bf12ac-c5f4-43c0-9cdd-c8e118c5307d,transfer_2000t,Pierching tidak center,2026-07-17 06:35:11.487156+00
+aaef01f8-ee6f-4cc2-b80d-d39506c4f42b,transfer_800t,Vacum depan tidak bisa ambil material (angin bocor),2026-07-17 06:35:11.487156+00
+ac257ca5-23fc-413d-982d-d59903da3e8e,blanking,Menunggu forklift preparation palet,2026-07-17 06:35:11.487156+00
+ac496759-c49d-4a6a-b5cb-85b1c1a11857,transfer_2000t,FINGER NABRAK,2026-07-17 06:35:11.487156+00
+ac6632fe-aebf-49a7-8578-cffe85251db4,blanking,Sensor leveler eror,2026-07-17 06:35:11.487156+00
+aceece32-527c-44d2-881d-df7c6208b3fc,transfer_800t,part pada jatuh (rotary cilynder lemah),2026-07-17 06:35:11.487156+00
+ad31ff0d-cbab-4d67-b0f7-cf9d0b3434d6,tandem,Pasang cusion PA6 (61212-KK),2026-07-17 06:35:11.487156+00
+adeeee9d-bdf1-4169-affb-c975217cf68a,blanking,Baut dies lepas Dan ke press,2026-07-17 06:35:11.487156+00
+b01f09c3-5049-410a-abb4-e0bdd9cef8da,transfer_2000t,BLANKSHEET / SKETH KARAT,2026-07-17 06:35:11.487156+00
+b08d4d59-8be5-4bdf-8b2d-389de17a3031,blanking,DIES KOTOR,2026-07-17 06:35:11.487156+00
+b0da8857-d018-465b-9191-1141a606e0c3,transfer_800t,Part underfil,2026-07-17 06:35:11.487156+00
+b0e2423e-e22b-4d89-8709-bd0019c9ad80,transfer_800t,F1 nabrak (after perbaikan vacum depan),2026-07-17 06:35:11.487156+00
+b17bf368-7224-4d87-bbdd-6f9e83fcff0d,transfer_800t,ROTARI CYLINDER RUSAK/LEMAH,2026-07-17 06:35:11.487156+00
+b1c7271f-0cd9-4d02-94e2-7b6e792fc50e,blanking,Dakon dies berulang,2026-07-17 06:35:11.487156+00
+b1fd2199-4062-418a-a772-83a9a8482730,blanking,Insert dakon,2026-07-17 06:35:11.487156+00
+b24bda70-8b2d-496b-a36b-ad7b625e4194,transfer_800t,OLI HYDROLIC ALARM,2026-07-17 06:35:11.487156+00
+b25b5926-e9e9-464c-87a4-34546378e476,tandem,Part 62114/314-73R00 underfill,2026-07-17 06:35:11.487156+00
+b2c0f002-3d96-4d14-b5f4-d09559bc7b77,transfer_800t,Finger F1 nabrak (tidak pas),2026-07-17 06:35:11.487156+00
+b2e50fb8-57e4-4b19-b0e6-a3ef381f885b,blanking,Part tdk balace,2026-07-17 06:35:11.487156+00
+b305dc36-8427-4ee4-be4b-e77ffc93b1b4,transfer_800t,Part scratch,2026-07-17 06:35:11.487156+00
+b31d44ce-63de-4fdd-845d-f43ee6566d7f,transfer_800t,SHUTTLE CAR ERORR,2026-07-17 06:35:11.487156+00
+b3f511fe-a1ae-4a01-8dcd-a90d42d7a8a5,transfer_800t,PART DAKON,2026-07-17 06:35:11.487156+00
+b46696fe-116a-43a3-aa4f-087ede607579,tandem,Overload,2026-07-17 06:35:11.487156+00
+b46da118-550f-4ab2-ac59-b14d5ca9a9ff,blanking,Part hike,2026-07-17 06:35:11.487156+00
+b4929acb-72fd-4fb0-8b65-4af91041b4f2,blanking,Endcoil jatuh,2026-07-17 06:35:11.487156+00
+b495b153-1f0d-43de-91a7-d33b4035fe53,transfer_800t,BALANCER LOW,2026-07-17 06:35:11.487156+00
+b57f7e82-8a4c-4429-9089-6133e7b445ef,blanking,Part nyangkut di sutter rear,2026-07-17 06:35:11.487156+00
+b5c166d8-2d95-44ec-9683-19d100edf48d,blanking,MB inverter fault,2026-07-17 06:35:11.487156+00
+b5d2b22c-3cf5-469e-aeae-ddfaa155ee24,blanking,Coil budomari,2026-07-17 06:35:11.487156+00
+b66f2679-7f1b-46c6-a110-7b98dcdc25f0,blanking,Buttom dies pecah,2026-07-17 06:35:11.487156+00
+b6efe295-026a-4825-83b7-21d0383262d5,blanking,Coil melintir di leveller,2026-07-17 06:35:11.487156+00
+b6f41ad5-825a-494c-94e0-4d61cf27fd2b,tandem,0li material tidak keluar,2026-07-17 06:35:11.487156+00
+b73c88d1-50a2-48c8-b63a-0e703e803c29,transfer_800t,ADC feedbar clamp (R4 nabrak baut stopper dies),2026-07-17 06:35:11.487156+00
+b7a57fde-52f5-43f6-87fe-df1c0ff75eff,blanking,COIL MELINTIR,2026-07-17 06:35:11.487156+00
+b7ae77e4-b5cc-4811-8426-0de18b30b726,tandem,Pilot Pin Patah Proses Op 30,2026-07-17 06:35:11.487156+00
+b7b48c06-0d3c-49d3-a48c-e4b28c4b67e9,transfer_2000t,WD adj MTR OL/Thermal berulang,2026-07-17 06:35:11.487156+00
+b7ce9b0d-6338-4c40-af8e-5fb4128e6097,blanking,Part scrath,2026-07-17 06:35:11.487156+00
+b8d535ac-27c5-442a-b982-65be92b00c95,blanking,PART DAKON DAN BURRY,2026-07-17 06:35:11.487156+00
+b8f08ce1-9728-49ff-9168-f3790c907b92,tandem,Mesin tiba2 mati,2026-07-17 06:35:11.487156+00
+b921feb1-7560-493f-a171-c6131db756e1,transfer_2000t,BAUT PENGARAH KENDOR/RUSAK,2026-07-17 06:35:11.487156+00
+b9386b23-fae5-42e7-b239-8d9e0a0353ba,blanking,menunggu crane dandori,2026-07-17 06:35:11.487156+00
+b9e87140-43de-4cbc-8341-5a5c9a6fbb63,transfer_800t,DB Detactor thicknes error,2026-07-17 06:35:11.487156+00
+ba00b6a6-ece3-4629-8767-8efe354bb322,tandem,Scrap conveyor problem,2026-07-17 06:35:11.487156+00
+bbaccd61-9057-4fb7-a759-37398335e19b,transfer_2000t,Pengecekan injector after repair ( membal ),2026-07-17 06:35:11.487156+00
+bbc7fc16-42f5-452c-ad7a-aaae6073a627,transfer_2000t,CONTROLLER ELECTRICAL MAGNET FAULT,2026-07-17 06:35:11.487156+00
+bcd1c1c6-c599-49bc-9df9-dcba5e7afbee,blanking,Flywheel brake fault,2026-07-17 06:35:11.487156+00
+bce5eb88-50b3-4236-b169-ce8f302fb43c,transfer_800t,GASSPRING LOW,2026-07-17 06:35:11.487156+00
+bd17963b-c1db-4b1d-9a50-1d13baed81c0,blanking,Scrap mumpet2×,2026-07-17 06:35:11.487156+00
+bd6d4c20-cb4e-4d6a-95e7-a5aa762c7ed0,transfer_2000t,INLET AIR PRESSURE,2026-07-17 06:35:11.487156+00
+bda84db7-1453-4a07-a705-446e34f95dee,transfer_800t,DB Detactor thicknes,2026-07-17 06:35:11.487156+00
+be59c275-b26f-46a6-ae55-348602caa1ac,transfer_2000t,REGULATOR KECKER RUSAK,2026-07-17 06:35:11.487156+00
+bea1a016-0f0e-42ce-b626-1165c1efdb4e,blanking,Marking tidak sesuai model,2026-07-17 06:35:11.487156+00
+bf225a4f-a530-4577-83fd-722a31d5edb4,blanking,Baut lifter patah dan dakon,2026-07-17 06:35:11.487156+00
+bfe7893a-2255-4dd2-90bd-4b215addb428,blanking,END COIL JATUH,2026-07-17 06:35:11.487156+00
+c008b457-d92e-47fc-ac34-2d5ef029dbcd,blanking,Part front Dan rear tidak balance,2026-07-17 06:35:11.487156+00
+c01ad526-22fc-4a4a-9455-a257a80fa693,transfer_2000t,SCRAP MAMPET,2026-07-17 06:35:11.487156+00
+c032ffc5-9988-49c9-9795-76347068e670,blanking,Upper die gompal,2026-07-17 06:35:11.487156+00
+c084e909-7a6a-4c6d-8c31-4c9da00e3afc,transfer_2000t,Keluar asap d area geer box feedbar + Conveyor,2026-07-17 06:35:11.487156+00
+c11bff1a-e600-44c5-9e2f-04479a6896aa,blanking,Part dakon dari serpihan dies,2026-07-17 06:35:11.487156+00
+c136e9aa-361f-49cf-a51f-fe255a8b7fc4,tandem,Conveyor PA7 dan PA8 welding lepas,2026-07-17 06:35:11.487156+00
+c1608bea-5f05-4f19-a9e9-4606fd8b3500,transfer_2000t,PRESSURE CUSSION UP,2026-07-17 06:35:11.487156+00
+c1d82f67-3b55-4e01-8545-5fbad2e94e28,blanking,SCRAP MAMPET,2026-07-17 06:35:11.487156+00
+c1dacc1a-5539-4954-ba5d-c71f815c5f48,transfer_800t,Scrap tidak motong,2026-07-17 06:35:11.487156+00
+c20096de-4bc6-410d-9435-801c8ab2fd28,blanking,"Scrap cutter gompal, scrap tidak terpotong",2026-07-17 06:35:11.487156+00
+c2a40c22-f14e-404f-a749-43491204e788,transfer_800t,PART UNDERFIL,2026-07-17 06:35:11.487156+00
+c2b8baf7-9f05-48d4-a86c-c258657e7f7d,blanking,BURRY DAN DAKON,2026-07-17 06:35:11.487156+00
+c3820dad-c739-4f6f-8a97-eb0d5811f5a6,transfer_2000t,LIFTER MACET,2026-07-17 06:35:11.487156+00
+c3ec0742-8fdc-44cb-97b4-6ca40b612f72,blanking,Insert tidak terpasang,2026-07-17 06:35:11.487156+00
+c49d0545-ffb1-43e1-af7d-19f4e54cacf0,blanking,Cek dies&cleaning dies,2026-07-17 06:35:11.487156+00
+c598222a-b666-4922-901c-91f7bcd142e4,blanking,Clening dies,2026-07-17 06:35:11.487156+00
+c6dfee19-a35b-45f7-a7eb-968c2296531e,blanking,Pintu mesin eror,2026-07-17 06:35:11.487156+00
+c745fd0a-735a-430a-bf9f-1e0f4888c33d,transfer_800t,Baut hook kendor,2026-07-17 06:35:11.487156+00
+c75e7c5c-b9e5-4ff1-9f8d-b418e575ff4b,transfer_800t,Shuttle car tidak bisa geser,2026-07-17 06:35:11.487156+00
+c7668b57-de37-4d65-9ea8-d8f97bcaaf6c,blanking,Baut lifter patah,2026-07-17 06:35:11.487156+00
+c78c14e3-d965-459a-a676-5d7cc13e5e4c,blanking,Lifter patah ke press,2026-07-17 06:35:11.487156+00
+c7b35040-5cf1-4bd0-af21-72a6b659121d,blanking,Dies after perbaikan karena lifter pecah Dan ke press,2026-07-17 06:35:11.487156+00
+c7c9b553-08f2-45c8-a90a-8efd4bf8961f,transfer_2000t,TUNGGU PALLET,2026-07-17 06:35:11.487156+00
+c96ab292-0ee4-4002-a0f6-dfc542f65017,tandem,Clamper PA8 oli netes,2026-07-17 06:35:11.487156+00
+c9ceee98-a638-432e-b86d-b3dda6842a19,tandem,62311-73R00 TUTUP CUSHION PIN TIDAK BISA DIAMBIL,2026-07-17 06:35:11.487156+00
+ca0bda8b-973a-463a-8ff0-9aa3dcd7f4f0,blanking,Ganti marking & kupingan beda,2026-07-17 06:35:11.487156+00
+caa137c9-844a-4dd3-9bfb-fd7b3a365ee1,blanking,Makure Pierce Dan trimming berulang,2026-07-17 06:35:11.487156+00
+cb1cb952-8f34-429e-ab2d-d610d2150dd6,blanking,BAUT UPPER DIES PATAH,2026-07-17 06:35:11.487156+00
+cb996fa7-f415-42a7-b569-0ad015c653af,transfer_800t,INLET AIR PRESSURE,2026-07-17 06:35:11.487156+00
+cc7ef78b-9c00-42dd-bac7-7b0bc44d69d9,transfer_2000t,DB DETACTOR ERROR,2026-07-17 06:35:11.487156+00
+cccbfdf6-76e8-4f50-ba90-d4ed87957ba3,blanking,Upper die clamp fault,2026-07-17 06:35:11.487156+00
+cce84cfb-67de-47bb-ac04-674d0b30e880,transfer_800t,OVERLOAD,2026-07-17 06:35:11.487156+00
+cd1a0d3f-8fe9-45b4-bea1-c4ad4423e7a1,blanking,SLIDE ADJUSTER FAULT,2026-07-17 06:35:11.487156+00
+ce23bf8c-a41d-409d-b751-1f8ef6872a11,blanking,PART HIKE,2026-07-17 06:35:11.487156+00
+ce4ba120-e875-4ad8-867a-5f1f564f60e2,transfer_2000t,Waiting crane,2026-07-17 06:35:11.487156+00
+ce594b06-6279-4af9-a1cb-bbf3b28e43b8,blanking,Scrath roller endfeeder,2026-07-17 06:35:11.487156+00
+ce7a70f4-5eb9-4b59-9e5f-eb5a321523cb,blanking,Burry trim,2026-07-17 06:35:11.487156+00
+ce8ae48a-89dc-46da-89d8-d1eccc8e710a,blanking,Scrap mampet di dies berulang,2026-07-17 06:35:11.487156+00
+cf465042-e4d5-4c2d-bad4-85a702d1ddfd,blanking,Dakon beulang,2026-07-17 06:35:11.487156+00
+cfc4fc1f-dc37-422f-8f1d-36c88820aab0,blanking,Part burry dan attari,2026-07-17 06:35:11.487156+00
+cff6472d-c604-4f0b-85ac-cf0c7be6e601,blanking,OIL LOW,2026-07-17 06:35:11.487156+00
+d0097233-818c-4fbc-a620-22a2f3eb3b50,transfer_800t,Feedbar fault,2026-07-17 06:35:11.487156+00
+d07013fd-6b1b-4a19-b588-f54629b2f196,tandem,Control input check,2026-07-17 06:35:11.487156+00
+d097c14b-e06d-4ea0-9010-03e608161059,transfer_800t,Dies gompal proses 4/10,2026-07-17 06:35:11.487156+00
+d0fb3be9-df0b-40af-a45c-289fee3e7057,tandem,Dudukan conveyor welding lepas,2026-07-17 06:35:11.487156+00
+d1ab6459-ace4-41d1-a320-8b5e2ca0f2ff,blanking,Part nyangkut di shutter + scrath dari lifter,2026-07-17 06:35:11.487156+00
+d1ed8736-220b-46cf-8cd8-85c4924fe048,blanking,Dakon dari feedroil,2026-07-17 06:35:11.487156+00
+d202c87b-148f-4a8a-96db-b3eff81db800,transfer_2000t,PROBLEM VACUM,2026-07-17 06:35:11.487156+00
+d252c2d9-ecb3-4390-851a-d4d69688e8db,blanking,Pintu depan tidak bisa ditutup,2026-07-17 06:35:11.487156+00
+d267f163-9f7c-4f97-8f45-e7740f69cd6a,blanking,Marking ngemak,2026-07-17 06:35:11.487156+00
+d2748a51-02fc-48cc-80ea-52136d64b8ad,transfer_2000t,PROBLEM FEEDER,2026-07-17 06:35:11.487156+00
+d298a168-e151-48c6-a561-7a877c5a1dc8,blanking,Front guard fault,2026-07-17 06:35:11.487156+00
+d2da204f-9a89-411b-bb8c-f375aba5e6af,transfer_800t,Problem Feedbar,2026-07-17 06:35:11.487156+00
+d2f357ee-1a92-4602-9662-43925004e134,blanking,Ganti marking,2026-07-17 06:35:11.487156+00
+d31e6b47-b398-4df3-84f2-c05a2ed9ba16,blanking,Ejector upper die kendor,2026-07-17 06:35:11.487156+00
+d3941324-8e1b-4761-a1e8-f4a94e22d3ed,transfer_800t,Material underfill,2026-07-17 06:35:11.487156+00
+d39b1ea3-98f8-48c9-b41d-89ba8918104a,pc200t,Part Dakon kejadian 4 kali,2026-07-17 06:35:11.487156+00
+d45fd392-8f23-4134-9858-82326a3db483,tandem,Burry,2026-07-17 06:35:11.487156+00
+d48cfc91-bb9b-44ab-b94b-f5fee7299c94,transfer_800t,Inlet air pressure,2026-07-17 06:35:11.487156+00
+d5275ad8-2372-45e5-9ef0-6d91017fe189,transfer_800t,Proses 5/9 scrap numpuk (upper dies gompal),2026-07-17 06:35:11.487156+00
+d5564676-c532-4cf9-b349-bfe3b8623f95,blanking,"Baut lifter patah, Dakon, Burry",2026-07-17 06:35:11.487156+00
+d579bf2b-47bc-46f9-a688-32e01c4766cd,blanking,Dakon berulang,2026-07-17 06:35:11.487156+00
+d57e217c-7cb0-47c8-9a51-a31a5bba1f98,blanking,Part nyangkut di Shutter,2026-07-17 06:35:11.487156+00
+d585b08d-2dad-48a4-a3e1-73231334d40e,transfer_800t,Material miring,2026-07-17 06:35:11.487156+00
+d62d8661-448f-4009-a8f8-c003cf8d65ff,transfer_2000t,WD adj MTR OL/thermal,2026-07-17 06:35:11.487156+00
+d6a46b86-d130-4f5b-9865-7ae39680b6c2,tandem,PA7 mesin mati,2026-07-17 06:35:11.487156+00
+d6d4960c-c1f0-4a9b-a24e-6469bad8bd2e,blanking,BAUT LIFTER PATAH,2026-07-17 06:35:11.487156+00
+d756155a-d9d8-44c6-a204-624a38f9f4d2,transfer_2000t,Cek gear box FB,2026-07-17 06:35:11.487156+00
+d76d268c-8455-4821-9265-eb5363ff696e,blanking,Scrap shute rear fault,2026-07-17 06:35:11.487156+00
+d7842a32-344b-4c00-bb3e-8f3498485007,blanking,"Part R&F tidak balance,",2026-07-17 06:35:11.487156+00
+d797cb97-1d03-41e6-bf28-1b68f9ba8ef3,transfer_800t,Transfer material miring dari depan,2026-07-17 06:35:11.487156+00
+d7c4484b-e0a1-4883-80b3-77edf13e6254,transfer_800t,PART CRACK,2026-07-17 06:35:11.487156+00
+d875a5f4-02d9-4ad8-a5c9-72674a0f53d9,transfer_2000t,CLAMP UNCLAMP FB EROR,2026-07-17 06:35:11.487156+00
+d8d95432-0e84-483c-a206-a338fe7bdfa7,blanking,part tidak balance,2026-07-17 06:35:11.487156+00
+d8e32f76-1b35-4105-8112-bdbf9c7fc9b9,blanking,Dakon Dr roler,2026-07-17 06:35:11.487156+00
+d928525b-d837-416c-92c7-65a4015e05d5,transfer_800t,Misgrip fingger f2,2026-07-17 06:35:11.487156+00
+d9338cc1-11f8-416d-b12d-816d38e91eff,tandem,Tutup cusion pin no 56 tidak bisa dilepas,2026-07-17 06:35:11.487156+00
+da4db8a0-77b6-4ed9-b79f-c9689a498027,blanking,Dakon dies Kotor dan pengarah awal coil terlalu tinggi,2026-07-17 06:35:11.487156+00
+da5cea91-1059-4963-b598-e074d8f6fa32,transfer_800t,7/8 dies gompal,2026-07-17 06:35:11.487156+00
+da6a758e-7eee-4d00-8fb2-f3e2bdc658ad,blanking,Baut lifter patah dan ke press,2026-07-17 06:35:11.487156+00
+da6bec30-bed5-4a13-8e54-5abd49153f4a,tandem,Pa8 overload,2026-07-17 06:35:11.487156+00
+dc3bc964-6188-41dc-8ba4-0143dab54af5,transfer_800t,NIPLE SUTER RUSAK,2026-07-17 06:35:11.487156+00
+dc90d6c5-8f2f-4978-9bdd-d837b2a227c1,transfer_800t,Part nempel diupper dies,2026-07-17 06:35:11.487156+00
+dca3a3b9-0b94-436c-aa65-bc4634200b26,blanking,Dakon dari feeder,2026-07-17 06:35:11.487156+00
+dcba23fc-35df-43a2-815c-05c61ac8930d,transfer_800t,Gripjaw macet,2026-07-17 06:35:11.487156+00
+dccee0c0-a507-414d-b356-f7601d4aaba4,transfer_2000t,Missgrip F6 kabel putus,2026-07-17 06:35:11.487156+00
+ddb836de-bcaa-4cd1-ab45-1dd816d82570,transfer_2000t,DIES GOMPAL,2026-07-17 06:35:11.487156+00
+de2bbb0f-2ef4-49a8-a546-0e15ac9318c3,blanking,Part burry hole,2026-07-17 06:35:11.487156+00
+de72739c-be2b-469f-8908-2b865ab93975,transfer_800t,Gripjaw Drive macet,2026-07-17 06:35:11.487156+00
+de88bc99-c41b-4769-ad33-810e5ef02dc8,transfer_800t,Feedbar naik (after perbaikan MC),2026-07-17 06:35:11.487156+00
+dec4138e-d7e2-43a6-b737-fe5af8c490ea,tandem,Part Deformasi ( proses 9/13 ) fitting part seret,2026-07-17 06:35:11.487156+00
+dee98798-27af-4170-bfcb-dae6358100e4,blanking,Lifter macet + dakon berulang,2026-07-17 06:35:11.487156+00
+deeb238e-d3bf-4de0-91d3-5f8c0ef07b9a,tandem,Dudukan mb patah,2026-07-17 06:35:11.487156+00
+df2821f4-0bd5-4b4e-a012-7d257b6e6fd7,blanking,ganti marking dan part ngemak,2026-07-17 06:35:11.487156+00
+dfc1f80a-4697-4742-b621-76096781f29c,blanking,LIFTER MACET,2026-07-17 06:35:11.487156+00
+e08f8bb8-5ea0-49ed-bf86-58521fa58f9b,blanking,Part nyangkut di Sutter dies,2026-07-17 06:35:11.487156+00
+e08fcb08-9cde-4e9c-a86a-7c28e9346eea,blanking,Marking tidak sesuai Dan dakon,2026-07-17 06:35:11.487156+00
+e0eeeb9f-a6d2-40e7-b5b6-72fd3ab35e2f,tandem,Main motor inverter fault,2026-07-17 06:35:11.487156+00
+e1567327-0605-497c-aa14-8fc3db00f7e3,tandem,Mesin mati,2026-07-17 06:35:11.487156+00
+e2586182-bab1-4f8e-9e8b-11cabf9e3686,tandem,Mesin tidak bisa dioperasikan,2026-07-17 06:35:11.487156+00
+e2d07cae-af89-45e7-a404-2cced4142f55,blanking,Scrap cutter gompal,2026-07-17 06:35:11.487156+00
+e2ec057a-8891-4ef5-953a-72e7a0b45566,blanking,Dakon berulang + Burry,2026-07-17 06:35:11.487156+00
+e32b8410-13dd-408f-82f7-9d3e31952fdc,transfer_800t,Scrap conveyor alarm (pengarah conveyor patah),2026-07-17 06:35:11.487156+00
+e3843873-5ad5-4338-b0fa-0873a0bb5f9f,tandem,Part underfill,2026-07-17 06:35:11.487156+00
+e3d79193-c03e-4471-95cd-4b7931f76006,transfer_800t,SCRAP CONVEYOR ALARM,2026-07-17 06:35:11.487156+00
+e4514594-aa0d-4cb7-b80b-b1f73274976d,transfer_800t,Suttle car error',2026-07-17 06:35:11.487156+00
+e4735071-360d-4909-8ce7-82abd4dbd142,blanking,Scrap mampet berulang,2026-07-17 06:35:11.487156+00
+e4ea74b2-5f28-495f-91d3-117643726c45,transfer_800t,Fingger F6&R6 tidak pas,2026-07-17 06:35:11.487156+00
+e5165095-3f7e-4343-8994-9ba588e46219,tandem,Conveyor mati,2026-07-17 06:35:11.487156+00
+e54d5414-b307-4c3b-942e-7eca42887453,transfer_800t,Air bosster pressure,2026-07-17 06:35:11.487156+00
+e58e423d-a89a-4f3f-a970-4dc9258ea1bf,transfer_800t,LIFTER MACET,2026-07-17 06:35:11.487156+00
+e5de4399-b716-45f8-a83f-99ad2ac58685,tandem,PA 6 saat dandori Mb tidak pas,2026-07-17 06:35:11.487156+00
+e6058670-3df9-4c11-924c-a0206cc819c8,transfer_800t,PROBLEM SHIWA,2026-07-17 06:35:11.487156+00
+e6aa6069-7f84-4282-a5ee-740d571ab0bc,transfer_800t,Gripjaw drive macet (ADC auto),2026-07-17 06:35:11.487156+00
+e6ec53bb-94ab-4dfa-a2fa-1fb80ea76b7c,tandem,"PA1 overload, upper clamper nyangkut di upper die",2026-07-17 06:35:11.487156+00
+e6f9fb07-1a3b-4e98-8b15-126ce1d5f2aa,transfer_800t,F1 nabrak(part miring dari depan),2026-07-17 06:35:11.487156+00
+e7041e8c-5fa4-42ae-8679-a1b1dc91c50b,blanking,Scratch dari coil,2026-07-17 06:35:11.487156+00
+e7fcff8e-4042-42fb-a020-3f24a55ecdcd,transfer_800t,Nozle oli material tersumbat,2026-07-17 06:35:11.487156+00
+e85b5ec7-b9c7-48c1-a2aa-0050446086fb,blanking,Front guard unlock fault,2026-07-17 06:35:11.487156+00
+e8f684ed-7a1d-4544-b3f8-9e79a892bd5d,transfer_800t,Inlet air pressure alarm,2026-07-17 06:35:11.487156+00
+e99f9079-fe85-465b-ad65-427cb7e68514,blanking,Dakon dari roller end feeder,2026-07-17 06:35:11.487156+00
+ea4dec44-38a8-45e9-a1a7-ab412277a5a8,tandem,Overload protektor fault,2026-07-17 06:35:11.487156+00
+ea6ca4d2-cc77-4f5b-ac20-d9d8f32e2784,blanking,Blanksheet tidak flat,2026-07-17 06:35:11.487156+00
+eaaf3723-28aa-45c9-8d99-70fb66916433,blanking,PART DEFORMASI,2026-07-17 06:35:11.487156+00
+eabbfcd6-2708-4498-8a99-899b4d11d366,transfer_800t,Clamp unit L alrm,2026-07-17 06:35:11.487156+00
+eb2853da-dcff-4d33-9c57-09f5fe44389a,transfer_2000t,PROBLEM LIFTER MATERIAL,2026-07-17 06:35:11.487156+00
+eb65e9a6-a30f-4339-94d7-afaf64be9331,blanking,Part nabrak insert cutting berulang2,2026-07-17 06:35:11.487156+00
+eb93b322-6472-4272-9fa4-d4c6944a78d0,tandem,Pang firsing,2026-07-17 06:35:11.487156+00
+ec2fd12f-1651-499f-84d9-46b13a9353ed,blanking,Part deformasi terkena stopper die,2026-07-17 06:35:11.487156+00
+ec415e9f-546c-431c-a722-903aa3f06949,tandem,Angin turun,2026-07-17 06:35:11.487156+00
+ec6a66f1-2487-4597-9568-dc4eb177fc15,blanking,Scrath endfeeder Dan endcoil jatuh,2026-07-17 06:35:11.487156+00
+ec85942c-3bcf-4e0e-a494-f4c61b26cdd3,blanking,"Coil melintir, nyangkut di leveller",2026-07-17 06:35:11.487156+00
+ecccaded-2dc3-4460-8865-9c8b52e88576,transfer_800t,Proses 4/6+5/6 insert Dais kotor,2026-07-17 06:35:11.487156+00
+edd09f00-6857-4e98-9a10-245925013123,transfer_800t,DB detactor tiknes error,2026-07-17 06:35:11.487156+00
+ee200a49-ad9d-4602-9dbc-22265496c1b4,transfer_800t,5/10 part burry,2026-07-17 06:35:11.487156+00
+ee52dd00-f610-4a64-9c94-5699be63a6f9,tandem,Part sering nyangkut di conveyor,2026-07-17 06:35:11.487156+00
+eea21ce9-e7f0-42b4-8c6c-2b84a0f7f499,transfer_800t,Conveyor scrap alarm (pengarah conveyor patah),2026-07-17 06:35:11.487156+00
+eeb4c9fc-a175-43c3-8f27-db21ade9d27b,blanking,Hatari,2026-07-17 06:35:11.487156+00
+eef7c1a3-f58f-4149-a497-24934461f02f,transfer_800t,Air bosster air pressure,2026-07-17 06:35:11.487156+00
+ef5b3f11-768f-4ff3-be25-938ffdfaddea,blanking,PART BURRY,2026-07-17 06:35:11.487156+00
+efb51323-a0ee-41d1-8be7-3e34fcfad054,transfer_2000t,Break time fault,2026-07-17 06:35:11.487156+00
+f07a06f1-12ae-44a8-a190-0cfd22ca1001,transfer_2000t,PROBLEM MARKING TIDAK NYATA,2026-07-17 06:35:11.487156+00
+f08bb9c9-a4b9-475a-bf8f-72e0f9a9a297,transfer_800t,F2 misgrip,2026-07-17 06:35:11.487156+00
+f0d99031-2f52-4340-ac0a-35805c874cb5,transfer_800t,MOTTION MONITOR ALARM,2026-07-17 06:35:11.487156+00
+f1a58798-446e-47e9-b5ab-b8cb6abebd51,transfer_800t,Part scratc proses 7/10,2026-07-17 06:35:11.487156+00
+f1cb792b-dcc4-4b72-864e-001a5dc83d4e,transfer_2000t,DB ERROR,2026-07-17 06:35:11.487156+00
+f2218887-e2fe-48b9-804c-81f9bf91f60a,transfer_800t,Air bosster alarm,2026-07-17 06:35:11.487156+00
+f229c44d-b0c6-43ce-9358-8c05cb8b6dba,transfer_800t,VACUM TIDAK NYEDOT,2026-07-17 06:35:11.487156+00
+f2ce54ca-0fff-4466-896d-ef3a837dadbb,blanking,Dakon dari roller leveller,2026-07-17 06:35:11.487156+00
+f32bed61-2bce-4676-b002-af7e68a8c4bd,blanking,Lifter nabrak after perbaikan,2026-07-17 06:35:11.487156+00
+f389e892-9d67-49fe-9c48-b62e3eaee48b,blanking,Scrap mampet 3x,2026-07-17 06:35:11.487156+00
+f411c6b9-7e75-40fe-894b-866732b6dbe4,blanking,PROBLEM ADC,2026-07-17 06:35:11.487156+00
+f429d73f-f3a6-44f1-a128-217960f7f994,pc200t,Hike (AISB),2026-07-17 06:35:11.487156+00
+f489ebd9-ea5a-4bc6-975e-079e00f2bcd1,blanking,Coil melintir Dan end coil jatuh,2026-07-17 06:35:11.487156+00
+f4a19a9f-705a-40ae-ad68-84c43766e1fe,blanking,PROBLEM SCRAP CHUTE,2026-07-17 06:35:11.487156+00
+f52b2d5f-3b96-4788-b76a-9b051c2b4e56,blanking,Part sering nyangkut dan numpuk di sutter,2026-07-17 06:35:11.487156+00
+f55095d8-54a7-4e9b-b63b-28dd9553e457,transfer_800t,Feddbar after perbaikan,2026-07-17 06:35:11.487156+00
+f5d65a97-4f08-48b4-92ce-1c49528ed3b4,transfer_800t,Fingger F4 nabrak,2026-07-17 06:35:11.487156+00
+f5fbb6df-39b9-4c07-80fb-19388aafabfa,blanking,Part tidak balance,2026-07-17 06:35:11.487156+00
+f6cc6ea5-7dff-4213-b80b-318a371c6540,transfer_2000t,PROBLEM TRANSFER CLUTCH,2026-07-17 06:35:11.487156+00
+f6cc8f04-a3a0-41a2-b9df-8bcfb59c188a,blanking,Part sering dakkon,2026-07-17 06:35:11.487156+00
+f6ee16b4-9c76-48f7-97fa-07e9dbfb21f7,transfer_800t,Fingger F3 kabel putus,2026-07-17 06:35:11.487156+00
+f73f6f57-094e-4783-a7a5-84ff37f5d5d0,blanking,"Marking tidak sesuai, lubang baut ulir slek",2026-07-17 06:35:11.487156+00
+f860bb70-b570-4c52-bb78-407386c0b4b1,transfer_800t,Finger R6 nabrak,2026-07-17 06:35:11.487156+00
+f89a67b9-c23d-440b-b965-3014947fdd99,tandem,Chusion tidak naik,2026-07-17 06:35:11.487156+00
+f92150ab-442a-4437-9abc-56fcd6f4c494,transfer_800t,MENUNGGU BLANKSHEET,2026-07-17 06:35:11.487156+00
+f9215aeb-9036-4f36-a5e6-b750e5065f08,tandem,Scrap conveyor rusak,2026-07-17 06:35:11.487156+00
+f93d4bd1-364e-4915-8bb2-941503aa8ada,transfer_800t,Air bosster air pressure low,2026-07-17 06:35:11.487156+00
+f9a995df-c6a3-4ad0-af8d-18197d90a382,blanking,Coil melintir 2x,2026-07-17 06:35:11.487156+00
+fa333ef7-43d1-4bbe-9278-2c2346bb337d,blanking,Part tidak balance & dakon berulang,2026-07-17 06:35:11.487156+00
+faaf7bb0-1948-481d-9eba-5c9079117f56,transfer_2000t,MISSGRIP,2026-07-17 06:35:11.487156+00
+fb0d5b05-9094-48c4-9c5b-d0d2e905ead1,transfer_800t,Air booster alarm,2026-07-17 06:35:11.487156+00
+fe027782-31cc-4715-9412-8ec81ea30638,blanking,Sering dakon,2026-07-17 06:35:11.487156+00
+fedf59ea-5be2-4338-803b-49c3ae7eab9e,transfer_800t,F1 & R1 nabrak,2026-07-17 06:35:11.487156+00
