@@ -7,6 +7,7 @@ import { ChevronDown, X } from "lucide-react"
 export interface ComboboxOption {
   value: string
   label: string
+  display?: React.ReactNode
 }
 
 export interface ComboboxProps {
@@ -181,7 +182,7 @@ export function Combobox({
                 opt.value === value && "text-primary font-semibold"
               )}
             >
-              {opt.label}
+              {opt.display ?? opt.label}
             </button>
           ))}
         </div>

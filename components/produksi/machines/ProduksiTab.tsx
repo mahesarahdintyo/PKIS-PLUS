@@ -430,7 +430,7 @@ export default function ProduksiTab({
                                 onClick={() => linesHook.choosePlannedPart(st.id, plan)}
                               >
                                 {plan.part_number}
-                                {hasDoc ? " 📄" : ""}
+                                {hasDoc && <span className="text-emerald-500 dark:text-emerald-400 font-bold ml-1">✓</span>}
                                 {plan.qty_rencana ? ` (${fmtNum(plan.qty_rencana)})` : ""}
                               </button>
                             );
@@ -451,7 +451,7 @@ export default function ProduksiTab({
                         ) && (
                           <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-1.5 py-0.5 rounded font-medium">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                            📺 SOP Terhubung ke TV
+                            📺 Terhubung ke TV
                           </span>
                         )}
                       </div>
@@ -466,9 +466,18 @@ export default function ProduksiTab({
                         options={masterParts.map((part) => {
                           const partNumber = part.kode_part || part.value || part.nama_part || "";
                           const hasDoc = Boolean(part.document_id);
+                          const text = part.nama_part && part.nama_part !== partNumber ? `${partNumber} - ${part.nama_part}` : partNumber;
                           return {
                             value: partNumber,
-                            label: part.nama_part && part.nama_part !== partNumber ? `${partNumber} - ${part.nama_part}${hasDoc ? " [📄 SOP]" : ""}` : `${partNumber}${hasDoc ? " [📄 SOP]" : ""}`,
+                            label: `${text}${hasDoc ? " ✓" : ""}`,
+                            display: (
+                              <span>
+                                {text}
+                                {hasDoc && (
+                                  <span className="text-emerald-500 dark:text-emerald-400 font-bold ml-1.5">✓</span>
+                                )}
+                              </span>
+                            ),
                           };
                         })}
                       />
