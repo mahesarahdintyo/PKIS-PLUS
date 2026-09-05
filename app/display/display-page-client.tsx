@@ -353,6 +353,12 @@ export default function DisplayPageClient({ lineId: routeLineId }: DisplayPageCl
   }, [lineId])
 
   const prevDocumentRef = useRef<DisplayDocument | null>(null)
+  const fileUrlRef = useRef('')
+  const errorRef = useRef('')
+
+  // Keep refs in sync with state so the effect closure always sees current values
+  useEffect(() => { fileUrlRef.current = fileUrl }, [fileUrl])
+  useEffect(() => { errorRef.current = error }, [error])
 
   useEffect(() => {
     let isMounted = true
@@ -362,11 +368,14 @@ export default function DisplayPageClient({ lineId: routeLineId }: DisplayPageCl
         setFileUrl('')
         setError('')
         prevDocumentRef.current = null
+        fileUrlRef.current = ''
+        errorRef.current = ''
         return
       }
 
-      // Jika file yang di-display sama (id + path), skip reload URL
-      if (isSameFile(prevDocumentRef.current, document)) {
+      // Jika file yang di-display sama (id + path) DAN tidak ada error sebelumnya
+      // DAN URL sudah tersedia, skip reload URL supaya tidak flicker
+      if (isSameFile(prevDocumentRef.current, document) && !errorRef.current && fileUrlRef.current) {
         return
       }
 
@@ -376,6 +385,8 @@ export default function DisplayPageClient({ lineId: routeLineId }: DisplayPageCl
         setIsLoading(true)
         setError('')
         setFileUrl('')
+        errorRef.current = ''
+        fileUrlRef.current = ''
 
         const response = await fetch('/api/download', {
           method: 'POST',
@@ -400,11 +411,11 @@ export default function DisplayPageClient({ lineId: routeLineId }: DisplayPageCl
         if (isMounted) {
           setFileUrl(data.url)
         }
-      } catch (error) {
-        console.error('Display file load error:', error)
+      } catch (err) {
+        console.error('Display file load error:', err)
         if (isMounted) {
           setFileUrl('')
-          setError(error instanceof Error ? error.message : 'Gagal memuat file display')
+          setError(err instanceof Error ? err.message : 'Gagal memuat file display')
         }
       } finally {
         if (isMounted) {

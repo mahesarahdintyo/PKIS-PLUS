@@ -518,6 +518,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
         const mappedParts: ProdMasterPart[] = pNumData.map((p: any) => ({
           id: p.id,
           document_id: p.document_id,
+          value: p.value || p.kode_part || "",
           kode_part: p.value || p.kode_part || "",
           nama_part: p.nama_part || p.value || "",
           mesin: p.mesin,
@@ -572,6 +573,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
           const mappedParts: ProdMasterPart[] = snapshot.masterParts.map((p: any) => ({
             id: p.id,
             document_id: p.document_id,
+            value: p.value || p.kode_part || "",
             kode_part: p.value || p.kode_part || "",
             nama_part: p.nama_part || p.value || "",
             mesin: p.mesin,
