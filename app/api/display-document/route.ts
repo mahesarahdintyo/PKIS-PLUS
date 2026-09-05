@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+
 interface DisplayDocument {
   id: string
   lineId?: string
@@ -121,13 +123,31 @@ async function saveDatabaseDisplayDocument(
   const supabase = await createClient()
   const lineKey = getDisplayLineKey(lineId)
 
+  const cleanDocument: DisplayDocument = {
+    id: document.id,
+    lineId: document.lineId || undefined,
+    title: document.title,
+    description: document.description || undefined,
+    category: document.category || undefined,
+    type: document.type,
+    file: {
+      name: document.file.name,
+      path: document.file.path,
+      size: typeof document.file.size === 'number' ? document.file.size : undefined,
+    },
+    targetTime: document.targetTime ?? null,
+    updatedAt: document.updatedAt,
+  }
+
+  setMemoryDisplayDocument(lineId, cleanDocument)
+
   const { error } = await supabase
     .from('display_documents')
     .upsert(
       {
         line_key: lineKey,
         line_id: lineId || null,
-        document,
+        document: cleanDocument,
         updated_at: toIsoDateTime(document.updatedAt),
       },
       {
@@ -137,7 +157,6 @@ async function saveDatabaseDisplayDocument(
 
   if (error) {
     if (isMissingDisplayTableError(error)) {
-      setMemoryDisplayDocument(lineId, document)
       return { hasDatabase: false }
     }
 
@@ -176,19 +195,18 @@ function isDisplayDocument(value: unknown): value is Omit<DisplayDocument, 'upda
 
   return (
     typeof document.id === 'string' &&
-    (typeof document.lineId === 'undefined' || typeof document.lineId === 'string') &&
+    (typeof document.lineId === 'undefined' || document.lineId === null || typeof document.lineId === 'string') &&
     typeof document.title === 'string' &&
     typeof document.type === 'string' &&
-    typeof document.file?.name === 'string' &&
-    typeof document.file?.path === 'string' &&
-    (typeof document.description === 'undefined' || typeof document.description === 'string') &&
-    (typeof document.category === 'undefined' || typeof document.category === 'string') &&
+    Boolean(document.file && typeof document.file === 'object' && typeof document.file.name === 'string' && typeof document.file.path === 'string') &&
+    (typeof document.description === 'undefined' || document.description === null || typeof document.description === 'string') &&
+    (typeof document.category === 'undefined' || document.category === null || typeof document.category === 'string') &&
     (
       typeof document.targetTime === 'undefined' ||
       document.targetTime === null ||
       typeof document.targetTime === 'string'
     ) &&
-    (typeof document.file.size === 'undefined' || typeof document.file.size === 'number')
+    (typeof document.file?.size === 'undefined' || document.file?.size === null || typeof document.file?.size === 'number')
   )
 }
 
@@ -225,9 +243,16 @@ export async function GET(request: Request) {
       }
     }
 
-    return NextResponse.json({
-      document,
-    })
+    return NextResponse.json(
+      {
+        document,
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        },
+      }
+    )
   } catch (error) {
     console.error('Display document GET error:', error)
 
@@ -251,31 +276,23 @@ export async function POST(request: Request) {
 
     const targetTime = body.targetTime ?? await getDocumentTargetTime(body.id)
     const requestedAt = getRequestedAt(body)
-    const lineId = body.lineId
-    const currentResult = await getDatabaseDisplayDocument(lineId ?? null)
-    const currentDocument = currentResult.document
-
-    if (currentDocument && requestedAt < currentDocument.updatedAt) {
-      return NextResponse.json({
-        success: true,
-        document: currentDocument,
-      })
-    }
+    const lineId = body.lineId ? String(body.lineId) : undefined
+    const updatedAt = Math.max(requestedAt, Date.now())
 
     const nextDocument: DisplayDocument = {
       id: body.id,
       lineId,
       title: body.title,
-      description: body.description,
-      category: body.category,
+      description: body.description ?? undefined,
+      category: body.category ?? undefined,
       type: body.type,
       file: {
         name: body.file.name,
         path: body.file.path,
-        size: body.file.size,
+        size: typeof body.file.size === 'number' ? body.file.size : undefined,
       },
       targetTime,
-      updatedAt: requestedAt,
+      updatedAt,
     }
 
     const saveResult = await saveDatabaseDisplayDocument(lineId, nextDocument)
