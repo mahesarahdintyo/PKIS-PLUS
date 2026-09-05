@@ -463,23 +463,25 @@ export default function ProduksiTab({
                         onChange={(v) => {
                           linesHook.setFormField(st.id, "part_number", v);
                         }}
-                        options={masterParts.map((part) => {
-                          const partNumber = part.kode_part || part.value || part.nama_part || "";
-                          const hasDoc = Boolean(part.document_id);
-                          const text = part.nama_part && part.nama_part !== partNumber ? `${partNumber} - ${part.nama_part}` : partNumber;
-                          return {
-                            value: partNumber,
-                            label: `${text}${hasDoc ? " ✓" : ""}`,
-                            display: (
-                              <span>
-                                {text}
-                                {hasDoc && (
-                                  <span className="text-emerald-500 dark:text-emerald-400 font-bold ml-1.5">✓</span>
-                                )}
-                              </span>
-                            ),
-                          };
-                        })}
+                        options={[...masterParts]
+                          .sort((a, b) => Number(Boolean(b.document_id)) - Number(Boolean(a.document_id)))
+                          .map((part) => {
+                            const partNumber = part.kode_part || part.value || part.nama_part || "";
+                            const hasDoc = Boolean(part.document_id);
+                            const text = part.nama_part && part.nama_part !== partNumber ? `${partNumber} - ${part.nama_part}` : partNumber;
+                            return {
+                              value: partNumber,
+                              label: `${text}${hasDoc ? " ✓" : ""}`,
+                              display: (
+                                <span>
+                                  {text}
+                                  {hasDoc && (
+                                    <span className="text-emerald-500 dark:text-emerald-400 font-bold ml-1.5">✓</span>
+                                  )}
+                                </span>
+                              ),
+                            };
+                          })}
                       />
                     </div>
                     <Button
