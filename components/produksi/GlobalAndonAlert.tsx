@@ -163,9 +163,7 @@ export function GlobalAndonAlert() {
       console.warn("Web Audio API not supported:", e);
     }
 
-    const fireAlert = () => {
-      triggerGlobalVibration();
-
+    const fireAudio = () => {
       if (!isMuted && audioCtxRef.current) {
         const ctx = audioCtxRef.current;
         if (ctx.state === "suspended") {
@@ -178,8 +176,20 @@ export function GlobalAndonAlert() {
       }
     };
 
-    fireAlert();
-    const interval = setInterval(fireAlert, 1500);
+    // [FIX_ANDON_VIBRATION] Pisahkan timer getar & audio.
+    // Pola getar [600,150,600,150,600] = 2100ms total. Jika interval < 2100ms,
+    // browser membatalkan pola yang sedang berjalan sebelum selesai sehingga
+    // getaran tidak terasa. Gunakan interval 2500ms khusus untuk getar.
+    const fireVibration = () => {
+      triggerGlobalVibration();
+    };
+
+    // Bunyikan & getar langsung saat alert muncul
+    fireVibration();
+    fireAudio();
+
+    const audioInterval = setInterval(fireAudio, 1500);
+    const vibrationInterval = setInterval(fireVibration, 2500);
 
     const unlockAudio = () => {
       if (audioCtxRef.current && audioCtxRef.current.state === "suspended") {
@@ -194,7 +204,8 @@ export function GlobalAndonAlert() {
     window.addEventListener("keydown", unlockAudio, { passive: true });
 
     return () => {
-      clearInterval(interval);
+      clearInterval(audioInterval);
+      clearInterval(vibrationInterval);
       stopGlobalVibration();
       window.removeEventListener("pointerdown", unlockAudio);
       window.removeEventListener("keydown", unlockAudio);
