@@ -233,7 +233,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
   const effectiveRole = (profile?.role || userRole || "").trim().toLowerCase();
   const isLeaderOrAdmin = Boolean(["admin", "leader"].includes(effectiveRole));
 
-  const { andonCalling, panggilLeader, activeCall, matikanPanggilan } = usePanggilLeader({
+  const { andonCalling, panggilLeader, activeCall, acknowledgedCall, dismissAcknowledged, matikanPanggilan } = usePanggilLeader({
     line_id: lineId || null,
     line_name: lineName || null,
     mesin: config.key,
@@ -2190,6 +2190,62 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
               >
                 <CheckCircle2 className="h-4 w-4 shrink-0" />
                 <span>Matikan Panggilan (Leader Sudah Datang / Masalah Selesai)</span>
+              </Button>
+            </div>
+          </div>
+        ) : acknowledgedCall ? (
+          /* [STATUS_KONFIRMASI_LEADER_OPERATOR] Leader telah konfirmasi panggilan: status tetap bertahan sampai operator menekan tombol Oke */
+          <div className="rounded-xl border border-emerald-500/70 bg-emerald-50/90 dark:bg-emerald-950/40 p-4 shadow-md transition-all animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-3.5 w-3.5 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-600"></span>
+                </span>
+                <span className="font-bold text-sm sm:text-base text-emerald-800 dark:text-emerald-300">
+                  Leader Telah Konfirmasi Panggilan
+                </span>
+              </div>
+              <span className="text-[11px] sm:text-xs font-semibold px-2.5 py-0.5 rounded-full border bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3 inline" /> Terkonfirmasi
+              </span>
+            </div>
+
+            <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1.5 py-1">
+              <div>
+                <span className="font-medium text-foreground">Waktu Panggil: </span>
+                <span className="font-mono font-semibold text-foreground">{fmtClock(acknowledgedCall.created_at)}</span>
+              </div>
+              {acknowledgedCall.acknowledged_at && (
+                <div>
+                  <span className="font-medium text-foreground">Dikonfirmasi: </span>
+                  <span className="font-mono font-semibold text-emerald-700 dark:text-emerald-400">{fmtClock(acknowledgedCall.acknowledged_at)}</span>
+                </div>
+              )}
+              {acknowledgedCall.alasan && (
+                <div>
+                  <span className="font-medium text-foreground">Alasan: </span>
+                  <span className="font-semibold text-emerald-700 dark:text-emerald-300">"{acknowledgedCall.alasan}"</span>
+                </div>
+              )}
+            </div>
+
+            <p className="text-[11px] text-muted-foreground mt-2">
+              Leader telah mengonfirmasi dan menerima panggilan ini. Tekan tombol di bawah jika Anda sudah selesai untuk mengembalikan tombol panggilan.
+            </p>
+
+            <div className="mt-3 pt-2.5 border-t border-emerald-200/70 dark:border-emerald-900/50">
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold min-h-[44px] flex items-center justify-center gap-2 shadow-sm active:scale-98 cursor-pointer transition text-xs sm:text-sm"
+                onClick={() => {
+                  dismissAcknowledged();
+                }}
+              >
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+                <span>Oke, Mengerti (Kembalikan Tombol Panggil)</span>
               </Button>
             </div>
           </div>

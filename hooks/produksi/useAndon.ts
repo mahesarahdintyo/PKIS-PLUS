@@ -118,7 +118,15 @@ export function usePanggilLeader(params: {
   const supabase = createClient();
   const [andonCalling, setAndonCalling] = useState(false);
   const [activeCall, setActiveCall] = useState<AndonCall | null>(null);
+  const activeCallRef = useRef<AndonCall | null>(null);
+  activeCallRef.current = activeCall;
+
+  // [ANDON_OPERATOR_KONFIRMASI] Simpan panggilan yang baru di-acknowledge oleh leader.
+  // Card konfirmasi tetap tampil sampai operator menekan dismissAcknowledged().
+  const [acknowledgedCall, setAcknowledgedCall] = useState<AndonCall | null>(null);
   const [loadingActiveCall, setLoadingActiveCall] = useState(true);
+  // Lacak ID panggilan yang sedang ditrack agar bisa deteksi transisi pending→acknowledged
+  const trackedCallIdRef = useRef<string | null>(null);
   const { line_id, line_name, mesin, stasiun, triggeredBy, onDone } = params;
 
   // [STATUS_PANGGILAN_ANDON_OPERATOR] Ambil panggilan aktif untuk line/mesin ini
@@ -137,8 +145,46 @@ export function usePanggilLeader(params: {
       }
 
       const { data, error } = await query;
-      if (!error && data) {
-        setActiveCall((data as AndonCall[])[0] || null);
+      if (!error && data && data.length > 0) {
+        const found = (data as AndonCall[])[0];
+        setActiveCall(found);
+        activeCallRef.current = found;
+        trackedCallIdRef.current = found.id;
+        return;
+      }
+
+      // Jika tidak ada panggilan pending / escalated
+      setActiveCall(null);
+      activeCallRef.current = null;
+
+      // Cek apakah ada panggilan yang baru dikonfirmasi (misal dalam 1 jam) dan belum di-dismiss
+      try {
+        let ackQuery = supabase
+          .from("andon_calls" as any)
+          .select("*")
+          .eq("status", "acknowledged")
+          .order("acknowledged_at", { ascending: false })
+          .limit(1);
+
+        if (line_id) {
+          ackQuery = ackQuery.or(`line_id.eq.${line_id},mesin.eq.${mesin}`);
+        } else {
+          ackQuery = ackQuery.eq("mesin", mesin);
+        }
+
+        const { data: ackData } = await ackQuery;
+        if (ackData && ackData.length > 0) {
+          const latestAck = ackData[0] as AndonCall;
+          const ackTime = latestAck.acknowledged_at ? new Date(latestAck.acknowledged_at).getTime() : 0;
+          const isRecent = (Date.now() - ackTime) < 60 * 60 * 1000;
+          const isDismissed = typeof window !== "undefined" && localStorage.getItem(`andon_dismissed_${latestAck.id}`) === "true";
+
+          if (isRecent && !isDismissed && trackedCallIdRef.current === latestAck.id) {
+            setAcknowledgedCall(latestAck);
+          }
+        }
+      } catch (ackErr) {
+        console.warn("Gagal cek recent acknowledged call:", ackErr);
       }
     } catch (err) {
       console.error("Gagal load status panggilan andon:", err);
@@ -170,6 +216,29 @@ export function usePanggilLeader(params: {
             (oldRow?.line_id && oldRow.line_id === line_id) ||
             (oldRow?.mesin && oldRow.mesin === mesin);
 
+          // [ANDON_OPERATOR_KONFIRMASI] Deteksi transisi: panggilan yang sedang ditrack / aktif
+          // berubah menjadi 'acknowledged' → pindahkan ke acknowledgedCall, jangan langsung null.
+          if (newRow?.status === "acknowledged" && isRelated) {
+            const isTarget =
+              (trackedCallIdRef.current && newRow?.id === trackedCallIdRef.current) ||
+              (activeCallRef.current && newRow?.id === activeCallRef.current.id);
+
+            if (isTarget || activeCallRef.current) {
+              setActiveCall(null);
+              activeCallRef.current = null;
+              trackedCallIdRef.current = null;
+              setAcknowledgedCall(newRow);
+
+              // Getaran haptic singkat untuk memberitahu operator bahwa leader telah konfirmasi
+              if (typeof navigator !== "undefined" && navigator.vibrate) {
+                try {
+                  navigator.vibrate([150, 100, 150]);
+                } catch {}
+              }
+              return;
+            }
+          }
+
           if (isRelated || !line_id) {
             loadActiveCall();
           }
@@ -185,6 +254,8 @@ export function usePanggilLeader(params: {
   const panggilLeader = useCallback(
     async (alasan: string) => {
       setAndonCalling(true);
+      // Reset acknowledged state saat panggilan baru dibuat
+      setAcknowledgedCall(null);
       const { error, callId } = await panggilLeaderAndon({
         line_id,
         line_name,
@@ -196,6 +267,9 @@ export function usePanggilLeader(params: {
       setAndonCalling(false);
       if (error) onDone?.(`Gagal memanggil leader: ${error}`, true);
       else {
+        if (callId) {
+          trackedCallIdRef.current = callId;
+        }
         onDone?.("Leader sudah dipanggil. Menunggu respons...", false);
         await loadActiveCall();
         if (callId) {
@@ -236,7 +310,6 @@ export function usePanggilLeader(params: {
           return false;
         } else {
           onDone?.("Panggilan Andon telah dimatikan / diselesaikan.", false);
-          setActiveCall(null);
           return true;
         }
       } catch (err: any) {
@@ -247,7 +320,18 @@ export function usePanggilLeader(params: {
     [activeCall?.id, triggeredBy, onDone, supabase]
   );
 
-  return { andonCalling, panggilLeader, activeCall, loadingActiveCall, matikanPanggilan, reloadActiveCall: loadActiveCall };
+  // [ANDON_OPERATOR_KONFIRMASI] Operator menekan OK/Selesai setelah melihat konfirmasi leader
+  const dismissAcknowledged = useCallback(() => {
+    if (acknowledgedCall?.id && typeof window !== "undefined") {
+      try {
+        localStorage.setItem(`andon_dismissed_${acknowledgedCall.id}`, "true");
+      } catch {}
+    }
+    setAcknowledgedCall(null);
+    trackedCallIdRef.current = null;
+  }, [acknowledgedCall?.id]);
+
+  return { andonCalling, panggilLeader, activeCall, acknowledgedCall, dismissAcknowledged, loadingActiveCall, matikanPanggilan, reloadActiveCall: loadActiveCall };
 }
 
 
