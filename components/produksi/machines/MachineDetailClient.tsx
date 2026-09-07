@@ -310,6 +310,13 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
     waktu_akhir: string;
     nama: string;
   }>({ waktu_awal: "", waktu_akhir: "", nama: "" });
+  const [editingProductionId, setEditingProductionId] = useState<string | null>(null);
+  const [editingProductionStationId, setEditingProductionStationId] = useState<string | null>(null);
+  const [productionEditForm, setProductionEditForm] = useState<Record<string, any>>({});
+  const [productionEditRouting, setProductionEditRouting] = useState<{
+    routingType?: "WIP" | "FG" | null;
+    routingNumbers?: number[];
+  }>({});
 
   const [newPlanningForm, setNewPlanningForm] = useState<Record<string, {
     part_number: string;
@@ -755,7 +762,27 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       if (config.stationConfig.variants?.lama.includes(data.stasiun)) setTandemVariant("lama");
       else if (config.stationConfig.variants?.baru.includes(data.stasiun)) setTandemVariant("baru");
     }
-    linesHook.startEditProduction(stationId, data as ProdProductionLogRow);
+    const editForm: Record<string, any> = {
+      waktu_awal: toLocalInput(data.waktu_awal),
+      waktu_akhir: toLocalInput(data.waktu_akhir),
+      part_number: data.part_number || "",
+      qty: data.qty ?? "",
+      manpower: data.manpower ?? "",
+      ng: data.ng ?? "",
+      dandori_menit: data.dandori_menit ?? "",
+      break_menit: data.break_menit ?? "",
+    };
+    config.extraFields.forEach((f) => {
+      editForm[f.key] = data.extra?.[f.key] ?? "";
+    });
+
+    setProductionEditForm(editForm);
+    setProductionEditRouting({
+      routingType: (data.extra?.routing_type as "WIP" | "FG" | null) ?? null,
+      routingNumbers: data.extra?.routing_numbers ?? [],
+    });
+    setEditingProductionStationId(stationId);
+    setEditingProductionId(data.id);
   };
 
   const handleEditNonProduksiRow = (data: any) => {
@@ -1091,9 +1118,48 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
     onError: (msg: string) => flash(msg, true),
   });
 
-  const editingStationEntry = Object.entries(linesHook.lines).find(
-    ([, l]) => l.phase === "edit"
-  );
+  const handleCancelEditProduction = () => {
+    setEditingProductionId(null);
+    setEditingProductionStationId(null);
+    setProductionEditForm({});
+    setProductionEditRouting({});
+  };
+
+  const handleSaveProductionEdit = async () => {
+    if (!editingProductionId) return;
+    const f = productionEditForm;
+    if (!f.waktu_awal || !f.waktu_akhir) {
+      flash("Waktu awal dan waktu akhir harus diisi.", true);
+      return;
+    }
+
+    const extra: Record<string, any> = {};
+    config.extraFields.forEach((field) => {
+      extra[field.key] = f[field.key] === "" ? null : f[field.key];
+    });
+    if (config.routingMax > 0) {
+      extra.routing_type = productionEditRouting.routingType ?? null;
+      extra.routing_numbers = productionEditRouting.routingNumbers ?? [];
+    }
+
+    const payload: UpdatePayload = {
+      waktu_awal: new Date(f.waktu_awal).toISOString(),
+      waktu_akhir: new Date(f.waktu_akhir).toISOString(),
+      part_number: f.part_number || null,
+      qty: f.qty === "" ? null : Number(f.qty),
+      manpower: f.manpower === "" ? null : Number(f.manpower),
+      ng: f.ng === "" ? null : Number(f.ng),
+      dandori_menit: f.dandori_menit === "" ? null : Number(f.dandori_menit),
+      break_menit: f.break_menit === "" ? null : Number(f.break_menit),
+      extra,
+    };
+
+    const stId = editingProductionStationId || "_single";
+    const dbStId = dbStasiun(stId);
+    const prodId = editingProductionId;
+    handleCancelEditProduction();
+    await handleUpdateProduction(stId, dbStId, prodId, payload);
+  };
 
   const handleAddPlanning = async (stId: string) => {
     const form = newPlanningForm[stId];
@@ -1928,118 +1994,141 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
   return (
     <div className="machine-hub-container">
       {/* Modal global — Edit Data Produksi */}
-      {editingStationEntry && editingStationEntry[1].editForm && (
+      {editingProductionId && (
         <ModalShell
           title="Edit Data Produksi"
-          onClose={() => linesHook.cancelEditProduction(editingStationEntry[0])}
+          onClose={handleCancelEditProduction}
         >
-          {(() => {
-            const stId = editingStationEntry[0];
-            const line = editingStationEntry[1];
-            const editForm = line.editForm!;
-            return (
-              <>
-                <div className="modal-field-grid">
-                  <div className="field">
-                    <label>Waktu Awal</label>
-                    <Input
-                      type="datetime-local"
-                      value={editForm.waktu_awal}
-                      onChange={(e) => linesHook.setEditFormField(stId, "waktu_awal", e.target.value)}
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Waktu Akhir</label>
-                    <Input
-                      type="datetime-local"
-                      value={editForm.waktu_akhir}
-                      onChange={(e) => linesHook.setEditFormField(stId, "waktu_akhir", e.target.value)}
-                    />
-                  </div>
-                  <div className="field" style={{ gridColumn: "1 / -1" }}>
-                    <label>Part Number</label>
-                    <Select
-                      value={editForm.part_number}
-                      onChange={(e) => linesHook.setEditFormField(stId, "part_number", e.target.value)}
-                    >
-                      <option value="">- Pilih Part Number -</option>
-                      {masterParts.map((part) => {
-                        const partNumber = part.kode_part || part.value || part.nama_part;
-                        return (
-                          <option key={part.id || partNumber} value={partNumber}>
-                            {partNumber}
-                          </option>
-                        );
-                      })}
-                    </Select>
-                  </div>
-                  <div className="field">
-                    <label>Qty</label>
-                    <Input
-                      type="number"
-                      value={editForm.qty}
-                      onChange={(e) => linesHook.setEditFormField(stId, "qty", e.target.value === "" ? "" : Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Jumlah MP</label>
-                    <ManpowerChips
-                      value={editForm.manpower}
-                      onChange={(n) => linesHook.setEditFormField(stId, "manpower", n)}
-                    />
-                  </div>
-                  <div className="field">
-                    <label>NG</label>
-                    <Input
-                      type="number"
-                      value={editForm.ng}
-                      onChange={(e) => linesHook.setEditFormField(stId, "ng", e.target.value === "" ? "" : Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Dandori (menit)</label>
-                    <Input
-                      type="number"
-                      value={editForm.dandori_menit}
-                      onChange={(e) => linesHook.setEditFormField(stId, "dandori_menit", e.target.value === "" ? "" : Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Break (menit)</label>
-                    <Input
-                      type="number"
-                      value={editForm.break_menit}
-                      onChange={(e) => linesHook.setEditFormField(stId, "break_menit", e.target.value === "" ? "" : Number(e.target.value))}
-                    />
-                  </div>
-                  {config.extraFields.map((f) => (
-                    <div className="field" key={f.key}>
-                      <label>{f.label}</label>
-                      <Input
-                        type={f.type}
-                        value={editForm[f.key] ?? ""}
-                        onChange={(e) =>
-                          linesHook.setEditFormField(
-                            stId,
-                            f.key,
-                            f.type === "number" ? (e.target.value === "" ? "" : Number(e.target.value)) : e.target.value
-                          )
-                        }
-                      />
-                    </div>
-                  ))}
-                </div>
-                <div className="form-actions flex gap-2 justify-end mt-4">
-                  <Button type="button" variant="secondary" onClick={() => linesHook.cancelEditProduction(stId)}>
-                    Batal
-                  </Button>
-                  <Button type="button" onClick={() => linesHook.saveEditProduction(stId)}>
-                    Simpan
-                  </Button>
-                </div>
-              </>
-            );
-          })()}
+          <div className="modal-field-grid">
+            <div className="field">
+              <label>Waktu Awal</label>
+              <Input
+                type="datetime-local"
+                value={productionEditForm.waktu_awal || ""}
+                onChange={(e) =>
+                  setProductionEditForm((prev) => ({ ...prev, waktu_awal: e.target.value }))
+                }
+              />
+            </div>
+            <div className="field">
+              <label>Waktu Akhir</label>
+              <Input
+                type="datetime-local"
+                value={productionEditForm.waktu_akhir || ""}
+                onChange={(e) =>
+                  setProductionEditForm((prev) => ({ ...prev, waktu_akhir: e.target.value }))
+                }
+              />
+            </div>
+            <div className="field" style={{ gridColumn: "1 / -1" }}>
+              <label>Part Number</label>
+              <Select
+                value={productionEditForm.part_number || ""}
+                onChange={(e) =>
+                  setProductionEditForm((prev) => ({ ...prev, part_number: e.target.value }))
+                }
+              >
+                <option value="">- Pilih Part Number -</option>
+                {masterParts.map((part) => {
+                  const partNumber = part.kode_part || part.value || part.nama_part;
+                  return (
+                    <option key={part.id || partNumber} value={partNumber}>
+                      {partNumber}
+                    </option>
+                  );
+                })}
+              </Select>
+            </div>
+            <div className="field">
+              <label>Qty</label>
+              <Input
+                type="number"
+                value={productionEditForm.qty ?? ""}
+                onChange={(e) =>
+                  setProductionEditForm((prev) => ({
+                    ...prev,
+                    qty: e.target.value === "" ? "" : Number(e.target.value),
+                  }))
+                }
+              />
+            </div>
+            <div className="field">
+              <label>Jumlah MP</label>
+              <ManpowerChips
+                value={productionEditForm.manpower ?? ""}
+                onChange={(n) =>
+                  setProductionEditForm((prev) => ({ ...prev, manpower: n }))
+                }
+              />
+            </div>
+            <div className="field">
+              <label>NG</label>
+              <Input
+                type="number"
+                value={productionEditForm.ng ?? ""}
+                onChange={(e) =>
+                  setProductionEditForm((prev) => ({
+                    ...prev,
+                    ng: e.target.value === "" ? "" : Number(e.target.value),
+                  }))
+                }
+              />
+            </div>
+            <div className="field">
+              <label>Dandori (menit)</label>
+              <Input
+                type="number"
+                value={productionEditForm.dandori_menit ?? ""}
+                onChange={(e) =>
+                  setProductionEditForm((prev) => ({
+                    ...prev,
+                    dandori_menit: e.target.value === "" ? "" : Number(e.target.value),
+                  }))
+                }
+              />
+            </div>
+            <div className="field">
+              <label>Break (menit)</label>
+              <Input
+                type="number"
+                value={productionEditForm.break_menit ?? ""}
+                onChange={(e) =>
+                  setProductionEditForm((prev) => ({
+                    ...prev,
+                    break_menit: e.target.value === "" ? "" : Number(e.target.value),
+                  }))
+                }
+              />
+            </div>
+            {config.extraFields.map((f) => (
+              <div className="field" key={f.key}>
+                <label>{f.label}</label>
+                <Input
+                  type={f.type}
+                  value={productionEditForm[f.key] ?? ""}
+                  onChange={(e) =>
+                    setProductionEditForm((prev) => ({
+                      ...prev,
+                      [f.key]:
+                        f.type === "number"
+                          ? e.target.value === ""
+                            ? ""
+                            : Number(e.target.value)
+                          : e.target.value,
+                    }))
+                  }
+                />
+              </div>
+            ))}
+          </div>
+          <div className="form-actions flex gap-2 justify-end mt-4">
+            <Button type="button" variant="secondary" onClick={handleCancelEditProduction}>
+              Batal
+            </Button>
+            <Button type="button" onClick={handleSaveProductionEdit}>
+              Simpan
+            </Button>
+          </div>
         </ModalShell>
       )}
 
