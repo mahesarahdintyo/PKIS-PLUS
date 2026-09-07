@@ -585,7 +585,7 @@ export default function ProduksiTab({
                         <div className="flex items-center justify-between gap-2 flex-wrap">
                           <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                             <Coffee size={14} className="text-amber-400 shrink-0" />
-                            Ada break sebelum ini?
+                            Ada break saat produksi?
                           </label>
                           <div className="inline-flex rounded-md p-0.5 bg-muted/70 border border-border/60 text-xs">
                             <button
