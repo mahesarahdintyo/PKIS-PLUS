@@ -749,7 +749,7 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
             </div>
 
             {/* Filter & Search Toolbar */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
               <div className="field min-w-0">
                 <label className="text-xs font-semibold block mb-1 text-muted-foreground">Filter Mesin</label>
                 <Select
@@ -778,7 +778,7 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
                 </Select>
               </div>
 
-              <div className="field min-w-0">
+              <div className="field min-w-0 sm:col-span-2 lg:col-span-1">
                 <label className="text-xs font-semibold block mb-1 text-muted-foreground">Cari Cepat</label>
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -787,7 +787,7 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
                     placeholder="Cari alasan, stasiun, status..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full !pl-9 pr-3 text-xs min-h-[38px]"
+                    className="w-full !pl-9 pr-3 text-sm min-h-[42px]"
                   />
                 </div>
               </div>
