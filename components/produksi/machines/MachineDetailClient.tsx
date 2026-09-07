@@ -904,6 +904,38 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
         },
         handleRealtimeChange
       )
+      /* [PERBAIKAN_REALTIME_PLANNING_SYNC] Sinkronisasi realtime saat leader mengisi/mengubah planning produksi */
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "prod_production_planning",
+          ...(filter ? { filter } : {}),
+        },
+        async () => {
+          if (Date.now() - lastLocalActionTimeRef.current < 2000) {
+            return;
+          }
+          try {
+            let planQuery = supabase
+              .from("prod_production_planning" as any)
+              .select("*")
+              .eq("is_active", true);
+            if (lineId) {
+              planQuery = planQuery.or(`line_id.eq.${lineId},mesin.eq.${config.key}`);
+            } else {
+              planQuery = planQuery.eq("mesin", config.key);
+            }
+            const { data: updatedPlans } = await planQuery.order("jam_rencana_mulai", { ascending: true });
+            if (updatedPlans) {
+              setPlanningList(updatedPlans as ProdProductionPlanning[]);
+            }
+          } catch (e) {
+            console.error("Gagal sinkronisasi planning realtime:", e);
+          }
+        }
+      )
       .subscribe();
 
     return () => {
