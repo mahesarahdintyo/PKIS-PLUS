@@ -87,7 +87,7 @@ export default function OperatorPage({
   const defaultLine = lineId
     ? activeInitialLines.find(
         (l) => String(l.id).trim().toLowerCase() === String(lineId).trim().toLowerCase()
-      ) ?? activeInitialLines[0] ?? null
+      ) ?? null  // [FIX_LEADER_LINE_RESET v2] jangan fallback ke [0] — loadLines akan resolve ini
     : isOperator && activeUserLineId
     ? activeInitialLines.find(
         (l) => String(l.id).trim().toLowerCase() === String(activeUserLineId).trim().toLowerCase()
@@ -234,22 +234,27 @@ export default function OperatorPage({
           : savedLocation?.lineId ?? window.localStorage.getItem(LINE_STORAGE_KEY) ?? window.localStorage.getItem("futaba.operator.selectedLand");
 
         setSelectedLine((currentLine) => {
+          // [FIX_LEADER_LINE_RESET v2]
+          // Prioritas pemilihan line (dari tertinggi ke terendah):
+          // 1. Untuk operator: ikut activeUserLineId dari profil (tidak bisa memilih sendiri)
+          // 2. lineId dari URL (prop) — ini diisi oleh server saat leader navigasi ke /operator/machines/[id]
+          //    URL harus selalu menang atas localStorage agar leader tidak direset ke line lama.
+          // 3. savedLineId dari localStorage (hanya jika tidak ada URL lineId)
+          // 4. currentLine (pertahankan pilihan saat ini)
           const preferredLineId = isOperator && activeUserLineId
             ? activeUserLineId
+            : lineId
+            ? lineId
             : preferSavedLocation
-            // [FIX_LEADER_LINE_RESET] Jika preferSavedLocation aktif, utamakan savedLineId dari localStorage.
-            // Jika localStorage kosong (misal leader baru pertama kali masuk via URL), gunakan lineId dari
-            // URL prop sebagai fallback agar tidak jatuh ke activeLines[0] (Blanking secara alfabet).
-            ? (savedLineId ?? lineId ?? currentLine?.id)
-            : currentLine?.id ?? savedLineId ?? lineId;
+            ? (savedLineId ?? currentLine?.id)
+            : currentLine?.id ?? savedLineId;
           const nextSelectedLine =
             activeLines.find(
               (line) =>
                 String(line.id).trim().toLowerCase() ===
                 String(preferredLineId).trim().toLowerCase()
             ) ??
-            // [FIX_LEADER_LINE_RESET] Jika tetap tidak ketemu, pertahankan currentLine yang sudah ada
-            // daripada langsung fallback ke activeLines[0] (Blanking) — khususnya untuk non-operator.
+            // Jika tidak ketemu, pertahankan currentLine — jangan fallback ke [0] (Blanking)
             (isOperator ? currentLine ?? activeLines[0] ?? null : currentLine ?? null);
 
           if (!nextSelectedLine) {
