@@ -1483,7 +1483,6 @@ table.table-compact .status-badge {
 
 .planning-item.planning-done {
   opacity: 0.5;
-  text-decoration: line-through;
 }
 
 .planning-item .hint {
