@@ -28,63 +28,88 @@ export function Combobox({
   inputClassName,
 }: ComboboxProps) {
   const [isOpen, setIsOpen] = React.useState(false)
-  const [query, setQuery] = React.useState(value)
-  const [isUserTyping, setIsUserTyping] = React.useState(false)
+  const [query, setQuery] = React.useState(value || "")
+  const [isSearching, setIsSearching] = React.useState(false)
   const [highlightedIndex, setHighlightedIndex] = React.useState(0)
   const containerRef = React.useRef<HTMLDivElement>(null)
   const inputRef = React.useRef<HTMLInputElement>(null)
 
   // Sinkronkan tampilan input kalau value berubah dari luar (mis. reset form)
   React.useEffect(() => {
-    setQuery(value)
-    setIsUserTyping(false)
-  }, [value])
+    if (!isSearching) {
+      setQuery(value || "")
+    }
+  }, [value, isSearching])
 
   const filteredOptions = React.useMemo(() => {
-    // Jika dropdown dibuka tanpa user mengetik filter baru (hanya melihat nilai saat ini),
-    // tampilkan semua opsi agar user bisa langsung ganti ke part number lain.
-    if (!isUserTyping || query === value) {
+    // Kalau belum mulai mengetik pencarian baru (hanya membuka dropdown), tampilkan semua opsi
+    if (!isSearching) {
       return options
     }
     const q = query.trim().toLowerCase()
     if (!q) return options
-    return options.filter(
-      (opt) =>
-        opt.value.toLowerCase().includes(q) ||
-        opt.label.toLowerCase().includes(q)
-    )
-  }, [query, options, isUserTyping, value])
+
+    // Pecah kata kunci jika ada spasi agar pencarian lebih fleksibel
+    const terms = q.split(/\s+/).filter(Boolean)
+    return options.filter((opt) => {
+      const val = opt.value.toLowerCase()
+      const lbl = opt.label.toLowerCase()
+      return terms.every((term) => val.includes(term) || lbl.includes(term))
+    })
+  }, [query, options, isSearching])
 
   // Set initial highlighted index to currently selected value
   React.useEffect(() => {
     if (isOpen) {
-      const selectedIdx = filteredOptions.findIndex((opt) => opt.value === value)
-      setHighlightedIndex(selectedIdx >= 0 ? selectedIdx : 0)
+      if (!isSearching) {
+        const selectedIdx = filteredOptions.findIndex((opt) => opt.value === value)
+        setHighlightedIndex(selectedIdx >= 0 ? selectedIdx : 0)
+      } else {
+        setHighlightedIndex(0)
+      }
     }
-  }, [isOpen, value, filteredOptions])
+  }, [isOpen, value, filteredOptions, isSearching])
+
+  const commitValue = React.useCallback(
+    (v: string) => {
+      setQuery(v)
+      setIsSearching(false)
+      onChange(v)
+      setIsOpen(false)
+    },
+    [onChange]
+  )
 
   React.useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setIsOpen(false)
-        setIsUserTyping(false)
-        setQuery(value)
+        setIsSearching(false)
+        if (!query.trim()) {
+          commitValue("")
+        } else {
+          // Cek apakah ada exact match dengan opsi
+          const exactMatch = options.find(
+            (opt) => opt.value.toLowerCase() === query.trim().toLowerCase()
+          )
+          if (exactMatch) {
+            commitValue(exactMatch.value)
+          } else if (query !== value) {
+            commitValue(query)
+          } else {
+            setQuery(value || "")
+          }
+        }
       }
     }
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [value])
-
-  const commitValue = (v: string) => {
-    setQuery(v)
-    setIsUserTyping(false)
-    onChange(v)
-    setIsOpen(false)
-  }
+  }, [value, query, isSearching, options, commitValue])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!isOpen && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
       setIsOpen(true)
+      setIsSearching(false)
       return
     }
     if (e.key === "ArrowDown") {
@@ -103,8 +128,8 @@ export function Combobox({
       }
     } else if (e.key === "Escape") {
       setIsOpen(false)
-      setIsUserTyping(false)
-      setQuery(value)
+      setIsSearching(false)
+      setQuery(value || "")
     }
   }
 
@@ -124,6 +149,7 @@ export function Combobox({
           placeholder={placeholder}
           onFocus={(e) => {
             setIsOpen(true)
+            setIsSearching(false)
             e.target.select()
           }}
           onClick={() => {
@@ -131,8 +157,7 @@ export function Combobox({
           }}
           onChange={(e) => {
             setQuery(e.target.value)
-            setIsUserTyping(true)
-            onChange(e.target.value)
+            setIsSearching(true)
             setIsOpen(true)
           }}
           onKeyDown={handleKeyDown}
@@ -146,7 +171,7 @@ export function Combobox({
             <button
               type="button"
               onClick={handleClear}
-              className="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition"
+              className="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition cursor-pointer"
               title="Hapus pilihan"
             >
               <X className="h-3.5 w-3.5" />
@@ -155,10 +180,16 @@ export function Combobox({
           <button
             type="button"
             onClick={() => {
-              setIsOpen((prev) => !prev)
+              setIsOpen((prev) => {
+                const next = !prev
+                if (next) {
+                  setIsSearching(false)
+                }
+                return next
+              })
               inputRef.current?.focus()
             }}
-            className="p-1 text-muted-foreground hover:text-foreground rounded transition"
+            className="p-1 text-muted-foreground hover:text-foreground rounded transition cursor-pointer"
             title="Tampilkan daftar"
           >
             <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", isOpen && "rotate-180")} />
@@ -166,25 +197,31 @@ export function Combobox({
         </div>
       </div>
 
-      {isOpen && filteredOptions.length > 0 && (
+      {isOpen && (
         <div className="absolute z-50 mt-1 max-h-56 w-full min-w-[200px] overflow-auto rounded-md border border-border bg-popover text-popover-foreground shadow-lg">
-          {filteredOptions.map((opt, idx) => (
-            <button
-              key={opt.value}
-              type="button"
-              onMouseDown={(e) => {
-                e.preventDefault()
-                commitValue(opt.value)
-              }}
-              className={cn(
-                "block w-full truncate px-3 py-2 text-left text-sm hover:bg-muted transition-colors",
-                idx === highlightedIndex && "bg-muted font-medium",
-                opt.value === value && "text-primary font-semibold"
-              )}
-            >
-              {opt.display ?? opt.label}
-            </button>
-          ))}
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map((opt, idx) => (
+              <button
+                key={opt.value}
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  commitValue(opt.value)
+                }}
+                className={cn(
+                  "block w-full truncate px-3 py-2 text-left text-sm hover:bg-muted transition-colors cursor-pointer",
+                  idx === highlightedIndex && "bg-muted font-medium",
+                  opt.value === value && "text-primary font-semibold"
+                )}
+              >
+                {opt.display ?? opt.label}
+              </button>
+            ))
+          ) : (
+            <div className="p-3 text-center text-xs text-muted-foreground">
+              Tidak ada part number yang cocok
+            </div>
+          )}
         </div>
       )}
     </div>
