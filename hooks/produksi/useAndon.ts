@@ -106,7 +106,7 @@ export async function panggilLeaderAndon(params: {
   return { error: error ? error.message : null, callId: (data as any)?.id || null };
 }
 
-// Hook untuk halaman mesin: state andonCalling + fungsi panggilLeader().
+// Hook untuk halaman mesin: state andonCalling + activeCall + fungsi panggilLeader() & matikanPanggilan().
 export function usePanggilLeader(params: {
   line_id?: string | null;
   line_name?: string | null;
@@ -117,7 +117,70 @@ export function usePanggilLeader(params: {
 }) {
   const supabase = createClient();
   const [andonCalling, setAndonCalling] = useState(false);
+  const [activeCall, setActiveCall] = useState<AndonCall | null>(null);
+  const [loadingActiveCall, setLoadingActiveCall] = useState(true);
   const { line_id, line_name, mesin, stasiun, triggeredBy, onDone } = params;
+
+  // [STATUS_PANGGILAN_ANDON_OPERATOR] Ambil panggilan aktif untuk line/mesin ini
+  const loadActiveCall = useCallback(async () => {
+    try {
+      let query = supabase
+        .from("andon_calls" as any)
+        .select("*")
+        .in("status", ["pending", "escalated"])
+        .order("created_at", { ascending: false });
+
+      if (line_id) {
+        query = query.or(`line_id.eq.${line_id},mesin.eq.${mesin}`);
+      } else {
+        query = query.eq("mesin", mesin);
+      }
+
+      const { data, error } = await query;
+      if (!error && data) {
+        setActiveCall((data as AndonCall[])[0] || null);
+      }
+    } catch (err) {
+      console.error("Gagal load status panggilan andon:", err);
+    } finally {
+      setLoadingActiveCall(false);
+    }
+  }, [line_id, mesin, supabase]);
+
+  // [STATUS_PANGGILAN_ANDON_OPERATOR] Listener realtime untuk tabel andon_calls
+  useEffect(() => {
+    loadActiveCall();
+
+    const channelName = `andon_status_${line_id || mesin}_${Math.random().toString(36).slice(2)}`;
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "andon_calls",
+        },
+        (payload: any) => {
+          const newRow = payload.new as AndonCall;
+          const oldRow = payload.old as AndonCall;
+          const isRelated =
+            (newRow?.line_id && newRow.line_id === line_id) ||
+            (newRow?.mesin && newRow.mesin === mesin) ||
+            (oldRow?.line_id && oldRow.line_id === line_id) ||
+            (oldRow?.mesin && oldRow.mesin === mesin);
+
+          if (isRelated || !line_id) {
+            loadActiveCall();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [line_id, mesin, loadActiveCall, supabase]);
 
   const panggilLeader = useCallback(
     async (alasan: string) => {
@@ -133,7 +196,8 @@ export function usePanggilLeader(params: {
       setAndonCalling(false);
       if (error) onDone?.(`Gagal memanggil leader: ${error}`, true);
       else {
-        onDone?.("Leader sudah dipanggil.", false);
+        onDone?.("Leader sudah dipanggil. Menunggu respons...", false);
+        await loadActiveCall();
         if (callId) {
           supabase.functions
             .invoke("send-andon-push", { body: { call_id: callId, tier: 1 } })
@@ -148,10 +212,42 @@ export function usePanggilLeader(params: {
         }
       }
     },
-    [line_id, line_name, mesin, stasiun, triggeredBy, onDone]
+    [line_id, line_name, mesin, stasiun, triggeredBy, onDone, loadActiveCall, supabase.functions]
   );
 
-  return { andonCalling, panggilLeader };
+  // [STATUS_PANGGILAN_ANDON_OPERATOR] Fungsi untuk mematikan / menyelesaikan panggilan Andon oleh Operator atau Leader
+  const matikanPanggilan = useCallback(
+    async (callId?: string) => {
+      const targetId = callId || activeCall?.id;
+      if (!targetId) return false;
+
+      try {
+        const { error } = await supabase
+          .from("andon_calls" as any)
+          .update({
+            status: "acknowledged",
+            acknowledged_by: triggeredBy || null,
+            acknowledged_at: new Date().toISOString(),
+          })
+          .eq("id", targetId);
+
+        if (error) {
+          onDone?.(`Gagal mematikan panggilan: ${error.message}`, true);
+          return false;
+        } else {
+          onDone?.("Panggilan Andon telah dimatikan / diselesaikan.", false);
+          setActiveCall(null);
+          return true;
+        }
+      } catch (err: any) {
+        onDone?.(`Gagal mematikan panggilan: ${err?.message || String(err)}`, true);
+        return false;
+      }
+    },
+    [activeCall?.id, triggeredBy, onDone, supabase]
+  );
+
+  return { andonCalling, panggilLeader, activeCall, loadingActiveCall, matikanPanggilan, reloadActiveCall: loadActiveCall };
 }
 
 

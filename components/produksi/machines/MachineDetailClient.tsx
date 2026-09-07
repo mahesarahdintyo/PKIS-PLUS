@@ -44,7 +44,7 @@ import {
 import { useOfflineSync } from "@/hooks/produksi/useOfflineSync";
 import { useFlash } from "@/hooks/produksi/useFlash";
 import { usePanggilLeader } from "@/hooks/produksi/useAndon";
-import { Bell, WifiOff, RefreshCw, Trash2, AlertTriangle, Settings } from "lucide-react";
+import { Bell, WifiOff, RefreshCw, Trash2, AlertTriangle, Settings, CheckCircle2 } from "lucide-react";
 
 import ProduksiTab from "./ProduksiTab";
 import RiwayatTab from "./RiwayatTab";
@@ -233,7 +233,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
   const effectiveRole = (profile?.role || userRole || "").trim().toLowerCase();
   const isLeaderOrAdmin = Boolean(["admin", "leader"].includes(effectiveRole));
 
-  const { andonCalling, panggilLeader } = usePanggilLeader({
+  const { andonCalling, panggilLeader, activeCall, matikanPanggilan } = usePanggilLeader({
     line_id: lineId || null,
     line_name: lineName || null,
     mesin: config.key,
@@ -2137,7 +2137,63 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       ) : null}
 
       <div className="panggil-leader-row">
-        {effectiveRole === "leader" ? (
+        {activeCall ? (
+          /* [STATUS_PANGGILAN_ANDON_OPERATOR] Tampilkan status panggilan aktif: tampil jika leader belum respon / belum tiba */
+          <div className="rounded-xl border border-rose-500/70 bg-rose-50/90 dark:bg-rose-950/40 p-4 shadow-md transition-all animate-in fade-in duration-200">
+            <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-3.5 w-3.5 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-600"></span>
+                </span>
+                <span className="font-bold text-sm sm:text-base text-rose-700 dark:text-rose-400">
+                  Panggilan Andon Sedang Aktif
+                </span>
+              </div>
+              <span className={`text-[11px] sm:text-xs font-semibold px-2.5 py-0.5 rounded-full border ${
+                activeCall.status === "escalated"
+                  ? "bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/30 animate-pulse font-bold"
+                  : "bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30"
+              }`}>
+                {activeCall.status === "escalated" ? "⚠️ Dieskalasi ke Tier 2" : "⏳ Menunggu Respon Leader"}
+              </span>
+            </div>
+
+            <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1.5 py-1">
+              <div>
+                <span className="font-medium text-foreground">Waktu Panggil: </span>
+                <span className="font-mono font-semibold text-foreground">{fmtClock(activeCall.created_at)}</span>
+              </div>
+              {activeCall.alasan && (
+                <div>
+                  <span className="font-medium text-foreground">Alasan: </span>
+                  <span className="font-semibold text-rose-600 dark:text-rose-400">"{activeCall.alasan}"</span>
+                </div>
+              )}
+            </div>
+
+            <p className="text-[11px] text-muted-foreground mt-2">
+              Alarm & getaran telah dikirimkan ke perangkat Leader. Tombol di bawah dapat ditekan oleh Operator maupun Leader jika Leader sudah tiba di mesin atau panggilan ingin dimatikan.
+            </p>
+
+            <div className="mt-3 pt-2.5 border-t border-rose-200/70 dark:border-rose-900/50">
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold min-h-[44px] flex items-center justify-center gap-2 shadow-sm active:scale-98 cursor-pointer transition text-xs sm:text-sm"
+                onClick={() => {
+                  if (confirm("Matikan alarm dan selesaikan panggilan Andon ini?")) {
+                    matikanPanggilan(activeCall.id);
+                  }
+                }}
+              >
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+                <span>Matikan Panggilan (Leader Sudah Datang / Masalah Selesai)</span>
+              </Button>
+            </div>
+          </div>
+        ) : effectiveRole === "leader" ? (
           // Leader tidak perlu memanggil dirinya sendiri — arahkan ke halaman pengaturan Andon
           <Link href="/admin/andon-settings" className="w-full block">
             <Button
