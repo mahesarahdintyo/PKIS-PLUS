@@ -237,15 +237,20 @@ export default function OperatorPage({
           const preferredLineId = isOperator && activeUserLineId
             ? activeUserLineId
             : preferSavedLocation
-            ? savedLineId
-            : currentLine?.id ?? savedLineId;
+            // [FIX_LEADER_LINE_RESET] Jika preferSavedLocation aktif, utamakan savedLineId dari localStorage.
+            // Jika localStorage kosong (misal leader baru pertama kali masuk via URL), gunakan lineId dari
+            // URL prop sebagai fallback agar tidak jatuh ke activeLines[0] (Blanking secara alfabet).
+            ? (savedLineId ?? lineId ?? currentLine?.id)
+            : currentLine?.id ?? savedLineId ?? lineId;
           const nextSelectedLine =
             activeLines.find(
               (line) =>
                 String(line.id).trim().toLowerCase() ===
                 String(preferredLineId).trim().toLowerCase()
             ) ??
-            (isOperator ? currentLine ?? activeLines[0] ?? null : activeLines[0] ?? null);
+            // [FIX_LEADER_LINE_RESET] Jika tetap tidak ketemu, pertahankan currentLine yang sudah ada
+            // daripada langsung fallback ke activeLines[0] (Blanking) — khususnya untuk non-operator.
+            (isOperator ? currentLine ?? activeLines[0] ?? null : currentLine ?? null);
 
           if (!nextSelectedLine) {
             clearOperatorLocation();
@@ -296,7 +301,7 @@ export default function OperatorPage({
         }
       }
     },
-    [isOperator, activeUserLineId]
+    [isOperator, activeUserLineId, lineId]
   );
 
   useEffect(() => {
