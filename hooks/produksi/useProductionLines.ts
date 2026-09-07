@@ -116,7 +116,7 @@ function freshLine(): ProdLineState {
     afterFinishChoice: false,
     nonProdActiveStart: null,
     nonProdForm: { nama: "" },
-    form: { part_number: "", qty: "", manpower: "", ng: "" },
+    form: { part_number: "", qty: "", manpower: "", ng: "", has_break: false, break_menit: "" },
     planningId: null,
     routingType: null,
     routingNumbers: [],
@@ -640,8 +640,10 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
         : (line.actualStartConfirmedAt && line.entryStart
             ? Math.round((new Date(line.actualStartConfirmedAt).getTime() - new Date(line.entryStart).getTime()) / 60000)
             : 0);
-      const breakMenit = (line.entryStart && line.entryEnd)
-        ? computeBreakMinutes(line.entryStart, line.entryEnd)
+      const breakMenit = line.form.has_break
+        ? (line.form.break_menit === "" || line.form.break_menit === null || line.form.break_menit === undefined
+            ? 0
+            : Math.max(0, Number(line.form.break_menit) || 0))
         : 0;
 
       const extra: Record<string, any> = {};

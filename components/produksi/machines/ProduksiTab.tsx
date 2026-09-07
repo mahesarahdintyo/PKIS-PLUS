@@ -17,7 +17,9 @@ import {
   Clock,
   Plus,
   Calendar,
+  Coffee,
 } from "lucide-react";
+import { computeBreakMinutes } from "@/hooks/produksi/useProductionLines";
 import type {
   ProdMachineConfig,
   ProdMasterPart,
@@ -516,7 +518,8 @@ export default function ProduksiTab({
                     const val = line.form[f.key];
                     return val !== undefined && val !== null && String(val).trim() !== "";
                   });
-                  const isFinishedFormValid = isQtyValid && isMpValid && isExtraFieldsValid;
+                  const isBreakValid = !line.form.has_break || (line.form.break_menit !== "" && Number(line.form.break_menit) > 0);
+                  const isFinishedFormValid = isQtyValid && isMpValid && isExtraFieldsValid && isBreakValid;
 
                   return (
                     <div className="space-y-3 p-3 rounded-lg bg-teal-950/20 border border-teal-500/40">
@@ -577,9 +580,77 @@ export default function ProduksiTab({
                         ))}
                       </div>
 
+                      {/* Pilihan & Input Break Istirahat */}
+                      <div className="p-2.5 rounded-md bg-muted/40 border border-border/50 space-y-2">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                            <Coffee size={14} className="text-amber-400 shrink-0" />
+                            Ada break sebelum ini?
+                          </label>
+                          <div className="inline-flex rounded-md p-0.5 bg-muted/70 border border-border/60 text-xs">
+                            <button
+                              type="button"
+                              className={`px-3 py-1 rounded text-xs font-semibold transition-all ${
+                                !line.form.has_break
+                                  ? "bg-background text-foreground shadow-sm font-bold border border-border/80"
+                                  : "text-muted-foreground hover:text-foreground"
+                              }`}
+                              onClick={() => {
+                                linesHook.setFormField(st.id, "has_break", false);
+                                linesHook.setFormField(st.id, "break_menit", "");
+                              }}
+                            >
+                              Tidak
+                            </button>
+                            <button
+                              type="button"
+                              className={`px-3 py-1 rounded text-xs font-semibold transition-all ${
+                                line.form.has_break
+                                  ? "bg-amber-600 text-white shadow-sm font-bold"
+                                  : "text-muted-foreground hover:text-foreground"
+                              }`}
+                              onClick={() => {
+                                linesHook.setFormField(st.id, "has_break", true);
+                                if (!line.form.break_menit) {
+                                  const autoBreak = (line.entryStart && line.entryEnd)
+                                    ? computeBreakMinutes(line.entryStart, line.entryEnd)
+                                    : 0;
+                                  linesHook.setFormField(st.id, "break_menit", autoBreak > 0 ? autoBreak : "");
+                                }
+                              }}
+                            >
+                              Ya, Ada
+                            </button>
+                          </div>
+                        </div>
+
+                        {line.form.has_break && (
+                          <div className="pt-2 border-t border-border/40 flex items-center gap-2">
+                            <label className="text-[11px] text-muted-foreground font-semibold whitespace-nowrap">
+                              Durasi Break:
+                            </label>
+                            <Input
+                              type="number"
+                              min="1"
+                              placeholder="Menit (misal 15 / 30 / 60)..."
+                              className="h-8 text-xs font-semibold max-w-[170px]"
+                              value={line.form.break_menit ?? ""}
+                              onChange={(e) =>
+                                linesHook.setFormField(
+                                  st.id,
+                                  "break_menit",
+                                  e.target.value === "" ? "" : Math.max(0, Number(e.target.value))
+                                )
+                              }
+                            />
+                            <span className="text-[11px] text-muted-foreground font-medium">menit</span>
+                          </div>
+                        )}
+                      </div>
+
                       {!isFinishedFormValid && (
                         <p className="text-[11px] text-amber-400 font-medium bg-amber-950/30 border border-amber-500/30 rounded px-2 py-1">
-                          ⚠️ Lengkapi Qty, Jumlah MP{config.extraFields.length > 0 ? ", dan data tambahan" : ""} di atas untuk memilih langkah berikutnya.
+                          ⚠️ Lengkapi Qty, Jumlah MP{config.extraFields.length > 0 ? ", data tambahan" : ""}{line.form.has_break && !isBreakValid ? ", dan durasi break" : ""} di atas untuk memilih langkah berikutnya.
                         </p>
                       )}
 

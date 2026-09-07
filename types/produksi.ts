@@ -196,6 +196,8 @@ export interface ProdLineForm {
   qty: number | "";
   manpower: number | "";
   ng: number | "";
+  has_break?: boolean;
+  break_menit?: number | "";
   [key: string]: any;
 }
 
