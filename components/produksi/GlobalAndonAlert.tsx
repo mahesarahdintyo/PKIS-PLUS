@@ -55,7 +55,8 @@ function playGlobalAlarmBeep(audioCtx: AudioContext) {
 function triggerGlobalVibration() {
   if (typeof window !== "undefined" && typeof navigator !== "undefined" && "vibrate" in navigator) {
     try {
-      navigator.vibrate([350, 150, 350]);
+      // Pola getar darurat lebih bertenaga & berulang (khas alarm panggilan leader pabrik: 3x getar panjang beruntun)
+      navigator.vibrate([600, 150, 600, 150, 600]);
     } catch {}
   }
 }

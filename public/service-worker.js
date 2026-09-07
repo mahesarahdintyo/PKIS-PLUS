@@ -57,8 +57,8 @@ self.addEventListener('push', (event) => {
     body: payload.body || 'Operator memanggil leader',
     icon: '/icon-192.png',
     badge: '/icon-192.png',
-    // Pola getar panjang darurat (khas panggilan masuk)
-    vibrate: [500, 250, 500, 250, 500, 250, 800, 300, 800, 300, 1000],
+    // Pola getar panjang darurat (khas alarm panggilan masuk pabrik)
+    vibrate: [800, 200, 800, 200, 800, 250, 1000, 250, 1000, 300, 1200],
     tag: payload.call_id ? `andon-${payload.call_id}` : 'andon-call',
     renotify: true,
     requireInteraction: true,
