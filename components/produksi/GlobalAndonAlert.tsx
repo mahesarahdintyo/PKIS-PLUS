@@ -76,6 +76,8 @@ export function GlobalAndonAlert() {
 
   const [userId, setUserId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  // [FILTER_ANDON_PER_MESIN] Daftar mesin yang didaftarkan leader ini di andon_leaders
+  const [myMesins, setMyMesins] = useState<string[]>([]);
   const [isMuted, setIsMuted] = useState(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -86,6 +88,7 @@ export function GlobalAndonAlert() {
       if (!user) {
         setUserId(null);
         setUserRole(null);
+        setMyMesins([]);
         return;
       }
       setUserId(user.id);
@@ -97,7 +100,21 @@ export function GlobalAndonAlert() {
         .maybeSingle();
 
       const rawRole = (profile?.role || user.user_metadata?.role || user.app_metadata?.role || "") as string;
-      setUserRole(rawRole.trim().toLowerCase());
+      const role = rawRole.trim().toLowerCase();
+      setUserRole(role);
+
+      // [FILTER_ANDON_PER_MESIN] Muat daftar mesin yang terdaftar untuk leader ini.
+      // Admin tidak difilter (lihat semua), leader hanya mesin yang didaftarkan.
+      if (role === "leader") {
+        const { data: leaderRows } = await supabase
+          .from("andon_leaders" as any)
+          .select("mesin")
+          .eq("user_id", user.id)
+          .eq("is_active", true);
+        setMyMesins((leaderRows as any[] || []).map((r: any) => r.mesin));
+      } else {
+        setMyMesins([]);
+      }
     }
 
     loadUser();
@@ -112,7 +129,19 @@ export function GlobalAndonAlert() {
   }, [supabase]);
 
   const isLeaderOrAdmin = userRole === "leader" || userRole === "admin";
-  const { activeCalls, acknowledgeCall } = useAndonAlerts(isLeaderOrAdmin);
+  const isAdmin = userRole === "admin";
+  const { activeCalls: allActiveCalls, acknowledgeCall } = useAndonAlerts(isLeaderOrAdmin);
+
+  // [FILTER_ANDON_PER_MESIN] Admin melihat semua panggilan.
+  // Leader hanya melihat panggilan dari mesin yang terdaftar di andon_leaders miliknya.
+  const activeCalls = isAdmin
+    ? allActiveCalls
+    : allActiveCalls.filter(
+        (call) =>
+          myMesins.length === 0 // jika belum ada pendaftaran, tidak ada yang tampil
+            ? false
+            : myMesins.includes(call.mesin)
+      );
 
   // Jika sedang di halaman /admin/andon-settings, serahkan audio dan visual ke halaman tersebut
   const isAndonSettingsPage = pathname?.startsWith("/admin/andon-settings");
