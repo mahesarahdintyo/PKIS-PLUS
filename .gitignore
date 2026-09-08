@@ -14,3 +14,8 @@ node_modules
 .next/
 .DS_Store
 _migrate-source/
+
+scripts/data/
+supabase/.temp/
+_migrate-source/
+tsconfig.tsbuildinfo
