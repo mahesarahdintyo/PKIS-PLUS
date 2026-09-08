@@ -51,10 +51,39 @@ export function Combobox({
 
     // Pecah kata kunci jika ada spasi agar pencarian lebih fleksibel
     const terms = q.split(/\s+/).filter(Boolean)
-    return options.filter((opt) => {
+    const matched = options.filter((opt) => {
       const val = opt.value.toLowerCase()
       const lbl = opt.label.toLowerCase()
       return terms.every((term) => val.includes(term) || lbl.includes(term))
+    })
+
+    // [PERBAIKAN_SEARCH_SORT] Smart sorting: prioritaskan item yang dimulai dengan query
+    // sehingga ketik "7" → part "7xxx" muncul di atas, bukan tersebar di tengah list
+    const firstTerm = terms[0] ?? ""
+    return [...matched].sort((a, b) => {
+      const aVal = a.value.toLowerCase()
+      const aLbl = a.label.toLowerCase()
+      const bVal = b.value.toLowerCase()
+      const bLbl = b.label.toLowerCase()
+
+      const aStartsVal = aVal.startsWith(firstTerm)
+      const bStartsVal = bVal.startsWith(firstTerm)
+      const aStartsLbl = aLbl.startsWith(firstTerm)
+      const bStartsLbl = bLbl.startsWith(firstTerm)
+
+      // Prioritas 1: value dimulai dengan query
+      if (aStartsVal && !bStartsVal) return -1
+      if (!aStartsVal && bStartsVal) return 1
+
+      // Prioritas 2: label dimulai dengan query
+      if (aStartsLbl && !bStartsLbl) return -1
+      if (!aStartsLbl && bStartsLbl) return 1
+
+      // Prioritas 3: value / label yang lebih pendek (lebih spesifik) dulu
+      if (aVal.length !== bVal.length) return aVal.length - bVal.length
+
+      // Fallback: urutan alfabet
+      return aLbl.localeCompare(bLbl)
     })
   }, [query, options, isSearching])
 
