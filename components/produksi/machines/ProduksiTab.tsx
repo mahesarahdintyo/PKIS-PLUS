@@ -251,6 +251,9 @@ export default function ProduksiTab({
     }));
   };
 
+  // [PERBAIKAN_HIDE_DONE_PLANNING] State untuk toggle tampilan planning selesai per stasiun (hanya untuk operator)
+  const [showDonePlanning, setShowDonePlanning] = React.useState<Record<string, boolean>>({});
+
   return (
     <div>
       {/* Pemilihan Line untuk Tandem */}
@@ -926,88 +929,123 @@ export default function ProduksiTab({
                   })()}
 
                   {/* [PERBAIKAN_DISPLAY_PLANNING_OPERATOR_LIST] Daftar planning ditampilkan untuk semua role (Leader & Operator) */}
-                  <div className="planning-list">
-                    {stPlanning.map((p) => {
-                      const isDone = p.status === "selesai";
-                      const isRunning = line.phase === "running" && line.form.part_number === p.part_number;
-                      const isSelectedInSetup = line.phase === "awaiting_actual_start" && line.planningId === p.id;
-                      const canClickToChoose = line.phase === "awaiting_actual_start" && !isDone;
+                  {(() => {
+                    // [PERBAIKAN_HIDE_DONE_PLANNING] Untuk operator: pisah active vs done planning
+                    const activePlanning = isLeaderOrAdmin
+                      ? stPlanning
+                      : stPlanning.filter((p) => p.status !== "selesai");
+                    const donePlanning = isLeaderOrAdmin
+                      ? []
+                      : stPlanning.filter((p) => p.status === "selesai");
+                    const isExpanded = showDonePlanning[st.id] ?? false;
+                    const visiblePlanning = isLeaderOrAdmin
+                      ? stPlanning
+                      : (isExpanded ? stPlanning : activePlanning);
 
-                      // Format tanggal jika berbeda dengan hari ini
-                      const pDateStr = p.jam_rencana_mulai ? String(p.jam_rencana_mulai).slice(0, 10) : "";
-                      const isSameDay = pDateStr === todayStr;
-                      const dateLabel = !isSameDay && p.jam_rencana_mulai
-                        ? new Date(p.jam_rencana_mulai).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) + " "
-                        : "";
+                    return (
+                      <div className="planning-list">
+                        {visiblePlanning.map((p) => {
+                          const isDone = p.status === "selesai";
+                          const isRunning = line.phase === "running" && line.form.part_number === p.part_number;
+                          const isSelectedInSetup = line.phase === "awaiting_actual_start" && line.planningId === p.id;
+                          const canClickToChoose = line.phase === "awaiting_actual_start" && !isDone;
 
-                      return (
-                        <div
-                          key={p.id}
-                          className={`planning-item transition-all duration-150 ${isDone ? "planning-done opacity-60" : ""} ${isSelectedInSetup ? "ring-2 ring-blue-500 bg-blue-50/50 dark:bg-blue-950/30" : ""} ${canClickToChoose ? "cursor-pointer hover:border-blue-400 hover:shadow-xs" : ""}`}
-                          style={p._pending ? { opacity: 0.65 } : undefined}
-                          onClick={() => {
-                            if (canClickToChoose) {
-                              linesHook.choosePlannedPart(st.id, p);
-                            }
-                          }}
-                          title={canClickToChoose ? "Klik untuk memilih part number ini" : undefined}
-                        >
-                          <div className="flex flex-col min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-semibold text-xs sm:text-sm text-foreground">{p.part_number}</span>
-                              {isRunning && (
-                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 animate-pulse">
-                                  Sedang Berjalan
+                          // Format tanggal jika berbeda dengan hari ini
+                          const pDateStr = p.jam_rencana_mulai ? String(p.jam_rencana_mulai).slice(0, 10) : "";
+                          const isSameDay = pDateStr === todayStr;
+                          const dateLabel = !isSameDay && p.jam_rencana_mulai
+                            ? new Date(p.jam_rencana_mulai).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) + " "
+                            : "";
+
+                          return (
+                            <div
+                              key={p.id}
+                              className={`planning-item transition-all duration-150 ${isDone ? "planning-done opacity-60" : ""} ${isSelectedInSetup ? "ring-2 ring-blue-500 bg-blue-50/50 dark:bg-blue-950/30" : ""} ${canClickToChoose ? "cursor-pointer hover:border-blue-400 hover:shadow-xs" : ""}`}
+                              style={p._pending ? { opacity: 0.65 } : undefined}
+                              onClick={() => {
+                                if (canClickToChoose) {
+                                  linesHook.choosePlannedPart(st.id, p);
+                                }
+                              }}
+                              title={canClickToChoose ? "Klik untuk memilih part number ini" : undefined}
+                            >
+                              <div className="flex flex-col min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-semibold text-xs sm:text-sm text-foreground">{p.part_number}</span>
+                                  {isRunning && (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 animate-pulse">
+                                      Sedang Berjalan
+                                    </span>
+                                  )}
+                                  {isDone && (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                      ✓ Selesai
+                                    </span>
+                                  )}
+                                  {isSelectedInSetup && !isRunning && !isDone && (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                                      Dipilih
+                                    </span>
+                                  )}
+                                  {p._pending && (
+                                    <span style={{ fontSize: "0.65rem", background: "var(--status-warn-bg)", color: "var(--status-warn)", border: "1px solid var(--status-warn)", borderRadius: 4, padding: "1px 5px", verticalAlign: "middle", whiteSpace: "nowrap" }}>
+                                      Belum tersinkron
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="hint text-xs text-muted-foreground mt-0.5">
+                                  {p.qty_rencana ? `${fmtNum(p.qty_rencana)} pcs` : "-"} · {dateLabel}{fmtClock(p.jam_rencana_mulai)}-{fmtClock(p.jam_rencana_selesai)}
                                 </span>
-                              )}
-                              {isDone && (
-                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                                  ✓ Selesai
-                                </span>
-                              )}
-                              {isSelectedInSetup && !isRunning && !isDone && (
-                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20">
-                                  Dipilih
-                                </span>
-                              )}
-                              {p._pending && (
-                                <span style={{ fontSize: "0.65rem", background: "var(--status-warn-bg)", color: "var(--status-warn)", border: "1px solid var(--status-warn)", borderRadius: 4, padding: "1px 5px", verticalAlign: "middle", whiteSpace: "nowrap" }}>
-                                  Belum tersinkron
-                                </span>
+                              </div>
+
+                              {/* Tombol Hapus: Leader/Admin bisa hapus semua, Operator hanya bisa hapus yang sudah selesai (saat di-expand) */}
+                              {p.id && !p._pending && (isLeaderOrAdmin || (isDone && isExpanded)) && (
+                                <Button
+                                  type="button"
+                                  variant={isLeaderOrAdmin ? "destructive" : "outline"}
+                                  size="sm"
+                                  className={`px-1.5 py-0.5 text-xs ml-2 shrink-0 cursor-pointer${!isLeaderOrAdmin ? " border-red-400/60 text-red-500 hover:bg-red-500/10 hover:text-red-600 dark:border-red-500/40 dark:text-red-400 dark:hover:bg-red-500/10" : ""}`}
+                                  title={isLeaderOrAdmin ? "Hapus rencana produksi ini" : "Hapus planning yang sudah selesai"}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeletePlanning(p.id!);
+                                  }}
+                                >
+                                  ✕
+                                </Button>
                               )}
                             </div>
-                            <span className="hint text-xs text-muted-foreground mt-0.5">
-                              {p.qty_rencana ? `${fmtNum(p.qty_rencana)} pcs` : "-"} · {dateLabel}{fmtClock(p.jam_rencana_mulai)}-{fmtClock(p.jam_rencana_selesai)}
-                            </span>
-                          </div>
+                          );
+                        })}
 
-                          {/* Tombol Hapus: Hanya untuk Leader / Admin */}
-                          {isLeaderOrAdmin && p.id && !p._pending && (
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="sm"
-                              className="px-1.5 py-0.5 text-xs ml-2 shrink-0 cursor-pointer"
-                              title="Hapus rencana produksi ini"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeletePlanning(p.id!);
-                              }}
-                            >
-                              ✕
-                            </Button>
-                          )}
-                        </div>
-                      );
-                    })}
-                    {stPlanning.length === 0 && (
-                      <p className="empty-state text-xs text-muted-foreground py-4 text-center">
-                        {isLeaderOrAdmin
-                          ? "Belum ada rencana produksi. Silakan tambahkan di atas."
-                          : "Belum ada rencana produksi yang ditambahkan oleh leader."}
-                      </p>
-                    )}
-                  </div>
+                        {/* [PERBAIKAN_HIDE_DONE_PLANNING] Counter planning selesai untuk operator */}
+                        {!isLeaderOrAdmin && donePlanning.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setShowDonePlanning((prev) => ({ ...prev, [st.id]: !isExpanded }))
+                            }
+                            className="w-full mt-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer border border-dashed border-border/50 hover:border-border"
+                          >
+                            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold">
+                              {donePlanning.length}
+                            </span>
+                            {isExpanded
+                              ? "Sembunyikan planning selesai ▴"
+                              : `planning selesai disembunyikan ▾`}
+                          </button>
+                        )}
+
+                        {stPlanning.length === 0 && (
+                          <p className="empty-state text-xs text-muted-foreground py-4 text-center">
+                            {isLeaderOrAdmin
+                              ? "Belum ada rencana produksi. Silakan tambahkan di atas."
+                              : "Belum ada rencana produksi yang ditambahkan oleh leader."}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Kolom Kanan: AKTUAL PRODUKSI (HARI INI) */}
