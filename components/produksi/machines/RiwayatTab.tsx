@@ -76,6 +76,15 @@ export default function RiwayatTab({
     }
   }, [isIndeterminate]);
 
+  // [URUTAN_KRONOLOGIS_RIWAYAT] Urutkan riwayat secara kronologis (pagi ke sore: jam awal paling atas)
+  const sortedRiwayatGabungan = React.useMemo(() => {
+    return [...riwayatGabungan].sort((a, b) => {
+      const ta = a.waktu_awal ? new Date(a.waktu_awal).getTime() : 0;
+      const tb = b.waktu_awal ? new Date(b.waktu_awal).getTime() : 0;
+      return ta - tb;
+    });
+  }, [riwayatGabungan]);
+
   // Compute total colspan for empty state row
   const baseColspan = config.stationConfig.mode !== "none"
     ? (config.routingMax > 0 ? 13 : 12)
@@ -154,7 +163,7 @@ export default function RiwayatTab({
             </tr>
           </thead>
           <tbody>
-            {riwayatGabungan.map((row: any, idx) => {
+            {sortedRiwayatGabungan.map((row: any, idx) => {
               const data = row.data;
               const rowId = data.id as string;
               const routing = data.extra?.routing_type

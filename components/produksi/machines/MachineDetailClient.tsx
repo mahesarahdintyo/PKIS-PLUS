@@ -648,7 +648,11 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       const gabungan = [
         ...(produksi || []).map((row: any) => ({ jenis: "produksi", waktu_awal: row.waktu_awal, waktu_akhir: row.waktu_akhir, part_number: row.part_number, data: row })),
         ...(nonProduksi || []).map((row: any) => ({ jenis: "non_produksi", waktu_awal: row.waktu_awal, waktu_akhir: row.waktu_akhir, part_number: row.part_ke || row.part_dari || null, data: row })),
-      ].sort((a, b) => new Date(b.waktu_awal).getTime() - new Date(a.waktu_awal).getTime());
+      ].sort((a, b) => {
+        const ta = a.waktu_awal ? new Date(a.waktu_awal).getTime() : 0;
+        const tb = b.waktu_awal ? new Date(b.waktu_awal).getTime() : 0;
+        return ta - tb;
+      });
 
       return gabungan;
     },
