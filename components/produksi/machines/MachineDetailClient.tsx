@@ -667,7 +667,13 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
     const waktuDari = `${todayStr}T00:00:00.000Z`;
     const waktuSampai = `${todayStr}T23:59:59.999Z`;
     const gabungan = await fetchGabunganRange(waktuDari, waktuSampai, "");
-    setRiwayatHariIni(gabungan);
+    // Urutkan kronologis dari awal hari (pagi) ke akhir hari (ascending)
+    const sorted = [...gabungan].sort((a, b) => {
+      const ta = a.waktu_awal ? new Date(a.waktu_awal).getTime() : 0;
+      const tb = b.waktu_awal ? new Date(b.waktu_awal).getTime() : 0;
+      return ta - tb;
+    });
+    setRiwayatHariIni(sorted);
   }, [fetchGabunganRange]);
 
   const canDeleteRow = (_row: any): boolean => {

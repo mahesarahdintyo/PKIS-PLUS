@@ -254,6 +254,15 @@ export default function ProduksiTab({
   // [PERBAIKAN_HIDE_DONE_PLANNING] State untuk toggle tampilan planning selesai per stasiun (hanya untuk operator)
   const [showDonePlanning, setShowDonePlanning] = React.useState<Record<string, boolean>>({});
 
+  // [URUTAN_KRONOLOGIS_RIWAYAT_HARI_INI] Urutkan riwayat hari ini secara kronologis (pagi ke sore: jam paling awal di atas)
+  const sortedRiwayatHariIni = React.useMemo(() => {
+    return [...riwayatHariIni].sort((a, b) => {
+      const ta = a.waktu_awal ? new Date(a.waktu_awal).getTime() : 0;
+      const tb = b.waktu_awal ? new Date(b.waktu_awal).getTime() : 0;
+      return ta - tb;
+    });
+  }, [riwayatHariIni]);
+
   return (
     <div>
       {/* Pemilihan Line untuk Tandem */}
@@ -299,9 +308,15 @@ export default function ProduksiTab({
             (p) => (p.stasiun || null) === targetSt
           );
           const todayStr = new Date().toISOString().slice(0, 10);
-          const stActualToday = productionRows.filter(
-            (p) => (p.stasiun || null) === targetSt && String(p.waktu_awal).slice(0, 10) === todayStr
-          );
+          const stActualToday = productionRows
+            .filter(
+              (p) => (p.stasiun || null) === targetSt && String(p.waktu_awal).slice(0, 10) === todayStr
+            )
+            .sort((a, b) => {
+              const ta = a.waktu_awal ? new Date(String(a.waktu_awal)).getTime() : 0;
+              const tb = b.waktu_awal ? new Date(String(b.waktu_awal)).getTime() : 0;
+              return ta - tb;
+            });
 
           const form = newPlanningForm[st.id] || { part_number: "", qty_rencana: "", jam_mulai: "", jam_selesai: "" };
           const stationGlow = line.phase === "running" ? "card-glow-good"
@@ -1145,7 +1160,7 @@ export default function ProduksiTab({
               </tr>
             </thead>
             <tbody>
-              {riwayatHariIni.map((row: any, idx) => {
+              {sortedRiwayatHariIni.map((row: any, idx) => {
                 const data = row.data;
                 const earned = earnedMenit(row);
                 const operation = operationMenit(row);
