@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, Clock, Database, HardDrive, Monitor, RefreshCw, Server } from "lucide-react";
+import { Activity, Clock, Database, HardDrive, Monitor, RefreshCw, Server, Cpu, CheckCircle2, MinusCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 interface DisplayStatus {
@@ -22,6 +22,21 @@ interface HealthStatus {
     error: string | null;
   };
   displays: DisplayStatus[];
+}
+
+interface ProdLineStatus {
+  id: string;
+  name: string;
+  status: "active" | "idle";
+  lastPartNumber: string | null;
+  lastActivityAt: string | null;
+  mesin: string | null;
+}
+
+interface ProdStatus {
+  shift: number;
+  checkedAt: string;
+  lines: ProdLineStatus[];
 }
 
 function formatDateTime(value?: string | null) {
@@ -91,6 +106,7 @@ export default function SystemPageClient() {
   const [health, setHealth] = useState<HealthStatus | null>(null);
   const [error, setError] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [prodStatus, setProdStatus] = useState<ProdStatus | null>(null);
 
   const allSystemsOk = useMemo(() => {
     if (!health) return false;
@@ -161,6 +177,17 @@ export default function SystemPageClient() {
     }
   };
 
+  const loadProdStatus = async () => {
+    try {
+      const res = await fetch("/api/system/production-status", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      setProdStatus(data);
+    } catch {
+      // non-blocking — silently ignore prod status fetch errors
+    }
+  };
+
   useEffect(() => {
     let timeoutId: number;
     let isMounted = true;
@@ -179,6 +206,27 @@ export default function SystemPageClient() {
     return () => {
       isMounted = false;
       window.clearTimeout(timeoutId);
+    };
+  }, []);
+
+  useEffect(() => {
+    let prodTimeoutId: number;
+    let isMounted = true;
+
+    const pollProd = async () => {
+      if (!isMounted) return;
+      await loadProdStatus();
+      if (isMounted) {
+        prodTimeoutId = window.setTimeout(pollProd, 10000);
+      }
+    };
+
+    loadProdStatus();
+    prodTimeoutId = window.setTimeout(pollProd, 10000);
+
+    return () => {
+      isMounted = false;
+      window.clearTimeout(prodTimeoutId);
     };
   }, []);
 
@@ -279,6 +327,83 @@ export default function SystemPageClient() {
               activeText="Online"
               inactiveText="Tidak ada display terdeteksi"
             />
+          )}
+        </section>
+
+        {/* ── Production Line Status Monitor ── */}
+        <section className="mt-6 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+                <Cpu className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-base font-bold text-slate-950">Status Input Produksi</p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {prodStatus
+                    ? `Shift ${prodStatus.shift} · Diperbarui: ${formatDateTime(prodStatus.checkedAt)}`
+                    : "Memuat data produksi…"}
+                </p>
+              </div>
+            </div>
+            {prodStatus && (
+              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                {prodStatus.lines.filter((l) => l.status === "active").length} line aktif
+              </span>
+            )}
+          </div>
+
+          {!prodStatus ? (
+            <p className="py-4 text-center text-sm text-slate-400">Memuat status line…</p>
+          ) : prodStatus.lines.length === 0 ? (
+            <p className="py-4 text-center text-sm text-slate-400">Tidak ada line aktif terdaftar.</p>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {prodStatus.lines.map((line) => (
+                <div key={line.id} className="flex items-center justify-between gap-4 py-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    {line.status === "active" ? (
+                      <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
+                    ) : (
+                      <MinusCircle className="h-5 w-5 shrink-0 text-slate-300" />
+                    )}
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-slate-900">{line.name}</p>
+                      {line.mesin && (
+                        <p className="text-xs text-slate-400">{line.mesin}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex shrink-0 flex-col items-end gap-0.5 text-right">
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                        line.status === "active"
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : "border-slate-200 bg-slate-50 text-slate-500"
+                      }`}
+                    >
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          line.status === "active" ? "bg-emerald-500" : "bg-slate-300"
+                        }`}
+                      />
+                      {line.status === "active" ? "Sedang Input" : "Idle"}
+                    </span>
+                    {line.lastPartNumber && (
+                      <span className="mt-0.5 max-w-[140px] truncate text-right text-[11px] text-slate-400">
+                        {line.lastPartNumber}
+                      </span>
+                    )}
+                    {line.lastActivityAt && (
+                      <span className="text-[11px] text-slate-400">
+                        {formatDateTime(line.lastActivityAt)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </section>
 
