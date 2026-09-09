@@ -945,17 +945,11 @@ export default function ProduksiTab({
 
                   {/* [PERBAIKAN_DISPLAY_PLANNING_OPERATOR_LIST] Daftar planning ditampilkan untuk semua role (Leader & Operator) */}
                   {(() => {
-                    // [PERBAIKAN_HIDE_DONE_PLANNING] Untuk operator: pisah active vs done planning
-                    const activePlanning = isLeaderOrAdmin
-                      ? stPlanning
-                      : stPlanning.filter((p) => p.status !== "selesai");
-                    const donePlanning = isLeaderOrAdmin
-                      ? []
-                      : stPlanning.filter((p) => p.status === "selesai");
+                    // [PERBAIKAN_HIDE_DONE_PLANNING] Pisahkan active vs done planning untuk semua role (Leader & Operator)
+                    const activePlanning = stPlanning.filter((p) => p.status !== "selesai");
+                    const donePlanning = stPlanning.filter((p) => p.status === "selesai");
                     const isExpanded = showDonePlanning[st.id] ?? false;
-                    const visiblePlanning = isLeaderOrAdmin
-                      ? stPlanning
-                      : (isExpanded ? stPlanning : activePlanning);
+                    const visiblePlanning = isExpanded ? stPlanning : activePlanning;
 
                     return (
                       <div className="planning-list">
@@ -1033,8 +1027,8 @@ export default function ProduksiTab({
                           );
                         })}
 
-                        {/* [PERBAIKAN_HIDE_DONE_PLANNING] Counter planning selesai untuk operator */}
-                        {!isLeaderOrAdmin && donePlanning.length > 0 && (
+                        {/* [PERBAIKAN_HIDE_DONE_PLANNING] Counter planning selesai untuk semua role (Leader & Operator) */}
+                        {donePlanning.length > 0 && (
                           <button
                             type="button"
                             onClick={() =>
