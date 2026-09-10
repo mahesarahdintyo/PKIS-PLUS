@@ -131,6 +131,47 @@ export function getMachineConfig(slug: string, label?: string): ProdMachineConfi
   };
 }
 
+// Planning yang sudah selesai otomatis dibersihkan saat hari sudah berganti (bukan hari ini lagi)
+function filterAndCleanupExpiredPlanning(
+  plans: any[],
+  supabaseClient?: any
+): ProdProductionPlanning[] {
+  if (!Array.isArray(plans) || plans.length === 0) return [];
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const expiredIds: string[] = [];
+
+  const activePlans = plans.filter((p: any) => {
+    if (p.status !== "selesai") return true;
+
+    const planDate = p.jam_rencana_mulai
+      ? String(p.jam_rencana_mulai).slice(0, 10)
+      : p.created_at
+      ? String(p.created_at).slice(0, 10)
+      : "";
+
+    const isExpired = planDate !== "" && planDate < todayStr;
+
+    if (isExpired && p.id && !p._pending) {
+      expiredIds.push(p.id);
+      return false;
+    }
+    return !isExpired;
+  });
+
+  if (expiredIds.length > 0 && supabaseClient) {
+    // Soft delete senyap di database di background tanpa mengganggu operator
+    supabaseClient
+      .from("prod_production_planning" as any)
+      .update({ is_active: false })
+      .in("id", expiredIds)
+      .then(() => {})
+      .catch((err: any) => console.warn("Auto cleanup planning notice:", err));
+  }
+
+  return activePlans as ProdProductionPlanning[];
+}
+
 
 function ModalShell({
   title,
@@ -545,7 +586,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       if (probs) setProblemList(probs as ProdDowntimeProblem[]);
       if (dRows) setNonProduksiRows(dRows as ProdDandoriLogRow[]);
       if (npTypes) setNonProduksiTypes(npTypes as ProdNonProduksiType[]);
-      if (planData) setPlanningList(planData as ProdProductionPlanning[]);
+      if (planData) setPlanningList(filterAndCleanupExpiredPlanning(planData, supabase));
 
       // Simpan snapshot lengkap setelah semua query di atas berhasil,
       // supaya kalau nanti offline + reload, ada data terakhir yang bisa dipulihkan.
@@ -966,7 +1007,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
             }
             const { data: updatedPlans } = await planQuery.order("jam_rencana_mulai", { ascending: true });
             if (updatedPlans) {
-              setPlanningList(updatedPlans as ProdProductionPlanning[]);
+              setPlanningList(filterAndCleanupExpiredPlanning(updatedPlans, supabase));
             }
           } catch (e) {
             console.error("Gagal sinkronisasi planning realtime:", e);

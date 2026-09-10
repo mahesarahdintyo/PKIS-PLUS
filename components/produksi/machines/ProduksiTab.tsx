@@ -28,6 +28,21 @@ import type {
   ProdNonProduksiType,
 } from "@/types/produksi";
 
+// Planning yang sudah selesai otomatis dihapus saat hari sudah berganti (bukan hari ini lagi)
+function isDonePlanningExpired(p: ProdProductionPlanning, todayStr: string): boolean {
+  if (p.status !== "selesai") return false;
+
+  // Cek tanggal rencana planning atau tanggal update/selesai
+  const planDate = p.jam_rencana_mulai
+    ? String(p.jam_rencana_mulai).slice(0, 10)
+    : p.created_at
+    ? String(p.created_at).slice(0, 10)
+    : "";
+
+  // Jika tanggal planning sudah berlalu (hari kemarin atau lebih lama), otomatis expired/hapus
+  return planDate !== "" && planDate < todayStr;
+}
+
 function getLocalDateString(d: Date = new Date()): string {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
@@ -937,11 +952,12 @@ export default function ProduksiTab({
 
                   {/* [PERBAIKAN_DISPLAY_PLANNING_OPERATOR_LIST] Daftar planning ditampilkan untuk semua role (Leader & Operator) */}
                   {(() => {
-                    // [PERBAIKAN_HIDE_DONE_PLANNING] Pisahkan active vs done planning untuk semua role (Leader & Operator)
-                    const activePlanning = stPlanning.filter((p) => p.status !== "selesai");
-                    const donePlanning = stPlanning.filter((p) => p.status === "selesai");
+                    // [PERBAIKAN_AUTO_CLEANUP_DONE_PLANNING] Filter otomatis planning selesai yang berumur > 6 jam atau dari hari kemarin
+                    const validStPlanning = stPlanning.filter((p) => !isDonePlanningExpired(p, todayStr));
+                    const activePlanning = validStPlanning.filter((p) => p.status !== "selesai");
+                    const donePlanning = validStPlanning.filter((p) => p.status === "selesai");
                     const isExpanded = showDonePlanning[st.id] ?? false;
-                    const visiblePlanning = isExpanded ? stPlanning : activePlanning;
+                    const visiblePlanning = isExpanded ? validStPlanning : activePlanning;
 
                     return (
                       <div className="planning-list">
@@ -1037,7 +1053,7 @@ export default function ProduksiTab({
                           </button>
                         )}
 
-                        {stPlanning.length === 0 && (
+                        {validStPlanning.length === 0 && (
                           <p className="empty-state text-xs text-muted-foreground py-4 text-center">
                             {isLeaderOrAdmin
                               ? "Belum ada rencana produksi. Silakan tambahkan di atas."
