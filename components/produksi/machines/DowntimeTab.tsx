@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { Play, Square, FilterX } from "lucide-react";
+import { Play, Square, FilterX, Pencil, X } from "lucide-react";
 import type {
   ProdMachineConfig,
   ProdDowntimeLogRow,
@@ -67,6 +67,7 @@ function ProblemCombobox({
 interface DowntimeTabProps {
   config: ProdMachineConfig;
   isLeaderOrAdmin: boolean;
+  canEditRow?: (row?: any) => boolean;
   dtState: "idle" | "running" | "stopped";
   dtStart: string | null;
   dtEnd: string | null;
@@ -108,6 +109,7 @@ interface DowntimeTabProps {
 export default function DowntimeTab({
   config,
   isLeaderOrAdmin,
+  canEditRow,
   dtState,
   dtStart,
   dtEnd,
@@ -131,6 +133,8 @@ export default function DowntimeTab({
   fmt,
   fmtClock,
 }: DowntimeTabProps) {
+  const canEditDowntime = Boolean(canEditRow ? canEditRow() : true);
+
   return (
     <div className="space-y-4">
       <Card className="dash-panel card-glow-info">
@@ -260,7 +264,12 @@ export default function DowntimeTab({
             </thead>
             <tbody>
               {downtimeRowsFiltered().map((row) => (
-                <tr key={row.id} style={row._pending ? { opacity: 0.65 } : undefined}>
+                <tr
+                  key={row.id}
+                  style={row._pending ? { opacity: 0.65 } : undefined}
+                  className={canEditDowntime ? "row-clickable" : ""}
+                  onClick={canEditDowntime ? () => editDowntime(row) : undefined}
+                >
                   {config.stationConfig.mode !== "none" && <td>{row.stasiun || "-"}</td>}
                   <td className="mono">
                     {fmt(row.waktu_awal)}
@@ -277,10 +286,36 @@ export default function DowntimeTab({
                   <td title={row.penyebab || "-"}>{row.penyebab || "-"}</td>
                   <td title={row.countermeasure || "-"}>{row.countermeasure || "-"}</td>
                   <td>
-                    {isLeaderOrAdmin && !row._pending && (
-                      <div className="flex gap-1">
-                        <Button type="button" variant="ghost" size="sm" onClick={() => editDowntime(row)}>Edit</Button>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => deleteDowntime(row.id)}>Hapus</Button>
+                    {!row._pending && (
+                      <div className="flex gap-1.5">
+                        {canEditDowntime && (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            title="Edit baris downtime ini"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              editDowntime(row);
+                            }}
+                          >
+                            <Pencil size={13} />
+                          </Button>
+                        )}
+                        {isLeaderOrAdmin && (
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            title="Hapus baris downtime ini"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteDowntime(row.id);
+                            }}
+                          >
+                            <X size={13} />
+                          </Button>
+                        )}
                       </div>
                     )}
                   </td>
