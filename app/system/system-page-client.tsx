@@ -1,6 +1,7 @@
 "use client";
 
-import { Activity, Clock, Database, HardDrive, Monitor, RefreshCw, Server, Cpu, CheckCircle2, MinusCircle, Info } from "lucide-react";
+import { Activity, ArrowLeft, Clock, Database, HardDrive, Monitor, RefreshCw, Server, Cpu, CheckCircle2, MinusCircle, Info } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 interface DisplayStatus {
@@ -237,13 +238,22 @@ export default function SystemPageClient() {
     <main className="min-h-screen bg-slate-100 text-slate-900">
       <div className="mx-auto flex min-h-screen max-w-4xl flex-col px-6 py-8">
         <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-              System Monitor
-            </p>
-            <h1 className="mt-2 text-3xl font-bold tracking-normal text-slate-950">
-              Server Status
-            </h1>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
+              title="Kembali ke halaman pemilihan"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+                System Monitor
+              </p>
+              <h1 className="mt-2 text-3xl font-bold tracking-normal text-slate-950">
+                Server Status
+              </h1>
+            </div>
           </div>
 
           <button
