@@ -307,16 +307,8 @@ export default function ProduksiTab({
           const stPlanning = planningList.filter(
             (p) => (p.stasiun || null) === targetSt
           );
+
           const todayStr = new Date().toISOString().slice(0, 10);
-          const stActualToday = productionRows
-            .filter(
-              (p) => (p.stasiun || null) === targetSt && String(p.waktu_awal).slice(0, 10) === todayStr
-            )
-            .sort((a, b) => {
-              const ta = a.waktu_awal ? new Date(String(a.waktu_awal)).getTime() : 0;
-              const tb = b.waktu_awal ? new Date(String(b.waktu_awal)).getTime() : 0;
-              return ta - tb;
-            });
 
           const form = newPlanningForm[st.id] || { part_number: "", qty_rencana: "", jam_mulai: "", jam_selesai: "" };
           const stationGlow = line.phase === "running" ? "card-glow-good"
@@ -1057,67 +1049,6 @@ export default function ProduksiTab({
                   })()}
                 </div>
 
-                {/* Kolom Kanan: AKTUAL PRODUKSI (HARI INI) */}
-                <div className="planning-col">
-                  <p className="panel-subtitle">AKTUAL PRODUKSI (HARI INI)</p>
-                  <div className="planning-list">
-                    {["awaiting_actual_start", "running"].includes(line.phase) && line.form.part_number && (
-                      <div className="planning-item planning-current">
-                        <span className="timer-dot timer-dot-live" />
-                        <span className="font-semibold">{line.form.part_number}</span>
-                        <span className="hint text-xs text-emerald-400">
-                          {line.phase === "running" ? "sedang produksi" : "sedang dandori"} · mulai {fmtClock(line.entryStart)}
-                        </span>
-                      </div>
-                    )}
-
-                    {stActualToday.map((r, idx) => (
-                      <div key={r.id || idx} className="planning-item">
-                        <span className="font-semibold">{r.part_number}</span>
-                        <span className="hint text-xs text-muted-foreground">
-                          {r.qty ?? "-"}pcs · {fmtClock(r.waktu_awal)}-{fmtClock(r.waktu_akhir)}
-                        </span>
-                        {r.id && !r._pending && (
-                          <div className="flex gap-1 ml-auto shrink-0">
-                            {(canEditRow ? canEditRow({ jenis: "produksi", data: r }) : isLeaderOrAdmin) && (
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                size="sm"
-                                className="px-1.5 py-0.5 text-xs"
-                                title="Edit baris produksi ini"
-                                onClick={(e) => { e.stopPropagation(); handleEditProductionRow(r); }}
-                              >
-                                <Pencil size={12} />
-                              </Button>
-                            )}
-                            {isLeaderOrAdmin && (
-                              <Button
-                                type="button"
-                                variant="destructive"
-                                size="sm"
-                                className="px-1.5 py-0.5 text-xs"
-                                title="Hapus baris produksi ini"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setRiwayatDeleteTarget({
-                                    jenis: "produksi",
-                                    waktu_awal: r.waktu_awal,
-                                    waktu_akhir: r.waktu_akhir,
-                                    part_number: r.part_number,
-                                    data: r,
-                                  });
-                                }}
-                              >
-                                <X size={12} />
-                              </Button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
               </div>
             </Card>
           );
