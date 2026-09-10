@@ -2592,9 +2592,12 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
             <DowntimeTab
               config={config}
               isLeaderOrAdmin={isLeaderOrAdmin}
+              canEditRow={canEditRow}
               dtState={dtState}
               dtStart={dtStart}
               dtEnd={dtEnd}
+              setDtStart={setDtStart}
+              setDtEnd={setDtEnd}
               dtForm={dtForm}
               setDtForm={setDtForm}
               problemList={problemList}

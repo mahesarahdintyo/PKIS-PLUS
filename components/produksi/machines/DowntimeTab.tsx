@@ -71,6 +71,8 @@ interface DowntimeTabProps {
   dtState: "idle" | "running" | "stopped";
   dtStart: string | null;
   dtEnd: string | null;
+  setDtStart: (v: string | null) => void;
+  setDtEnd: (v: string | null) => void;
   dtForm: {
     stasiun: string;
     kategori: string;
@@ -106,6 +108,15 @@ interface DowntimeTabProps {
   fmtClock: (iso?: string | null) => string;
 }
 
+/** Konversi ISO string ke nilai datetime-local (YYYY-MM-DDTHH:MM) */
+function toLocalInput(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export default function DowntimeTab({
   config,
   isLeaderOrAdmin,
@@ -113,6 +124,8 @@ export default function DowntimeTab({
   dtState,
   dtStart,
   dtEnd,
+  setDtStart,
+  setDtEnd,
   dtForm,
   setDtForm,
   problemList,
@@ -172,6 +185,31 @@ export default function DowntimeTab({
         {(editingDowntimeId || dtState === "stopped") && (
           <form onSubmit={submitDowntime} className="mt-4">
             <div className="form-grid">
+              {/* Waktu Awal & Akhir — hanya tampil saat mode edit */}
+              {editingDowntimeId && (
+                <>
+                  <div className="field">
+                    <label>Waktu Awal</label>
+                    <Input
+                      type="datetime-local"
+                      value={toLocalInput(dtStart)}
+                      onChange={(e) =>
+                        setDtStart(e.target.value ? new Date(e.target.value).toISOString() : null)
+                      }
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Waktu Akhir</label>
+                    <Input
+                      type="datetime-local"
+                      value={toLocalInput(dtEnd)}
+                      onChange={(e) =>
+                        setDtEnd(e.target.value ? new Date(e.target.value).toISOString() : null)
+                      }
+                    />
+                  </div>
+                </>
+              )}
               {config.stationConfig.mode !== "none" && (
                 <div className="field">
                   <label>Stasiun</label>
