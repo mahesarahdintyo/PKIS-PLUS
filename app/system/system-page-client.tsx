@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, Clock, Database, HardDrive, Monitor, RefreshCw, Server, Cpu, CheckCircle2, MinusCircle } from "lucide-react";
+import { Activity, Clock, Database, HardDrive, Monitor, RefreshCw, Server, Cpu, CheckCircle2, MinusCircle, Info } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 interface DisplayStatus {
@@ -27,10 +27,13 @@ interface HealthStatus {
 interface ProdLineStatus {
   id: string;
   name: string;
-  status: "active" | "idle";
+  status: "active" | "recorded" | "idle";
   lastPartNumber: string | null;
+  lastQty: number | null;
   lastActivityAt: string | null;
   mesin: string | null;
+  totalBatches: number;
+  minutesAgo: number | null;
 }
 
 interface ProdStatus {
@@ -338,7 +341,7 @@ export default function SystemPageClient() {
                 <Cpu className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-base font-bold text-slate-950">Status Input Produksi</p>
+                <p className="text-base font-bold text-slate-950">Aktivitas Input Produksi</p>
                 <p className="mt-0.5 text-xs text-slate-500">
                   {prodStatus
                     ? `Shift ${prodStatus.shift} · Diperbarui: ${formatDateTime(prodStatus.checkedAt)}`
@@ -347,9 +350,14 @@ export default function SystemPageClient() {
               </div>
             </div>
             {prodStatus && (
-              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                {prodStatus.lines.filter((l) => l.status === "active").length} line aktif
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200">
+                  {prodStatus.lines.filter((l) => l.status === "active").length} input baru
+                </span>
+                <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 border border-blue-200">
+                  {prodStatus.lines.filter((l) => l.status !== "idle").length}/{prodStatus.lines.length} line aktif di shift ini
+                </span>
+              </div>
             )}
           </div>
 
@@ -364,14 +372,18 @@ export default function SystemPageClient() {
                   <div className="flex min-w-0 items-center gap-3">
                     {line.status === "active" ? (
                       <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
+                    ) : line.status === "recorded" ? (
+                      <CheckCircle2 className="h-5 w-5 shrink-0 text-blue-500" />
                     ) : (
                       <MinusCircle className="h-5 w-5 shrink-0 text-slate-300" />
                     )}
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-slate-900">{line.name}</p>
-                      {line.mesin && (
-                        <p className="text-xs text-slate-400">{line.mesin}</p>
-                      )}
+                      <p className="text-xs text-slate-400">
+                        {line.totalBatches > 0
+                          ? `${line.totalBatches} batch tersimpan di shift ini${line.mesin ? ` · ${line.mesin}` : ""}`
+                          : "Belum ada input tersimpan di shift ini"}
+                      </p>
                     </div>
                   </div>
 
@@ -380,24 +392,35 @@ export default function SystemPageClient() {
                       className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${
                         line.status === "active"
                           ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : line.status === "recorded"
+                          ? "border-blue-200 bg-blue-50 text-blue-700"
                           : "border-slate-200 bg-slate-50 text-slate-500"
                       }`}
                     >
                       <span
                         className={`h-1.5 w-1.5 rounded-full ${
-                          line.status === "active" ? "bg-emerald-500" : "bg-slate-300"
+                          line.status === "active"
+                            ? "bg-emerald-500"
+                            : line.status === "recorded"
+                            ? "bg-blue-500"
+                            : "bg-slate-300"
                         }`}
                       />
-                      {line.status === "active" ? "Sedang Input" : "Idle"}
+                      {line.status === "active"
+                        ? `Input Baru (${line.minutesAgo !== null ? `${line.minutesAgo} mnt lalu` : "baru saja"})`
+                        : line.status === "recorded"
+                        ? "Tercatat di Shift Ini"
+                        : "Belum Ada Data"}
                     </span>
                     {line.lastPartNumber && (
-                      <span className="mt-0.5 max-w-[140px] truncate text-right text-[11px] text-slate-400">
+                      <span className="mt-0.5 max-w-[200px] truncate text-right text-[11px] font-medium text-slate-600">
                         {line.lastPartNumber}
+                        {line.lastQty !== null && line.lastQty !== undefined ? ` · ${line.lastQty} pcs` : ""}
                       </span>
                     )}
                     {line.lastActivityAt && (
                       <span className="text-[11px] text-slate-400">
-                        {formatDateTime(line.lastActivityAt)}
+                        Tersimpan: {formatDateTime(line.lastActivityAt)}
                       </span>
                     )}
                   </div>
@@ -405,6 +428,13 @@ export default function SystemPageClient() {
               ))}
             </div>
           )}
+
+          <div className="mt-4 rounded-lg bg-slate-50 border border-slate-200 p-3 text-xs text-slate-500 flex items-start gap-2">
+            <Info className="h-4 w-4 shrink-0 text-slate-400 mt-0.5" />
+            <span>
+              <strong>Info:</strong> Memonitor data produksi yang telah selesai dan disimpan ke database pada Shift berjalan. Data yang sedang dikerjakan operator di tablet akan otomatis tercatat di sini setelah operator menekan tombol simpan.
+            </span>
+          </div>
         </section>
 
         <section className="mt-6 grid gap-4 sm:grid-cols-2">

@@ -3,37 +3,43 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-// ---------- Shift helpers (mirrors useProductionLines.ts logic) ----------
+// ---------- WIB (UTC+7) shift helpers ----------
+// Timestamps in database are UTC ISO strings.
+// Shift 1: WIB 07:00 – 19:30  (UTC 00:00 – 12:30 on same WIB date)
+// Shift 2: WIB 19:30 – 07:00  (UTC 12:30 – 00:00 next day)
 
-function currentShiftWindow(): { start: Date; end: Date; shift: number } {
-  const now = new Date()
-  const base = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+const WIB_OFFSET_MS = 7 * 60 * 60 * 1000
 
-  const s1start = new Date(base); s1start.setHours(7, 0, 0, 0)
-  const s1end   = new Date(base); s1end.setHours(19, 30, 0, 0)
+function currentShiftWindowUTC(): { shift: number; start: Date; end: Date } {
+  const nowUtcMs = Date.now()
 
-  if (now >= s1start && now < s1end) {
-    return { shift: 1, start: s1start, end: s1end }
+  // Interpret current instant as WIB calendar date
+  const nowAsWib = new Date(nowUtcMs + WIB_OFFSET_MS)
+  const y = nowAsWib.getUTCFullYear()
+  const mo = nowAsWib.getUTCMonth()
+  const d = nowAsWib.getUTCDate()
+
+  // Shift-1 boundaries in UTC
+  const s1StartMs = Date.UTC(y, mo, d, 0, 0, 0, 0)
+  const s1EndMs = Date.UTC(y, mo, d, 12, 30, 0, 0)
+
+  if (nowUtcMs >= s1StartMs && nowUtcMs < s1EndMs) {
+    return { shift: 1, start: new Date(s1StartMs), end: new Date(s1EndMs) }
   }
 
-  if (now >= s1end) {
-    const s2end = new Date(base); s2end.setDate(base.getDate() + 1); s2end.setHours(7, 0, 0, 0)
-    return { shift: 2, start: s1end, end: s2end }
+  if (nowUtcMs >= s1EndMs) {
+    // Shift-2 started today at WIB 19:30, ends tomorrow WIB 07:00
+    const s2EndMs = Date.UTC(y, mo, d + 1, 0, 0, 0, 0)
+    return { shift: 2, start: new Date(s1EndMs), end: new Date(s2EndMs) }
   }
 
-  // Before 07:00 — belongs to shift 2 that started yesterday evening
-  const prevBase    = new Date(base); prevBase.setDate(base.getDate() - 1)
-  const prevS2start = new Date(prevBase); prevS2start.setHours(19, 30, 0, 0)
-  return { shift: 2, start: prevS2start, end: s1start }
+  // Before UTC 00:00 (WIB 07:00) -> Shift-2 started yesterday evening
+  const prevS1EndMs = Date.UTC(y, mo, d - 1, 12, 30, 0, 0)
+  return { shift: 2, start: new Date(prevS1EndMs), end: new Date(s1StartMs) }
 }
 
-// How many minutes ago was the last log entry before we consider a line idle
-const IDLE_THRESHOLD_MS = 90 * 60 * 1000 // 90 minutes
-
-interface LineRow {
-  id: string
-  name: string
-}
+// A line is considered "active" (recent save) if committed within 45 minutes
+const RECENT_WINDOW_MS = 45 * 60 * 1000
 
 interface LogRow {
   line_id: string | null
@@ -41,85 +47,134 @@ interface LogRow {
   waktu_awal: string
   waktu_akhir: string | null
   part_number: string | null
+  qty: number | null
   created_at: string | null
 }
 
 export async function GET() {
-  const supabase = await createClient()
-  const { start, end, shift } = currentShiftWindow()
+  try {
+    const supabase = await createClient()
+    const { shift, start, end } = currentShiftWindowUTC()
 
-  // 1. Fetch all active lines
-  const { data: lineData, error: lineError } = await supabase
-    .from('lines')
-    .select('id, name')
-    .eq('is_active', true)
-    .order('name', { ascending: true })
+    // 1. Fetch active lines
+    const { data: lineData, error: lineError } = await supabase
+      .from('lines')
+      .select('id, name')
+      .eq('is_active', true)
+      .order('name', { ascending: true })
 
-  if (lineError) {
-    return NextResponse.json({ error: lineError.message }, { status: 500 })
-  }
-
-  const lines: LineRow[] = lineData ?? []
-
-  if (lines.length === 0) {
-    return NextResponse.json({ shift, checkedAt: new Date().toISOString(), lines: [] })
-  }
-
-  // 2. Fetch the latest production log entry per line_id within the current shift
-  //    This is READ-ONLY and does not touch any write path.
-  const { data: logData } = await supabase
-    .from('prod_production_log' as any)
-    .select('line_id, mesin, waktu_awal, waktu_akhir, part_number, created_at')
-    .eq('is_active', true)
-    .gte('waktu_awal', start.toISOString())
-    .lt('waktu_awal', end.toISOString())
-    .order('waktu_awal', { ascending: false })
-
-  const logs: LogRow[] = (logData as LogRow[] | null) ?? []
-
-  // Build a map: line_id -> most recent log row
-  const latestByLine = new Map<string, LogRow>()
-  for (const row of logs) {
-    if (row.line_id && !latestByLine.has(row.line_id)) {
-      latestByLine.set(row.line_id, row)
+    if (lineError) {
+      return NextResponse.json({ error: lineError.message }, { status: 500 })
     }
-  }
 
-  const now = Date.now()
+    const lines = lineData ?? []
 
-  const result = lines.map((line) => {
-    const latest = latestByLine.get(line.id)
+    if (lines.length === 0) {
+      return NextResponse.json({
+        shift,
+        checkedAt: new Date().toISOString(),
+        shiftStart: start.toISOString(),
+        shiftEnd: end.toISOString(),
+        lines: [],
+      })
+    }
 
-    if (!latest) {
-      return {
-        id: line.id,
-        name: line.name,
-        status: 'idle' as const,
-        lastPartNumber: null,
-        lastActivityAt: null,
-        mesin: null,
+    // 2. Query production logs for the current shift window.
+    // Read-only query: purely SELECT, does not modify any state.
+    const { data: logData, error: logError } = await supabase
+      .from('prod_production_log' as any)
+      .select('line_id, mesin, waktu_awal, waktu_akhir, part_number, qty, created_at')
+      .eq('is_active', true)
+      .gte('waktu_awal', start.toISOString())
+      .lt('waktu_awal', end.toISOString())
+      .order('waktu_akhir', { ascending: false, nullsFirst: false })
+
+    if (logError) {
+      console.error('Error fetching production logs for system monitor:', logError)
+    }
+
+    const logs: LogRow[] = (logData as LogRow[] | null) ?? []
+
+    // Group logs by line_id (or match via mesin if line_id missing)
+    const lineStats = new Map<
+      string,
+      {
+        latest: LogRow
+        count: number
+      }
+    >()
+
+    for (const row of logs) {
+      if (!row.line_id) continue
+
+      const existing = lineStats.get(row.line_id)
+      if (!existing) {
+        lineStats.set(row.line_id, {
+          latest: row,
+          count: 1,
+        })
+      } else {
+        existing.count += 1
       }
     }
 
-    const lastTime = new Date(latest.waktu_awal).getTime()
-    const msSinceLast = now - lastTime
-    // If waktu_akhir is null, the entry is being actively logged (operator in-session).
-    // Otherwise judge by recency.
-    const isActive = !latest.waktu_akhir || msSinceLast <= IDLE_THRESHOLD_MS
+    const nowMs = Date.now()
 
-    return {
-      id: line.id,
-      name: line.name,
-      status: isActive ? ('active' as const) : ('idle' as const),
-      lastPartNumber: latest.part_number,
-      lastActivityAt: latest.waktu_awal,
-      mesin: latest.mesin,
-    }
-  })
+    const result = lines.map((line) => {
+      const stat = lineStats.get(line.id)
 
-  return NextResponse.json({
-    shift,
-    checkedAt: new Date().toISOString(),
-    lines: result,
-  })
+      if (!stat) {
+        return {
+          id: line.id,
+          name: line.name,
+          status: 'idle' as const, // Belum ada input di shift ini
+          lastPartNumber: null,
+          lastQty: null,
+          lastActivityAt: null,
+          mesin: null,
+          totalBatches: 0,
+          minutesAgo: null,
+        }
+      }
+
+      const latest = stat.latest
+      const committedAt = latest.waktu_akhir
+        ? new Date(latest.waktu_akhir).getTime()
+        : latest.created_at
+        ? new Date(latest.created_at).getTime()
+        : new Date(latest.waktu_awal).getTime()
+
+      const diffMs = Math.max(0, nowMs - committedAt)
+      const minutesAgo = Math.round(diffMs / 60000)
+
+      // Status:
+      // - "active": ada input yang baru saja disimpan (< 45 menit lalu)
+      // - "recorded": sudah ada input tersimpan di shift ini (tetap tampil, TIDAK hilang/idle)
+      const status = diffMs <= RECENT_WINDOW_MS ? ('active' as const) : ('recorded' as const)
+
+      return {
+        id: line.id,
+        name: line.name,
+        status,
+        lastPartNumber: latest.part_number,
+        lastQty: latest.qty,
+        lastActivityAt: latest.waktu_akhir ?? latest.waktu_awal,
+        mesin: latest.mesin,
+        totalBatches: stat.count,
+        minutesAgo,
+      }
+    })
+
+    return NextResponse.json({
+      shift,
+      checkedAt: new Date().toISOString(),
+      shiftStart: start.toISOString(),
+      shiftEnd: end.toISOString(),
+      lines: result,
+      note: 'Data memantau catatan input produksi yang telah disimpan ke server pada shift berjalan.',
+    })
+  } catch (err: any) {
+    console.error('System production status API error:', err)
+    return NextResponse.json({ error: err?.message || 'Internal Server Error' }, { status: 500 })
+  }
 }
