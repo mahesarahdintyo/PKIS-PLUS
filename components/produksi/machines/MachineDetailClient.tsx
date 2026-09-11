@@ -394,6 +394,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
   const [perfMonth, setPerfMonth] = useState<string>(new Date().toISOString().slice(0, 7));
   const [perfDate, setPerfDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const [perfLoading, setPerfLoading] = useState<boolean>(false);
+  const [perfRefreshKey, setPerfRefreshKey] = useState<number>(0);
 
   const [perfData, setPerfData] = useState<{
     data: {
@@ -1029,6 +1030,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       if (activeTab === "riwayat") {
         await fetchRiwayatGabungan();
       }
+      setPerfRefreshKey((k) => k + 1);
       flash("Data berhasil diperbarui.");
     } catch (err: any) {
       flash("Gagal memperbarui data: " + (err?.message || JSON.stringify(err)), true);
@@ -1702,7 +1704,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
     } finally {
       setPerfLoading(false);
     }
-  }, [activeTab, activePerfSection, perfYear, perfMonth, perfDate, config.key, tandemVariant, mesinSettings, masterParts, downtimeList]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeTab, activePerfSection, perfYear, perfMonth, perfDate, config.key, tandemVariant, mesinSettings, masterParts, downtimeList, productionRows, perfRefreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetchPerformanceData();
@@ -1929,6 +1931,8 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
         if (error) throw error;
         cancelDowntime();
         await loadData();
+        await fetchRiwayatHariIniData();
+        setPerfRefreshKey((k) => k + 1);
       } else {
         const { data: { session } } = await supabase.auth.getSession();
         const insertPayload = { ...payload, created_by: session?.user?.id };
@@ -1937,6 +1941,8 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
           if (error) throw error;
           cancelDowntime();
           await loadData();
+          await fetchRiwayatHariIniData();
+          setPerfRefreshKey((k) => k + 1);
         } catch (insertErr: any) {
           if (isNetworkError(insertErr)) {
             enqueueOffline("prod_downtime_log", insertPayload);
@@ -1979,6 +1985,8 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       const { error } = await supabase.from("prod_downtime_log" as any).update({ is_active: false }).eq("id", id);
       if (error) throw error;
       await loadData();
+      await fetchRiwayatHariIniData();
+      setPerfRefreshKey((k) => k + 1);
     } catch (err: any) {
       flash("Gagal menghapus downtime: " + (err?.message || JSON.stringify(err)), true);
     }
