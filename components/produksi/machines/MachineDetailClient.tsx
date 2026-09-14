@@ -336,6 +336,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
   const [riwayatGabungan, setRiwayatGabungan] = useState<any[]>([]);
   const [riwayatHariIni, setRiwayatHariIni] = useState<any[]>([]);
   const [downtimeFilterProductionId, setDowntimeFilterProductionId] = useState<string | null>(null);
+  const [downtimeFilterProductionRow, setDowntimeFilterProductionRow] = useState<any | null>(null);
   const [downtimeFilterLabel, setDowntimeFilterLabel] = useState("");
   const [riwayatDeleteTarget, setRiwayatDeleteTarget] = useState<any | null>(null);
   const [isDeletingRiwayat, setIsDeletingRiwayat] = useState(false);
@@ -683,15 +684,57 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       if (waktuSampai) nonProduksiQuery = nonProduksiQuery.lte("waktu_awal", waktuSampai);
       if (partNumberFilter) nonProduksiQuery = nonProduksiQuery.or(`part_dari.eq.${partNumberFilter},part_ke.eq.${partNumberFilter}`);
 
+      // [FIX_RIWAYAT_DOWNTIME_MENIT] Fetch active downtime logs in the same range and augment each
+      // production row's downtime_menit using time-overlap matching.
+      // Keeps both the "Riwayat Hari Ini" table and the "Riwayat" tab fully synchronized.
+      let downtimeQuery = supabase.from("prod_downtime_log" as any).select("*").eq("is_active", true);
+      if (lineId) {
+        downtimeQuery = downtimeQuery.eq("line_id", lineId);
+      } else {
+        downtimeQuery = downtimeQuery.eq("mesin", config.key);
+      }
+      if (waktuDari) downtimeQuery = downtimeQuery.gte("waktu_awal", waktuDari);
+      if (waktuSampai) downtimeQuery = downtimeQuery.lte("waktu_awal", waktuSampai);
+
       const [
         { data: produksi, error: produksiError },
         { data: nonProduksi, error: nonProduksiError },
-      ] = await Promise.all([productionQuery, nonProduksiQuery]);
+        { data: downtimes, error: downtimeError },
+      ] = await Promise.all([productionQuery, nonProduksiQuery, downtimeQuery]);
       if (produksiError) throw produksiError;
       if (nonProduksiError) throw nonProduksiError;
+      if (downtimeError) console.error("Error fetching downtime logs for history:", downtimeError);
+
+      const dtLogs: any[] = downtimes || [];
+
+      const augmentedProduksi = (produksi || []).map((row: any) => {
+        const matchingDts = dtLogs.filter((dl: any) => {
+          // Prefer explicit link via production_log_id
+          if (dl.production_log_id && dl.production_log_id === row.id) return true;
+          // Fallback: downtime time window falls within the production session window
+          if (!dl.waktu_awal || !dl.waktu_akhir || !row.waktu_awal || !row.waktu_akhir) return false;
+          const dlStart = new Date(dl.waktu_awal).getTime();
+          const dlEnd   = new Date(dl.waktu_akhir).getTime();
+          const rowStart = new Date(row.waktu_awal).getTime();
+          const rowEnd   = new Date(row.waktu_akhir).getTime();
+          return dlStart >= rowStart && dlEnd <= rowEnd;
+        });
+        if (matchingDts.length === 0) return row;
+        const dtSum = matchingDts.reduce((sum: number, dl: any) => {
+          let m = Number(dl.durasi_menit ?? dl.durasi ?? 0);
+          if (!m && dl.waktu_awal && dl.waktu_akhir) {
+            m = Math.round((new Date(dl.waktu_akhir).getTime() - new Date(dl.waktu_awal).getTime()) / 60000);
+          }
+          return sum + m;
+        }, 0);
+        return {
+          ...row,
+          downtime_menit: Math.max(Number(row.downtime_menit) || 0, dtSum),
+        };
+      });
 
       const gabungan = [
-        ...(produksi || []).map((row: any) => ({ jenis: "produksi", waktu_awal: row.waktu_awal, waktu_akhir: row.waktu_akhir, part_number: row.part_number, data: row })),
+        ...(augmentedProduksi || []).map((row: any) => ({ jenis: "produksi", waktu_awal: row.waktu_awal, waktu_akhir: row.waktu_akhir, part_number: row.part_number, data: row })),
         ...(nonProduksi || []).map((row: any) => ({ jenis: "non_produksi", waktu_awal: row.waktu_awal, waktu_akhir: row.waktu_akhir, part_number: row.part_ke || row.part_dari || null, data: row })),
       ].sort((a, b) => {
         const ta = a.waktu_awal ? new Date(a.waktu_awal).getTime() : 0;
@@ -705,8 +748,8 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
   );
 
   const fetchRiwayatGabungan = useCallback(async () => {
-    const waktuDari = riwayatTanggalDari ? `${riwayatTanggalDari}T00:00:00.000Z` : null;
-    const waktuSampai = riwayatTanggalSampai ? `${riwayatTanggalSampai}T23:59:59.999Z` : null;
+    const waktuDari = riwayatTanggalDari ? `${riwayatTanggalDari}T00:00:00.000+07:00` : null;
+    const waktuSampai = riwayatTanggalSampai ? `${riwayatTanggalSampai}T23:59:59.999+07:00` : null;
     const gabungan = await fetchGabunganRange(waktuDari, waktuSampai, riwayatPartNumber);
     setRiwayatGabungan(gabungan);
   }, [fetchGabunganRange, riwayatPartNumber, riwayatTanggalDari, riwayatTanggalSampai]);
@@ -719,64 +762,8 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
     const waktuDari = `${todayStr}T00:00:00.000+07:00`;
     const waktuSampai = `${todayStr}T23:59:59.999+07:00`;
     const gabungan = await fetchGabunganRange(waktuDari, waktuSampai, "");
-
-    // [FIX_RIWAYAT_DOWNTIME_MENIT] Fetch today's active downtime logs and augment each
-    // production row's downtime_menit using time-overlap matching.
-    // Downtime records saved without production_log_id won't be synced by the DB trigger,
-    // so we replicate the same logic used in fetchPerformanceData to keep both views consistent.
-    let downtimeQuery = supabase
-      .from("prod_downtime_log" as any)
-      .select("*")
-      .eq("is_active", true)
-      .gte("waktu_awal", waktuDari)
-      .lte("waktu_awal", waktuSampai);
-    if (lineId) {
-      downtimeQuery = downtimeQuery.eq("line_id", lineId);
-    } else {
-      downtimeQuery = downtimeQuery.eq("mesin", config.key);
-    }
-    const { data: todayDowntimes } = await downtimeQuery;
-    const dtLogs: any[] = todayDowntimes || [];
-
-    const augmented = gabungan.map((item) => {
-      if (item.jenis !== "produksi") return item;
-      const row = item.data;
-      const matchingDts = dtLogs.filter((dl: any) => {
-        // Prefer explicit link via production_log_id
-        if (dl.production_log_id && dl.production_log_id === row.id) return true;
-        // Fallback: downtime time window falls within the production session window
-        if (!dl.waktu_awal || !dl.waktu_akhir || !row.waktu_awal || !row.waktu_akhir) return false;
-        const dlStart = new Date(dl.waktu_awal).getTime();
-        const dlEnd   = new Date(dl.waktu_akhir).getTime();
-        const rowStart = new Date(row.waktu_awal).getTime();
-        const rowEnd   = new Date(row.waktu_akhir).getTime();
-        return dlStart >= rowStart && dlEnd <= rowEnd;
-      });
-      if (matchingDts.length === 0) return item;
-      const dtSum = matchingDts.reduce((sum: number, dl: any) => {
-        let m = Number(dl.durasi_menit ?? dl.durasi ?? 0);
-        if (!m && dl.waktu_awal && dl.waktu_akhir) {
-          m = Math.round((new Date(dl.waktu_akhir).getTime() - new Date(dl.waktu_awal).getTime()) / 60000);
-        }
-        return sum + m;
-      }, 0);
-      return {
-        ...item,
-        data: {
-          ...row,
-          downtime_menit: Math.max(Number(row.downtime_menit) || 0, dtSum),
-        },
-      };
-    });
-
-    // Urutkan kronologis dari awal hari (pagi) ke akhir hari (ascending)
-    const sorted = [...augmented].sort((a, b) => {
-      const ta = a.waktu_awal ? new Date(a.waktu_awal).getTime() : 0;
-      const tb = b.waktu_awal ? new Date(b.waktu_awal).getTime() : 0;
-      return ta - tb;
-    });
-    setRiwayatHariIni(sorted);
-  }, [fetchGabunganRange, lineId, config.key]); // eslint-disable-line react-hooks/exhaustive-deps
+    setRiwayatHariIni(gabungan);
+  }, [fetchGabunganRange]);
 
   const canDeleteRow = (_row: any): boolean => {
     const role = (profile?.role || userRole || "").trim().toLowerCase();
@@ -904,12 +891,14 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
 
   const handleViewDowntimeForProduction = (row: any) => {
     setDowntimeFilterProductionId(row.id);
+    setDowntimeFilterProductionRow(row);
     setDowntimeFilterLabel(`${row.part_number || "-"} (${new Date(row.waktu_awal).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })})`);
     setActiveTab("downtime");
   };
 
   const clearDowntimeFilter = () => {
     setDowntimeFilterProductionId(null);
+    setDowntimeFilterProductionRow(null);
     setDowntimeFilterLabel("");
   };
 
@@ -2149,7 +2138,18 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
   };
 
   const downtimeRowsFiltered = () =>
-    downtimeList.filter((d) => !downtimeFilterProductionId || d.production_log_id === downtimeFilterProductionId);
+    downtimeList.filter((d) => {
+      if (!downtimeFilterProductionId) return true;
+      if (d.production_log_id === downtimeFilterProductionId) return true;
+      if (downtimeFilterProductionRow?.waktu_awal && downtimeFilterProductionRow?.waktu_akhir && d.waktu_awal && d.waktu_akhir) {
+        const dlStart = new Date(d.waktu_awal).getTime();
+        const dlEnd = new Date(d.waktu_akhir).getTime();
+        const rowStart = new Date(downtimeFilterProductionRow.waktu_awal).getTime();
+        const rowEnd = new Date(downtimeFilterProductionRow.waktu_akhir).getTime();
+        return dlStart >= rowStart && dlEnd <= rowEnd;
+      }
+      return false;
+    });
 
   const fmtNum = (n: number | null | undefined) => {
     if (n === null || n === undefined || isNaN(n)) return "0";
