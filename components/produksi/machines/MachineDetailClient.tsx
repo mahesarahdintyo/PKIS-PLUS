@@ -954,6 +954,9 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
     const filter = lineId ? `line_id=eq.${lineId}` : undefined;
 
     const handleRealtimeChange = () => {
+      // Auto-refresh performance data on realtime update
+      setPerfRefreshKey((k) => k + 1);
+
       // Ignore changes triggered by operator's own recent local actions
       if (Date.now() - lastLocalActionTimeRef.current < 3000) {
         return;
@@ -1547,15 +1550,50 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
         : null;
 
       const stIso = currentStart.toISOString(), endIso = currentEnd.toISOString();
-      const [top5Rpc, catRpc] = await Promise.all([
+      const [top5Rpc, catRpc, rangeDtRes] = await Promise.all([
         Promise.resolve(supabase.rpc("prod_downtime_top_problems" as any, { p_mesin: config.key, p_stasiun_list: stasiunList, p_start: stIso, p_end: endIso, p_limit: 5 })).catch(() => ({ data: null })),
         Promise.resolve(supabase.rpc("prod_downtime_by_category" as any, { p_mesin: config.key, p_stasiun_list: stasiunList, p_start: stIso, p_end: endIso })).catch(() => ({ data: null })),
+        Promise.resolve((() => {
+          let dq = supabase
+            .from("prod_downtime_log" as any)
+            .select("id, line_id, mesin, stasiun, kategori, problem, deskripsi, durasi_menit, durasi, waktu_awal, waktu_akhir, is_active, production_log_id")
+            .eq("is_active", true)
+            .gte("waktu_awal", stIso)
+            .lt("waktu_awal", endIso);
+          if (lineId) {
+            dq = dq.or(`line_id.eq.${lineId},mesin.eq.${config.key}`);
+          } else {
+            dq = dq.eq("mesin", config.key);
+          }
+          if (stasiunList && stasiunList.length > 0) {
+            dq = dq.in("stasiun", stasiunList);
+          }
+          return dq;
+        })()).catch(() => ({ data: null })),
       ]);
+
+      const rangeDowntimes: any[] = rangeDtRes?.data || [];
 
       const trendResults = await Promise.all(
         periods.map(async (p) => {
           if (p.separator) return { label: "", gsph: null, targetGsph: null, separator: true };
           const pStartIso = p.start.toISOString(), pEndIso = p.end.toISOString();
+          const pStartMs = p.start.getTime(), pEndMs = p.end.getTime();
+
+          // Hitung downtime nyata dari prod_downtime_log untuk periode p
+          const periodDowntimes = rangeDowntimes.filter((dl: any) => {
+            if (!dl.waktu_awal) return false;
+            const t = new Date(dl.waktu_awal).getTime();
+            return t >= pStartMs && t < pEndMs;
+          });
+          let periodDtMenit = 0;
+          periodDowntimes.forEach((dl: any) => {
+            let m = Number(dl.durasi_menit ?? dl.durasi ?? 0);
+            if (!m && dl.waktu_awal && dl.waktu_akhir) {
+              m = Math.round((new Date(dl.waktu_akhir).getTime() - new Date(dl.waktu_awal).getTime()) / 60000);
+            }
+            periodDtMenit += m;
+          });
 
           let aggRpc: any = null;
           try {
@@ -1571,13 +1609,21 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
             stroke = Number(row.stroke) || 0;
             ng = Number(row.ng) || 0;
             ngValue = Number(row.ng_value) || 0;
-            downtimeMenit = Math.round(Number(row.downtime_menit) || 0);
+            downtimeMenit = Math.max(Math.round(Number(row.downtime_menit) || 0), periodDtMenit);
             dandoriMenit = Math.round(Number(row.dandori_menit) || 0);
             breakMenit = Math.round(Number(row.break_menit) || 0);
             whJam = (Number(row.wh_menit) || 0) / 60;
             targetStdMenit = Number(row.target_std_menit) || 0;
+            if (whJam === 0 && (downtimeMenit > 0 || dandoriMenit > 0)) {
+              whJam = Math.max(0, 480 - downtimeMenit) / 60;
+            }
           } else {
-            let pq = supabase.from("prod_production_log" as any).select("*").eq("mesin", config.key).eq("is_active", true).gte("waktu_awal", pStartIso).lt("waktu_awal", pEndIso);
+            let pq = supabase.from("prod_production_log" as any).select("*").eq("is_active", true).gte("waktu_awal", pStartIso).lt("waktu_awal", pEndIso);
+            if (lineId) {
+              pq = pq.or(`line_id.eq.${lineId},mesin.eq.${config.key}`);
+            } else {
+              pq = pq.eq("mesin", config.key);
+            }
             if (stasiunList && stasiunList.length > 0) pq = pq.in("stasiun", stasiunList);
             const pr = await pq;
             const prods = pr.data || [];
@@ -1593,16 +1639,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
               if (ct) targetStdMenit += okQty * ct;
             });
 
-            let dq = supabase.from("prod_downtime_log" as any).select("*").eq("mesin", config.key).eq("is_active", true).gte("waktu_awal", pStartIso).lt("waktu_awal", pEndIso);
-            if (stasiunList && stasiunList.length > 0) dq = dq.in("stasiun", stasiunList);
-            const dr = await dq;
-            (dr.data || []).forEach((r: any) => {
-              let mnt = r.durasi_menit || r.durasi || 0;
-              if (!mnt && r.waktu_awal && r.waktu_akhir)
-                mnt = Math.round((new Date(r.waktu_akhir).getTime() - new Date(r.waktu_awal).getTime()) / 60000);
-              downtimeMenit += mnt;
-            });
-
+            downtimeMenit = periodDtMenit;
             whJam = Math.max(0, 480 - downtimeMenit) / 60;
           }
 
@@ -1665,17 +1702,19 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       }
 
       let top5: any[] = [];
-      if (top5Rpc.data && Array.isArray(top5Rpc.data)) {
+      const rpcTop5Total = Array.isArray(top5Rpc.data) ? top5Rpc.data.reduce((a: number, b: any) => a + (Number(b.total_menit) || 0), 0) : 0;
+      if (rpcTop5Total > 0 && Array.isArray(top5Rpc.data)) {
         top5 = top5Rpc.data.map((r: any) => ({ kategori: r.kategori, problem: r.problem, menit: Math.round(Number(r.total_menit) || 0) }));
       } else {
-        const pDateStr = currentStart.toISOString().split("T")[0];
-        const dtFiltered = downtimeList.filter((d: any) => d.tanggal === pDateStr || (d.waktu_awal && d.waktu_awal.startsWith(pDateStr)));
         const probMap: Record<string, { kategori: string; problem: string; menit: number }> = {};
-        dtFiltered.forEach((d: any) => {
+        rangeDowntimes.forEach((d: any) => {
           const k = d.kategori || "MESIN";
-          const p = d.deskripsi || d.problem || "-";
+          const p = d.problem || d.deskripsi || "-";
           const key = `${k}_${p}`;
-          const m = d.durasi_menit || 0;
+          let m = Number(d.durasi_menit ?? d.durasi ?? 0);
+          if (!m && d.waktu_awal && d.waktu_akhir) {
+            m = Math.round((new Date(d.waktu_akhir).getTime() - new Date(d.waktu_awal).getTime()) / 60000);
+          }
           if (!probMap[key]) probMap[key] = { kategori: k, problem: p, menit: 0 };
           probMap[key].menit += m;
         });
@@ -1683,15 +1722,18 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       }
 
       let byCategory: any[] = [];
-      if (catRpc.data && Array.isArray(catRpc.data)) {
+      const rpcCatTotal = Array.isArray(catRpc.data) ? catRpc.data.reduce((a: number, b: any) => a + (Number(b.total_menit) || 0), 0) : 0;
+      if (rpcCatTotal > 0 && Array.isArray(catRpc.data)) {
         byCategory = catRpc.data.map((r: any) => ({ kategori: r.kategori, menit: Math.round(Number(r.total_menit) || 0) }));
       } else {
         const catMap: Record<string, number> = {};
-        const pDateStr = currentStart.toISOString().split("T")[0];
-        const dtFiltered = downtimeList.filter((d: any) => d.tanggal === pDateStr || (d.waktu_awal && d.waktu_awal.startsWith(pDateStr)));
-        dtFiltered.forEach((d: any) => {
+        rangeDowntimes.forEach((d: any) => {
           const k = d.kategori || "MESIN";
-          catMap[k] = (catMap[k] || 0) + (d.durasi_menit || 0);
+          let m = Number(d.durasi_menit ?? d.durasi ?? 0);
+          if (!m && d.waktu_awal && d.waktu_akhir) {
+            m = Math.round((new Date(d.waktu_akhir).getTime() - new Date(d.waktu_awal).getTime()) / 60000);
+          }
+          catMap[k] = (catMap[k] || 0) + m;
         });
         byCategory = Object.entries(catMap).map(([kategori, menit]) => ({ kategori, menit }));
       }
@@ -1716,7 +1758,29 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
           perfDayQuery = perfDayQuery.eq("mesin", config.key);
         }
         const { data: rows } = await perfDayQuery;
-        setPerfDayRows(rows || []);
+        const mappedRows = (rows || []).map((row: any) => {
+          const matchingDts = rangeDowntimes.filter((dl: any) => {
+            if (dl.production_log_id && dl.production_log_id === row.id) return true;
+            if (!dl.waktu_awal || !dl.waktu_akhir || !row.waktu_awal || !row.waktu_akhir) return false;
+            const dlStart = new Date(dl.waktu_awal).getTime();
+            const dlEnd = new Date(dl.waktu_akhir).getTime();
+            const rowStart = new Date(row.waktu_awal).getTime();
+            const rowEnd = new Date(row.waktu_akhir).getTime();
+            return dlStart >= rowStart && dlEnd <= rowEnd;
+          });
+          const dtSum = matchingDts.reduce((sum: number, dl: any) => {
+            let m = Number(dl.durasi_menit ?? dl.durasi ?? 0);
+            if (!m && dl.waktu_awal && dl.waktu_akhir) {
+              m = Math.round((new Date(dl.waktu_akhir).getTime() - new Date(dl.waktu_awal).getTime()) / 60000);
+            }
+            return sum + m;
+          }, 0);
+          return {
+            ...row,
+            downtime_menit: Math.max(Number(row.downtime_menit) || 0, dtSum),
+          };
+        });
+        setPerfDayRows(mappedRows);
       } else {
         setPerfDayRows([]);
       }
