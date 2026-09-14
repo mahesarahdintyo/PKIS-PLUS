@@ -1553,26 +1553,34 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       const [top5Rpc, catRpc, rangeDtRes] = await Promise.all([
         Promise.resolve(supabase.rpc("prod_downtime_top_problems" as any, { p_mesin: config.key, p_stasiun_list: stasiunList, p_start: stIso, p_end: endIso, p_limit: 5 })).catch(() => ({ data: null })),
         Promise.resolve(supabase.rpc("prod_downtime_by_category" as any, { p_mesin: config.key, p_stasiun_list: stasiunList, p_start: stIso, p_end: endIso })).catch(() => ({ data: null })),
-        Promise.resolve((() => {
-          let dq = supabase
-            .from("prod_downtime_log" as any)
-            .select("id, line_id, mesin, stasiun, kategori, problem, deskripsi, durasi_menit, durasi, waktu_awal, waktu_akhir, is_active, production_log_id")
-            .eq("is_active", true)
-            .gte("waktu_awal", stIso)
-            .lt("waktu_awal", endIso);
-          if (lineId) {
-            dq = dq.or(`line_id.eq.${lineId},mesin.eq.${config.key}`);
-          } else {
-            dq = dq.eq("mesin", config.key);
+        (async () => {
+          try {
+            let dq = supabase
+              .from("prod_downtime_log" as any)
+              .select("*")
+              .eq("is_active", true)
+              .gte("waktu_awal", stIso)
+              .lt("waktu_awal", endIso);
+            if (lineId) {
+              dq = dq.or(`line_id.eq.${lineId},mesin.eq.${config.key}`);
+            } else {
+              dq = dq.eq("mesin", config.key);
+            }
+            if (stasiunList && stasiunList.length > 0) {
+              dq = dq.in("stasiun", stasiunList);
+            }
+            const res = await dq;
+            return res;
+          } catch {
+            return { data: null };
           }
-          if (stasiunList && stasiunList.length > 0) {
-            dq = dq.in("stasiun", stasiunList);
-          }
-          return dq;
-        })()).catch(() => ({ data: null })),
+        })(),
       ]);
 
       const rangeDowntimes: any[] = rangeDtRes?.data || [];
+      const rpcTop5Total = Array.isArray(top5Rpc.data) ? top5Rpc.data.reduce((a: number, b: any) => a + (Number(b.total_menit) || 0), 0) : 0;
+      const rpcCatTotal = Array.isArray(catRpc.data) ? catRpc.data.reduce((a: number, b: any) => a + (Number(b.total_menit) || 0), 0) : 0;
+      const rpcDowntimeTotal = Math.max(rpcTop5Total, rpcCatTotal);
 
       const trendResults = await Promise.all(
         periods.map(async (p) => {
@@ -1588,12 +1596,19 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
           });
           let periodDtMenit = 0;
           periodDowntimes.forEach((dl: any) => {
-            let m = Number(dl.durasi_menit ?? dl.durasi ?? 0);
-            if (!m && dl.waktu_awal && dl.waktu_akhir) {
+            let m = 0;
+            if (dl.waktu_awal && dl.waktu_akhir) {
               m = Math.round((new Date(dl.waktu_akhir).getTime() - new Date(dl.waktu_awal).getTime()) / 60000);
+            } else if (dl.durasi_menit || dl.durasi) {
+              m = Number(dl.durasi_menit || dl.durasi || 0);
             }
-            periodDtMenit += m;
+            periodDtMenit += Math.max(0, m);
           });
+
+          // Jika aktif section harian dan periodDtMenit masih 0 padahal RPC downtime menemukan menit, gunakan total dari RPC
+          if (activePerfSection === "harian" && rpcDowntimeTotal > 0) {
+            periodDtMenit = Math.max(periodDtMenit, Math.round(rpcDowntimeTotal));
+          }
 
           let aggRpc: any = null;
           try {
@@ -1699,10 +1714,16 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
         };
       } else {
         dataSummary = trendResults[trendResults.length - 1] || null;
+        if (dataSummary && rpcDowntimeTotal > 0) {
+          dataSummary.downtimeMenit = Math.max(dataSummary.downtimeMenit || 0, Math.round(rpcDowntimeTotal));
+          if (dataSummary.whJam > 0) {
+            dataSummary.availability = Math.max(0, (dataSummary.whJam * 60 - dataSummary.downtimeMenit) / (dataSummary.whJam * 60)) * 100;
+            dataSummary.oee = (dataSummary.availability / 100) * ((dataSummary.performanceFactor || 0) / 100) * ((dataSummary.quality || 100) / 100) * 100;
+          }
+        }
       }
 
       let top5: any[] = [];
-      const rpcTop5Total = Array.isArray(top5Rpc.data) ? top5Rpc.data.reduce((a: number, b: any) => a + (Number(b.total_menit) || 0), 0) : 0;
       if (rpcTop5Total > 0 && Array.isArray(top5Rpc.data)) {
         top5 = top5Rpc.data.map((r: any) => ({ kategori: r.kategori, problem: r.problem, menit: Math.round(Number(r.total_menit) || 0) }));
       } else {
@@ -1711,9 +1732,11 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
           const k = d.kategori || "MESIN";
           const p = d.problem || d.deskripsi || "-";
           const key = `${k}_${p}`;
-          let m = Number(d.durasi_menit ?? d.durasi ?? 0);
-          if (!m && d.waktu_awal && d.waktu_akhir) {
+          let m = 0;
+          if (d.waktu_awal && d.waktu_akhir) {
             m = Math.round((new Date(d.waktu_akhir).getTime() - new Date(d.waktu_awal).getTime()) / 60000);
+          } else if (d.durasi_menit || d.durasi) {
+            m = Number(d.durasi_menit || d.durasi || 0);
           }
           if (!probMap[key]) probMap[key] = { kategori: k, problem: p, menit: 0 };
           probMap[key].menit += m;
@@ -1722,16 +1745,17 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       }
 
       let byCategory: any[] = [];
-      const rpcCatTotal = Array.isArray(catRpc.data) ? catRpc.data.reduce((a: number, b: any) => a + (Number(b.total_menit) || 0), 0) : 0;
       if (rpcCatTotal > 0 && Array.isArray(catRpc.data)) {
         byCategory = catRpc.data.map((r: any) => ({ kategori: r.kategori, menit: Math.round(Number(r.total_menit) || 0) }));
       } else {
         const catMap: Record<string, number> = {};
         rangeDowntimes.forEach((d: any) => {
           const k = d.kategori || "MESIN";
-          let m = Number(d.durasi_menit ?? d.durasi ?? 0);
-          if (!m && d.waktu_awal && d.waktu_akhir) {
+          let m = 0;
+          if (d.waktu_awal && d.waktu_akhir) {
             m = Math.round((new Date(d.waktu_akhir).getTime() - new Date(d.waktu_awal).getTime()) / 60000);
+          } else if (d.durasi_menit || d.durasi) {
+            m = Number(d.durasi_menit || d.durasi || 0);
           }
           catMap[k] = (catMap[k] || 0) + m;
         });
