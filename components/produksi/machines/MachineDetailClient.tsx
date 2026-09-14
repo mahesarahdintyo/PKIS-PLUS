@@ -712,18 +712,71 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
   }, [fetchGabunganRange, riwayatPartNumber, riwayatTanggalDari, riwayatTanggalSampai]);
 
   const fetchRiwayatHariIniData = useCallback(async () => {
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const waktuDari = `${todayStr}T00:00:00.000Z`;
-    const waktuSampai = `${todayStr}T23:59:59.999Z`;
+    // Use WIB (UTC+7) date so early-morning records (00:00–06:59 WIB) are included.
+    // new Date().toISOString() returns UTC date, which can differ from local WIB date.
+    const wibNow = new Date(Date.now() + 7 * 60 * 60 * 1000);
+    const todayStr = wibNow.toISOString().slice(0, 10); // YYYY-MM-DD in WIB
+    const waktuDari = `${todayStr}T00:00:00.000+07:00`;
+    const waktuSampai = `${todayStr}T23:59:59.999+07:00`;
     const gabungan = await fetchGabunganRange(waktuDari, waktuSampai, "");
+
+    // [FIX_RIWAYAT_DOWNTIME_MENIT] Fetch today's active downtime logs and augment each
+    // production row's downtime_menit using time-overlap matching.
+    // Downtime records saved without production_log_id won't be synced by the DB trigger,
+    // so we replicate the same logic used in fetchPerformanceData to keep both views consistent.
+    let downtimeQuery = supabase
+      .from("prod_downtime_log" as any)
+      .select("*")
+      .eq("is_active", true)
+      .gte("waktu_awal", waktuDari)
+      .lte("waktu_awal", waktuSampai);
+    if (lineId) {
+      downtimeQuery = downtimeQuery.eq("line_id", lineId);
+    } else {
+      downtimeQuery = downtimeQuery.eq("mesin", config.key);
+    }
+    const { data: todayDowntimes } = await downtimeQuery;
+    const dtLogs: any[] = todayDowntimes || [];
+
+    const augmented = gabungan.map((item) => {
+      if (item.jenis !== "produksi") return item;
+      const row = item.data;
+      const matchingDts = dtLogs.filter((dl: any) => {
+        // Prefer explicit link via production_log_id
+        if (dl.production_log_id && dl.production_log_id === row.id) return true;
+        // Fallback: downtime time window falls within the production session window
+        if (!dl.waktu_awal || !dl.waktu_akhir || !row.waktu_awal || !row.waktu_akhir) return false;
+        const dlStart = new Date(dl.waktu_awal).getTime();
+        const dlEnd   = new Date(dl.waktu_akhir).getTime();
+        const rowStart = new Date(row.waktu_awal).getTime();
+        const rowEnd   = new Date(row.waktu_akhir).getTime();
+        return dlStart >= rowStart && dlEnd <= rowEnd;
+      });
+      if (matchingDts.length === 0) return item;
+      const dtSum = matchingDts.reduce((sum: number, dl: any) => {
+        let m = Number(dl.durasi_menit ?? dl.durasi ?? 0);
+        if (!m && dl.waktu_awal && dl.waktu_akhir) {
+          m = Math.round((new Date(dl.waktu_akhir).getTime() - new Date(dl.waktu_awal).getTime()) / 60000);
+        }
+        return sum + m;
+      }, 0);
+      return {
+        ...item,
+        data: {
+          ...row,
+          downtime_menit: Math.max(Number(row.downtime_menit) || 0, dtSum),
+        },
+      };
+    });
+
     // Urutkan kronologis dari awal hari (pagi) ke akhir hari (ascending)
-    const sorted = [...gabungan].sort((a, b) => {
+    const sorted = [...augmented].sort((a, b) => {
       const ta = a.waktu_awal ? new Date(a.waktu_awal).getTime() : 0;
       const tb = b.waktu_awal ? new Date(b.waktu_awal).getTime() : 0;
       return ta - tb;
     });
     setRiwayatHariIni(sorted);
-  }, [fetchGabunganRange]);
+  }, [fetchGabunganRange, lineId, config.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const canDeleteRow = (_row: any): boolean => {
     const role = (profile?.role || userRole || "").trim().toLowerCase();
