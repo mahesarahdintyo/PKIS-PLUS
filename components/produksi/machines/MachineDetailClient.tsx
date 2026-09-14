@@ -683,13 +683,28 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       if (waktuSampai) nonProduksiQuery = nonProduksiQuery.lte("waktu_awal", waktuSampai);
       if (partNumberFilter) nonProduksiQuery = nonProduksiQuery.or(`part_dari.eq.${partNumberFilter},part_ke.eq.${partNumberFilter}`);
 
-      const [{ data: produksi, error: produksiError }, { data: nonProduksi, error: nonProduksiError }] = await Promise.all([productionQuery, nonProduksiQuery]);
+      // [FIX_DOWNTIME_RIWAYAT] Tambahkan query downtime log agar muncul di riwayat hari ini
+      let downtimeQuery = supabase.from("prod_downtime_log" as any).select("*").eq("is_active", true);
+      if (lineId) {
+        downtimeQuery = downtimeQuery.eq("line_id", lineId);
+      } else {
+        downtimeQuery = downtimeQuery.eq("mesin", config.key);
+      }
+      if (waktuDari) downtimeQuery = downtimeQuery.gte("waktu_awal", waktuDari);
+      if (waktuSampai) downtimeQuery = downtimeQuery.lte("waktu_awal", waktuSampai);
+
+      const [
+        { data: produksi, error: produksiError },
+        { data: nonProduksi, error: nonProduksiError },
+        { data: downtimeRows },
+      ] = await Promise.all([productionQuery, nonProduksiQuery, downtimeQuery]);
       if (produksiError) throw produksiError;
       if (nonProduksiError) throw nonProduksiError;
 
       const gabungan = [
         ...(produksi || []).map((row: any) => ({ jenis: "produksi", waktu_awal: row.waktu_awal, waktu_akhir: row.waktu_akhir, part_number: row.part_number, data: row })),
         ...(nonProduksi || []).map((row: any) => ({ jenis: "non_produksi", waktu_awal: row.waktu_awal, waktu_akhir: row.waktu_akhir, part_number: row.part_ke || row.part_dari || null, data: row })),
+        ...(downtimeRows || []).map((row: any) => ({ jenis: "downtime", waktu_awal: row.waktu_awal, waktu_akhir: row.waktu_akhir, part_number: null, data: row })),
       ].sort((a, b) => {
         const ta = a.waktu_awal ? new Date(a.waktu_awal).getTime() : 0;
         const tb = b.waktu_awal ? new Date(b.waktu_awal).getTime() : 0;
@@ -1689,12 +1704,18 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       });
 
       if (activePerfSection === "harian") {
-        const { data: rows } = await supabase
+        // [FIX_PERF_LINE_ID] Gunakan line_id jika tersedia, fallback ke mesin key
+        let perfDayQuery = supabase
           .from("prod_production_log" as any)
           .select("*")
-          .eq("mesin", config.key)
           .eq("is_active", true)
           .eq("tanggal", perfDate);
+        if (lineId) {
+          perfDayQuery = perfDayQuery.eq("line_id", lineId);
+        } else {
+          perfDayQuery = perfDayQuery.eq("mesin", config.key);
+        }
+        const { data: rows } = await perfDayQuery;
         setPerfDayRows(rows || []);
       } else {
         setPerfDayRows([]);

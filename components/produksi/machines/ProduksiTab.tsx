@@ -1114,6 +1114,47 @@ export default function ProduksiTab({
                   ? () => (row.jenis === "produksi" ? handleEditProductionRow(data) : handleEditNonProduksiRow(data))
                   : undefined;
 
+                // [FIX_DOWNTIME_RIWAYAT] Render baris downtime dengan styling khusus
+                if (row.jenis === "downtime") {
+                  const durasiMnt = (() => {
+                    if (!data.waktu_awal || !data.waktu_akhir) return null;
+                    return Math.round((new Date(data.waktu_akhir).getTime() - new Date(data.waktu_awal).getTime()) / 60000);
+                  })();
+                  return (
+                    <tr
+                      key={`hari-ini-downtime-${data.id || idx}`}
+                      style={{ background: "rgba(239,68,68,0.06)", borderLeft: "3px solid rgba(239,68,68,0.5)" }}
+                    >
+                      <td className="mono col-hide-mobile">-</td>
+                      {config.stationConfig.mode !== "none" && <td className="mono col-hide-mobile">{data.stasiun || "-"}</td>}
+                      <td className="mono col-hide-mobile">{fmt(data.waktu_awal)}</td>
+                      <td className="mono col-hide-mobile">{fmt(data.waktu_akhir)}</td>
+                      <td>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: "rgba(239,68,68,0.18)", color: "rgb(239,68,68)", letterSpacing: "0.04em", whiteSpace: "nowrap" }}>
+                            DOWNTIME
+                          </span>
+                          <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>
+                            {[data.kategori, data.problem].filter(Boolean).join(" · ") || "-"}
+                          </span>
+                        </span>
+                      </td>
+                      <td className="mono">-</td>
+                      <td className="mono">-</td>
+                      <td className="mono col-hide-mobile">-</td>
+                      <td className="mono col-hide-mobile">-</td>
+                      <td className="mono font-bold" style={{ color: "rgb(239,68,68)" }}>
+                        {durasiMnt !== null ? `${fmtNum(durasiMnt)} mnt` : "-"}
+                      </td>
+                      <td className="mono">-</td>
+                      <td className="mono">-</td>
+                      <td className="mono">-</td>
+                      {config.routingMax > 0 && <td className="col-hide-mobile">-</td>}
+                      <td><div className="flex gap-1.5" /></td>
+                    </tr>
+                  );
+                }
+
                 return (
                   <tr
                     key={`hari-ini-${row.jenis}-${data.id || idx}`}
@@ -1124,7 +1165,18 @@ export default function ProduksiTab({
                     {config.stationConfig.mode !== "none" && <td className="mono col-hide-mobile">{data.stasiun || "-"}</td>}
                     <td className="mono col-hide-mobile">{fmt(row.waktu_awal)}</td>
                     <td className="mono col-hide-mobile">{fmt(row.waktu_akhir)}</td>
-                    <td>{row.part_number || "-"}</td>
+                    <td>
+                      {row.jenis === "non_produksi" ? (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: "rgba(100,116,139,0.18)", color: "var(--muted-foreground)", letterSpacing: "0.04em", whiteSpace: "nowrap" }}>
+                            NON-PROD
+                          </span>
+                          <span style={{ fontSize: 12 }}>{data.nama || "-"}</span>
+                        </span>
+                      ) : (
+                        row.part_number || "-"
+                      )}
+                    </td>
                     <td className="mono">{row.jenis === "produksi" ? fmtNum(data.qty) : "-"}</td>
                     <td className="mono">{row.jenis === "produksi" ? fmtNum(data.manpower) : "-"}</td>
                     <td className="mono col-hide-mobile">{earned !== null ? `${fmtNum(earned)} mnt` : "-"}</td>
