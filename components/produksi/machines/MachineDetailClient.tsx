@@ -765,9 +765,18 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
     setRiwayatHariIni(gabungan);
   }, [fetchGabunganRange]);
 
-  const canDeleteRow = (_row: any): boolean => {
+  const canDeleteRow = (row?: any): boolean => {
     const role = (profile?.role || userRole || "").trim().toLowerCase();
-    return ["admin", "leader"].includes(role);
+    if (["admin", "leader"].includes(role)) return true;
+    if (role === "operator") {
+      // Operator diizinkan menghapus catatan riwayat hari ini (WIB)
+      const wAwal = row?.waktu_awal || row?.data?.waktu_awal;
+      if (!wAwal) return true;
+      const wibNow = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const rowWib = new Date(new Date(wAwal).getTime() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      return wibNow === rowWib;
+    }
+    return false;
   };
 
   const canEditRow = (_row?: any): boolean => {
