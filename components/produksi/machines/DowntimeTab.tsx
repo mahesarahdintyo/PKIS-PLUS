@@ -68,6 +68,7 @@ interface DowntimeTabProps {
   config: ProdMachineConfig;
   isLeaderOrAdmin: boolean;
   canEditRow?: (row?: any) => boolean;
+  canDeleteRow?: (row?: any) => boolean;
   dtState: "idle" | "running" | "stopped";
   dtStart: string | null;
   dtEnd: string | null;
@@ -121,6 +122,7 @@ export default function DowntimeTab({
   config,
   isLeaderOrAdmin,
   canEditRow,
+  canDeleteRow,
   dtState,
   dtStart,
   dtEnd,
@@ -340,7 +342,7 @@ export default function DowntimeTab({
                             <Pencil size={13} />
                           </Button>
                         )}
-                        {isLeaderOrAdmin && (
+                        {(canDeleteRow ? canDeleteRow(row) : isLeaderOrAdmin) && (
                           <Button
                             type="button"
                             variant="destructive"

@@ -2164,11 +2164,18 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
   };
 
   const deleteDowntime = async (id: string) => {
+    // Validasi izin berdasarkan canDeleteRow (operator hanya bisa hapus hari ini)
+    const targetRow = downtimeList.find((d) => d.id === id);
+    if (targetRow && !canDeleteRow({ data: targetRow, waktu_awal: targetRow.waktu_awal })) {
+      flash("Anda tidak memiliki izin untuk menghapus data downtime ini.", true);
+      return;
+    }
     if (!confirm("Hapus data downtime ini?")) return;
     try {
       markLocalAction();
       const { error } = await supabase.from("prod_downtime_log" as any).update({ is_active: false }).eq("id", id);
       if (error) throw error;
+      flash("Data downtime berhasil dihapus.");
       await loadData();
       await fetchRiwayatHariIniData();
       setPerfRefreshKey((k) => k + 1);
@@ -2176,6 +2183,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       flash("Gagal menghapus downtime: " + (err?.message || JSON.stringify(err)), true);
     }
   };
+
 
   const durasiMenit = (waktuAwal?: string | null, waktuAkhir?: string | null) => {
     if (!waktuAwal || !waktuAkhir) return "-";
@@ -2812,6 +2820,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
               config={config}
               isLeaderOrAdmin={isLeaderOrAdmin}
               canEditRow={canEditRow}
+              canDeleteRow={canDeleteRow}
               dtState={dtState}
               dtStart={dtStart}
               dtEnd={dtEnd}
@@ -2838,6 +2847,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
               fmtClock={fmtClock}
             />
           )}
+
 
           {activeTab === "master_data" && (
             <MasterDataTab
