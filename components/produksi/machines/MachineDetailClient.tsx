@@ -2164,9 +2164,9 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
   };
 
   const deleteDowntime = async (id: string) => {
-    // Validasi izin berdasarkan canDeleteRow (operator hanya bisa hapus hari ini)
-    const targetRow = downtimeList.find((d) => d.id === id);
-    if (targetRow && !canDeleteRow({ data: targetRow, waktu_awal: targetRow.waktu_awal })) {
+    // Operator/Leader/Admin bisa menghapus semua riwayat downtime (tidak dibatasi hari ini)
+    const canDelete = ["admin", "leader", "operator"].includes(effectiveRole);
+    if (!canDelete) {
       flash("Anda tidak memiliki izin untuk menghapus data downtime ini.", true);
       return;
     }
@@ -2820,7 +2820,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
               config={config}
               isLeaderOrAdmin={isLeaderOrAdmin}
               canEditRow={canEditRow}
-              canDeleteRow={canDeleteRow}
+              canDeleteRow={(_row) => ["admin", "leader", "operator"].includes(effectiveRole)}
               dtState={dtState}
               dtStart={dtStart}
               dtEnd={dtEnd}
