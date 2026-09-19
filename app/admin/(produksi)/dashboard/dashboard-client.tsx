@@ -2111,10 +2111,10 @@ export default function DashboardClient() {
                   </Card>
 
                   {/* 10 Downtime Terburuk */}
-                  <Card className="dash-panel card-glow-info" style={{ display: "flex", flexDirection: "column" }}>
+                  <Card className="dash-panel dash-panel-fit card-glow-info" style={{ display: "flex", flexDirection: "column" }}>
                     <p className="dash-panel-title">10 DOWNTIME TERBURUK</p>
-                    <div className="table-wrap" style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-                      <table className="table-compact" style={{ width: "100%", height: "100%" }}>
+                    <div className="table-wrap" style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+                      <table className="table-compact" style={{ width: "100%" }}>
                         <thead>
                           <tr>
                             <th style={{ width: "22%" }}>LINE</th>

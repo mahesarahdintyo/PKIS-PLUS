@@ -2346,7 +2346,8 @@ table.table-compact .status-badge {
   }
 
   .tv-row-1 .table-wrap,
-  .tv-row-3 .table-wrap {
+  .tv-row-3 .table-wrap,
+  .tv-row-4 .table-wrap {
     flex: 1;
     min-height: 0;
     max-height: none;
@@ -2479,12 +2480,15 @@ table.table-compact .status-badge {
   }
 
   .internal-viz .internal-row-worst .dash-panel {
-    padding: 5px 8px;
+    padding: 8px 10px;
   }
 
   .internal-viz .internal-row-worst .dash-panel-title {
-    font-size: 10px;
-    margin: 0 0 2px;
+    font-size: 11px;
+    margin: 0 0 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .internal-viz .internal-row-worst .table-wrap {
@@ -2495,21 +2499,21 @@ table.table-compact .status-badge {
   }
 
   .internal-viz .internal-row-worst table.table-compact th {
-    padding: 2px 4px;
-    font-size: 8px;
-    line-height: 1.1;
+    padding: 4px 6px;
+    font-size: 9px;
   }
 
   .internal-viz .internal-row-worst table.table-compact td {
-    padding: 2px 4px;
-    font-size: 9.5px;
-    line-height: 1.15;
+    padding: 4px 6px;
+    font-size: 11px;
+    line-height: 1.25;
   }
 
   .internal-viz .internal-row-worst .badge {
-    font-size: 8px;
-    padding: 0 4px;
+    font-size: 9px;
+    padding: 1px 5px;
   }
+
 }
 
 /* ---------- Responsive Adjustments ---------- */
