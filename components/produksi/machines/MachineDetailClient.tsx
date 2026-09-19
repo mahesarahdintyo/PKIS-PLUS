@@ -227,6 +227,72 @@ function getSlugFromName(name: string): string {
   return "";
 }
 
+/**
+ * Helper untuk mencocokkan downtime ke baris produksi.
+ * Mendukung:
+ * 1. Explicit link via dl.production_log_id === row.id
+ * 2. Downtime di dalam durasi produksi (dlStart >= rowStart && dlEnd <= rowEnd)
+ * 3. Smart Pre-production Gap Attribution: downtime yang terjadi setelah event sebelumnya selesai
+ *    dan sebelum/selama sesi produksi ini selesai (tanpa ada event lain di antaranya).
+ */
+function isDowntimeMatchingProduction(
+  dl: any,
+  row: any,
+  allEvents: any[]
+): boolean {
+  // 1. Explicit link
+  if (dl.production_log_id) {
+    return dl.production_log_id === row.id;
+  }
+  if (!dl.waktu_awal || !dl.waktu_akhir || !row.waktu_awal || !row.waktu_akhir) {
+    return false;
+  }
+
+  const dlStart = new Date(dl.waktu_awal).getTime();
+  const dlEnd = new Date(dl.waktu_akhir).getTime();
+  const rowStart = new Date(row.waktu_awal).getTime();
+  const rowEnd = new Date(row.waktu_akhir).getTime();
+
+  // 2. Berada di dalam rentang waktu sesi produksi langsung
+  if (dlStart >= rowStart && dlEnd <= rowEnd) {
+    return true;
+  }
+
+  // 3. Smart Pre-Production Gap Attribution:
+  // Berlaku jika downtime terjadi sebelum part dimulai dan belum melewati akhir sesi part ini.
+  if (dlEnd > rowEnd) return false;
+
+  // Cari event sebelumnya (produksi atau non-produksi) sebelum rowStart
+  const prevEvents = (allEvents || []).filter((ev: any) => {
+    if (ev.id === row.id && (ev.jenis === "produksi" || ev._kind === "produksi")) return false;
+    if (row.stasiun && ev.stasiun && ev.stasiun !== row.stasiun) return false;
+    const evStart = ev.waktu_awal ? new Date(ev.waktu_awal).getTime() : 0;
+    return evStart < rowStart;
+  });
+  const prevEvent = prevEvents.length > 0 ? prevEvents[prevEvents.length - 1] : null;
+  const effectiveStart = prevEvent?.waktu_akhir ? new Date(prevEvent.waktu_akhir).getTime() : 0;
+
+  // Jangan ambil downtime yang terjadi sebelum event sebelumnya selesai
+  if (dlStart < effectiveStart) {
+    return false;
+  }
+
+  // Pastikan tidak ada event produksi/non-produksi lain di antara dlEnd dan rowStart
+  const intermediateEvents = (allEvents || []).filter((ev: any) => {
+    if (ev.id === row.id && (ev.jenis === "produksi" || ev._kind === "produksi")) return false;
+    if (row.stasiun && ev.stasiun && ev.stasiun !== row.stasiun) return false;
+    const evStart = ev.waktu_awal ? new Date(ev.waktu_awal).getTime() : 0;
+    const evEnd = ev.waktu_akhir ? new Date(ev.waktu_akhir).getTime() : 0;
+    return evStart >= dlEnd && evEnd <= rowStart;
+  });
+
+  if (intermediateEvents.length > 0) {
+    return false;
+  }
+
+  return true;
+}
+
 interface MachineDetailClientProps {
   lineId?: string;
   lineName?: string;
@@ -708,18 +774,19 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
 
       const dtLogs: any[] = downtimes || [];
 
+      const allEvents = [
+        ...(produksi || []).map((p: any) => ({ ...p, _kind: "produksi" })),
+        ...(nonProduksi || []).map((np: any) => ({ ...np, _kind: "non_produksi" })),
+      ].sort((a: any, b: any) => {
+        const ta = a.waktu_awal ? new Date(a.waktu_awal).getTime() : 0;
+        const tb = b.waktu_awal ? new Date(b.waktu_awal).getTime() : 0;
+        return ta - tb;
+      });
+
       const augmentedProduksi = (produksi || []).map((row: any) => {
-        const matchingDts = dtLogs.filter((dl: any) => {
-          // Prefer explicit link via production_log_id
-          if (dl.production_log_id && dl.production_log_id === row.id) return true;
-          // Fallback: downtime time window falls within the production session window
-          if (!dl.waktu_awal || !dl.waktu_akhir || !row.waktu_awal || !row.waktu_akhir) return false;
-          const dlStart = new Date(dl.waktu_awal).getTime();
-          const dlEnd   = new Date(dl.waktu_akhir).getTime();
-          const rowStart = new Date(row.waktu_awal).getTime();
-          const rowEnd   = new Date(row.waktu_akhir).getTime();
-          return dlStart >= rowStart && dlEnd <= rowEnd;
-        });
+        const matchingDts = dtLogs.filter((dl: any) =>
+          isDowntimeMatchingProduction(dl, row, allEvents)
+        );
         if (matchingDts.length === 0) return row;
         const dtSum = matchingDts.reduce((sum: number, dl: any) => {
           let m = Number(dl.durasi_menit ?? dl.durasi ?? 0);
@@ -1858,16 +1925,19 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
           perfDayQuery = perfDayQuery.eq("mesin", config.key);
         }
         const { data: rows } = await perfDayQuery;
+        const allPerfEvents = [
+          ...(rows || []).map((p: any) => ({ ...p, _kind: "produksi" })),
+          ...(nonProduksiRows || []).map((np: any) => ({ ...np, _kind: "non_produksi" })),
+        ].sort((a: any, b: any) => {
+          const ta = a.waktu_awal ? new Date(a.waktu_awal).getTime() : 0;
+          const tb = b.waktu_awal ? new Date(b.waktu_awal).getTime() : 0;
+          return ta - tb;
+        });
+
         const mappedRows = (rows || []).map((row: any) => {
-          const matchingDts = rangeDowntimes.filter((dl: any) => {
-            if (dl.production_log_id && dl.production_log_id === row.id) return true;
-            if (!dl.waktu_awal || !dl.waktu_akhir || !row.waktu_awal || !row.waktu_akhir) return false;
-            const dlStart = new Date(dl.waktu_awal).getTime();
-            const dlEnd = new Date(dl.waktu_akhir).getTime();
-            const rowStart = new Date(row.waktu_awal).getTime();
-            const rowEnd = new Date(row.waktu_akhir).getTime();
-            return dlStart >= rowStart && dlEnd <= rowEnd;
-          });
+          const matchingDts = rangeDowntimes.filter((dl: any) =>
+            isDowntimeMatchingProduction(dl, row, allPerfEvents)
+          );
           const dtSum = matchingDts.reduce((sum: number, dl: any) => {
             let m = Number(dl.durasi_menit ?? dl.durasi ?? 0);
             if (!m && dl.waktu_awal && dl.waktu_akhir) {
@@ -2191,19 +2261,25 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
     return `${fmtNum(menit)} mnt`;
   };
 
-  const downtimeRowsFiltered = () =>
-    downtimeList.filter((d) => {
-      if (!downtimeFilterProductionId) return true;
+  const downtimeRowsFiltered = () => {
+    if (!downtimeFilterProductionId) return downtimeList;
+    const allEvents = [
+      ...productionRows.map((p) => ({ ...p, _kind: "produksi" })),
+      ...nonProduksiRows.map((np) => ({ ...np, _kind: "non_produksi" })),
+    ].sort((a: any, b: any) => {
+      const ta = a.waktu_awal ? new Date(a.waktu_awal).getTime() : 0;
+      const tb = b.waktu_awal ? new Date(b.waktu_awal).getTime() : 0;
+      return ta - tb;
+    });
+
+    return downtimeList.filter((d) => {
       if (d.production_log_id === downtimeFilterProductionId) return true;
-      if (downtimeFilterProductionRow?.waktu_awal && downtimeFilterProductionRow?.waktu_akhir && d.waktu_awal && d.waktu_akhir) {
-        const dlStart = new Date(d.waktu_awal).getTime();
-        const dlEnd = new Date(d.waktu_akhir).getTime();
-        const rowStart = new Date(downtimeFilterProductionRow.waktu_awal).getTime();
-        const rowEnd = new Date(downtimeFilterProductionRow.waktu_akhir).getTime();
-        return dlStart >= rowStart && dlEnd <= rowEnd;
+      if (downtimeFilterProductionRow) {
+        return isDowntimeMatchingProduction(d, downtimeFilterProductionRow, allEvents);
       }
       return false;
     });
+  };
 
   const fmtNum = (n: number | null | undefined) => {
     if (n === null || n === undefined || isNaN(n)) return "0";
