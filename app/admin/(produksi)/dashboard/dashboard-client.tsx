@@ -1856,9 +1856,9 @@ export default function DashboardClient() {
               /* ═══ Visualisasi Internal ═══ */
               <div className="internal-viz">
                 <div className="dash-main-grid internal-row-productivity">
-                  <Card className="dash-panel card-glow-info">
+                  <Card className="dash-panel dash-panel-fit card-glow-info">
                     <p className="dash-panel-title">Productivity — Capaian Hari Ini</p>
-                    <p className="hint" style={{ margin: "-4px 0 10px" }}>
+                    <p className="hint">
                       Productivity = PEFF ÷ Kijun PEFF <b>{fmtNum(KIJUN_PEFF * 100)}%</b> · PEFF = Earned Hours ÷ Working Hours
                     </p>
                     <div className="productivity-today">
@@ -1897,9 +1897,9 @@ export default function DashboardClient() {
                     </div>
                   </Card>
 
-                  <Card className="dash-panel card-glow-info">
+                  <Card className="dash-panel dash-panel-fit card-glow-info">
                     <p className="dash-panel-title">Productivity — Per Tanggal</p>
-                    <p className="hint" style={{ margin: "-4px 0 10px" }}>
+                    <p className="hint">
                       Angka masing-masing tanggal, dihitung sendiri-sendiri (tidak digabung).
                     </p>
                     <div className="dash-chart-sm">
@@ -1907,9 +1907,9 @@ export default function DashboardClient() {
                     </div>
                   </Card>
 
-                  <Card className="dash-panel card-glow-info">
+                  <Card className="dash-panel dash-panel-fit card-glow-info">
                     <p className="dash-panel-title">Productivity — Akumulasi</p>
-                    <p className="hint" style={{ margin: "-4px 0 10px" }}>
+                    <p className="hint">
                       Total periode ini: <b>{fmtNum(totals.productivity)}%</b> (PEFF <b>{fmtNum(totals.peff * 100)}%</b>) · EH &amp; WH dijumlah berjalan sejak awal periode, baru dibagi.
                     </p>
                     <div className="dash-chart-sm">
@@ -1918,13 +1918,13 @@ export default function DashboardClient() {
                   </Card>
                 </div>
                 <div className="dash-main-grid internal-row-1">
-                  <Card className="dash-panel card-glow-info">
+                  <Card className="dash-panel dash-panel-fit card-glow-info">
                     <p className="dash-panel-title">Availability per Line — Target vs Actual</p>
                     <div className="dash-chart-sm">
                       <canvas ref={internalAvailRef} />
                     </div>
                   </Card>
-                  <Card className="dash-panel card-glow-info">
+                  <Card className="dash-panel dash-panel-fit card-glow-info">
                     <p className="dash-panel-title">GSPH per Line — Target vs Actual</p>
                     <div className="dash-chart-sm">
                       <canvas ref={internalGsphRef} />
@@ -1932,19 +1932,19 @@ export default function DashboardClient() {
                   </Card>
                 </div>
                 <div className="dash-main-grid internal-row-3">
-                  <Card className="dash-panel card-glow-info">
+                  <Card className="dash-panel dash-panel-fit card-glow-info">
                     <p className="dash-panel-title">Downtime per Line</p>
                     <div className="dash-chart-sm">
                       <canvas ref={internalDowntimeLineRef} />
                     </div>
                   </Card>
-                  <Card className="dash-panel card-glow-info">
+                  <Card className="dash-panel dash-panel-fit card-glow-info">
                     <p className="dash-panel-title">Downtime per Kategori</p>
                     <div className="dash-chart-sm">
                       <canvas ref={internalCategoryPieRef} />
                     </div>
                   </Card>
-                  <Card className="dash-panel card-glow-info">
+                  <Card className="dash-panel dash-panel-fit card-glow-info">
                     <p className="dash-panel-title">Downtime per Kategori × Line</p>
                     <div className="dash-chart-sm">
                       <canvas ref={internalCategoryLineRef} />
@@ -1957,7 +1957,7 @@ export default function DashboardClient() {
                     return (
                       <Card
                         key={m.key}
-                        className="dash-panel card-glow-info animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+                        className="dash-panel dash-panel-fit card-glow-info animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
                         style={{ animationDelay: `${mIdx * 40}ms` }}
                       >
                         <p className="dash-panel-title">5 Downtime Terburuk — {m.shortLabel}</p>
