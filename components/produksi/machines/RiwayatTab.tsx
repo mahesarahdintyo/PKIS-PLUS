@@ -227,7 +227,13 @@ export default function RiwayatTab({
                       <span>{row.jenis === "produksi" ? `${fmtNum(data.downtime_menit ?? 0)} mnt` : "-"}</span>
                     )}
                   </td>
-                  <td className="mono">{row.jenis === "produksi" ? `${fmtNum(data.break_menit ?? 0)} mnt` : "-"}</td>
+                  <td className="mono">
+                    {row.jenis === "produksi"
+                      ? `${fmtNum(data.break_menit ?? 0)} mnt`
+                      : (data.break_menit !== undefined && data.break_menit !== null && data.break_menit !== "" && Number(data.break_menit) > 0
+                          ? `${fmtNum(data.break_menit)} mnt`
+                          : "-")}
+                  </td>
                   {config.routingMax > 0 && <td className="col-hide-mobile">{row.jenis === "produksi" ? routing : "-"}</td>}
                   <td>
                     <div className="flex gap-1.5">

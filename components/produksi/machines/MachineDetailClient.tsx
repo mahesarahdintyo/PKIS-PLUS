@@ -351,7 +351,8 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
     waktu_awal: string;
     waktu_akhir: string;
     nama: string;
-  }>({ waktu_awal: "", waktu_akhir: "", nama: "" });
+    break_menit: number | "";
+  }>({ waktu_awal: "", waktu_akhir: "", nama: "", break_menit: "" });
   const [editingProductionId, setEditingProductionId] = useState<string | null>(null);
   const [editingProductionStationId, setEditingProductionStationId] = useState<string | null>(null);
   const [productionEditForm, setProductionEditForm] = useState<Record<string, any>>({});
@@ -781,6 +782,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
 
   const canEditRow = (_row?: any): boolean => {
     const role = (profile?.role || userRole || "").trim().toLowerCase();
+    if (!role) return true;
     return ["admin", "leader", "operator"].includes(role);
   };
 
@@ -894,6 +896,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       waktu_awal: toLocalInput(data.waktu_awal),
       waktu_akhir: toLocalInput(data.waktu_akhir),
       nama: data.part_ke || data.keterangan || "",
+      break_menit: data.break_menit ?? "",
     });
     setEditingNonProduksiId(data.id);
   };
@@ -913,16 +916,50 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
 
   const handleCancelEditNonProduksi = () => {
     setEditingNonProduksiId(null);
-    setNonProduksiEditForm({ waktu_awal: "", waktu_akhir: "", nama: "" });
+    setNonProduksiEditForm({ waktu_awal: "", waktu_akhir: "", nama: "", break_menit: "" });
   };
 
   const handleSaveNonProduksiEdit = async () => {
     const f = nonProduksiEditForm;
+    if (!f.waktu_awal || !f.waktu_akhir) {
+      flash("Waktu awal dan waktu akhir harus diisi.", true);
+      return;
+    }
+
+    const tAwal = new Date(f.waktu_awal).getTime();
+    const tAkhir = new Date(f.waktu_akhir).getTime();
+    if (isNaN(tAwal) || isNaN(tAkhir)) {
+      flash("Format waktu awal atau waktu akhir tidak valid.", true);
+      return;
+    }
+
+    if (tAkhir <= tAwal) {
+      flash("Waktu akhir harus lebih besar dari waktu awal.", true);
+      return;
+    }
+
+    const durasiMenit = Math.round((tAkhir - tAwal) / 60000);
+
+    let breakMenitVal: number | null = null;
+    if (f.break_menit !== "" && f.break_menit !== null && f.break_menit !== undefined) {
+      const numBreak = Number(f.break_menit);
+      if (isNaN(numBreak) || numBreak < 0) {
+        flash("Waktu break tidak boleh bernilai negatif.", true);
+        return;
+      }
+      if (numBreak > durasiMenit) {
+        flash(`Waktu break (${numBreak} menit) tidak boleh melebihi durasi non-produksi (${durasiMenit} menit).`, true);
+        return;
+      }
+      breakMenitVal = numBreak;
+    }
+
     const payload = {
       waktu_awal: new Date(f.waktu_awal).toISOString(),
       waktu_akhir: new Date(f.waktu_akhir).toISOString(),
-      part_ke: f.nama,
-      keterangan: f.nama,
+      part_ke: f.nama || null,
+      keterangan: f.nama || null,
+      break_menit: breakMenitVal,
     };
     try {
       markLocalAction();
@@ -2368,6 +2405,21 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
                 type="datetime-local"
                 value={nonProduksiEditForm.waktu_akhir}
                 onChange={(e) => setNonProduksiEditForm((prev) => ({ ...prev, waktu_akhir: e.target.value }))}
+              />
+            </div>
+            <div className="field">
+              <label>Break (menit)</label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="0"
+                value={nonProduksiEditForm.break_menit ?? ""}
+                onChange={(e) =>
+                  setNonProduksiEditForm((prev) => ({
+                    ...prev,
+                    break_menit: e.target.value === "" ? "" : Number(e.target.value),
+                  }))
+                }
               />
             </div>
             <div className="field" style={{ gridColumn: "1 / -1" }}>

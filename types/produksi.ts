@@ -252,6 +252,7 @@ export interface ProdDandoriLogRow {
   part_dari: string | null;
   part_ke: string | null;
   keterangan: string | null;
+  break_menit?: number | null;
   created_at?: string;
   _pending?: boolean;
 }

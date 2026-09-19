@@ -59,6 +59,7 @@ interface EditNonProduksiForm {
   waktu_awal: string;
   waktu_akhir: string;
   nama: string;
+  break_menit: string;
 }
 
 interface CreateForm extends EditProductionForm {
@@ -147,6 +148,7 @@ export default function ProductionLogDashboard() {
     waktu_awal: "",
     waktu_akhir: "",
     nama: "",
+    break_menit: "",
   });
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isEditClosing, setIsEditClosing] = useState(false);
@@ -500,7 +502,7 @@ export default function ProductionLogDashboard() {
         isProd ? (data.manpower ?? "-") : "-",
         isProd ? (data.dandori_menit ?? 0) : "-",
         isProd ? (data.downtime_menit ?? 0) : "-",
-        isProd ? (data.break_menit ?? 0) : "-",
+        isProd ? (data.break_menit ?? 0) : (data.break_menit ?? "-"),
         routing,
       ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
     });
@@ -543,6 +545,7 @@ export default function ProductionLogDashboard() {
         waktu_awal: toLocalInput(data.waktu_awal),
         waktu_akhir: toLocalInput(data.waktu_akhir),
         nama: data.part_ke || data.keterangan || data.part_dari || "",
+        break_menit: data.break_menit !== null && data.break_menit !== undefined ? String(data.break_menit) : "",
       });
     }
   };
@@ -601,6 +604,7 @@ export default function ProductionLogDashboard() {
           waktu_akhir: editNonProdForm.waktu_akhir ? new Date(editNonProdForm.waktu_akhir).toISOString() : null,
           part_ke: editNonProdForm.nama,
           keterangan: editNonProdForm.nama,
+          break_menit: editNonProdForm.break_menit !== "" ? Number(editNonProdForm.break_menit) : null,
         };
         const { error: err } = await supabase
           .from("prod_dandori_log" as any)
@@ -733,6 +737,7 @@ export default function ProductionLogDashboard() {
           waktu_akhir: createForm.waktu_akhir ? new Date(createForm.waktu_akhir).toISOString() : null,
           part_ke: createForm.nama_non_produksi || "Non-Produksi",
           keterangan: createForm.nama_non_produksi || "Non-Produksi",
+          break_menit: createForm.break_menit !== "" ? Number(createForm.break_menit) : null,
           is_active: true,
         };
         const { error: insErr } = await supabase.from("prod_dandori_log" as any).insert(payload);
@@ -1151,7 +1156,7 @@ export default function ProductionLogDashboard() {
 
                       {/* Break */}
                       <td className="py-3 px-3 text-right font-mono text-xs text-slate-600 whitespace-nowrap">
-                        {isProd ? (data.break_menit ? `${fmtNum(data.break_menit)} mnt` : "-") : "-"}
+                        {data.break_menit ? `${fmtNum(data.break_menit)} mnt` : "-"}
                       </td>
 
                       {/* Routing */}
@@ -1352,7 +1357,7 @@ export default function ProductionLogDashboard() {
                       placeholder="Contoh: Briefing, 5R, Setup, dll."
                     />
                   </Field>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <Field label="Waktu Awal">
                       <input
                         type="datetime-local"
@@ -1367,6 +1372,16 @@ export default function ProductionLogDashboard() {
                         value={editNonProdForm.waktu_akhir}
                         onChange={(e) => setEditNonProdForm((p) => ({ ...p, waktu_akhir: e.target.value }))}
                         className={inputCls}
+                      />
+                    </Field>
+                    <Field label="Break (mnt)">
+                      <input
+                        type="number"
+                        min={0}
+                        value={editNonProdForm.break_menit}
+                        onChange={(e) => setEditNonProdForm((p) => ({ ...p, break_menit: e.target.value }))}
+                        className={inputCls}
+                        placeholder="0"
                       />
                     </Field>
                   </div>
