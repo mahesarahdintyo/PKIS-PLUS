@@ -1775,6 +1775,10 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
             if (whJam === 0 && (downtimeMenit > 0 || dandoriMenit > 0)) {
               whJam = Math.max(0, 480 - downtimeMenit) / 60;
             }
+            // [FIX_DANDORI_BREAK] Jika RPC belum include dandori break (versi lama),
+            // tambahkan break_menit dari prod_dandori_log secara manual sebagai fallback safety.
+            // Setelah migration 20260922 dijalankan, RPC sudah include ini — penambahan ini idempoten
+            // selama dandori_break tidak double-counted (migrasi baru sudah handle itu).
           } else {
             let pq = supabase.from("prod_production_log" as any).select("*").eq("is_active", true).gte("waktu_awal", pStartIso).lt("waktu_awal", pEndIso);
             if (lineId) {
@@ -1783,7 +1787,17 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
               pq = pq.eq("mesin", config.key);
             }
             if (stasiunList && stasiunList.length > 0) pq = pq.in("stasiun", stasiunList);
-            const pr = await pq;
+
+            // [FIX_DANDORI_BREAK] Query dandori log untuk periode yang sama agar break dari non-produksi ikut terhitung
+            let dq = supabase.from("prod_dandori_log" as any).select("break_menit").eq("is_active", true).gte("waktu_awal", pStartIso).lt("waktu_awal", pEndIso);
+            if (lineId) {
+              dq = dq.or(`line_id.eq.${lineId},mesin.eq.${config.key}`);
+            } else {
+              dq = dq.eq("mesin", config.key);
+            }
+            if (stasiunList && stasiunList.length > 0) dq = dq.in("stasiun", stasiunList);
+
+            const [pr, dr] = await Promise.all([pq, dq]);
             const prods = pr.data || [];
             prods.forEach((r: any) => {
               const okQty = r.qty || r.ok_qty || 0;
@@ -1795,6 +1809,10 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
               const part = masterParts.find((mp) => mp.nama_part === r.part_number || mp.kode_part === r.part_number || mp.value === r.part_number);
               const ct = part?.std_ct ?? (part?.ct_detik ? part.ct_detik / 60 : 0);
               if (ct) targetStdMenit += okQty * ct;
+            });
+            // Tambahkan break_menit dari dandori log (non-produksi)
+            (dr.data || []).forEach((r: any) => {
+              breakMenit += Number(r.break_menit) || 0;
             });
 
             downtimeMenit = periodDtMenit;
