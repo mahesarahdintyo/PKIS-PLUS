@@ -309,7 +309,7 @@ export default function PerformanceTab({
                 )}
 
                 {/* 3 Downtime Tables per Category (Mesin, Dies, Other) - Compact under GSPH Chart */}
-                <div className="perf-cat-tables-compact mt-2 pt-2 border-t border-dashed border-border/60">
+                <div className="perf-cat-tables-compact mt-3 pt-3 perf-section-divider">
                   <div className="flex items-center justify-between mb-1.5">
                     <p className="panel-subtitle font-bold text-xs uppercase tracking-wider text-muted-foreground m-0">
                       Downtime per Kategori

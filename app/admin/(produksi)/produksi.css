@@ -1825,7 +1825,7 @@ table.table-compact .status-badge {
   gap: clamp(12px, 2vw, 24px);
   margin-top: clamp(12px, 2vh, 20px);
   padding-top: clamp(12px, 2vh, 20px);
-  border-top: 1px dashed var(--border);
+  border-top: 2px dashed color-mix(in srgb, var(--foreground) 30%, transparent);
   align-items: stretch;
 }
 
@@ -1856,6 +1856,11 @@ table.table-compact .status-badge {
 .perf-lower-col .table-compact .badge {
   font-size: 11px;
   padding: 3px 8px;
+}
+
+/* Pembatas section: digunakan antara chart GSPH → Downtime per Kategori */
+.perf-section-divider {
+  border-top: 2px dashed color-mix(in srgb, var(--foreground) 30%, transparent);
 }
 
 /* Perbesar font dan padding isi tabel 3 kategori downtime (MESIN, DIES, OTHER) */
