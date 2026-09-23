@@ -2049,9 +2049,32 @@ table.perf-dialog-table th,
   color: var(--muted-foreground);
 }
 
+/* Kolom kanan pie chart diselaraskan agar turun dan tidak mengambang dari garis bawah */
+.perf-pie-col {
+  display: flex;
+  flex-direction: column;
+}
+
 .perf-pie-wrap {
-  height: clamp(160px, 20vh, 240px);
+  height: clamp(185px, 23.5vh, 255px);
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 20px;
+  margin-bottom: 6px;
+}
+
+.perf-pie-summary {
+  margin-top: auto;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+  padding: 10px 14px;
+  background: var(--panel-2);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--teal);
 }
 
 .perf-daily-split {
@@ -2066,17 +2089,6 @@ table.perf-dialog-table th,
 .perf-daily-chart,
 .perf-daily-list {
   min-width: 0;
-}
-
-.perf-pie-summary {
-  margin: 8px 0 0;
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--muted-foreground);
-  padding: 8px 10px;
-  background: var(--panel-2);
-  border-radius: 6px;
-  border-left: 3px solid var(--teal);
 }
 
 /* ---- Tablet (max 1024px) ---- */

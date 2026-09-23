@@ -492,7 +492,7 @@ export default function PerformanceTab({
                 </div>
               </div>
 
-              <div className="perf-lower-col">
+              <div className="perf-lower-col perf-pie-col">
                 <p className="panel-subtitle font-bold text-sm mb-2">
                   Downtime per Kategori
                   <span className="ml-1 text-muted-foreground font-mono font-normal">({config.kategoriOptions.join(" / ")})</span>
