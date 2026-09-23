@@ -1816,10 +1816,48 @@ table.table-compact .status-badge {
   margin-top: clamp(12px, 2vh, 20px);
   padding-top: clamp(12px, 2vh, 20px);
   border-top: 1px dashed var(--border);
+  align-items: stretch;
+}
+
+/* Kolom kiri stretch mengisi tinggi penuh sejajar kolom kanan */
+.perf-lower-col {
+  display: flex;
+  flex-direction: column;
 }
 
 .perf-lower-col .table-wrap {
-  max-height: clamp(160px, 22vh, 260px);
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* Perbesar font dan padding baris tabel 5 Downtime Terburuk */
+.perf-lower-col .table-compact th,
+.perf-lower-col .table-compact td {
+  padding: 12px 12px;
+  font-size: 14px;
+}
+
+.perf-lower-col .table-compact th {
+  font-size: 11px;
+  letter-spacing: 0.05em;
+}
+
+.perf-lower-col .table-compact .badge {
+  font-size: 11px;
+  padding: 3px 8px;
+}
+
+/* Perbesar font dan padding isi tabel 3 kategori downtime (MESIN, DIES, OTHER) */
+.perf-cat-tables-compact .table-compact th,
+.perf-cat-tables-compact .table-compact td {
+  padding: 8px 10px;
+  font-size: 14px;
+}
+
+.perf-cat-tables-compact .table-compact th {
+  font-size: 12px;
+  letter-spacing: 0.04em;
 }
 
 .perf-pie-wrap {

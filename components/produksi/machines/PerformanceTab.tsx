@@ -155,7 +155,7 @@ export default function PerformanceTab({
       {/* Performance Main Panel */}
       <Card className="dash-panel card-glow-info">
         <div className="perf-header flex justify-between items-center mb-4">
-          <p className="dash-panel-title font-bold text-base m-0">
+          <p className="dash-panel-title font-bold text-lg m-0">
             Performance {activePerfSection === "tahunan" ? "Tahunan" : activePerfSection === "bulanan" ? "Bulanan" : "Harian"}
           </p>
           <div className="perf-nav flex items-center gap-2">
@@ -164,7 +164,7 @@ export default function PerformanceTab({
                 type="number"
                 min="2000"
                 max="2100"
-                className="h-8 w-20 text-xs font-mono"
+                className="h-8 w-20 text-sm font-mono"
                 value={perfYear}
                 onChange={(e) => setPerfYear(Number(e.target.value))}
               />
@@ -172,7 +172,7 @@ export default function PerformanceTab({
             {activePerfSection === "bulanan" && (
               <Input
                 type="month"
-                className="h-8 text-xs font-mono"
+                className="h-8 text-sm font-mono"
                 value={perfMonth}
                 onChange={(e) => setPerfMonth(e.target.value)}
               />
@@ -180,12 +180,12 @@ export default function PerformanceTab({
             {activePerfSection === "harian" && (
               <Input
                 type="date"
-                className="h-8 text-xs font-mono"
+                className="h-8 text-sm font-mono"
                 value={perfDate}
                 onChange={(e) => setPerfDate(e.target.value)}
               />
             )}
-            <span className="perf-period-label font-bold text-xs text-[var(--amber)]">
+            <span className="perf-period-label font-bold text-sm text-[var(--amber)]">
               {activePerfSection === "tahunan"
                 ? perfYear
                 : activePerfSection === "bulanan"
@@ -255,17 +255,17 @@ export default function PerformanceTab({
                 ) : (
                   <div className="perf-daily-split grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="perf-daily-chart">
-                      <p className="panel-subtitle font-bold text-xs mb-2">GSPH Target vs Aktual</p>
+                      <p className="panel-subtitle font-bold text-sm mb-2">GSPH Target vs Aktual</p>
                       <div style={{ height: 140, position: "relative" }}>
                         <canvas ref={perfChartRef} />
                       </div>
                     </div>
                     <div className="perf-daily-list">
-                      <p className="panel-subtitle font-bold text-xs mb-2">
+                      <p className="panel-subtitle font-bold text-sm mb-2">
                         Produksi Hari Itu <span className="count font-mono text-muted-foreground">({perfDayRows.length} baris)</span>
                       </p>
                       <div className="table-wrap" style={{ maxHeight: 230 }}>
-                        <table className="table-compact text-xs">
+                        <table className="table-compact text-sm">
                           <thead>
                             <tr>
                               {config.stationConfig.mode !== "none" && <th>Stasiun</th>}
@@ -311,10 +311,10 @@ export default function PerformanceTab({
                 {/* 3 Downtime Tables per Category (Mesin, Dies, Other) - Compact under GSPH Chart */}
                 <div className="perf-cat-tables-compact mt-2 pt-2 border-t border-dashed border-border/60">
                   <div className="flex items-center justify-between mb-1.5">
-                    <p className="panel-subtitle font-bold text-[11px] uppercase tracking-wider text-muted-foreground m-0">
+                    <p className="panel-subtitle font-bold text-xs uppercase tracking-wider text-muted-foreground m-0">
                       Downtime per Kategori
                     </p>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       Klik baris untuk rincian
                     </span>
                   </div>
@@ -337,27 +337,27 @@ export default function PerformanceTab({
                           <div>
                             <div className="flex items-center justify-between pb-1 mb-1 border-b border-border/40">
                               <div className="flex items-center gap-1">
-                                <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold border ${badgeColor}`}>
+                                <span className={`px-1.5 py-0.5 rounded text-sm font-bold border ${badgeColor}`}>
                                   {cat}
                                 </span>
-                                <span className="text-[10px] text-muted-foreground font-mono">
+                                <span className="text-sm text-muted-foreground font-mono">
                                   ({catData.problems.length})
                                 </span>
                               </div>
-                              <span className="font-mono text-[11px] font-bold text-foreground">
+                              <span className="font-mono text-sm font-bold text-foreground">
                                 {fmtNum(catData.totalMenit)}{" "}
-                                <span className="text-[9px] font-normal text-muted-foreground">mnt</span>
+                                <span className="text-xs font-normal text-muted-foreground">mnt</span>
                               </span>
                             </div>
 
-                            <div className="table-wrap" style={{ maxHeight: 130, overflowY: "auto" }}>
-                              <table className="table-compact text-[11px] w-full">
+                            <div className="table-wrap" style={{ maxHeight: 210, overflowY: "auto" }}>
+                              <table className="table-compact text-sm w-full">
                                 <thead>
                                   <tr>
-                                    <th className="w-5 text-center px-1 py-1 text-[10px]">#</th>
-                                    <th className="px-1 py-1 text-[10px]">Problem</th>
-                                    <th className="w-8 text-center px-1 py-1 text-[10px]">Freq</th>
-                                    <th className="w-12 text-right px-1 py-1 text-[10px]">Menit</th>
+                                    <th className="w-5 text-center px-1.5 py-1 text-xs">#</th>
+                                    <th className="px-1.5 py-1 text-xs">Problem</th>
+                                    <th className="w-8 text-center px-1.5 py-1 text-xs">Freq</th>
+                                    <th className="w-12 text-right px-1.5 py-1 text-xs">Menit</th>
                                     <th className="w-5 text-center px-0 py-1"></th>
                                   </tr>
                                 </thead>
@@ -370,11 +370,11 @@ export default function PerformanceTab({
                                         onClick={() => setSelectedProblemDetail({ ...row, kategori: cat })}
                                         title="Klik untuk melihat detail log downtime"
                                       >
-                                        <td className="text-center text-muted-foreground font-mono text-[9px] px-1 py-1">
+                                        <td className="text-center text-muted-foreground font-mono text-xs px-1.5 py-1.5">
                                           {idx + 1}
                                         </td>
                                         <td
-                                          className="font-medium text-foreground group-hover:text-primary transition-colors px-1 py-1 text-[11px]"
+                                          className="font-medium text-foreground group-hover:text-primary transition-colors px-1.5 py-1.5 text-sm"
                                           style={{
                                             maxWidth: 85,
                                             overflow: "hidden",
@@ -385,10 +385,10 @@ export default function PerformanceTab({
                                         >
                                           {row.problem}
                                         </td>
-                                        <td className="text-center font-mono text-muted-foreground text-[10px] px-1 py-1">
+                                        <td className="text-center font-mono text-muted-foreground text-sm px-1.5 py-1.5">
                                           {row.count}x
                                         </td>
-                                        <td className="text-right font-mono font-semibold text-foreground text-[11px] px-1 py-1">
+                                        <td className="text-right font-mono font-semibold text-foreground text-sm px-1.5 py-1.5">
                                           {fmtNum(row.totalMenit)}
                                         </td>
                                         <td className="text-center p-0">
@@ -396,14 +396,14 @@ export default function PerformanceTab({
                                             type="button"
                                             variant="ghost"
                                             size="icon"
-                                            className="h-4 w-4 p-0 opacity-60 group-hover:opacity-100 hover:bg-primary/10 hover:text-primary rounded cursor-pointer"
+                                            className="h-5 w-5 p-0 opacity-60 group-hover:opacity-100 hover:bg-primary/10 hover:text-primary rounded cursor-pointer"
                                             onClick={(e) => {
                                               e.stopPropagation();
                                               setSelectedProblemDetail({ ...row, kategori: cat });
                                             }}
                                             title="Lihat Detail Log"
                                           >
-                                            <Eye className="h-2.5 w-2.5" />
+                                            <Eye className="h-3.5 w-3.5" />
                                           </Button>
                                         </td>
                                       </tr>
@@ -412,7 +412,7 @@ export default function PerformanceTab({
                                     <tr>
                                       <td
                                         colSpan={5}
-                                        className="empty-state text-center py-2 text-muted-foreground text-[10px]"
+                                        className="empty-state text-center py-2.5 text-muted-foreground text-sm"
                                       >
                                         Tidak ada downtime {cat.toLowerCase()}.
                                       </td>
@@ -433,9 +433,9 @@ export default function PerformanceTab({
             {/* Lower Grid */}
             <div className="perf-lower-grid">
               <div className="perf-lower-col">
-                <p className="panel-subtitle font-bold text-xs mb-2">5 Downtime Terburuk</p>
+                <p className="panel-subtitle font-bold text-sm mb-2">5 Downtime Terburuk</p>
                 <div className="table-wrap">
-                  <table className="table-compact text-xs">
+                  <table className="table-compact text-sm">
                     <thead>
                       <tr>
                         <th>Kategori</th>
@@ -465,7 +465,7 @@ export default function PerformanceTab({
               </div>
 
               <div className="perf-lower-col">
-                <p className="panel-subtitle font-bold text-xs mb-2">
+                <p className="panel-subtitle font-bold text-sm mb-2">
                   Downtime per Kategori
                   <span className="ml-1 text-muted-foreground font-mono font-normal">({config.kategoriOptions.join(" / ")})</span>
                 </p>
@@ -473,7 +473,7 @@ export default function PerformanceTab({
                   <canvas ref={perfPieRef} />
                 </div>
                 {perfData.byCategory.length > 0 && (
-                  <p className="perf-pie-summary text-xs text-muted-foreground mt-2">
+                  <p className="perf-pie-summary text-sm text-muted-foreground mt-2">
                     {downtimeKesimpulan()}
                   </p>
                 )}

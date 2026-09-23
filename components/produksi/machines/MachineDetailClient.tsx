@@ -1934,14 +1934,17 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       });
 
       if (activePerfSection === "harian") {
-        // [FIX_PERF_LINE_ID] Gunakan line_id jika tersedia, fallback ke mesin key
+        // [FIX_PERF_DAY_ROWS] Query menggunakan range waktu_awal (stIso/endIso) karena
+        // tabel prod_production_log tidak memiliki field "tanggal".
+        // stIso = awal hari WIB, endIso = awal hari berikutnya (sudah dihitung di atas).
         let perfDayQuery = supabase
           .from("prod_production_log" as any)
           .select("*")
           .eq("is_active", true)
-          .eq("tanggal", perfDate);
+          .gte("waktu_awal", stIso)
+          .lt("waktu_awal", endIso);
         if (lineId) {
-          perfDayQuery = perfDayQuery.eq("line_id", lineId);
+          perfDayQuery = perfDayQuery.or(`line_id.eq.${lineId},mesin.eq.${config.key}`);
         } else {
           perfDayQuery = perfDayQuery.eq("mesin", config.key);
         }
