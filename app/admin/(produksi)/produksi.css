@@ -1848,6 +1848,21 @@ table.table-compact .status-badge {
   font-size: 14px;
 }
 
+/* Perkuat border garis thead / tbody di tabel 5 Downtime Terburuk */
+.perf-lower-col .table-wrap thead th {
+  border-bottom: 2px solid color-mix(in srgb, var(--foreground) 45%, transparent);
+  border-right: 2px solid color-mix(in srgb, var(--foreground) 45%, transparent);
+}
+
+.perf-lower-col .table-wrap tbody td {
+  border-bottom: 1px solid color-mix(in srgb, var(--foreground) 30%, transparent);
+  border-right: 2px solid color-mix(in srgb, var(--foreground) 45%, transparent);
+}
+
+.perf-lower-col .table-wrap tbody tr:last-child td {
+  border-bottom: 2px solid color-mix(in srgb, var(--foreground) 45%, transparent);
+}
+
 .perf-lower-col .table-compact th {
   font-size: 11px;
   letter-spacing: 0.05em;
@@ -1868,6 +1883,21 @@ table.table-compact .status-badge {
 .perf-cat-tables-compact .table-compact td {
   padding: 8px 10px;
   font-size: 14px;
+}
+
+/* Perkuat border garis thead / tbody di tabel 3 kategori downtime */
+.perf-cat-tables-compact .table-wrap thead th {
+  border-bottom: 2px solid color-mix(in srgb, var(--foreground) 45%, transparent);
+  border-right: 2px solid color-mix(in srgb, var(--foreground) 45%, transparent);
+}
+
+.perf-cat-tables-compact .table-wrap tbody td {
+  border-bottom: 1px solid color-mix(in srgb, var(--foreground) 30%, transparent);
+  border-right: 2px solid color-mix(in srgb, var(--foreground) 45%, transparent);
+}
+
+.perf-cat-tables-compact .table-wrap tbody tr:last-child td {
+  border-bottom: 2px solid color-mix(in srgb, var(--foreground) 45%, transparent);
 }
 
 .perf-cat-tables-compact .table-compact th {
