@@ -1870,6 +1870,23 @@ table.table-compact .status-badge {
   letter-spacing: 0.04em;
 }
 
+/* Perbesar font dan padding tabel pop up detail downtime per kategori */
+table.perf-dialog-table th,
+table.perf-dialog-table td,
+.perf-dialog-table th,
+.perf-dialog-table td {
+  padding: 13px 14px !important;
+  font-size: 15px !important;
+}
+
+table.perf-dialog-table th,
+.perf-dialog-table th {
+  font-size: 12px !important;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
 .perf-pie-wrap {
   height: clamp(160px, 20vh, 240px);
   position: relative;

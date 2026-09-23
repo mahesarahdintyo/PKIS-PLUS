@@ -488,11 +488,11 @@ export default function PerformanceTab({
         open={Boolean(selectedProblemDetail)}
         onOpenChange={(open) => !open && setSelectedProblemDetail(null)}
       >
-        <DialogContent maxWidth="max-w-3xl" className="max-h-[85vh] flex flex-col p-5">
-          <DialogHeader className="pb-3 border-b border-border/50">
-            <div className="flex items-center gap-2">
+        <DialogContent maxWidth="max-w-5xl" className="max-h-[88vh] flex flex-col p-6 sm:p-7">
+          <DialogHeader className="pb-4 border-b border-border/50">
+            <div className="flex items-center gap-2.5">
               <span
-                className={`px-2 py-0.5 rounded text-xs font-bold border ${
+                className={`px-2.5 py-1 rounded text-sm font-bold border ${
                   selectedProblemDetail?.kategori === "MESIN"
                     ? "bg-rose-500/10 text-rose-500 border-rose-500/30"
                     : selectedProblemDetail?.kategori === "DIES"
@@ -502,24 +502,24 @@ export default function PerformanceTab({
               >
                 {selectedProblemDetail?.kategori}
               </span>
-              <DialogTitle className="text-base font-bold text-foreground">
+              <DialogTitle className="text-xl sm:text-2xl font-bold text-foreground">
                 {selectedProblemDetail?.problem}
               </DialogTitle>
             </div>
-            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-1.5">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-sm text-muted-foreground mt-2">
               <span>
                 Total Durasi:{" "}
-                <b className="text-foreground font-mono">{fmtNum(selectedProblemDetail?.totalMenit)} menit</b>
+                <b className="text-foreground font-mono text-base">{fmtNum(selectedProblemDetail?.totalMenit)} menit</b>
               </span>
               <span>•</span>
               <span>
                 Frekuensi:{" "}
-                <b className="text-foreground font-mono">{selectedProblemDetail?.count} kejadian</b>
+                <b className="text-foreground font-mono text-base">{selectedProblemDetail?.count} kejadian</b>
               </span>
               <span>•</span>
               <span>
                 Periode:{" "}
-                <b className="text-[var(--amber)]">
+                <b className="text-[var(--amber)] font-medium">
                   {activePerfSection === "tahunan"
                     ? perfYear
                     : activePerfSection === "bulanan"
@@ -537,17 +537,17 @@ export default function PerformanceTab({
             </div>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto mt-3 pr-1">
+          <div className="flex-1 overflow-y-auto mt-4 pr-1">
             <div className="table-wrap">
-              <table className="table-compact text-xs w-full">
+              <table className="table-compact perf-dialog-table text-sm sm:text-base w-full">
                 <thead>
                   <tr>
-                    <th className="w-8 text-center">#</th>
-                    <th>Waktu / Jam</th>
-                    {config.stationConfig.mode !== "none" && <th>Stasiun</th>}
-                    <th>Penyebab / Indikasi</th>
-                    <th>Tindakan / Countermeasure</th>
-                    <th className="text-right w-20">Durasi</th>
+                    <th className="w-12 text-center py-3 text-xs sm:text-sm">#</th>
+                    <th className="py-3 text-xs sm:text-sm">Waktu / Jam</th>
+                    {config.stationConfig.mode !== "none" && <th className="py-3 text-xs sm:text-sm">Stasiun</th>}
+                    <th className="py-3 text-xs sm:text-sm">Penyebab / Indikasi</th>
+                    <th className="py-3 text-xs sm:text-sm">Tindakan / Countermeasure</th>
+                    <th className="text-right w-28 py-3 text-xs sm:text-sm">Durasi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -581,27 +581,27 @@ export default function PerformanceTab({
 
                         return (
                           <tr key={item.id || idx}>
-                            <td className="text-center font-mono text-muted-foreground">{idx + 1}</td>
-                            <td className="mono whitespace-nowrap">
+                            <td className="text-center font-mono text-muted-foreground text-sm sm:text-base">{idx + 1}</td>
+                            <td className="mono whitespace-nowrap text-sm sm:text-base">
                               {activePerfSection !== "harian" && (
-                                <span className="text-muted-foreground mr-1">[{dateStr}]</span>
+                                <span className="text-muted-foreground mr-1.5 text-xs sm:text-sm">[{dateStr}]</span>
                               )}
-                              <span>
+                              <span className="font-semibold">
                                 {timeStart} - {timeEnd}
                               </span>
                             </td>
                             {config.stationConfig.mode !== "none" && (
-                              <td className="mono font-semibold">{item.stasiun || "-"}</td>
+                              <td className="mono font-semibold text-sm sm:text-base">{item.stasiun || "-"}</td>
                             )}
-                            <td className="max-w-[180px] break-words" title={item.penyebab || "-"}>
+                            <td className="max-w-[260px] break-words text-sm sm:text-base leading-relaxed" title={item.penyebab || "-"}>
                               {item.penyebab || "-"}
                             </td>
-                            <td className="max-w-[200px] break-words" title={item.countermeasure || "-"}>
+                            <td className="max-w-[300px] break-words text-sm sm:text-base leading-relaxed" title={item.countermeasure || "-"}>
                               {item.countermeasure || "-"}
                             </td>
-                            <td className="text-right font-mono font-bold text-foreground">
+                            <td className="text-right font-mono font-bold text-foreground text-sm sm:text-base">
                               {fmtNum(item.calcMenit)}{" "}
-                              <span className="text-[10px] font-normal text-muted-foreground">mnt</span>
+                              <span className="text-xs sm:text-sm font-normal text-muted-foreground">mnt</span>
                             </td>
                           </tr>
                         );
@@ -610,7 +610,7 @@ export default function PerformanceTab({
                     <tr>
                       <td
                         colSpan={config.stationConfig.mode !== "none" ? 6 : 5}
-                        className="text-center py-6 text-muted-foreground"
+                        className="text-center py-8 text-muted-foreground text-base"
                       >
                         Tidak ada log detail yang ditemukan.
                       </td>
