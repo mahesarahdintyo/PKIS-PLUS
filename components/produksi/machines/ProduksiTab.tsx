@@ -558,7 +558,7 @@ export default function ProduksiTab({
                       </div>
 
                       {/* Form Hasil Aktual Produksi */}
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
                         <div className="field">
                           <label className="text-[11px] block text-muted-foreground mb-1 font-semibold uppercase tracking-wider">
                             Qty <span className="text-red-400">*</span>

@@ -488,7 +488,7 @@ export default function OperatorPage({
         userId={userId}
       />
 
-      <div className="mx-auto max-w-5xl space-y-4 sm:space-y-6 p-3 sm:p-6">
+      <div className="w-full max-w-[1680px] mx-auto space-y-4 sm:space-y-6 p-3 sm:p-6 lg:p-8 transition-all duration-300">
         {/* Active Machine & Ganti Mesin Link */}
         <div className="flex items-center justify-between text-xs sm:text-sm text-muted-foreground bg-card/60 border border-border px-4 py-2.5 rounded-xl shadow-xs">
           <div className="flex items-center gap-2">
@@ -578,7 +578,7 @@ export default function OperatorPage({
         )}
 
         {activeTab === "machine" && (
-          <div className="space-y-6">
+          <div className="w-full">
             <MachineDetailClient
               lineId={selectedLine?.id ?? lineId}
               lineName={selectedLine?.name ?? selectedLineName}

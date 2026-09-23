@@ -51,7 +51,7 @@ export default function DocumentList({
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground transition-opacity duration-200">
             Folder ({folders.length})
           </h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
             {folders.map((folder, index) => {
               const isStaggered = index < 8;
               return (

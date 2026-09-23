@@ -87,7 +87,7 @@ export default function MachinePickerClient() {
         <LogoutButton variant="header" />
       </AppHeader>
 
-      <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6">
+      <div className="w-full max-w-[1680px] mx-auto space-y-6 p-3 sm:p-6 lg:p-8">
         <div className="page-header">
           <h1 className="page-title text-2xl font-bold font-display">
             <span className="eyebrow block text-xs font-semibold text-blue-400 uppercase tracking-wider mb-0.5">
@@ -116,7 +116,7 @@ export default function MachinePickerClient() {
             <p className="text-xs mt-1">Hubungi admin untuk mengaktifkan line produksi.</p>
           </div>
         ) : (
-          <div className="machine-cards-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+          <div className="machine-cards-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-3.5 sm:gap-4">
             {lines.map((line) => (
               <button
                 key={line.id}

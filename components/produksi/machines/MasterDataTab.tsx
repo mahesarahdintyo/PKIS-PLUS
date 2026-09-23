@@ -226,7 +226,7 @@ export default function MasterDataTab({
         {/* Form Tambah Part Number */}
         <form onSubmit={handleAddPartNumber} className="bg-[var(--bg)] p-4 rounded border border-[var(--border)] mb-6">
           <h4 className="text-xs font-mono font-bold uppercase mb-3 text-[var(--amber)]">+ Tambah Part Number Baru</h4>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
             <div>
               <label className="text-xs block mb-1">Kode Part *</label>
               <Input
@@ -274,7 +274,7 @@ export default function MasterDataTab({
                 onChange={(e) => setNewPartNextProcess(e.target.value)}
               />
             </div>
-            <div className="md:col-span-2">
+            <div className="sm:col-span-2 md:col-span-1 lg:col-span-2">
               <label className="text-xs block mb-1">Harga per Pcs (Rp)</label>
               <Input
                 type="number"
@@ -283,7 +283,7 @@ export default function MasterDataTab({
                 onChange={(e) => setNewPartHarga(e.target.value === "" ? "" : Number(e.target.value))}
               />
             </div>
-            <div className="md:col-span-3 flex items-end">
+            <div className="sm:col-span-2 md:col-span-2 lg:col-span-3 flex items-end">
               <Button type="submit" className="w-full">
                 + Simpan Part Number
               </Button>

@@ -482,11 +482,13 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
     trend: { label: string; gsph: number | null; targetGsph: number | null; separator?: boolean; kindYear?: boolean }[];
     top5: { kategori: string; problem: string; menit: number }[];
     byCategory: { kategori: string; menit: number }[];
+    rawDowntimes?: any[];
   }>({
     data: null,
     trend: [],
     top5: [],
     byCategory: [],
+    rawDowntimes: [],
   });
 
   const [perfDayRows, setPerfDayRows] = useState<any[]>([]);
@@ -1928,6 +1930,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
         trend: trendResults,
         top5,
         byCategory,
+        rawDowntimes: rangeDowntimes,
       });
 
       if (activePerfSection === "harian") {
@@ -2742,11 +2745,12 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
         )}
       </div>
 
-      <div className="machine-tabs-bar flex items-center gap-2.5 flex-wrap mb-6">
+      <div className="machine-tabs-bar flex items-center gap-2 sm:gap-2.5 overflow-x-auto pb-1.5 -mx-1 px-1 flex-nowrap sm:flex-wrap mb-4 sm:mb-6">
         <Button
           type="button"
           variant={activeTab === "produksi" ? "default" : "secondary"}
           size="sm"
+          className="shrink-0 whitespace-nowrap text-xs sm:text-sm min-h-[38px] sm:min-h-[40px] px-3 sm:px-4"
           onClick={() => setActiveTab("produksi")}
         >
           Input Produksi
@@ -2755,6 +2759,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
           type="button"
           variant={activeTab === "riwayat" ? "default" : "secondary"}
           size="sm"
+          className="shrink-0 whitespace-nowrap text-xs sm:text-sm min-h-[38px] sm:min-h-[40px] px-3 sm:px-4"
           onClick={() => setActiveTab("riwayat")}
         >
           Riwayat
@@ -2763,6 +2768,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
           type="button"
           variant={activeTab === "performance" ? "default" : "secondary"}
           size="sm"
+          className="shrink-0 whitespace-nowrap text-xs sm:text-sm min-h-[38px] sm:min-h-[40px] px-3 sm:px-4"
           onClick={() => setActiveTab("performance")}
         >
           Performance
@@ -2771,6 +2777,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
           type="button"
           variant={activeTab === "downtime" ? "default" : "secondary"}
           size="sm"
+          className="shrink-0 whitespace-nowrap text-xs sm:text-sm min-h-[38px] sm:min-h-[40px] px-3 sm:px-4"
           onClick={() => setActiveTab("downtime")}
         >
           Downtime
@@ -2779,6 +2786,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
           type="button"
           variant={activeTab === "master_data" ? "default" : "secondary"}
           size="sm"
+          className="shrink-0 whitespace-nowrap text-xs sm:text-sm min-h-[38px] sm:min-h-[40px] px-3 sm:px-4"
           onClick={() => setActiveTab("master_data")}
         >
           Master Data

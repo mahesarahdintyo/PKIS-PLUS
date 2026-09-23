@@ -1,8 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Eye } from "lucide-react";
 import type { ProdMachineConfig } from "@/types/produksi";
 
 interface PerformanceTabProps {
@@ -42,8 +45,88 @@ export default function PerformanceTab({
   downtimeKesimpulan,
   fmtNum,
 }: PerformanceTabProps) {
+  const [selectedProblemDetail, setSelectedProblemDetail] = useState<{
+    kategori: string;
+    problem: string;
+    totalMenit: number;
+    count: number;
+    items: any[];
+  } | null>(null);
+
+  const categoryTablesData = useMemo(() => {
+    const raw: any[] = perfData?.rawDowntimes || [];
+    const categories = ["MESIN", "DIES", "OTHER"] as const;
+
+    const result: Record<"MESIN" | "DIES" | "OTHER", {
+      totalMenit: number;
+      totalCount: number;
+      problems: Array<{
+        problem: string;
+        totalMenit: number;
+        count: number;
+        items: any[];
+      }>;
+    }> = {
+      MESIN: { totalMenit: 0, totalCount: 0, problems: [] },
+      DIES: { totalMenit: 0, totalCount: 0, problems: [] },
+      OTHER: { totalMenit: 0, totalCount: 0, problems: [] },
+    };
+
+    const problemMaps: Record<"MESIN" | "DIES" | "OTHER", Record<string, { problem: string; totalMenit: number; count: number; items: any[] }>> = {
+      MESIN: {},
+      DIES: {},
+      OTHER: {},
+    };
+
+    raw.forEach((d: any) => {
+      const rawCat = (d.kategori || "").toUpperCase().trim();
+      let targetCat: "MESIN" | "DIES" | "OTHER" = "OTHER";
+      if (rawCat === "MESIN") targetCat = "MESIN";
+      else if (rawCat === "DIES") targetCat = "DIES";
+      else targetCat = "OTHER";
+
+      let m = 0;
+      if (d.waktu_awal && d.waktu_akhir) {
+        m = Math.round((new Date(d.waktu_akhir).getTime() - new Date(d.waktu_awal).getTime()) / 60000);
+      } else if (d.durasi_menit || d.durasi) {
+        m = Number(d.durasi_menit || d.durasi || 0);
+      }
+      m = Math.max(0, m);
+
+      const prob = (d.problem || d.deskripsi || "Tanpa Keterangan").trim();
+      const pMap = problemMaps[targetCat];
+
+      if (!pMap[prob]) {
+        pMap[prob] = {
+          problem: prob,
+          totalMenit: 0,
+          count: 0,
+          items: [],
+        };
+      }
+      pMap[prob].totalMenit += m;
+      pMap[prob].count += 1;
+      pMap[prob].items.push({
+        ...d,
+        calcMenit: m,
+      });
+
+      result[targetCat].totalMenit += m;
+      result[targetCat].totalCount += 1;
+    });
+
+    categories.forEach((cat) => {
+      const sorted = Object.values(problemMaps[cat]).sort((a, b) => {
+        if (b.totalMenit !== a.totalMenit) return b.totalMenit - a.totalMenit;
+        return b.count - a.count;
+      });
+      result[cat].problems = sorted;
+    });
+
+    return result;
+  }, [perfData?.rawDowntimes]);
   return (
-    <div>
+    <div className="perf-fullwidth-container">
       {/* Section Toggle Chips */}
       <div className="perf-toggle-row flex gap-2 mb-4">
         <button
@@ -224,6 +307,126 @@ export default function PerformanceTab({
                     </div>
                   </div>
                 )}
+
+                {/* 3 Downtime Tables per Category (Mesin, Dies, Other) - Compact under GSPH Chart */}
+                <div className="perf-cat-tables-compact mt-2 pt-2 border-t border-dashed border-border/60">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="panel-subtitle font-bold text-[11px] uppercase tracking-wider text-muted-foreground m-0">
+                      Downtime per Kategori
+                    </p>
+                    <span className="text-[10px] text-muted-foreground">
+                      Klik baris untuk rincian
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    {(["MESIN", "DIES", "OTHER"] as const).map((cat) => {
+                      const catData = categoryTablesData[cat];
+                      const badgeColor =
+                        cat === "MESIN"
+                          ? "bg-rose-500/10 text-rose-500 border-rose-500/30"
+                          : cat === "DIES"
+                          ? "bg-amber-500/10 text-amber-500 border-amber-500/30"
+                          : "bg-sky-500/10 text-sky-500 border-sky-500/30";
+
+                      return (
+                        <div
+                          key={cat}
+                          className="rounded-lg border border-border/70 bg-card/50 p-2 flex flex-col justify-between shadow-2xs"
+                        >
+                          <div>
+                            <div className="flex items-center justify-between pb-1 mb-1 border-b border-border/40">
+                              <div className="flex items-center gap-1">
+                                <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold border ${badgeColor}`}>
+                                  {cat}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground font-mono">
+                                  ({catData.problems.length})
+                                </span>
+                              </div>
+                              <span className="font-mono text-[11px] font-bold text-foreground">
+                                {fmtNum(catData.totalMenit)}{" "}
+                                <span className="text-[9px] font-normal text-muted-foreground">mnt</span>
+                              </span>
+                            </div>
+
+                            <div className="table-wrap" style={{ maxHeight: 130, overflowY: "auto" }}>
+                              <table className="table-compact text-[11px] w-full">
+                                <thead>
+                                  <tr>
+                                    <th className="w-5 text-center px-1 py-1 text-[10px]">#</th>
+                                    <th className="px-1 py-1 text-[10px]">Problem</th>
+                                    <th className="w-8 text-center px-1 py-1 text-[10px]">Freq</th>
+                                    <th className="w-12 text-right px-1 py-1 text-[10px]">Menit</th>
+                                    <th className="w-5 text-center px-0 py-1"></th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {catData.problems.length > 0 ? (
+                                    catData.problems.map((row, idx) => (
+                                      <tr
+                                        key={idx}
+                                        className="cursor-pointer hover:bg-muted/70 transition-colors group"
+                                        onClick={() => setSelectedProblemDetail({ ...row, kategori: cat })}
+                                        title="Klik untuk melihat detail log downtime"
+                                      >
+                                        <td className="text-center text-muted-foreground font-mono text-[9px] px-1 py-1">
+                                          {idx + 1}
+                                        </td>
+                                        <td
+                                          className="font-medium text-foreground group-hover:text-primary transition-colors px-1 py-1 text-[11px]"
+                                          style={{
+                                            maxWidth: 85,
+                                            overflow: "hidden",
+                                            textOverflow: "ellipsis",
+                                            whiteSpace: "nowrap",
+                                          }}
+                                          title={row.problem}
+                                        >
+                                          {row.problem}
+                                        </td>
+                                        <td className="text-center font-mono text-muted-foreground text-[10px] px-1 py-1">
+                                          {row.count}x
+                                        </td>
+                                        <td className="text-right font-mono font-semibold text-foreground text-[11px] px-1 py-1">
+                                          {fmtNum(row.totalMenit)}
+                                        </td>
+                                        <td className="text-center p-0">
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-4 w-4 p-0 opacity-60 group-hover:opacity-100 hover:bg-primary/10 hover:text-primary rounded cursor-pointer"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setSelectedProblemDetail({ ...row, kategori: cat });
+                                            }}
+                                            title="Lihat Detail Log"
+                                          >
+                                            <Eye className="h-2.5 w-2.5" />
+                                          </Button>
+                                        </td>
+                                      </tr>
+                                    ))
+                                  ) : (
+                                    <tr>
+                                      <td
+                                        colSpan={5}
+                                        className="empty-state text-center py-2 text-muted-foreground text-[10px]"
+                                      >
+                                        Tidak ada downtime {cat.toLowerCase()}.
+                                      </td>
+                                    </tr>
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -279,6 +482,146 @@ export default function PerformanceTab({
           </div>
         )}
       </Card>
+
+      {/* Detail Dialog Downtime Log (Opsi B) */}
+      <Dialog
+        open={Boolean(selectedProblemDetail)}
+        onOpenChange={(open) => !open && setSelectedProblemDetail(null)}
+      >
+        <DialogContent maxWidth="max-w-3xl" className="max-h-[85vh] flex flex-col p-5">
+          <DialogHeader className="pb-3 border-b border-border/50">
+            <div className="flex items-center gap-2">
+              <span
+                className={`px-2 py-0.5 rounded text-xs font-bold border ${
+                  selectedProblemDetail?.kategori === "MESIN"
+                    ? "bg-rose-500/10 text-rose-500 border-rose-500/30"
+                    : selectedProblemDetail?.kategori === "DIES"
+                    ? "bg-amber-500/10 text-amber-500 border-amber-500/30"
+                    : "bg-sky-500/10 text-sky-500 border-sky-500/30"
+                }`}
+              >
+                {selectedProblemDetail?.kategori}
+              </span>
+              <DialogTitle className="text-base font-bold text-foreground">
+                {selectedProblemDetail?.problem}
+              </DialogTitle>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-1.5">
+              <span>
+                Total Durasi:{" "}
+                <b className="text-foreground font-mono">{fmtNum(selectedProblemDetail?.totalMenit)} menit</b>
+              </span>
+              <span>•</span>
+              <span>
+                Frekuensi:{" "}
+                <b className="text-foreground font-mono">{selectedProblemDetail?.count} kejadian</b>
+              </span>
+              <span>•</span>
+              <span>
+                Periode:{" "}
+                <b className="text-[var(--amber)]">
+                  {activePerfSection === "tahunan"
+                    ? perfYear
+                    : activePerfSection === "bulanan"
+                    ? new Date(perfMonth + "-01T00:00:00").toLocaleDateString("id-ID", {
+                        month: "long",
+                        year: "numeric",
+                      })
+                    : new Date(perfDate + "T00:00:00").toLocaleDateString("id-ID", {
+                        day: "2-digit",
+                        month: "long",
+                        year: "numeric",
+                      })}
+                </b>
+              </span>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto mt-3 pr-1">
+            <div className="table-wrap">
+              <table className="table-compact text-xs w-full">
+                <thead>
+                  <tr>
+                    <th className="w-8 text-center">#</th>
+                    <th>Waktu / Jam</th>
+                    {config.stationConfig.mode !== "none" && <th>Stasiun</th>}
+                    <th>Penyebab / Indikasi</th>
+                    <th>Tindakan / Countermeasure</th>
+                    <th className="text-right w-20">Durasi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedProblemDetail?.items && selectedProblemDetail.items.length > 0 ? (
+                    [...selectedProblemDetail.items]
+                      .sort((a, b) => {
+                        const ta = a.waktu_awal ? new Date(a.waktu_awal).getTime() : 0;
+                        const tb = b.waktu_awal ? new Date(b.waktu_awal).getTime() : 0;
+                        return tb - ta;
+                      })
+                      .map((item: any, idx: number) => {
+                        const dateStr = item.waktu_awal
+                          ? new Date(item.waktu_awal).toLocaleDateString("id-ID", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                            })
+                          : "-";
+                        const timeStart = item.waktu_awal
+                          ? new Date(item.waktu_awal).toLocaleTimeString("id-ID", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "-";
+                        const timeEnd = item.waktu_akhir
+                          ? new Date(item.waktu_akhir).toLocaleTimeString("id-ID", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "-";
+
+                        return (
+                          <tr key={item.id || idx}>
+                            <td className="text-center font-mono text-muted-foreground">{idx + 1}</td>
+                            <td className="mono whitespace-nowrap">
+                              {activePerfSection !== "harian" && (
+                                <span className="text-muted-foreground mr-1">[{dateStr}]</span>
+                              )}
+                              <span>
+                                {timeStart} - {timeEnd}
+                              </span>
+                            </td>
+                            {config.stationConfig.mode !== "none" && (
+                              <td className="mono font-semibold">{item.stasiun || "-"}</td>
+                            )}
+                            <td className="max-w-[180px] break-words" title={item.penyebab || "-"}>
+                              {item.penyebab || "-"}
+                            </td>
+                            <td className="max-w-[200px] break-words" title={item.countermeasure || "-"}>
+                              {item.countermeasure || "-"}
+                            </td>
+                            <td className="text-right font-mono font-bold text-foreground">
+                              {fmtNum(item.calcMenit)}{" "}
+                              <span className="text-[10px] font-normal text-muted-foreground">mnt</span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={config.stationConfig.mode !== "none" ? 6 : 5}
+                        className="text-center py-6 text-muted-foreground"
+                      >
+                        Tidak ada log detail yang ditemukan.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

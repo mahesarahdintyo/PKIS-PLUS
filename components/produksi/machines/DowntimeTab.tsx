@@ -238,7 +238,7 @@ export default function DowntimeTab({
                   ))}
                 </Select>
               </div>
-              <div className="field" style={{ gridColumn: "span 2" }}>
+              <div className="field col-span-1 sm:col-span-2">
                 <label>Problem</label>
                 <ProblemCombobox
                   options={problemList.map((p) => p.value)}
@@ -246,7 +246,7 @@ export default function DowntimeTab({
                   onChange={(v) => setDtForm((prev) => ({ ...prev, problem: v }))}
                 />
               </div>
-              <div className="field" style={{ gridColumn: "span 2" }}>
+              <div className="field col-span-1 sm:col-span-2">
                 <label>Penyebab</label>
                 <Input
                   type="text"
@@ -254,7 +254,7 @@ export default function DowntimeTab({
                   onChange={(e) => setDtForm((prev) => ({ ...prev, penyebab: e.target.value }))}
                 />
               </div>
-              <div className="field" style={{ gridColumn: "span 2" }}>
+              <div className="field col-span-1 sm:col-span-2">
                 <label>Countermeasure</label>
                 <Input
                   type="text"
