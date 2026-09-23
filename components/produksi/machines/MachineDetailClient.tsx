@@ -1998,6 +1998,9 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       catch { return ""; }
     };
 
+    const isDark = typeof document !== "undefined" && document.documentElement.classList.contains("dark");
+    const horizontalGridColor = isDark ? "rgba(226, 232, 240, 0.28)" : "rgba(51, 65, 85, 0.25)";
+
     if (perfChartRef.current) {
       if (perfChartInstancesRef.current.chart) perfChartInstancesRef.current.chart.destroy();
 
@@ -2019,7 +2022,12 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
               tooltip: { backgroundColor: getCssVar("--panel") || "#1e293b", titleColor: getCssVar("--text") || "#f1f5f9", bodyColor: getCssVar("--text") || "#f1f5f9", borderColor: getCssVar("--border") || "#334155", borderWidth: 1, padding: 10 },
             },
             scales: {
-              x: { ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 10 } }, grid: { color: getCssVar("--chart-grid") || "#334155" }, border: { display: false }, beginAtZero: true },
+              x: {
+                ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 10 } },
+                grid: { color: horizontalGridColor, lineWidth: 1.5 },
+                border: { display: false },
+                beginAtZero: true,
+              },
               y: { ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 10 } }, grid: { display: false }, border: { display: false } },
             },
           },
@@ -2031,29 +2039,72 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
             labels: perfData.trend.map((t) => t.label),
             datasets: [
               {
-                type: "bar", label: "GSPH (Aktual)",
+                type: "bar",
+                label: "GSPH (Aktual)",
                 data: perfData.trend.map((t) => (t.separator ? null : Number((t.gsph || 0).toFixed(1)))),
-                backgroundColor: barColors, borderRadius: 4, barPercentage: 0.7, categoryPercentage: 0.8, order: 2,
+                backgroundColor: barColors,
+                borderRadius: 4,
+                barPercentage: 0.7,
+                categoryPercentage: 0.8,
+                order: 2,
               },
               {
-                type: "line", label: "GSPH (Target)",
+                type: "line",
+                label: "GSPH (Target)",
                 data: perfData.trend.map((t) => (t.separator ? null : Number((t.targetGsph || 0).toFixed(1)))),
-                borderColor: getCssVar("--chart-5") || "#fb7185", borderWidth: 2, pointRadius: 0, tension: 0, spanGaps: true, order: 1,
+                borderColor: getCssVar("--chart-5") || "#fb7185",
+                borderWidth: 2,
+                pointRadius: 0,
+                tension: 0,
+                spanGaps: true,
+                order: 1,
               },
             ],
           },
           options: {
-            responsive: true, maintainAspectRatio: false,
+            responsive: true,
+            maintainAspectRatio: false,
             layout: { padding: { top: 28, right: 8 } },
             plugins: {
-              legend: { display: true, position: "top", align: "end", labels: { color: getCssVar("--muted-foreground") || "#94a3b8", boxWidth: 8, boxHeight: 8, usePointStyle: true, font: { size: 10 } } },
-              tooltip: { backgroundColor: getCssVar("--panel") || "#1e293b", titleColor: getCssVar("--text") || "#f1f5f9", bodyColor: getCssVar("--text") || "#f1f5f9", borderColor: getCssVar("--border") || "#334155", borderWidth: 1, padding: 10 },
+              legend: {
+                display: true,
+                position: "top",
+                align: "end",
+                labels: {
+                  color: getCssVar("--muted-foreground") || "#94a3b8",
+                  boxWidth: 8,
+                  boxHeight: 8,
+                  usePointStyle: true,
+                  font: { size: 10 },
+                },
+              },
+              tooltip: {
+                backgroundColor: getCssVar("--panel") || "#1e293b",
+                titleColor: getCssVar("--text") || "#f1f5f9",
+                bodyColor: getCssVar("--text") || "#f1f5f9",
+                borderColor: getCssVar("--border") || "#334155",
+                borderWidth: 1,
+                padding: 10,
+              },
             },
             scales: {
-              x: { ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 10 } }, grid: { display: false }, border: { display: false } },
+              x: {
+                ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 10 } },
+                grid: { display: false },
+                border: { display: false },
+              },
               y: {
-                ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 10 }, maxTicksLimit: 5 },
-                grid: { color: getCssVar("--chart-grid") || "#334155" }, border: { display: false }, beginAtZero: true,
+                ticks: {
+                  color: getCssVar("--chart-tick") || "#64748b",
+                  font: { size: 10, weight: "bold" },
+                  maxTicksLimit: 6,
+                },
+                grid: {
+                  color: horizontalGridColor,
+                  lineWidth: 1.5,
+                },
+                border: { display: false },
+                beginAtZero: true,
                 suggestedMax: (() => {
                   const vals = perfData.trend.map((t) => t.gsph || 0).filter(Boolean);
                   const tgts = perfData.trend.map((t) => t.targetGsph || 0).filter(Boolean);
