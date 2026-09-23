@@ -260,7 +260,8 @@
 }
 
 /* =========================================================
-   GLOBAL SCROLLBAR — Auto-hide, muncul hanya saat scroll
+   GLOBAL SCROLLBAR — Auto-hide, muncul HANYA saat scroll
+   Menggunakan class .is-scrolling yang dikontrol oleh AutoHideScrollbar
    Chromium (Chrome/Edge): ::-webkit-scrollbar
    Firefox: scrollbar-width thin + scrollbar-color
    ========================================================= */
@@ -269,16 +270,16 @@
 * {
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
-  transition: scrollbar-color 0.3s ease;
+  transition: scrollbar-color 0.4s ease;
 }
-*:hover {
-  scrollbar-color: rgba(128, 128, 128, 0.4) transparent;
+html.is-scrolling * {
+  scrollbar-color: rgba(128, 128, 128, 0.45) transparent;
 }
 
 /* Chrome / Edge / Safari */
 *::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 *::-webkit-scrollbar-track {
   background: transparent;
@@ -286,15 +287,18 @@
 *::-webkit-scrollbar-thumb {
   background-color: transparent;
   border-radius: 99px;
-  transition: background-color 0.3s ease;
+  transition: background-color 0.4s ease;
 }
-*:hover::-webkit-scrollbar-thumb {
-  background-color: rgba(128, 128, 128, 0.4);
+/* Muncul HANYA saat terjadi scroll */
+html.is-scrolling *::-webkit-scrollbar-thumb {
+  background-color: rgba(128, 128, 128, 0.45);
 }
+/* Tetap terlihat saat user sengaja mengklik / men-drag scrollbar thumb */
 *::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(128, 128, 128, 0.7);
+  background-color: rgba(128, 128, 128, 0.8);
 }
 *::-webkit-scrollbar-corner {
   background: transparent;
 }
+
 

@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Toaster } from 'sonner'
 import { IosTouchListener } from '@/components/ui/ios-touch-listener'
+import { AutoHideScrollbar } from '@/components/ui/auto-hide-scrollbar'
 import { PwaRegister } from '@/components/pwa-register'
 import { GlobalAndonAlert } from '@/components/produksi/GlobalAndonAlert'
 import './globals.css'
@@ -66,6 +67,7 @@ export default function RootLayout({
       </head>
       <body className="font-sans antialiased" suppressHydrationWarning>
         <IosTouchListener />
+        <AutoHideScrollbar />
         <PwaRegister />
         <GlobalAndonAlert />
         {children}
