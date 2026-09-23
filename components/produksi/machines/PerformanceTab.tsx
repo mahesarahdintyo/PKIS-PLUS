@@ -324,20 +324,48 @@ export default function PerformanceTab({
                       const catData = categoryTablesData[cat];
                       const badgeColor =
                         cat === "MESIN"
-                          ? "bg-rose-500/10 text-rose-500 border-rose-500/30"
+                          ? "bg-rose-500/15 text-rose-500 border-rose-500/40 shadow-xs shadow-rose-500/20"
                           : cat === "DIES"
-                          ? "bg-amber-500/10 text-amber-500 border-amber-500/30"
-                          : "bg-sky-500/10 text-sky-500 border-sky-500/30";
+                          ? "bg-amber-500/15 text-amber-500 border-amber-500/40 shadow-xs shadow-amber-500/20"
+                          : "bg-sky-500/15 text-sky-500 border-sky-500/40 shadow-xs shadow-sky-500/20";
+
+                      const catCardClass =
+                        cat === "MESIN"
+                          ? "perf-cat-card perf-cat-card-mesin"
+                          : cat === "DIES"
+                          ? "perf-cat-card perf-cat-card-dies"
+                          : "perf-cat-card perf-cat-card-other";
+
+                      const borderBottomColor =
+                        cat === "MESIN"
+                          ? "border-rose-500/30"
+                          : cat === "DIES"
+                          ? "border-amber-500/30"
+                          : "border-sky-500/30";
+
+                      const hoverRowColor =
+                        cat === "MESIN"
+                          ? "hover:bg-rose-500/10"
+                          : cat === "DIES"
+                          ? "hover:bg-amber-500/10"
+                          : "hover:bg-sky-500/10";
+
+                      const actionBtnHover =
+                        cat === "MESIN"
+                          ? "hover:bg-rose-500/20 hover:text-rose-500"
+                          : cat === "DIES"
+                          ? "hover:bg-amber-500/20 hover:text-amber-500"
+                          : "hover:bg-sky-500/20 hover:text-sky-500";
 
                       return (
                         <div
                           key={cat}
-                          className="rounded-lg border border-border/70 bg-card/50 p-2 flex flex-col justify-between shadow-2xs"
+                          className={`p-2.5 flex flex-col justify-between ${catCardClass}`}
                         >
                           <div>
-                            <div className="flex items-center justify-between pb-1 mb-1 border-b border-border/40">
-                              <div className="flex items-center gap-1">
-                                <span className={`px-1.5 py-0.5 rounded text-sm font-bold border ${badgeColor}`}>
+                            <div className={`flex items-center justify-between pb-1.5 mb-1.5 border-b ${borderBottomColor}`}>
+                              <div className="flex items-center gap-1.5">
+                                <span className={`px-2 py-0.5 rounded text-sm font-bold border ${badgeColor}`}>
                                   {cat}
                                 </span>
                                 <span className="text-sm text-muted-foreground font-mono">
@@ -366,7 +394,7 @@ export default function PerformanceTab({
                                     catData.problems.map((row, idx) => (
                                       <tr
                                         key={idx}
-                                        className="cursor-pointer hover:bg-muted/70 transition-colors group"
+                                        className={`cursor-pointer transition-colors group ${hoverRowColor}`}
                                         onClick={() => setSelectedProblemDetail({ ...row, kategori: cat })}
                                         title="Klik untuk melihat detail log downtime"
                                       >
@@ -396,7 +424,7 @@ export default function PerformanceTab({
                                             type="button"
                                             variant="ghost"
                                             size="icon"
-                                            className="h-5 w-5 p-0 opacity-60 group-hover:opacity-100 hover:bg-primary/10 hover:text-primary rounded cursor-pointer"
+                                            className={`h-5 w-5 p-0 opacity-60 group-hover:opacity-100 rounded cursor-pointer ${actionBtnHover}`}
                                             onClick={(e) => {
                                               e.stopPropagation();
                                               setSelectedProblemDetail({ ...row, kategori: cat });
