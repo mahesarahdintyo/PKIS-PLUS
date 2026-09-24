@@ -324,10 +324,10 @@ export default function PerformanceTab({
                       const catData = categoryTablesData[cat];
                       const badgeColor =
                         cat === "MESIN"
-                          ? "bg-rose-500/15 text-rose-500 border-rose-500/40 shadow-xs shadow-rose-500/20"
+                          ? "bg-sky-500/15 text-sky-500 border-sky-500/40 shadow-xs shadow-sky-500/20"
                           : cat === "DIES"
-                          ? "bg-amber-500/15 text-amber-500 border-amber-500/40 shadow-xs shadow-amber-500/20"
-                          : "bg-sky-500/15 text-sky-500 border-sky-500/40 shadow-xs shadow-sky-500/20";
+                          ? "bg-rose-500/15 text-rose-500 border-rose-500/40 shadow-xs shadow-rose-500/20"
+                          : "bg-amber-500/15 text-amber-500 border-amber-500/40 shadow-xs shadow-amber-500/20";
 
                       const catCardClass =
                         cat === "MESIN"
@@ -338,29 +338,36 @@ export default function PerformanceTab({
 
                       const borderBottomColor =
                         cat === "MESIN"
-                          ? "border-rose-500/30"
+                          ? "border-sky-500/30"
                           : cat === "DIES"
-                          ? "border-amber-500/30"
-                          : "border-sky-500/30";
+                          ? "border-rose-500/30"
+                          : "border-amber-500/30";
 
                       const hoverRowColor =
                         cat === "MESIN"
-                          ? "hover:bg-rose-500/10"
+                          ? "hover:bg-sky-500/10"
                           : cat === "DIES"
-                          ? "hover:bg-amber-500/10"
-                          : "hover:bg-sky-500/10";
+                          ? "hover:bg-rose-500/10"
+                          : "hover:bg-amber-500/10";
 
                       const actionBtnHover =
                         cat === "MESIN"
-                          ? "hover:bg-rose-500/20 hover:text-rose-500"
+                          ? "hover:bg-sky-500/20 hover:text-sky-500"
                           : cat === "DIES"
-                          ? "hover:bg-amber-500/20 hover:text-amber-500"
-                          : "hover:bg-sky-500/20 hover:text-sky-500";
+                          ? "hover:bg-rose-500/20 hover:text-rose-500"
+                          : "hover:bg-amber-500/20 hover:text-amber-500";
+
+                      const neonGlowClass =
+                        cat === "MESIN"
+                          ? "border-sky-500/60 shadow-[0_0_16px_-2px_rgba(14,165,233,0.4)]"
+                          : cat === "DIES"
+                          ? "border-rose-500/60 shadow-[0_0_16px_-2px_rgba(244,63,94,0.4)]"
+                          : "border-amber-500/60 shadow-[0_0_16px_-2px_rgba(245,158,11,0.4)]";
 
                       return (
                         <div
                           key={cat}
-                          className={`p-2.5 flex flex-col justify-between ${catCardClass}`}
+                          className={`p-2.5 flex flex-col justify-between ${catCardClass} ${neonGlowClass}`}
                         >
                           <div>
                             <div className={`flex items-center justify-between pb-1.5 mb-1.5 border-b ${borderBottomColor}`}>
@@ -522,10 +529,10 @@ export default function PerformanceTab({
               <span
                 className={`px-2.5 py-1 rounded text-sm font-bold border ${
                   selectedProblemDetail?.kategori === "MESIN"
-                    ? "bg-rose-500/10 text-rose-500 border-rose-500/30"
+                    ? "bg-sky-500/10 text-sky-500 border-sky-500/30"
                     : selectedProblemDetail?.kategori === "DIES"
-                    ? "bg-amber-500/10 text-amber-500 border-amber-500/30"
-                    : "bg-sky-500/10 text-sky-500 border-sky-500/30"
+                    ? "bg-rose-500/10 text-rose-500 border-rose-500/30"
+                    : "bg-amber-500/10 text-amber-500 border-amber-500/30"
                 }`}
               >
                 {selectedProblemDetail?.kategori}
