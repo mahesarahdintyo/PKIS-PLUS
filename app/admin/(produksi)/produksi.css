@@ -2388,6 +2388,10 @@ table.perf-dialog-table th,
   gap: 14px;
 }
 
+.internal-row-productivity-2col {
+  grid-template-columns: 1fr 1fr;
+}
+
 /* Row 3: Downtime per Line | per Kategori | per Kategori x Line */
 .internal-row-3 {
   display: grid;

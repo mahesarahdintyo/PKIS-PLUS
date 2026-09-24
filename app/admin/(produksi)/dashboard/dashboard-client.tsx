@@ -1855,52 +1855,58 @@ export default function DashboardClient() {
             {vizMode === "internal" ? (
               /* ═══ Visualisasi Internal ═══ */
               <div className="internal-viz">
-                <div className="dash-main-grid internal-row-productivity">
-                  <Card className="dash-panel dash-panel-fit card-glow-info">
-                    <p className="dash-panel-title">Productivity — Capaian Hari Ini</p>
-                    <p className="hint">
-                      Productivity = PEFF ÷ Kijun PEFF <b>{fmtNum(KIJUN_PEFF * 100)}%</b> · PEFF = Earned Hours ÷ Working Hours
-                    </p>
-                    <div className="productivity-today">
-                      {productivityToday ? (
-                        <div>
-                          <div className="productivity-today-main">
-                            <div className="productivity-today-value">{fmtNum(productivityToday.productivity)}%</div>
-                            <span
-                              className={`badge ${productivityToday.sumber === "historis" ? "badge-historis" : "badge-live"}`}
-                            >
-                              {productivityToday.sumber === "historis" ? "EH manual" : "EH otomatis"}
-                            </span>
+                <div className={`dash-main-grid internal-row-productivity ${periodMode !== "harian" ? "internal-row-productivity-2col" : ""}`}>
+                  {periodMode === "harian" && (
+                    <Card className="dash-panel dash-panel-fit card-glow-info">
+                      <p className="dash-panel-title">Productivity — Capaian Hari Ini</p>
+                      <p className="hint">
+                        Productivity = PEFF ÷ Kijun PEFF <b>{fmtNum(KIJUN_PEFF * 100)}%</b> · PEFF = Earned Hours ÷ Working Hours
+                      </p>
+                      <div className="productivity-today">
+                        {productivityToday ? (
+                          <div>
+                            <div className="productivity-today-main">
+                              <div className="productivity-today-value">{fmtNum(productivityToday.productivity)}%</div>
+                              <span
+                                className={`badge ${productivityToday.sumber === "historis" ? "badge-historis" : "badge-live"}`}
+                              >
+                                {productivityToday.sumber === "historis" ? "EH manual" : "EH otomatis"}
+                              </span>
+                            </div>
+                            <div className="productivity-today-grid">
+                              <div className="productivity-today-stat">
+                                <span className="productivity-today-label">Earned Hours</span>
+                                <span className="productivity-today-num">{fmtNum(productivityToday.ehJam)} jam</span>
+                              </div>
+                              <div className="productivity-today-stat">
+                                <span className="productivity-today-label">Working Hours</span>
+                                <span className="productivity-today-num">{fmtNum(productivityToday.whJam)} jam</span>
+                              </div>
+                              <div className="productivity-today-stat">
+                                <span className="productivity-today-label">Total Man Hours</span>
+                                <span className="productivity-today-num">{fmtNum(productivityToday.totalManHoursJam)} jam</span>
+                              </div>
+                              <div className="productivity-today-stat">
+                                <span className="productivity-today-label">GAP</span>
+                                <span className="productivity-today-num">{fmtNum(productivityToday.gapJam)} jam</span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="productivity-today-grid">
-                            <div className="productivity-today-stat">
-                              <span className="productivity-today-label">Earned Hours</span>
-                              <span className="productivity-today-num">{fmtNum(productivityToday.ehJam)} jam</span>
-                            </div>
-                            <div className="productivity-today-stat">
-                              <span className="productivity-today-label">Working Hours</span>
-                              <span className="productivity-today-num">{fmtNum(productivityToday.whJam)} jam</span>
-                            </div>
-                            <div className="productivity-today-stat">
-                              <span className="productivity-today-label">Total Man Hours</span>
-                              <span className="productivity-today-num">{fmtNum(productivityToday.totalManHoursJam)} jam</span>
-                            </div>
-                            <div className="productivity-today-stat">
-                              <span className="productivity-today-label">GAP</span>
-                              <span className="productivity-today-num">{fmtNum(productivityToday.gapJam)} jam</span>
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <p className="empty-state">Belum ada data hari ini.</p>
-                      )}
-                    </div>
-                  </Card>
+                        ) : (
+                          <p className="empty-state">Belum ada data hari ini.</p>
+                        )}
+                      </div>
+                    </Card>
+                  )}
 
                   <Card className="dash-panel dash-panel-fit card-glow-info">
-                    <p className="dash-panel-title">Productivity — Per Tanggal</p>
+                    <p className="dash-panel-title">
+                      Productivity — {periodMode === "tahunan" ? "Per Bulan" : "Per Tanggal"}
+                    </p>
                     <p className="hint">
-                      Angka masing-masing tanggal, dihitung sendiri-sendiri (tidak digabung).
+                      {periodMode === "tahunan"
+                        ? "Angka masing-masing bulan, dihitung sendiri-sendiri (tidak digabung)."
+                        : "Angka masing-masing tanggal, dihitung sendiri-sendiri (tidak digabung)."}
                     </p>
                     <div className="dash-chart-sm">
                       <canvas ref={internalProdTrendRef} />
