@@ -391,7 +391,7 @@ export default function PerformanceTab({
                               <table className="table-compact text-sm w-full">
                                 <thead>
                                   <tr>
-                                    <th className="w-5 text-center px-1.5 py-1 text-xs">#</th>
+                                    <th className="w-7 text-center px-1 py-1 text-xs">No.</th>
                                     <th className="px-1.5 py-1 text-xs">Problem</th>
                                     <th className="w-8 text-center px-1.5 py-1 text-xs">Freq</th>
                                     <th className="w-12 text-right px-1.5 py-1 text-xs">Menit</th>
