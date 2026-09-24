@@ -1855,157 +1855,167 @@ export default function DashboardClient() {
             {vizMode === "internal" ? (
               /* ═══ Visualisasi Internal ═══ */
               <div className="internal-viz">
-                <div className={`dash-main-grid internal-row-productivity ${periodMode !== "harian" ? "internal-row-productivity-2col" : ""}`}>
-                  {periodMode === "harian" && (
-                    <Card className="dash-panel dash-panel-fit card-glow-info">
-                      <p className="dash-panel-title">Productivity — Capaian Hari Ini</p>
-                      <p className="hint">
-                        Productivity = PEFF ÷ Kijun PEFF <b>{fmtNum(KIJUN_PEFF * 100)}%</b> · PEFF = Earned Hours ÷ Working Hours
-                      </p>
-                      <div className="productivity-today">
-                        {productivityToday ? (
-                          <div>
-                            <div className="productivity-today-main">
-                              <div className="productivity-today-value">{fmtNum(productivityToday.productivity)}%</div>
-                              <span
-                                className={`badge ${productivityToday.sumber === "historis" ? "badge-historis" : "badge-live"}`}
-                              >
-                                {productivityToday.sumber === "historis" ? "EH manual" : "EH otomatis"}
-                              </span>
+                <div className="internal-viz-split">
+                  {/* ── SISI KIRI: PRODUKTIVITAS & KINERJA LINE (NON-DOWNTIME) ── */}
+                  <div className="internal-col-left">
+                    {periodMode === "harian" && (
+                      <Card className="dash-panel dash-panel-fit card-glow-info">
+                        <p className="dash-panel-title">Productivity — Capaian Hari Ini</p>
+                        <p className="hint">
+                          Productivity = PEFF ÷ Kijun PEFF <b>{fmtNum(KIJUN_PEFF * 100)}%</b> · PEFF = Earned Hours ÷ Working Hours
+                        </p>
+                        <div className="productivity-today">
+                          {productivityToday ? (
+                            <div>
+                              <div className="productivity-today-main">
+                                <div className="productivity-today-value">{fmtNum(productivityToday.productivity)}%</div>
+                                <span
+                                  className={`badge ${productivityToday.sumber === "historis" ? "badge-historis" : "badge-live"}`}
+                                >
+                                  {productivityToday.sumber === "historis" ? "EH manual" : "EH otomatis"}
+                                </span>
+                              </div>
+                              <div className="productivity-today-grid">
+                                <div className="productivity-today-stat">
+                                  <span className="productivity-today-label">Earned Hours</span>
+                                  <span className="productivity-today-num">{fmtNum(productivityToday.ehJam)} jam</span>
+                                </div>
+                                <div className="productivity-today-stat">
+                                  <span className="productivity-today-label">Working Hours</span>
+                                  <span className="productivity-today-num">{fmtNum(productivityToday.whJam)} jam</span>
+                                </div>
+                                <div className="productivity-today-stat">
+                                  <span className="productivity-today-label">Total Man Hours</span>
+                                  <span className="productivity-today-num">{fmtNum(productivityToday.totalManHoursJam)} jam</span>
+                                </div>
+                                <div className="productivity-today-stat">
+                                  <span className="productivity-today-label">GAP</span>
+                                  <span className="productivity-today-num">{fmtNum(productivityToday.gapJam)} jam</span>
+                                </div>
+                              </div>
                             </div>
-                            <div className="productivity-today-grid">
-                              <div className="productivity-today-stat">
-                                <span className="productivity-today-label">Earned Hours</span>
-                                <span className="productivity-today-num">{fmtNum(productivityToday.ehJam)} jam</span>
-                              </div>
-                              <div className="productivity-today-stat">
-                                <span className="productivity-today-label">Working Hours</span>
-                                <span className="productivity-today-num">{fmtNum(productivityToday.whJam)} jam</span>
-                              </div>
-                              <div className="productivity-today-stat">
-                                <span className="productivity-today-label">Total Man Hours</span>
-                                <span className="productivity-today-num">{fmtNum(productivityToday.totalManHoursJam)} jam</span>
-                              </div>
-                              <div className="productivity-today-stat">
-                                <span className="productivity-today-label">GAP</span>
-                                <span className="productivity-today-num">{fmtNum(productivityToday.gapJam)} jam</span>
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <p className="empty-state">Belum ada data hari ini.</p>
-                        )}
-                      </div>
-                    </Card>
-                  )}
-
-                  <Card className="dash-panel dash-panel-fit card-glow-info">
-                    <p className="dash-panel-title">
-                      Productivity — {periodMode === "tahunan" ? "Per Bulan" : "Per Tanggal"}
-                    </p>
-                    <p className="hint">
-                      {periodMode === "tahunan"
-                        ? "Angka masing-masing bulan, dihitung sendiri-sendiri (tidak digabung)."
-                        : "Angka masing-masing tanggal, dihitung sendiri-sendiri (tidak digabung)."}
-                    </p>
-                    <div className="dash-chart-sm">
-                      <canvas ref={internalProdTrendRef} />
-                    </div>
-                  </Card>
-
-                  <Card className="dash-panel dash-panel-fit card-glow-info">
-                    <p className="dash-panel-title">Productivity — Akumulasi</p>
-                    <p className="hint">
-                      Total periode ini: <b>{fmtNum(totals.productivity)}%</b> (PEFF <b>{fmtNum(totals.peff * 100)}%</b>) · EH &amp; WH dijumlah berjalan sejak awal periode, baru dibagi.
-                    </p>
-                    <div className="dash-chart-sm">
-                      <canvas ref={internalProdCumRef} />
-                    </div>
-                  </Card>
-                </div>
-                <div className="dash-main-grid internal-row-1">
-                  <Card className="dash-panel dash-panel-fit card-glow-info">
-                    <p className="dash-panel-title">Availability per Line — Target vs Actual</p>
-                    <div className="dash-chart-sm">
-                      <canvas ref={internalAvailRef} />
-                    </div>
-                  </Card>
-                  <Card className="dash-panel dash-panel-fit card-glow-info">
-                    <p className="dash-panel-title">GSPH per Line — Target vs Actual</p>
-                    <div className="dash-chart-sm">
-                      <canvas ref={internalGsphRef} />
-                    </div>
-                  </Card>
-                </div>
-                <div className="dash-main-grid internal-row-3">
-                  <Card className="dash-panel dash-panel-fit card-glow-info">
-                    <p className="dash-panel-title">Downtime per Line</p>
-                    <div className="dash-chart-sm">
-                      <canvas ref={internalDowntimeLineRef} />
-                    </div>
-                  </Card>
-                  <Card className="dash-panel dash-panel-fit card-glow-info">
-                    <p className="dash-panel-title">Downtime per Kategori</p>
-                    <div className="dash-chart-sm">
-                      <canvas ref={internalCategoryPieRef} />
-                    </div>
-                  </Card>
-                  <Card className="dash-panel dash-panel-fit card-glow-info">
-                    <p className="dash-panel-title">Downtime per Kategori × Line</p>
-                    <div className="dash-chart-sm">
-                      <canvas ref={internalCategoryLineRef} />
-                    </div>
-                  </Card>
-                </div>
-                <div className="internal-row-worst">
-                  {MACHINES.map((m, mIdx) => {
-                    const rows = worstPerMachine[m.key] || [];
-                    return (
-                      <Card
-                        key={m.key}
-                        className="dash-panel dash-panel-fit card-glow-info animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
-                        style={{ animationDelay: `${mIdx * 40}ms` }}
-                      >
-                        <p className="dash-panel-title">5 Downtime Terburuk — {m.shortLabel}</p>
-                        {rows.length === 0 ? (
-                          <p className="empty-state" style={{ padding: "20px 0" }}>Tidak ada downtime.</p>
-                        ) : (
-                          <div className="table-wrap">
-                            <table className="table-compact">
-                              <thead>
-                                <tr>
-                                  <th>Kategori</th>
-                                  <th>Problem</th>
-                                  <th style={{ textAlign: "right" }}>Menit</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {rows.map((r, i) => (
-                                  <tr
-                                    key={i}
-                                    className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
-                                    style={{ animationDelay: `${i * 30}ms` }}
-                                  >
-                                    <td title={r.kategori}>
-                                      <span className={`badge`}>
-                                        {r.kategori}
-                                      </span>
-                                    </td>
-                                    <td style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                      {r.problem}
-                                    </td>
-                                    <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
-                                      {r.menit}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
+                          ) : (
+                            <p className="empty-state">Belum ada data hari ini.</p>
+                          )}
+                        </div>
                       </Card>
-                    );
-                  })}
+                    )}
+
+                    <div className="internal-left-grid-cards">
+                      <Card className="dash-panel dash-panel-fit card-glow-info">
+                        <p className="dash-panel-title">
+                          Productivity — {periodMode === "tahunan" ? "Per Bulan" : "Per Tanggal"}
+                        </p>
+                        <p className="hint">
+                          {periodMode === "tahunan"
+                            ? "Angka masing-masing bulan, dihitung sendiri-sendiri (tidak digabung)."
+                            : "Angka masing-masing tanggal, dihitung sendiri-sendiri (tidak digabung)."}
+                        </p>
+                        <div className="dash-chart-sm">
+                          <canvas ref={internalProdTrendRef} />
+                        </div>
+                      </Card>
+
+                      <Card className="dash-panel dash-panel-fit card-glow-info">
+                        <p className="dash-panel-title">Productivity — Akumulasi</p>
+                        <p className="hint">
+                          Total periode ini: <b>{fmtNum(totals.productivity)}%</b> (PEFF <b>{fmtNum(totals.peff * 100)}%</b>) · EH &amp; WH dijumlah berjalan sejak awal periode, baru dibagi.
+                        </p>
+                        <div className="dash-chart-sm">
+                          <canvas ref={internalProdCumRef} />
+                        </div>
+                      </Card>
+
+                      <Card className="dash-panel dash-panel-fit card-glow-info">
+                        <p className="dash-panel-title">Availability per Line — Target vs Actual</p>
+                        <div className="dash-chart-sm">
+                          <canvas ref={internalAvailRef} />
+                        </div>
+                      </Card>
+
+                      <Card className="dash-panel dash-panel-fit card-glow-info">
+                        <p className="dash-panel-title">GSPH per Line — Target vs Actual</p>
+                        <div className="dash-chart-sm">
+                          <canvas ref={internalGsphRef} />
+                        </div>
+                      </Card>
+                    </div>
+                  </div>
+
+                  {/* ── SISI KANAN: DOWNTIME (SEMUA CARD BERHUBUNGAN DENGAN DOWNTIME) ── */}
+                  <div className="internal-col-right">
+                    <div className="internal-right-downtime-row">
+                      <Card className="dash-panel dash-panel-fit card-glow-info">
+                        <p className="dash-panel-title">Downtime per Line</p>
+                        <div className="dash-chart-sm">
+                          <canvas ref={internalDowntimeLineRef} />
+                        </div>
+                      </Card>
+                      <Card className="dash-panel dash-panel-fit card-glow-info">
+                        <p className="dash-panel-title">Downtime per Kategori</p>
+                        <div className="dash-chart-sm">
+                          <canvas ref={internalCategoryPieRef} />
+                        </div>
+                      </Card>
+                      <Card className="dash-panel dash-panel-fit card-glow-info">
+                        <p className="dash-panel-title">Downtime per Kategori × Line</p>
+                        <div className="dash-chart-sm">
+                          <canvas ref={internalCategoryLineRef} />
+                        </div>
+                      </Card>
+                    </div>
+
+                    <div className="internal-row-worst">
+                      {MACHINES.map((m, mIdx) => {
+                        const rows = worstPerMachine[m.key] || [];
+                        return (
+                          <Card
+                            key={m.key}
+                            className="dash-panel dash-panel-fit card-glow-info animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+                            style={{ animationDelay: `${mIdx * 40}ms` }}
+                          >
+                            <p className="dash-panel-title">5 Downtime Terburuk — {m.shortLabel}</p>
+                            {rows.length === 0 ? (
+                              <p className="empty-state" style={{ padding: "20px 0" }}>Tidak ada downtime.</p>
+                            ) : (
+                              <div className="table-wrap">
+                                <table className="table-compact">
+                                  <thead>
+                                    <tr>
+                                      <th>Kategori</th>
+                                      <th>Problem</th>
+                                      <th style={{ textAlign: "right" }}>Menit</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {rows.map((r, i) => (
+                                      <tr
+                                        key={i}
+                                        className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+                                        style={{ animationDelay: `${i * 30}ms` }}
+                                      >
+                                        <td title={r.kategori}>
+                                          <span className={`badge`}>
+                                            {r.kategori}
+                                          </span>
+                                        </td>
+                                        <td style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                          {r.problem}
+                                        </td>
+                                        <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+                                          {r.menit}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (
