@@ -2395,8 +2395,8 @@ table.perf-dialog-table th,
 }
 
 .internal-left-grid-cards {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 14px;
 }
 
@@ -2755,15 +2755,20 @@ table.perf-dialog-table th,
     overflow-y: auto;
   }
 
-  /* 4 card kiri mengisi sisa ruang kolom kiri */
+  /* 4 card kiri: stacked vertikal, mengisi sisa ruang kolom kiri */
   .internal-left-grid-cards {
     flex: 1;
     min-height: 180px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr 1fr;
+    display: flex;
+    flex-direction: column;
     gap: var(--row-gap, 8px);
     overflow: hidden;
+  }
+
+  /* Setiap card di kolom kiri mendapat porsi tinggi yang sama */
+  .internal-left-grid-cards > * {
+    flex: 1;
+    min-height: 0;
   }
 
   /* Row 2 card downtime di atas: ukuran tetap (shrink 0), tidak perlu grow */
