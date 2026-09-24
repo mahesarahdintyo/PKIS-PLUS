@@ -2374,7 +2374,45 @@ table.perf-dialog-table th,
 .internal-viz .dash-panel { min-height: 0; }
 .internal-viz .internal-row-worst .table-wrap { flex: none; max-height: 260px; overflow-y: auto; }
 
-/* Row 1: Availability | GSPH per Line */
+/* ═══ Visualisasi Internal Split Layout (Kiri: Non-Downtime | Kanan: Downtime) ═══ */
+.internal-viz-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .internal-viz-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+.internal-col-left {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.internal-left-grid-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.internal-col-right {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.internal-right-downtime-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+/* Row 1: Availability | GSPH per Line (Legacy fallback) */
 .internal-row-1 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2402,8 +2440,8 @@ table.perf-dialog-table th,
 /* Row Worst: satu kartu per mesin, auto-fit */
 .internal-row-worst {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
 }
 
 /* ---------- Attendance dual metric ---------- */
@@ -2689,15 +2727,52 @@ table.perf-dialog-table th,
     flex: 1;
     min-height: 0;
     height: 100%;
-    display: grid;
-    grid-template-rows: 1.15fr 1fr 1fr 1.05fr;
+    display: flex;
+    flex-direction: column;
     gap: var(--row-gap, 8px);
     overflow: hidden;
   }
 
-  .internal-viz > * {
+  /* Split layout: fill all available height on TV */
+  .internal-viz-split {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--row-gap, 8px);
+    align-items: stretch;
+    overflow: hidden;
+  }
+
+  .internal-col-left,
+  .internal-col-right {
     min-height: 0;
     height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--row-gap, 8px);
+    overflow: hidden;
+  }
+
+  .internal-left-grid-cards {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--row-gap, 8px);
+    align-items: stretch;
+    overflow: hidden;
+  }
+
+  .internal-right-downtime-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--row-gap, 8px);
+    min-height: 0;
+  }
+
+  .internal-viz > * {
+    min-height: 0;
     overflow: hidden;
   }
 
