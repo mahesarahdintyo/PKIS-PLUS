@@ -2437,10 +2437,10 @@ table.perf-dialog-table th,
   gap: 14px;
 }
 
-/* Row Worst: satu kartu per mesin, auto-fit */
+/* Row Worst: auto-wrap, min 160px per card — di kolom kanan akan menjadi 3+2 baris */
 .internal-row-worst {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 12px;
 }
 
@@ -2876,25 +2876,24 @@ table.perf-dialog-table th,
     font-size: 12px;
   }
 
-  /* Row Worst: 5 columns for the 5 machines on TV */
+  /* Row Worst di kolom kanan: 3 kolom → 5 card wrap jadi 2 baris (3+2) */
   .internal-viz .internal-row-worst {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: var(--row-gap, 8px);
     min-height: 0;
-    height: 100%;
   }
 
   .internal-viz .internal-row-worst .dash-panel {
     padding: 8px 10px;
   }
 
+  /* Izinkan header wrap — tidak lagi dipotong */
   .internal-viz .internal-row-worst .dash-panel-title {
     font-size: 11px;
     margin: 0 0 4px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    line-height: 1.3;
   }
 
   .internal-viz .internal-row-worst .table-wrap {
