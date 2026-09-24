@@ -2733,7 +2733,7 @@ table.perf-dialog-table th,
     overflow: hidden;
   }
 
-  /* Split layout: fill all available height on TV */
+  /* Split layout: fill all available height */
   .internal-viz-split {
     flex: 1;
     min-height: 0;
@@ -2744,36 +2744,46 @@ table.perf-dialog-table th,
     overflow: hidden;
   }
 
+  /* Kolom kiri & kanan: scrollable jika konten melebihi tinggi (laptop),
+     tapi tetap fitted di TV fullscreen */
   .internal-col-left,
   .internal-col-right {
     min-height: 0;
-    height: 100%;
     display: flex;
     flex-direction: column;
     gap: var(--row-gap, 8px);
-    overflow: hidden;
+    overflow-y: auto;
   }
 
+  /* 4 card kiri mengisi sisa ruang kolom kiri */
   .internal-left-grid-cards {
     flex: 1;
-    min-height: 0;
+    min-height: 180px;
     display: grid;
     grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
     gap: var(--row-gap, 8px);
-    align-items: stretch;
     overflow: hidden;
   }
 
+  /* Row 2 card downtime di atas: ukuran tetap (shrink 0), tidak perlu grow */
   .internal-right-downtime-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: var(--row-gap, 8px);
+    flex-shrink: 0;
     min-height: 0;
   }
 
-  .internal-viz > * {
-    min-height: 0;
-    overflow: hidden;
+  /* Card Downtime per Kategori × Line: ambil sisa ruang di kolom kanan */
+  .internal-col-right > .dash-panel {
+    flex: 1;
+    min-height: 180px;
+  }
+
+  /* Row worst 5: ukuran tetap di bawah */
+  .internal-col-right > .internal-row-worst {
+    flex-shrink: 0;
   }
 
   .internal-row-1,
@@ -2787,10 +2797,16 @@ table.perf-dialog-table th,
   .internal-viz .dash-panel {
     padding: 8px 10px;
     min-height: 0;
-    height: 100%;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+  }
+
+  /* Di dalam grid (downtime-row, worst-5), card perlu height 100% untuk menyamakan tinggi antar kolom */
+  .internal-right-downtime-row .dash-panel,
+  .internal-row-worst .dash-panel,
+  .internal-left-grid-cards .dash-panel {
+    height: 100%;
   }
 
   .internal-viz .dash-panel-title {
