@@ -1995,7 +1995,7 @@ export default function DashboardClient() {
                                         style={{ animationDelay: `${i * 30}ms` }}
                                       >
                                         <td title={r.kategori}>
-                                          <span className={`badge`}>
+                                          <span className="badge">
                                             {r.kategori}
                                           </span>
                                         </td>
@@ -2014,6 +2014,51 @@ export default function DashboardClient() {
                           </Card>
                         );
                       })}
+
+                      {/* Card ke-6: 5 Downtime Terburuk — Semua Line */}
+                      <Card
+                        key="semua-line"
+                        className="dash-panel dash-panel-fit card-glow-info animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+                        style={{ animationDelay: "200ms" }}
+                      >
+                        <p className="dash-panel-title">5 Downtime Terburuk — Semua Line</p>
+                        {fleetTop10.length === 0 ? (
+                          <p className="empty-state" style={{ padding: "20px 0" }}>Tidak ada downtime.</p>
+                        ) : (
+                          <div className="table-wrap">
+                            <table className="table-compact">
+                              <thead>
+                                <tr>
+                                  <th>Line</th>
+                                  <th>Problem</th>
+                                  <th style={{ textAlign: "right" }}>Menit</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {fleetTop10.slice(0, 5).map((r, i) => (
+                                  <tr
+                                    key={i}
+                                    className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+                                    style={{ animationDelay: `${i * 30}ms` }}
+                                  >
+                                    <td title={r.mesinLabel}>
+                                      <span className="badge">
+                                        {r.mesinLabel}
+                                      </span>
+                                    </td>
+                                    <td style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                      {r.problem}
+                                    </td>
+                                    <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+                                      {r.menit}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </Card>
                     </div>
                   </div>
                 </div>
