@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import Chart from "chart.js/auto";
+import { registerInternalVizPlugins } from "@/lib/produksi/chartPlugins";
 import { toast } from "sonner";
 import { useThemeListener } from "@/hooks/produksi/useThemeListener";
 import { Button } from "@/components/ui/button";
@@ -2118,6 +2119,8 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       }
     }
 
+    registerInternalVizPlugins();
+
     if (perfPieRef.current) {
       if (perfChartInstancesRef.current.pie) perfChartInstancesRef.current.pie.destroy();
       const data = perfData.byCategory || [];
@@ -2169,6 +2172,21 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
                     });
                   },
                 },
+              },
+              pieCenterText: {
+                value: (() => {
+                  const total = data.reduce((a, b) => a + b.menit, 0);
+                  return total >= 1000
+                    ? `${(total / 1000).toFixed(1)}k`
+                    : String(total);
+                })(),
+                label: "Menit DT",
+                color: () => getCssVar("--text") || "#f1f5f9",
+                labelColor: () => getCssVar("--muted-foreground") || "#94a3b8",
+              },
+              sliceLabels: {
+                enabled: true,
+                color: "#ffffff",
               },
               tooltip: {
                 backgroundColor: getCssVar("--panel") || "#1e293b",
