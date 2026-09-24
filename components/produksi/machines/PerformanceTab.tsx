@@ -127,37 +127,39 @@ export default function PerformanceTab({
   }, [perfData?.rawDowntimes]);
   return (
     <div className="perf-fullwidth-container">
-      {/* Section Toggle Chips */}
-      <div className="perf-toggle-row flex gap-2 mb-4">
-        <button
-          type="button"
-          className={`chip chip-lg ${activePerfSection === "tahunan" ? "chip-active" : ""}`}
-          onClick={() => setActivePerfSection("tahunan")}
-        >
-          Tahunan
-        </button>
-        <button
-          type="button"
-          className={`chip chip-lg ${activePerfSection === "bulanan" ? "chip-active" : ""}`}
-          onClick={() => setActivePerfSection("bulanan")}
-        >
-          Bulanan
-        </button>
-        <button
-          type="button"
-          className={`chip chip-lg ${activePerfSection === "harian" ? "chip-active" : ""}`}
-          onClick={() => setActivePerfSection("harian")}
-        >
-          Harian
-        </button>
-      </div>
-
       {/* Performance Main Panel */}
       <Card className="dash-panel card-glow-info">
-        <div className="perf-header flex justify-between items-center mb-4">
-          <p className="dash-panel-title font-bold text-lg m-0">
-            Performance {activePerfSection === "tahunan" ? "Tahunan" : activePerfSection === "bulanan" ? "Bulanan" : "Harian"}
-          </p>
+        <div className="perf-header flex flex-wrap justify-between items-center gap-3 mb-4">
+          <div className="flex items-center gap-3">
+            <p className="dash-panel-title font-bold text-lg m-0 uppercase tracking-wider">
+              Performance {activePerfSection === "tahunan" ? "Tahunan" : activePerfSection === "bulanan" ? "Bulanan" : "Harian"}
+            </p>
+            {/* Section Toggle Chips inside Header */}
+            <div className="perf-toggle-row flex items-center gap-1.5 ml-2">
+              <button
+                type="button"
+                className={`chip ${activePerfSection === "tahunan" ? "chip-active" : ""}`}
+                onClick={() => setActivePerfSection("tahunan")}
+              >
+                Tahunan
+              </button>
+              <button
+                type="button"
+                className={`chip ${activePerfSection === "bulanan" ? "chip-active" : ""}`}
+                onClick={() => setActivePerfSection("bulanan")}
+              >
+                Bulanan
+              </button>
+              <button
+                type="button"
+                className={`chip ${activePerfSection === "harian" ? "chip-active" : ""}`}
+                onClick={() => setActivePerfSection("harian")}
+              >
+                Harian
+              </button>
+            </div>
+          </div>
+
           <div className="perf-nav flex items-center gap-2">
             {activePerfSection === "tahunan" && (
               <Input
