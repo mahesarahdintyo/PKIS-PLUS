@@ -4,6 +4,12 @@ import { Activity, ArrowLeft, Clock, Database, HardDrive, Monitor, RefreshCw, Se
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+// ─── Feature Flag ────────────────────────────────────────────────────────────
+// Set NEXT_PUBLIC_ENABLE_AUTO_POLLING=true di .env.local untuk mengaktifkan
+// kembali background polling setelah migrasi ke database & server lokal.
+// Saat false: data hanya dimuat sekali saat buka halaman. Refresh manual tetap aktif.
+const ENABLE_AUTO_POLLING = process.env.NEXT_PUBLIC_ENABLE_AUTO_POLLING === "true";
+
 interface DisplayStatus {
   id: string;
   name: string;
@@ -193,6 +199,16 @@ export default function SystemPageClient() {
   };
 
   useEffect(() => {
+    loadHealth();
+
+    if (!ENABLE_AUTO_POLLING) {
+      // Auto-polling dinonaktifkan (NEXT_PUBLIC_ENABLE_AUTO_POLLING=false).
+      // Tombol Refresh manual di halaman ini tetap berfungsi.
+      // Aktifkan kembali dengan mengubah nilai ke "true" di .env.local
+      // setelah migrasi ke database & server lokal.
+      return;
+    }
+
     let timeoutId: number;
     let isMounted = true;
 
@@ -205,7 +221,6 @@ export default function SystemPageClient() {
     };
 
     timeoutId = window.setTimeout(pollHealth, 5000);
-    loadHealth();
 
     return () => {
       isMounted = false;
@@ -214,6 +229,15 @@ export default function SystemPageClient() {
   }, []);
 
   useEffect(() => {
+    loadProdStatus();
+
+    if (!ENABLE_AUTO_POLLING) {
+      // Auto-polling dinonaktifkan (NEXT_PUBLIC_ENABLE_AUTO_POLLING=false).
+      // Aktifkan kembali dengan mengubah nilai ke "true" di .env.local
+      // setelah migrasi ke database & server lokal.
+      return;
+    }
+
     let prodTimeoutId: number;
     let isMounted = true;
 
@@ -225,7 +249,6 @@ export default function SystemPageClient() {
       }
     };
 
-    loadProdStatus();
     prodTimeoutId = window.setTimeout(pollProd, 10000);
 
     return () => {
@@ -464,7 +487,9 @@ export default function SystemPageClient() {
               <h2 className="text-sm font-bold text-slate-900">Pembaruan Otomatis</h2>
             </div>
             <p className="mt-4 text-sm font-medium text-slate-600">
-              Status monitor ini diperbarui otomatis setiap 5 detik.
+              {ENABLE_AUTO_POLLING
+                ? "Status monitor ini diperbarui otomatis setiap 5 detik."
+                : "Auto-refresh dinonaktifkan. Gunakan tombol Refresh untuk memperbarui status."}
             </p>
           </div>
         </section>

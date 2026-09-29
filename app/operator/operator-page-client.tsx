@@ -18,6 +18,12 @@ const OPERATOR_LOCATION_STORAGE_KEY = "futaba.operator.location";
 const WORKSPACE_REFRESH_INTERVAL_MS = 3000;
 const LINE_REFRESH_INTERVAL_MS = 3000;
 
+// ─── Feature Flag ────────────────────────────────────────────────────────────
+// Set NEXT_PUBLIC_ENABLE_AUTO_POLLING=true di .env.local untuk mengaktifkan
+// kembali background polling setelah migrasi ke database & server lokal.
+// Saat false: data hanya dimuat saat pertama buka dan saat window difokuskan.
+const ENABLE_AUTO_POLLING = process.env.NEXT_PUBLIC_ENABLE_AUTO_POLLING === "true";
+
 interface BreadcrumbItem {
   id: number;
   name: string;
@@ -314,6 +320,21 @@ export default function OperatorPage({
   }, [loadLines]);
 
   useEffect(() => {
+    // Focus event selalu aktif — trigger refresh saat pengguna kembali ke tab
+    const handleWindowFocus = () => {
+      loadLines();
+    };
+    window.addEventListener("focus", handleWindowFocus);
+
+    if (!ENABLE_AUTO_POLLING) {
+      // Auto-polling dinonaktifkan (NEXT_PUBLIC_ENABLE_AUTO_POLLING=false).
+      // Aktifkan kembali dengan mengubah nilai ke "true" di .env.local
+      // setelah migrasi ke database & server lokal.
+      return () => {
+        window.removeEventListener("focus", handleWindowFocus);
+      };
+    }
+
     let timeoutId: number;
     let isMounted = true;
 
@@ -326,12 +347,6 @@ export default function OperatorPage({
     };
 
     timeoutId = window.setTimeout(pollLines, LINE_REFRESH_INTERVAL_MS);
-
-    const handleWindowFocus = () => {
-      loadLines();
-    };
-
-    window.addEventListener("focus", handleWindowFocus);
 
     return () => {
       isMounted = false;
@@ -422,6 +437,21 @@ export default function OperatorPage({
   useEffect(() => {
     if (!selectedLine) return;
 
+    // Focus event selalu aktif — trigger refresh saat pengguna kembali ke tab
+    const handleWindowFocus = () => {
+      loadWorkspaceData({ showLoading: false });
+    };
+    window.addEventListener("focus", handleWindowFocus);
+
+    if (!ENABLE_AUTO_POLLING) {
+      // Auto-polling dinonaktifkan (NEXT_PUBLIC_ENABLE_AUTO_POLLING=false).
+      // Aktifkan kembali dengan mengubah nilai ke "true" di .env.local
+      // setelah migrasi ke database & server lokal.
+      return () => {
+        window.removeEventListener("focus", handleWindowFocus);
+      };
+    }
+
     let timeoutId: number;
     let isMounted = true;
 
@@ -434,12 +464,6 @@ export default function OperatorPage({
     };
 
     timeoutId = window.setTimeout(pollWorkspace, WORKSPACE_REFRESH_INTERVAL_MS);
-
-    const handleWindowFocus = () => {
-      loadWorkspaceData({ showLoading: false });
-    };
-
-    window.addEventListener("focus", handleWindowFocus);
 
     return () => {
       isMounted = false;
