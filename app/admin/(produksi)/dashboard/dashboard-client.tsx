@@ -1061,7 +1061,7 @@ export default function DashboardClient() {
               color: () => getCssVar("--text") || "#f1f5f9",
               labelColor: () => getCssVar("--muted-foreground") || "#94a3b8",
             },
-            sliceLabels: { enabled: true, color: () => getCssVar("--text") || "#f1f5f9" },
+            sliceLabels: { enabled: true, color: "#ffffff" },
             tooltip: {
               backgroundColor: getCssVar("--panel") || "#1e293b",
               titleColor: getCssVar("--text") || "#f1f5f9",
@@ -1650,7 +1650,7 @@ export default function DashboardClient() {
               color: () => getCssVar("--text") || "#f1f5f9",
               labelColor: () => getCssVar("--muted-foreground") || "#94a3b8",
             },
-            sliceLabels: { enabled: true, color: () => getCssVar("--text") || "#f1f5f9" },
+            sliceLabels: { enabled: true, color: "#ffffff" },
             tooltip: {
               backgroundColor: getCssVar("--panel") || "#1e293b",
               titleColor: getCssVar("--text") || "#f1f5f9",

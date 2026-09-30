@@ -73,7 +73,7 @@ const sliceLabels = {
     const total = ((dataset?.data as number[]) || []).reduce((a, b) => a + (Number(b) || 0), 0);
     if (total <= 0) return;
 
-    const fallbackColor = resolveColor(opts.color, "--text", "#f1f5f9");
+    const fallbackColor = resolveColor(opts.color, "--slice-label-text", "#ffffff");
     // opts.colors: optional array of per-slice colors (matching category colors)
     const perSliceColors: string[] | undefined = Array.isArray(opts.colors) ? opts.colors : undefined;
 

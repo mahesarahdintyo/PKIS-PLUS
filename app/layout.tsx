@@ -1,6 +1,5 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
 import { Toaster } from 'sonner'
 import { IosTouchListener } from '@/components/ui/ios-touch-listener'
 import { AutoHideScrollbar } from '@/components/ui/auto-hide-scrollbar'
@@ -8,11 +7,6 @@ import { PwaRegister } from '@/components/pwa-register'
 import { GlobalAndonAlert } from '@/components/produksi/GlobalAndonAlert'
 import './globals.css'
 
-const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-})
 
 export const metadata: Metadata = {
   title: 'PKIS',
@@ -56,7 +50,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="id" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
+    <html lang="id" suppressHydrationWarning>
       <head>
         {/* Prevent flash of wrong theme by applying class before React hydration */}
         <script
