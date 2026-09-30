@@ -1,12 +1,44 @@
 'use client'
 
-import { WifiOff, RefreshCw } from 'lucide-react'
+import { WifiOff, RefreshCw, AlertCircle } from 'lucide-react'
 import Image from 'next/image'
+import { useState, useCallback } from 'react'
 
 export default function OfflinePage() {
-  const handleReload = () => {
-    window.location.reload()
-  }
+  const [isChecking, setIsChecking] = useState(false)
+  const [failed, setFailed] = useState(false)
+
+  const handleRetry = useCallback(async () => {
+    setIsChecking(true)
+    setFailed(false)
+
+    try {
+      // Cek koneksi dengan fetch ke endpoint yang ringan
+      const res = await fetch('/api/system/health', {
+        method: 'GET',
+        cache: 'no-store',
+        signal: AbortSignal.timeout(5000), // timeout 5 detik
+      })
+
+      if (res.ok) {
+        // Koneksi berhasil — arahkan kembali ke halaman asal
+        const referrer = document.referrer
+        if (referrer && new URL(referrer).origin === window.location.origin) {
+          window.location.href = referrer
+        } else {
+          window.location.href = '/'
+        }
+      } else {
+        // Server merespons tapi dengan error
+        setFailed(true)
+        setIsChecking(false)
+      }
+    } catch {
+      // Masih offline / tidak bisa menjangkau server
+      setFailed(true)
+      setIsChecking(false)
+    }
+  }, [])
 
   return (
     <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-6 text-center select-none">
@@ -34,13 +66,22 @@ export default function OfflinePage() {
           Anda sedang offline. Sistem Futaba PKIS membutuhkan koneksi internet/jaringan lokal untuk memperbarui data produksi secara realtime.
         </p>
 
+        {/* Pesan Gagal */}
+        {failed && (
+          <div className="w-full flex items-center gap-2 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-xl px-4 py-3 mb-4">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>Koneksi masih terputus. Pastikan perangkat terhubung ke jaringan pabrik lalu coba lagi.</span>
+          </div>
+        )}
+
         {/* Retry Button */}
         <button
-          onClick={handleReload}
-          className="w-full h-12 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm rounded-xl transition duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95"
+          onClick={handleRetry}
+          disabled={isChecking}
+          className="w-full h-12 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 disabled:cursor-not-allowed text-white font-semibold text-sm rounded-xl transition duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95"
         >
-          <RefreshCw className="h-4 w-4" />
-          <span>Coba Hubungkan Kembali</span>
+          <RefreshCw className={`h-4 w-4 ${isChecking ? 'animate-spin' : ''}`} />
+          <span>{isChecking ? 'Memeriksa koneksi...' : 'Coba Hubungkan Kembali'}</span>
         </button>
       </div>
 
