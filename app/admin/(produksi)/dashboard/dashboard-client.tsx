@@ -13,6 +13,14 @@ import Chart from "chart.js/auto";
 import { registerInternalVizPlugins } from "@/lib/produksi/chartPlugins";
 import { Sun, Moon, AlertTriangle, ShieldCheck, Home, Maximize, Minimize } from "lucide-react";
 
+// ─── Feature Flag ────────────────────────────────────────────────────────────
+// Set NEXT_PUBLIC_ENABLE_REALTIME=true di .env.local untuk mengaktifkan
+// Realtime subscription pada dashboard (auto-update saat operator input downtime).
+// Saat false: data hanya dimuat saat halaman dibuka atau filter diubah.
+// Aktifkan setelah migrasi ke database & server lokal untuk menghindari
+// log ingestion berlebih di Supabase cloud.
+const ENABLE_REALTIME = process.env.NEXT_PUBLIC_ENABLE_REALTIME === "true";
+
 const MACHINES = [
   { key: "tandem", label: "Tandem", shortLabel: "Tandem", slug: "tandem" },
   { key: "blanking", label: "Blanking", shortLabel: "Blanking", slug: "blanking" },
@@ -824,6 +832,56 @@ export default function DashboardClient() {
     fetchProductivityTrend();
     fetchProductivityToday();
   }, [loading, fetchLineTrend, fetchMiniTrend, fetchProductivityTrend, fetchProductivityToday]);
+
+  // ─── Realtime Subscription (dinonaktifkan via feature flag) ───────────────
+  // Tujuan: auto-refresh dashboard saat operator menginput / mengubah downtime,
+  // sehingga pie chart & card langsung terupdate tanpa reload manual.
+  //
+  // Cara aktifkan:
+  //   Tambahkan di .env.local → NEXT_PUBLIC_ENABLE_REALTIME=true
+  //   Setelah project dipindahkan ke database & server lokal.
+  //
+  // Catatan: Saat aktif, subscription ini listen ke INSERT/UPDATE/DELETE pada
+  //   prod_downtime_log, prod_production_log, dan prod_dandori_log.
+  useEffect(() => {
+    if (!ENABLE_REALTIME) {
+      // Realtime dinonaktifkan — aktifkan dengan NEXT_PUBLIC_ENABLE_REALTIME=true
+      // setelah migrasi ke database lokal.
+      return;
+    }
+
+    const channel = supabase
+      .channel("dashboard-realtime-refresh")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "prod_downtime_log" },
+        () => {
+          let cancelled = false;
+          fetchDashboardData(() => cancelled);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "prod_production_log" },
+        () => {
+          let cancelled = false;
+          fetchDashboardData(() => cancelled);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "prod_dandori_log" },
+        () => {
+          let cancelled = false;
+          fetchDashboardData(() => cancelled);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, fetchDashboardData]);
 
   const ngRatePct = totals.stroke > 0 ? (totals.ng / totals.stroke) * 100 : 0;
 
@@ -1966,13 +2024,67 @@ export default function DashboardClient() {
                     </div>
 
                     <div className="internal-row-worst">
-                      {MACHINES.map((m, mIdx) => {
+                      {/* Urutan 6 Card: Semua Line di posisi pertama, diikuti 4 mesin lainnya, dan Tandem di posisi terakhir */}
+                      {[
+                        { type: "all" as const },
+                        ...MACHINES.filter((m) => m.key !== "tandem").map((m) => ({ type: "machine" as const, machine: m })),
+                        { type: "machine" as const, machine: MACHINES.find((m) => m.key === "tandem")! },
+                      ].map((item, idx) => {
+                        if (item.type === "all") {
+                          return (
+                            <Card
+                              key="semua-line"
+                              className="dash-panel dash-panel-fit card-glow-info animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+                              style={{ animationDelay: `${idx * 40}ms` }}
+                            >
+                              <p className="dash-panel-title">5 Downtime Terburuk — Semua Line</p>
+                              {fleetTop10.length === 0 ? (
+                                <p className="empty-state" style={{ padding: "20px 0" }}>Tidak ada downtime.</p>
+                              ) : (
+                                <div className="table-wrap">
+                                  <table className="table-compact">
+                                    <thead>
+                                      <tr>
+                                        <th>Line</th>
+                                        <th>Problem</th>
+                                        <th style={{ textAlign: "right" }}>Menit</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {fleetTop10.slice(0, 5).map((r, i) => (
+                                        <tr
+                                          key={i}
+                                          className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+                                          style={{ animationDelay: `${i * 30}ms` }}
+                                        >
+                                          <td title={r.mesinLabel}>
+                                            <span className="badge">
+                                              {r.mesinLabel}
+                                            </span>
+                                          </td>
+                                          <td style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                            {r.problem}
+                                          </td>
+                                          <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+                                            {r.menit}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </Card>
+                          );
+                        }
+
+                        const m = item.machine;
                         const rows = worstPerMachine[m.key] || [];
                         return (
                           <Card
                             key={m.key}
                             className="dash-panel dash-panel-fit card-glow-info animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
-                            style={{ animationDelay: `${mIdx * 40}ms` }}
+                            style={{ animationDelay: `${idx * 40}ms` }}
                           >
                             <p className="dash-panel-title">5 Downtime Terburuk — {m.shortLabel}</p>
                             {rows.length === 0 ? (
@@ -2014,51 +2126,6 @@ export default function DashboardClient() {
                           </Card>
                         );
                       })}
-
-                      {/* Card ke-6: 5 Downtime Terburuk — Semua Line */}
-                      <Card
-                        key="semua-line"
-                        className="dash-panel dash-panel-fit card-glow-info animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
-                        style={{ animationDelay: "200ms" }}
-                      >
-                        <p className="dash-panel-title">5 Downtime Terburuk — Semua Line</p>
-                        {fleetTop10.length === 0 ? (
-                          <p className="empty-state" style={{ padding: "20px 0" }}>Tidak ada downtime.</p>
-                        ) : (
-                          <div className="table-wrap">
-                            <table className="table-compact">
-                              <thead>
-                                <tr>
-                                  <th>Line</th>
-                                  <th>Problem</th>
-                                  <th style={{ textAlign: "right" }}>Menit</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {fleetTop10.slice(0, 5).map((r, i) => (
-                                  <tr
-                                    key={i}
-                                    className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
-                                    style={{ animationDelay: `${i * 30}ms` }}
-                                  >
-                                    <td title={r.mesinLabel}>
-                                      <span className="badge">
-                                        {r.mesinLabel}
-                                      </span>
-                                    </td>
-                                    <td style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                      {r.problem}
-                                    </td>
-                                    <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
-                                      {r.menit}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-                      </Card>
                     </div>
                   </div>
                 </div>
