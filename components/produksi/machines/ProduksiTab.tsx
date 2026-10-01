@@ -403,7 +403,7 @@ export default function ProduksiTab({
                     <p className="font-bold text-xs text-amber-400 flex items-center gap-1">
                       <span><Timer size={13} style={{ display: "inline", verticalAlign: "middle" }} /></span> Non-produksi selesai — lanjut apa?
                     </p>
-                    <div className="flex gap-2 pt-1">
+                    <div className="flex flex-col sm:flex-row gap-2 pt-1">
                       <Button
                         type="button"
                         size="sm"
@@ -420,6 +420,15 @@ export default function ProduksiTab({
                         onClick={() => linesHook.chooseAfterNonProduksi(st.id, "direct")}
                       >
                         <Play size={13} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} /> Langsung Produksi
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="flex-1 text-xs"
+                        onClick={() => linesHook.chooseAfterNonProduksi(st.id, "nonproduksi")}
+                      >
+                        <Clock size={13} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} /> Non-Produksi
                       </Button>
                     </div>
                   </div>

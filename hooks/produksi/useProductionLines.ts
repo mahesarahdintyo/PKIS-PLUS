@@ -409,9 +409,20 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
    * skipDandori supaya _commitLine menghitung dandori 0 menit.
    */
   const chooseAfterNonProduksi = useCallback(
-    (stId: string, mode: "setup" | "direct") => {
+    (stId: string, mode: "setup" | "direct" | "nonproduksi") => {
       const line = getLine(stId);
       const startIso = line._pendingStart || new Date().toISOString();
+
+      if (mode === "nonproduksi") {
+        mutateLine(stId, {
+          ...freshLine(),
+          phase: "nonproduksi_running",
+          nonProdActiveStart: startIso,
+          nonProdForm: { nama: "" },
+        });
+        return;
+      }
+
       mutateLine(stId, {
         phase: "awaiting_actual_start",
         entryStart: startIso,
