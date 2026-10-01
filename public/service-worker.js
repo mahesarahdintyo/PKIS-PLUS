@@ -1,6 +1,20 @@
-const CACHE_NAME = 'futaba-pkis-v4';
+const CACHE_NAME = 'futaba-pkis-v5';
 const DOCS_CACHE_NAME = `${CACHE_NAME}-documents`;
 const CURRENT_CACHES = [CACHE_NAME, DOCS_CACHE_NAME];
+
+// Public VAPID key — sama persis dengan ANDON_VAPID_PUBLIC_KEY di hooks/produksi/useAndon.ts
+const ANDON_VAPID_PUBLIC_KEY = 'BCPEeRkRPz2P0UQKWiu1X3nAjZ5C3UrVG4In4KJXw8Z9TGJhHlRxCzxbqPekSEU7M_nOsoitqZr9Ry7Q0bFeNAw';
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i++) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
 
 const STATIC_ASSETS = [
   '/',
@@ -43,33 +57,89 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Push event: tampilkan notifikasi Andon
+// Push event: tampilkan notifikasi Andon (selalu memanggil showNotification)
 self.addEventListener('push', (event) => {
-  let payload = {};
-  try {
-    payload = event.data ? event.data.json() : {};
-  } catch (e) {
-    payload = { title: 'Panggilan Andon', body: event.data ? event.data.text() : '' };
-  }
-
-  const title = payload.title || 'Panggilan Andon';
-  const options = {
-    body: payload.body || 'Operator memanggil leader',
+  let title = 'Panggilan Andon';
+  let options = {
+    body: 'Operator memanggil leader',
     icon: '/icon-192.png',
     badge: '/icon-192.png',
     // Pola getar panjang darurat (khas alarm panggilan masuk pabrik)
     vibrate: [800, 200, 800, 200, 800, 250, 1000, 250, 1000, 300, 1200],
-    tag: payload.call_id ? `andon-${payload.call_id}` : 'andon-call',
+    tag: 'andon-call',
     renotify: true,
     requireInteraction: true,
     silent: false,
-    data: payload,
     actions: [
       { action: 'open', title: 'Buka & Respon Panggilan' }
     ]
   };
 
+  try {
+    if (event.data) {
+      let payload;
+      try {
+        payload = event.data.json();
+      } catch (e) {
+        payload = { title: 'Panggilan Andon', body: event.data.text() };
+      }
+      if (payload) {
+        if (payload.title) title = payload.title;
+        if (payload.body) options.body = payload.body;
+        if (payload.call_id) options.tag = `andon-${payload.call_id}`;
+        options.data = payload;
+      }
+    }
+  } catch (err) {
+    console.warn('Error parsing push event data, using fallback notification:', err);
+  }
+
+  // Tetap selalu panggil showNotification (jangan ada jalur yang return tanpa notifikasi)
   event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Pushsubscriptionchange event: resubscribe otomatis jika subscription diperbarui / invalidated oleh browser
+self.addEventListener('pushsubscriptionchange', (event) => {
+  event.waitUntil(
+    (async () => {
+      try {
+        let oldEndpoint = event.oldSubscription ? event.oldSubscription.endpoint : null;
+        if (!oldEndpoint) {
+          try {
+            const currentSub = await self.registration.pushManager.getSubscription();
+            if (currentSub) {
+              oldEndpoint = currentSub.endpoint;
+            }
+          } catch (e) {
+            // Abaikan error pembacaan existing
+          }
+        }
+
+        const applicationServerKey = urlBase64ToUint8Array(ANDON_VAPID_PUBLIC_KEY);
+        const newSubscription = event.newSubscription || (await self.registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: applicationServerKey,
+        }));
+
+        if (!newSubscription) return;
+
+        const subJson = newSubscription.toJSON ? newSubscription.toJSON() : newSubscription;
+
+        await fetch('/api/push/resubscribe', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            oldEndpoint: oldEndpoint,
+            subscription: subJson,
+          }),
+        });
+      } catch (err) {
+        console.error('Failed to handle pushsubscriptionchange in SW:', err);
+      }
+    })()
+  );
 });
 
 // Klik notifikasi: fokus/buka halaman Andon Settings

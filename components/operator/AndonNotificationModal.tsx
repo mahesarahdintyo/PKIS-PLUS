@@ -105,13 +105,14 @@ export default function AndonNotificationModal({
       const result = await andonSubscribePush(userId);
       if (result.ok) {
         toast.success(result.message);
-        setIsPushSubscribed(true);
       } else {
         toast.error(result.message);
       }
     } catch (err: any) {
       toast.error(err?.message || "Terjadi kesalahan saat mendaftarkan notifikasi.");
     } finally {
+      // Pastikan status "terdaftar" benar-benar cek ke pushManager.getSubscription()
+      await checkSubscription();
       setLoadingPush(false);
     }
   };

@@ -52,6 +52,13 @@ export async function andonSubscribePush(userId: string): Promise<{ ok: boolean;
       { onConflict: "endpoint" }
     );
     if (error) return { ok: false, message: "Gagal simpan pendaftaran: " + error.message };
+
+    // Verifikasi kembali status pendaftaran langsung ke pushManager.getSubscription()
+    const activeSub = await reg.pushManager.getSubscription();
+    if (!activeSub) {
+      return { ok: false, message: "Gagal mengonfirmasi pendaftaran push di browser." };
+    }
+
     return { ok: true, message: "HP ini berhasil didaftarkan menerima panggilan Andon." };
   } catch (e: any) {
     return { ok: false, message: "Gagal mendaftar: " + (e?.message || String(e)) };

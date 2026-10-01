@@ -79,11 +79,13 @@ Deno.serve(async (req: Request) => {
     let sent = 0, failed = 0;
     for (const sub of subs) {
       try {
-        await webpush.sendNotification(
+        const pushRes = await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } },
-          payload
+          payload,
+          { urgency: "high", TTL: 120 }
         );
         sent++;
+        console.log("BERHASIL kirim ke", sub.endpoint.slice(0, 60), "status:", pushRes?.statusCode);
       } catch (e: any) {
         failed++;
         console.log("GAGAL kirim ke", sub.endpoint.slice(0, 60), "status:", e?.statusCode, "pesan:", e?.body || e?.message);
