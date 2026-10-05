@@ -2412,10 +2412,29 @@ table.perf-dialog-table th,
   height: 100%;
 }
 
+.internal-right-top-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  flex: 0 0 auto;
+}
+
 .internal-right-downtime-row {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 14px;
+}
+
+.internal-viz .internal-right-downtime-row-compact .dash-chart-sm {
+  height: 120px;
+}
+
+.internal-viz .dash-chart-trend {
+  flex: none;
+  height: 140px;
+  min-height: 0;
+  width: 100%;
+  position: relative;
 }
 
 /* Row 1: Availability | GSPH per Line (Legacy fallback) */
@@ -2853,13 +2872,26 @@ table.perf-dialog-table th,
     min-height: 0;
   }
 
-  /* Baris atas 3 card downtime (Per Line | Per Kategori | Per Kategori × Line)
-     Mengisi sisa ruang vertikal kolom kanan di TV mode */
+  /* Baris atas 2 card: Downtime Exhaust + Downtime Harian */
+  .internal-right-top-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--row-gap, 8px);
+    flex: 1.1;
+    min-height: 0;
+  }
+
+  .internal-right-top-row .dash-panel {
+    height: 100%;
+  }
+
+  /* Baris 3 card downtime (Per Line | Per Kategori | Per Kategori × Line)
+     Diperkecil di TV mode untuk memberi ruang 2 card tren di atasnya */
   .internal-right-downtime-row {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
     gap: var(--row-gap, 8px);
-    flex: 1;
+    flex: 0.9;
     min-height: 0;
   }
 
@@ -2890,7 +2922,8 @@ table.perf-dialog-table th,
     overflow: hidden;
   }
 
-  /* Di dalam grid downtime-row & left cards, card perlu height 100% */
+  /* Di dalam grid downtime-row, top-row & left cards, card perlu height 100% */
+  .internal-right-top-row .dash-panel,
   .internal-right-downtime-row .dash-panel,
   .internal-left-grid-cards .dash-panel {
     height: 100%;
@@ -2920,6 +2953,7 @@ table.perf-dialog-table th,
 
   /* Override fixed chart heights for all charts inside internal-viz */
   .internal-viz .dash-chart-sm,
+  .internal-viz .dash-chart-trend,
   .internal-viz .internal-row-productivity .dash-chart-sm {
     flex: 1 1 0% !important;
     min-height: 0 !important;

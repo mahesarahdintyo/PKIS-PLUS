@@ -117,6 +117,14 @@ export default function DashboardClient() {
     perLine: { label: string; values: (number | null)[] }[];
   } | undefined>(undefined);
 
+  // Downtime trend data: Exhaust (tren total downtime per bucket) & Harian (per tanggal dalam bulan)
+  const [downtimeTrendData, setDowntimeTrendData] = useState<{
+    exhaustLabels: string[];
+    exhaustValues: (number | null)[];
+    harianLabels: string[];
+    harianValues: (number | null)[];
+  }>({ exhaustLabels: [], exhaustValues: [], harianLabels: [], harianValues: [] });
+
   // Per-hour GSPH from RPC, keyed by machine key
   const [hourlyData, setHourlyData] = useState<Record<string, { jam: number; gsph: number }[]>>({});
 
@@ -172,6 +180,8 @@ export default function DashboardClient() {
   const internalDowntimeLineRef = useRef<HTMLCanvasElement | null>(null);
   const internalCategoryPieRef = useRef<HTMLCanvasElement | null>(null);
   const internalCategoryLineRef = useRef<HTMLCanvasElement | null>(null);
+  const internalDowntimeExhaustRef = useRef<HTMLCanvasElement | null>(null);
+  const internalDowntimeHarianRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstances = useRef<Record<string, any>>({});
 
   const destroyChartOnCanvas = (canvas: HTMLCanvasElement | null) => {
@@ -290,6 +300,66 @@ export default function DashboardClient() {
       console.warn("fetchLineTrend failed:", e);
     }
   }, [periodMode, tanggal, bulanPilih, supabase]);
+
+  /* ── fetchDowntimeTrend (Exhaust & Harian) ── */
+  const fetchDowntimeTrend = useCallback(async () => {
+    let start: Date, end: Date, bucket: string, labels: string[], keyOf: (d: Date) => number;
+    if (periodMode === "harian") {
+      const base = new Date(tanggal + "T00:00:00");
+      start = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+      end = new Date(base.getFullYear(), base.getMonth(), base.getDate() + 1);
+      bucket = "hour";
+      labels = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0") + ":00");
+      keyOf = (d) => d.getHours();
+    } else if (periodMode === "bulanan") {
+      const y = tahunPilih, m = bulanPilih;
+      const n = new Date(y, m + 1, 0).getDate();
+      start = new Date(y, m, 1);
+      end = new Date(y, m + 1, 1);
+      bucket = "day";
+      labels = Array.from({ length: n }, (_, i) => String(i + 1));
+      keyOf = (d) => d.getDate() - 1;
+    } else {
+      const y = tahunPilih;
+      start = new Date(y, 0, 1);
+      end = new Date(y + 1, 0, 1);
+      bucket = "month";
+      labels = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+      keyOf = (d) => d.getMonth();
+    }
+
+    try {
+      const { data, error } = await supabase.rpc("prod_downtime_trend_bucketed", {
+        p_start: start.toISOString(),
+        p_end: end.toISOString(),
+        p_bucket: bucket,
+      });
+
+      if (error) {
+        console.warn("fetchDowntimeTrend error:", error);
+        return;
+      }
+
+      const values = new Array(labels.length).fill(0);
+      (data || []).forEach((r: any) => {
+        const d = new Date(r.bucket_start);
+        const i = keyOf(d);
+        if (i >= 0 && i < values.length) {
+          values[i] = Math.round(Number(r.total_menit) || 0);
+        }
+      });
+
+      setDowntimeTrendData({
+        exhaustLabels: labels,
+        exhaustValues: values,
+        harianLabels: labels,
+        harianValues: values,
+      });
+    } catch (e) {
+      console.warn("fetchDowntimeTrend failed:", e);
+    }
+  }, [periodMode, tanggal, bulanPilih, tahunPilih, supabase]);
+
 
   /* ── fetchProductivityTrend & fetchProductivityToday ── */
   const fetchProductivityTrend = useCallback(async () => {
@@ -831,7 +901,8 @@ export default function DashboardClient() {
     fetchMiniTrend();
     fetchProductivityTrend();
     fetchProductivityToday();
-  }, [loading, fetchLineTrend, fetchMiniTrend, fetchProductivityTrend, fetchProductivityToday]);
+    fetchDowntimeTrend();
+  }, [loading, fetchLineTrend, fetchMiniTrend, fetchProductivityTrend, fetchProductivityToday, fetchDowntimeTrend]);
 
   // ─── Realtime Subscription (dinonaktifkan via feature flag) ───────────────
   // Tujuan: auto-refresh dashboard saat operator menginput / mengubah downtime,
@@ -1756,6 +1827,127 @@ export default function DashboardClient() {
       });
     }
 
+    /* ── Downtime Exhaust (Tren Bar) ── */
+    if (internalDowntimeExhaustRef.current) {
+      if (chartInstances.current.internalDowntimeExhaust) chartInstances.current.internalDowntimeExhaust.destroy();
+      destroyChartOnCanvas(internalDowntimeExhaustRef.current);
+      chartInstances.current.internalDowntimeExhaust = new Chart(internalDowntimeExhaustRef.current, {
+        type: "bar",
+        data: {
+          labels: downtimeTrendData.exhaustLabels,
+          datasets: [{
+            label: "Downtime (menit)",
+            data: downtimeTrendData.exhaustValues,
+            backgroundColor: "#ea580c",
+            borderRadius: 3,
+            borderSkipped: false,
+            barPercentage: 0.65,
+            categoryPercentage: 0.8,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { top: 18, right: 6 } },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: getCssVar("--panel") || "#1e293b",
+              titleColor: getCssVar("--text") || "#f1f5f9",
+              bodyColor: getCssVar("--text") || "#f1f5f9",
+              borderColor: getCssVar("--border") || "#334155",
+              borderWidth: 1,
+              padding: 8,
+              callbacks: {
+                label: (ctx: any) => `${fmtNum(ctx.parsed.y)} menit`,
+              },
+            },
+            barValueLabels: {
+              enabled: true,
+              fmt: (v: any) => fmtNum(v),
+              color: () => getCssVar("--text") || "#f1f5f9",
+            },
+          } as any,
+          scales: {
+            x: {
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9 } },
+              grid: { display: false },
+              border: { display: false },
+            },
+            y: {
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9 }, maxTicksLimit: 4 },
+              grid: { color: getCssVar("--chart-grid") || "#334155", drawTicks: false },
+              border: { display: false },
+              beginAtZero: true,
+            },
+          },
+        },
+      });
+    }
+
+    /* ── Downtime Harian (Area Chart) ── */
+    if (internalDowntimeHarianRef.current) {
+      if (chartInstances.current.internalDowntimeHarian) chartInstances.current.internalDowntimeHarian.destroy();
+      destroyChartOnCanvas(internalDowntimeHarianRef.current);
+      chartInstances.current.internalDowntimeHarian = new Chart(internalDowntimeHarianRef.current, {
+        type: "line",
+        data: {
+          labels: downtimeTrendData.harianLabels,
+          datasets: [{
+            label: "Downtime (menit)",
+            data: downtimeTrendData.harianValues,
+            borderColor: "#ea580c",
+            backgroundColor: "rgba(234, 88, 12, 0.22)",
+            fill: true,
+            tension: 0.35,
+            pointRadius: 2.5,
+            pointHoverRadius: 4.5,
+            pointBackgroundColor: "#ea580c",
+            pointBorderColor: "#ffffff",
+            pointBorderWidth: 1,
+            borderWidth: 2,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { top: 18, right: 8 } },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: getCssVar("--panel") || "#1e293b",
+              titleColor: getCssVar("--text") || "#f1f5f9",
+              bodyColor: getCssVar("--text") || "#f1f5f9",
+              borderColor: getCssVar("--border") || "#334155",
+              borderWidth: 1,
+              padding: 8,
+              callbacks: {
+                label: (ctx: any) => `${fmtNum(ctx.parsed.y)} menit`,
+              },
+            },
+            barValueLabels: {
+              enabled: true,
+              fmt: (v: any) => (v && v > 0 ? fmtNum(v) : ""),
+              color: () => getCssVar("--text") || "#f1f5f9",
+            },
+          } as any,
+          scales: {
+            x: {
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9 } },
+              grid: { display: false },
+              border: { display: false },
+            },
+            y: {
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9 }, maxTicksLimit: 4 },
+              grid: { color: getCssVar("--chart-grid") || "#334155", drawTicks: false },
+              border: { display: false },
+              beginAtZero: true,
+            },
+          },
+        },
+      });
+    }
+
     return () => {
       try { chartInstances.current.internalProdTrend?.destroy(); } catch { }
       try { chartInstances.current.internalProdCum?.destroy(); } catch { }
@@ -1764,8 +1956,10 @@ export default function DashboardClient() {
       try { chartInstances.current.internalDowntimeLine?.destroy(); } catch { }
       try { chartInstances.current.internalCategoryPie?.destroy(); } catch { }
       try { chartInstances.current.internalCategoryLine?.destroy(); } catch { }
+      try { chartInstances.current.internalDowntimeExhaust?.destroy(); } catch { }
+      try { chartInstances.current.internalDowntimeHarian?.destroy(); } catch { }
     };
-  }, [loading, vizMode, productivityTrend, totals, machineDataMap, dtByCategoryMap, openDowntimeDetail, theme]);
+  }, [loading, vizMode, productivityTrend, totals, machineDataMap, dtByCategoryMap, openDowntimeDetail, theme, downtimeTrendData]);
 
   const fmtNum = (n: number | null | undefined) => {
     if (n === null || n === undefined || isNaN(Number(n))) return "0";
@@ -2002,7 +2196,29 @@ export default function DashboardClient() {
 
                   {/* ── SISI KANAN: DOWNTIME (SEMUA CARD BERHUBUNGAN DENGAN DOWNTIME) ── */}
                   <div className="internal-col-right">
-                    <div className="internal-right-downtime-row">
+                    {/* Baris Baru: Downtime Exhaust (Tren Bar) & Downtime Harian (Area Chart) */}
+                    <div className="internal-right-top-row">
+                      <Card className="dash-panel dash-panel-fit card-glow-warn">
+                        <p className="dash-panel-title">
+                          <span>Downtime Exhaust</span>
+                        </p>
+                        <div className="dash-chart-trend">
+                          <canvas ref={internalDowntimeExhaustRef} />
+                        </div>
+                      </Card>
+                      <Card className="dash-panel dash-panel-fit card-glow-warn">
+                        <p className="dash-panel-title">
+                          <span>{periodMode === "harian" ? "Downtime Per Jam" : periodMode === "bulanan" ? "Downtime Harian" : "Downtime Per Bulan"}</span>
+                          <span className="count">Total {fmtNum(downtimeTrendData.harianValues.reduce((a, b) => (a || 0) + (b || 0), 0))} menit</span>
+                        </p>
+                        <div className="dash-chart-trend">
+                          <canvas ref={internalDowntimeHarianRef} />
+                        </div>
+                      </Card>
+                    </div>
+
+                    {/* Baris 3 Card Downtime (Per Line, Per Kategori, Per Kategori x Line) - diperkecil */}
+                    <div className="internal-right-downtime-row internal-right-downtime-row-compact">
                       <Card className="dash-panel dash-panel-fit card-glow-info">
                         <p className="dash-panel-title">Downtime per Line</p>
                         <div className="dash-chart-sm">
