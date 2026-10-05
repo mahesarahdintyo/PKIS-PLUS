@@ -2372,7 +2372,12 @@ table.perf-dialog-table th,
 }
 .internal-viz .internal-row-productivity .dash-chart-sm { height: 260px; }
 .internal-viz .dash-panel { min-height: 0; }
-.internal-viz .internal-row-worst .table-wrap { flex: 1; min-height: 0; max-height: 260px; overflow-y: auto; }
+.internal-viz .internal-row-worst .table-wrap {
+  flex: 0 0 auto;
+  min-height: 140px;
+  max-height: none;
+  overflow: visible;
+}
 
 /* ═══ Visualisasi Internal Split Layout (Kiri: Non-Downtime | Kanan: Downtime) ═══ */
 .internal-viz-split {
@@ -2438,19 +2443,87 @@ table.perf-dialog-table th,
   gap: 14px;
 }
 
-/* Row Worst: 3 kolom x 2 baris (total 6 card: 5 line + 1 semua line) */
+/* Row Worst: 3 kolom x 2 baris (total 6 card: 5 line + 1 semua line)
+   Ukuran card di-fit pas hanya cukup untuk 5 kategori dan 5 problem (berlaku di semua device) */
 .internal-row-worst {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: 1fr 1fr;
-  gap: 12px;
-  flex: 1;
+  grid-template-rows: auto auto;
+  gap: 10px;
+  flex: 0 0 auto;
 }
 
 .internal-row-worst .dash-panel {
-  height: 100%;
+  height: auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+  padding: 10px 12px;
+}
+
+.internal-row-worst .dash-panel-title {
+  margin-bottom: 6px;
+  font-size: 11px;
+}
+
+.internal-row-worst table.table-compact {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.internal-row-worst table.table-compact th,
+.internal-row-worst table.table-compact td {
+  padding: 5px 6px;
+  font-size: 11.5px;
+  line-height: 1.25;
+}
+
+.internal-row-worst table.table-compact th {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.internal-row-worst table.table-compact th:first-child,
+.internal-row-worst table.table-compact td:first-child {
+  width: 32%;
+  white-space: nowrap;
+}
+
+.internal-row-worst table.table-compact th:nth-child(2),
+.internal-row-worst table.table-compact td:nth-child(2) {
+  width: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.internal-row-worst table.table-compact th:last-child,
+.internal-row-worst table.table-compact td:last-child {
+  width: 48px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.internal-row-worst .badge {
+  font-size: 9.5px;
+  padding: 1px 6px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.internal-row-worst .empty-state {
+  min-height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
 }
 
 /* ---------- Attendance dual metric ---------- */
@@ -2780,27 +2853,33 @@ table.perf-dialog-table th,
     min-height: 0;
   }
 
-  /* Baris atas 3 card downtime (Per Line | Per Kategori | Per Kategori × Line) */
+  /* Baris atas 3 card downtime (Per Line | Per Kategori | Per Kategori × Line)
+     Mengisi sisa ruang vertikal kolom kanan di TV mode */
   .internal-right-downtime-row {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
     gap: var(--row-gap, 8px);
-    flex-shrink: 0;
+    flex: 1;
     min-height: 0;
   }
 
-  /* Baris bawah 5 worst: ukuran tetap */
+  /* Baris bawah 5 worst: ukuran pas hanya cukup untuk 5 kategori & 5 problem */
   .internal-col-right > .internal-row-worst {
-    flex: 1;
+    flex: 0 0 auto;
     min-height: 0;
   }
 
   .internal-row-1,
   .internal-row-productivity,
-  .internal-row-3,
+  .internal-row-3 {
+    gap: var(--row-gap, 8px);
+    min-height: 0;
+  }
+
   .internal-row-worst {
     gap: var(--row-gap, 8px);
     min-height: 0;
+    flex: 0 0 auto;
   }
 
   .internal-viz .dash-panel {
@@ -2811,11 +2890,14 @@ table.perf-dialog-table th,
     overflow: hidden;
   }
 
-  /* Di dalam grid (downtime-row, worst-5), card perlu height 100% untuk menyamakan tinggi antar kolom */
+  /* Di dalam grid downtime-row & left cards, card perlu height 100% */
   .internal-right-downtime-row .dash-panel,
-  .internal-row-worst .dash-panel,
   .internal-left-grid-cards .dash-panel {
     height: 100%;
+  }
+
+  .internal-row-worst .dash-panel {
+    height: auto;
   }
 
   .internal-viz .dash-panel-title {
@@ -2885,48 +2967,67 @@ table.perf-dialog-table th,
     font-size: 12px;
   }
 
-  /* Row Worst di kolom kanan: 3 kolom x 2 baris (total 6 card: 5 line + 1 semua line) */
+  /* Row Worst di TV: pas persis untuk 5 kategori dan 5 problem tanpa ruang kosong berlebih */
   .internal-viz .internal-row-worst {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: 1fr 1fr;
+    grid-template-rows: auto auto;
     gap: var(--row-gap, 8px);
+    flex: 0 0 auto;
     min-height: 0;
   }
 
   .internal-viz .internal-row-worst .dash-panel {
-    padding: 8px 10px;
+    padding: 6px 8px;
+    height: auto;
   }
 
   /* Izinkan header wrap — tidak lagi dipotong */
   .internal-viz .internal-row-worst .dash-panel-title {
-    font-size: 11px;
-    margin: 0 0 4px;
+    font-size: 10.5px;
+    margin: 0 0 3px;
     white-space: normal;
-    line-height: 1.3;
+    line-height: 1.2;
   }
 
   .internal-viz .internal-row-worst .table-wrap {
-    flex: 1 1 0%;
-    min-height: 0;
+    flex: 0 0 auto;
+    min-height: 125px;
     max-height: none;
-    overflow-y: auto;
+    overflow: visible;
+  }
+
+  .internal-viz .internal-row-worst table.table-compact {
+    table-layout: fixed;
+    width: 100%;
   }
 
   .internal-viz .internal-row-worst table.table-compact th {
-    padding: 4px 6px;
-    font-size: 9px;
+    padding: 3px 5px;
+    font-size: 9.5px;
+    line-height: 1.2;
   }
 
   .internal-viz .internal-row-worst table.table-compact td {
-    padding: 4px 6px;
+    padding: 3px 5px;
     font-size: 11px;
-    line-height: 1.25;
+    line-height: 1.2;
   }
 
   .internal-viz .internal-row-worst .badge {
     font-size: 9px;
     padding: 1px 5px;
+    max-width: 100%;
+  }
+
+  .internal-viz .internal-row-worst .empty-state {
+    min-height: 125px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    margin: 0;
+    font-size: 11px;
   }
 
 }
@@ -2942,6 +3043,21 @@ table.perf-dialog-table th,
   .dash-main-grid.tv-row-3,
   .dash-main-grid.tv-row-4 {
     grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .internal-right-downtime-row {
+    grid-template-columns: 1fr;
+  }
+  .internal-row-worst {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .internal-row-worst {
+    grid-template-columns: 1fr;
   }
 }
 

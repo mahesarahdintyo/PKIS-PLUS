@@ -2039,7 +2039,7 @@ export default function DashboardClient() {
                             >
                               <p className="dash-panel-title">5 Downtime Terburuk — Semua Line</p>
                               {fleetTop10.length === 0 ? (
-                                <p className="empty-state" style={{ padding: "20px 0" }}>Tidak ada downtime.</p>
+                                <p className="empty-state">Tidak ada downtime.</p>
                               ) : (
                                 <div className="table-wrap">
                                   <table className="table-compact">
@@ -2062,7 +2062,7 @@ export default function DashboardClient() {
                                               {r.mesinLabel}
                                             </span>
                                           </td>
-                                          <td style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                          <td title={r.problem} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                             {r.problem}
                                           </td>
                                           <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
@@ -2088,7 +2088,7 @@ export default function DashboardClient() {
                           >
                             <p className="dash-panel-title">5 Downtime Terburuk — {m.shortLabel}</p>
                             {rows.length === 0 ? (
-                              <p className="empty-state" style={{ padding: "20px 0" }}>Tidak ada downtime.</p>
+                              <p className="empty-state">Tidak ada downtime.</p>
                             ) : (
                               <div className="table-wrap">
                                 <table className="table-compact">
@@ -2111,7 +2111,7 @@ export default function DashboardClient() {
                                             {r.kategori}
                                           </span>
                                         </td>
-                                        <td style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                        <td title={r.problem} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                           {r.problem}
                                         </td>
                                         <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
