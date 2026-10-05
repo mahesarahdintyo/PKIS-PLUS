@@ -2382,7 +2382,7 @@ table.perf-dialog-table th,
 /* ═══ Visualisasi Internal Split Layout (Kiri: Non-Downtime | Kanan: Downtime) ═══ */
 .internal-viz-split {
   display: grid;
-  grid-template-columns: 38fr 62fr;
+  grid-template-columns: 35fr 65fr;
   gap: 16px;
   align-items: stretch;
 }
@@ -2839,7 +2839,7 @@ table.perf-dialog-table th,
     flex: 1;
     min-height: 0;
     display: grid;
-    grid-template-columns: 38fr 62fr;
+    grid-template-columns: 35fr 65fr;
     gap: var(--row-gap, 8px);
     align-items: stretch;
     overflow: hidden;
