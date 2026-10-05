@@ -98,7 +98,7 @@ export async function GET(request: Request) {
         .in("id", userIds);
       if (profiles) {
         profilesMap = Object.fromEntries(
-          profiles.map((p) => [p.id, p.full_name || "-"])
+          profiles.map((p: any) => [p.id, p.full_name || "-"])
         );
       }
     }

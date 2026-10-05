@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUserProfile } from "@/lib/services/auth-server";
 import { LoginForm } from "@/components/ui/login-form";
 import { LogoutButton } from "@/components/ui/logout-button";
 import Link from "next/link";
@@ -7,18 +7,8 @@ import { AppHeader } from "@/components/ui/app-header";
 import { ArrowRight, ShieldCheck, User, Tv, Activity, Bell } from "lucide-react";
 
 export default async function HomePage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  let profile = null;
-  if (user) {
-    const { data } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-    profile = data;
-  }
+  const { user, role } = await getCurrentUserProfile();
+  const profile = role ? { role } : null;
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 flex flex-col justify-between">

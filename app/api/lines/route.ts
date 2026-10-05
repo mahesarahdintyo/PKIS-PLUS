@@ -1,6 +1,10 @@
-import { createClient } from "@/lib/supabase/server";
-import { getCurrentUserProfile } from "@/lib/services/auth-server";
+// app/api/lines/route.ts
+// Refactored: Supabase → Prisma
+
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getCurrentUserProfile } from "@/lib/services/auth-server";
+import { broadcastDbChange } from "@/lib/socket";
 
 export async function GET(request: Request) {
   try {
@@ -8,45 +12,43 @@ export async function GET(request: Request) {
     const includeHidden = searchParams.get("includeHidden") === "true";
     const showTrash = searchParams.get("trash") === "true";
     const userProfile = await getCurrentUserProfile();
-    const supabase = await createClient();
 
-    let query = supabase.from("lines").select("*");
+    const where: any = {};
 
     if (userProfile.role === "operator" && userProfile.lineId) {
-      query = query.eq("id", userProfile.lineId);
+      where.id = userProfile.lineId;
     } else if (!includeHidden) {
-      query = query.eq("hidden_from_operator", false);
+      where.hidden_from_operator = false;
     }
 
     if (showTrash) {
-      query = query.eq("is_active", false);
+      where.is_active = false;
     } else {
-      query = query.or("is_active.eq.true,is_active.is.null");
+      where.OR = [{ is_active: true }, { is_active: null }];
     }
 
-    const [{ data: lines, error }, { data: documents, error: documentsError }] = await Promise.all([
-      query.order("name", { ascending: true }),
-      supabase
-        .from("documents")
-        .select("line_id, folders ( line_id )")
-        .or("is_active.eq.true,is_active.is.null"),
+    const [lines, documents] = await Promise.all([
+      prisma.line.findMany({
+        where,
+        orderBy: { name: "asc" },
+      }),
+      prisma.document.findMany({
+        where: { OR: [{ is_active: true }, { is_active: null }] },
+        select: { line_id: true, folder: { select: { line_id: true } } },
+      }),
     ]);
 
-    if (error || documentsError) {
-      return NextResponse.json({ error: error?.message ?? documentsError?.message }, { status: 500 });
-    }
-
+    // Count documents per line
     const documentCountByLineId = new Map<string, number>();
-    for (const document of documents ?? []) {
-      const folder = Array.isArray(document.folders) ? document.folders[0] : document.folders;
-      const lineId = document.line_id ?? folder?.line_id;
+    for (const doc of documents) {
+      const lineId = doc.line_id ?? (doc.folder as any)?.line_id;
       if (lineId) {
         documentCountByLineId.set(lineId, (documentCountByLineId.get(lineId) ?? 0) + 1);
       }
     }
 
     return NextResponse.json(
-      (lines ?? []).map((line) => ({
+      lines.map((line) => ({
         ...line,
         document_count: documentCountByLineId.get(line.id) ?? 0,
       }))
@@ -59,19 +61,21 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const userProfile = await getCurrentUserProfile();
+    if (!userProfile.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const name = typeof body.name === "string" ? body.name.trim() : "";
     const description =
       typeof body.description === "string" && body.description.trim()
         ? body.description.trim()
         : null;
-    // machine_type: string (slug) atau null untuk line non-produksi
     const machine_type =
       typeof body.machine_type === "string" && body.machine_type.trim()
         ? body.machine_type.trim()
         : null;
-
-    // station_config: object JSON, default { mode: "none" }
     const station_config =
       body.station_config && typeof body.station_config === "object"
         ? body.station_config
@@ -84,19 +88,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     // Cek duplikat nama (case-insensitive)
-    const { data: existing } = await supabase
-      .from("lines")
-      .select("id")
-      .ilike("name", name)
-      .eq("is_active", true)
-      .maybeSingle();
+    const existing = await prisma.line.findFirst({
+      where: { name: { contains: name, mode: "insensitive" }, is_active: true },
+    });
 
     if (existing) {
       return NextResponse.json(
@@ -105,21 +100,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const { data: newLine, error } = await supabase
-      .from("lines")
-      .insert({
-        name,
-        description,
-        machine_type,
-        station_config,
-        is_active: true,
-      })
-      .select()
-      .single();
+    const newLine = await prisma.line.create({
+      data: { name, description, machine_type, station_config, is_active: true },
+    });
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    broadcastDbChange("lines", "INSERT", { eventType: "INSERT", new: newLine });
 
     return NextResponse.json(newLine, { status: 201 });
   } catch (error) {
@@ -130,6 +115,11 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
+    const userProfile = await getCurrentUserProfile();
+    if (!userProfile.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const id = typeof body.id === "string" ? body.id : "";
     const name = typeof body.name === "string" ? body.name.trim() : "";
@@ -137,72 +127,45 @@ export async function PUT(request: Request) {
       typeof body.description === "string" && body.description.trim()
         ? body.description.trim()
         : null;
-    // machine_type: string (slug) atau null untuk line non-produksi
-    // Kirim undefined berarti tidak diubah, kirim null berarti dihapus
+
     const hasMachineType = "machine_type" in body;
     const machine_type = hasMachineType
-      ? (typeof body.machine_type === "string" && body.machine_type.trim()
-          ? body.machine_type.trim()
-          : null)
+      ? typeof body.machine_type === "string" && body.machine_type.trim()
+        ? body.machine_type.trim()
+        : null
       : undefined;
 
-    // station_config: object JSON
     const hasStationConfig = "station_config" in body;
     const station_config =
       hasStationConfig && body.station_config && typeof body.station_config === "object"
         ? body.station_config
         : undefined;
 
-    if (!id) {
-      return NextResponse.json(
-        { error: "Line ID tidak valid" },
-        { status: 400 }
-      );
-    }
+    if (!id) return NextResponse.json({ error: "Line ID tidak valid" }, { status: 400 });
+    if (!name) return NextResponse.json({ error: "Nama line produksi tidak boleh kosong" }, { status: 400 });
 
-    if (!name) {
-      return NextResponse.json(
-        { error: "Nama line produksi tidak boleh kosong" },
-        { status: 400 }
-      );
-    }
-
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Cek duplikat nama (case-insensitive), kecuali line yang sedang diedit
-    const { data: existing } = await supabase
-      .from("lines")
-      .select("id")
-      .ilike("name", name)
-      .eq("is_active", true)
-      .neq("id", id)
-      .maybeSingle();
+    // Cek duplikat nama kecuali diri sendiri
+    const existing = await prisma.line.findFirst({
+      where: {
+        name: { contains: name, mode: "insensitive" },
+        is_active: true,
+        NOT: { id },
+      },
+    });
 
     if (existing) {
       return NextResponse.json(
-        { error: `Line produksi dengan nama "${name}" sudah ada. Gunakan nama yang berbeda.` },
+        { error: `Line produksi dengan nama "${name}" sudah ada.` },
         { status: 409 }
       );
     }
 
-    const updatePayload: Record<string, unknown> = { name, description };
-    if (hasMachineType) updatePayload.machine_type = machine_type;
-    if (hasStationConfig) updatePayload.station_config = station_config;
+    const updateData: any = { name, description };
+    if (hasMachineType) updateData.machine_type = machine_type;
+    if (hasStationConfig) updateData.station_config = station_config;
 
-    const { data: updatedLine, error } = await supabase
-      .from("lines")
-      .update(updatePayload)
-      .eq("id", id)
-      .select()
-      .single();
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    const updatedLine = await prisma.line.update({ where: { id }, data: updateData });
+    broadcastDbChange("lines", "UPDATE", { eventType: "UPDATE", new: updatedLine });
 
     return NextResponse.json(updatedLine);
   } catch (error) {
@@ -213,52 +176,30 @@ export async function PUT(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    const userProfile = await getCurrentUserProfile();
+    if (!userProfile.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const id = typeof body.id === "string" ? body.id : "";
     const hiddenFromOperator = body.hidden_from_operator;
 
-    if (!id) {
-      return NextResponse.json(
-        { error: "Line ID is required" },
-        { status: 400 }
-      );
-    }
-
+    if (!id) return NextResponse.json({ error: "Line ID is required" }, { status: 400 });
     if (typeof hiddenFromOperator !== "boolean") {
-      return NextResponse.json(
-        { error: "Hidden from operator must be a boolean" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "hidden_from_operator must be a boolean" }, { status: 400 });
     }
 
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const updatedLine = await prisma.line.update({
+      where: { id },
+      data: { hidden_from_operator: hiddenFromOperator },
+    });
 
-    const { data: updatedLine, error } = await supabase
-      .from("lines")
-      .update({
-        hidden_from_operator: hiddenFromOperator,
-      })
-      .eq("id", id)
-      .select()
-      .maybeSingle();
-
-    if (error) {
-      console.error("Lines PATCH supabase error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    // Jika tidak ada baris yang ter-update, kemungkinan diblokir oleh RLS
     if (!updatedLine) {
-      return NextResponse.json(
-        { error: "Data tidak ditemukan atau Anda tidak memiliki izin untuk mengubah visibilitas line produksi ini." },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Data tidak ditemukan." }, { status: 403 });
     }
 
+    broadcastDbChange("lines", "UPDATE", { eventType: "UPDATE", new: updatedLine });
     return NextResponse.json(updatedLine);
   } catch (error) {
     console.error("Lines PATCH error:", error);
@@ -268,85 +209,64 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id");
-
-    if (!id) {
-      return NextResponse.json(
-        { error: "Line ID is required" },
-        { status: 400 }
-      );
-    }
-
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const userProfile = await getCurrentUserProfile();
+    if (!userProfile.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) return NextResponse.json({ error: "Line ID is required" }, { status: 400 });
+
     // 1. Get all folders of this line
-    const { data: folders } = await supabase
-      .from("folders")
-      .select("id")
-      .eq("line_id", id);
+    const folders = await prisma.folder.findMany({
+      where: { line_id: id },
+      select: { id: true },
+    });
+    const folderIds = folders.map((f) => f.id);
 
-    const folderIds = (folders ?? []).map((f) => f.id);
-
-    // 2. Find documents directly in the line or in its folders to clear display_documents
-    const queryBuilder = supabase
-      .from("documents")
-      .select("id");
-
-    let docQuery = queryBuilder;
+    // 2. Find documents in this line or its folders
+    const documentFilter: any = { OR: [{ line_id: id }] };
     if (folderIds.length > 0) {
-      docQuery = docQuery.or(`line_id.eq.${id},folder_id.in.(${folderIds.join(",")})`);
-    } else {
-      docQuery = docQuery.eq("line_id", id);
+      documentFilter.OR.push({ folder_id: { in: folderIds } });
     }
 
-    const { data: documents } = await docQuery;
+    const documents = await prisma.document.findMany({
+      where: documentFilter,
+      select: { id: true },
+    });
+    const docIds = documents.map((d) => d.id);
 
-    if (documents && documents.length > 0) {
-      const docIds = documents.map((doc) => doc.id);
-      
-      // Clean display_documents references
-      await supabase.from("display_documents").delete().in("document_id", docIds);
-      for (const docId of docIds) {
-        await supabase.from("display_documents").delete().eq("document->>id", docId);
-      }
-
+    if (docIds.length > 0) {
+      // Clear display_documents references
+      await prisma.displayDocument.deleteMany({
+        where: { document_id: { in: docIds } },
+      });
       // Soft delete documents
-      await supabase
-        .from("documents")
-        .update({ is_active: false })
-        .in("id", docIds);
+      await prisma.document.updateMany({
+        where: { id: { in: docIds } },
+        data: { is_active: false },
+      });
     }
 
     // 3. Soft delete folders
     if (folderIds.length > 0) {
-      await supabase
-        .from("folders")
-        .update({ is_active: false })
-        .in("id", folderIds);
+      await prisma.folder.updateMany({
+        where: { id: { in: folderIds } },
+        data: { is_active: false },
+      });
     }
 
-    // 4. Delete display heartbeats (if any)
-    await supabase.from("display_heartbeats").delete().eq("line_id", id);
+    // 4. Delete display heartbeats
+    await prisma.displayHeartbeat.deleteMany({ where: { line_id: id } });
 
-    // 5. Soft delete the line from database
-    const { error } = await supabase
-      .from("lines")
-      .update({ is_active: false })
-      .eq("id", id);
+    // 5. Soft delete the line
+    await prisma.line.update({ where: { id }, data: { is_active: false } });
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    broadcastDbChange("lines", "DELETE", { eventType: "DELETE", old: { id } });
 
-    return NextResponse.json({
-      success: true,
-      message: "Line soft deleted successfully",
-    });
+    return NextResponse.json({ success: true, message: "Line soft deleted successfully" });
   } catch (error) {
     console.error("Lines DELETE error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

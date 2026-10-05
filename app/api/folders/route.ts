@@ -50,7 +50,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    const folderIds = (folders ?? []).map((folder) => folder.id)
+    const folderIds = (folders ?? []).map((folder: any) => folder.id)
 
     if (folderIds.length === 0) {
       return NextResponse.json(folders ?? [])
@@ -103,7 +103,7 @@ export async function GET(request: Request) {
       )
     }
 
-    const foldersWithCounts = folders.map((folder) => ({
+    const foldersWithCounts = folders.map((folder: any) => ({
       ...folder,
       item_count: contentCountByFolderId.get(folder.id) ?? 0,
     }))
@@ -160,7 +160,7 @@ export async function POST(request: Request) {
 
     // Cari nama yang tersedia dengan pola: "Nama", "Nama (01)", "Nama (02)", dst.
     const existingNames = new Set(
-      (siblings ?? []).map((f) => f.name.toLowerCase())
+      (siblings ?? []).map((f: any) => f.name.toLowerCase())
     )
 
     let finalName = baseName
@@ -238,7 +238,7 @@ export async function DELETE(request: Request) {
       }
 
       if (children && children.length > 0) {
-        const childIds = children.map((f) => f.id as number)
+        const childIds = children.map((f: any) => f.id as number)
         allFolderIds.push(...childIds)
         queue.push(...childIds)
       }
@@ -251,7 +251,7 @@ export async function DELETE(request: Request) {
       .in('folder_id', allFolderIds)
 
     if (!docsFetchError && docsToClear && docsToClear.length > 0) {
-      const docIds = docsToClear.map((d) => d.id)
+      const docIds = docsToClear.map((d: any) => d.id)
       await supabase.from('display_documents').delete().in('document_id', docIds)
       for (const docId of docIds) {
         await supabase.from('display_documents').delete().eq('document->>id', docId)

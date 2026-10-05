@@ -1,0 +1,474 @@
+// =========================================================
+// Prisma Schema — PKIS-PLUS
+// Migrated from Supabase Cloud → PostgreSQL lokal
+// Generated from supabase/migrations/*.sql
+// =========================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =========================================================
+// AUTH
+// =========================================================
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password_hash String
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  profile       Profile?
+  sessions      Session[]
+
+  @@map("users")
+}
+
+model Session {
+  id         String   @id @default(uuid())
+  user_id    String
+  token      String   @unique
+  expires_at DateTime
+  created_at DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Profile {
+  id        String  @id
+  email     String? @unique
+  full_name String?
+  role      String? // 'admin' | 'operator' | 'leader'
+  line_id   String?
+
+  user User @relation(fields: [id], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+// =========================================================
+// LINES (dulu "lands")
+// =========================================================
+
+model Line {
+  id                   String    @id @default(uuid())
+  name                 String
+  description          String?
+  is_active            Boolean?  @default(true)
+  hidden_from_operator Boolean?  @default(false)
+  machine_type         String?
+  station_config       Json?     @default("{\"mode\": \"none\"}")
+  created_at           DateTime  @default(now())
+
+  folders             Folder[]
+  documents           Document[]
+  display_documents   DisplayDocument[]
+  display_heartbeats  DisplayHeartbeat[]
+  production_reports  ProductionReport[]
+  prod_line_settings  ProdLineSettings?
+
+  @@map("lines")
+}
+
+// =========================================================
+// FOLDERS & DOCUMENTS
+// =========================================================
+
+model Folder {
+  id         BigInt    @id @default(autoincrement())
+  name       String
+  parent_id  BigInt?
+  line_id    String
+  is_active  Boolean?  @default(true)
+  created_at DateTime  @default(now())
+
+  line      Line       @relation(fields: [line_id], references: [id], onDelete: Cascade)
+  parent    Folder?    @relation("FolderChildren", fields: [parent_id], references: [id], onDelete: Cascade)
+  children  Folder[]   @relation("FolderChildren")
+  documents Document[]
+
+  @@map("folders")
+}
+
+model Category {
+  id          BigInt   @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  created_at  DateTime @default(now())
+
+  documents Document[]
+
+  @@map("categories")
+}
+
+model Document {
+  id                   String    @id @default(uuid())
+  title                String
+  description          String?
+  category_id          BigInt?
+  file_name            String
+  file_path            String
+  file_size            BigInt?
+  file_type            String?
+  uploaded_by          String?
+  target_time          DateTime?
+  hidden_from_operator Boolean   @default(false)
+  folder_id            BigInt?
+  line_id              String?
+  is_active            Boolean?  @default(true)
+  created_at           DateTime  @default(now())
+  updated_at           DateTime  @updatedAt
+
+  category         Category?         @relation(fields: [category_id], references: [id], onDelete: SetNull)
+  folder           Folder?           @relation(fields: [folder_id], references: [id], onDelete: Cascade)
+  line             Line?             @relation(fields: [line_id], references: [id], onDelete: Cascade)
+  display_documents DisplayDocument[]
+
+  @@map("documents")
+}
+
+model DisplayDocument {
+  line_id     String    @id
+  document_id String?
+  updated_at  DateTime  @default(now()) @updatedAt
+
+  line     Line      @relation(fields: [line_id], references: [id], onDelete: Cascade)
+  document Document? @relation(fields: [document_id], references: [id], onDelete: SetNull)
+
+  @@map("display_documents")
+}
+
+model DisplayHeartbeat {
+  id         String   @id @default(uuid())
+  line_id    String
+  last_seen  DateTime @default(now())
+  created_at DateTime @default(now())
+
+  line Line @relation(fields: [line_id], references: [id], onDelete: Cascade)
+
+  @@map("display_heartbeats")
+}
+
+// =========================================================
+// PRODUCTION REPORTS (legacy)
+// =========================================================
+
+model ProductionReport {
+  id             String   @id @default(uuid())
+  line_id        String
+  report_date    DateTime @default(now()) @db.Date
+  shift          String
+  operator_name  String
+  start_time     DateTime @db.Time
+  end_time       DateTime @db.Time
+  part_number    String
+  qty            Int      @default(0)
+  ng_qty         Int      @default(0)
+  ng_category    String?
+  break_minutes  Int      @default(0)
+  is_active      Boolean? @default(true)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  line Line @relation(fields: [line_id], references: [id], onDelete: Cascade)
+
+  @@map("production_reports")
+}
+
+model PartNumber {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  description String?
+  created_at  DateTime @default(now())
+
+  @@map("part_numbers")
+}
+
+// =========================================================
+// ANDON SYSTEM
+// =========================================================
+
+model AndonCall {
+  id              String    @id @default(uuid())
+  line_id         String?
+  line_name       String?
+  mesin           String
+  stasiun         String?
+  alasan          String?
+  status          String    @default("pending") // 'pending' | 'acknowledged' | 'escalated'
+  triggered_by    String?
+  acknowledged_by String?
+  acknowledged_at DateTime?
+  escalated_at    DateTime?
+  created_at      DateTime  @default(now())
+
+  @@map("andon_calls")
+}
+
+model AndonLeader {
+  id         String   @id @default(uuid())
+  user_id    String
+  mesin      String
+  tier       Int
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+
+  @@unique([user_id, mesin, tier])
+  @@map("andon_leaders")
+}
+
+model PushSubscription {
+  id           String   @id @default(uuid())
+  user_id      String
+  endpoint     String   @unique
+  p256dh       String
+  auth_key     String
+  device_label String?
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@map("push_subscriptions")
+}
+
+// =========================================================
+// PROD_ TABLES (Production System)
+// =========================================================
+
+model ProdProductionLog {
+  id              String    @id @default(uuid())
+  mesin           String
+  line_id         String?
+  waktu_awal      DateTime
+  waktu_akhir     DateTime?
+  part_number     String?
+  qty             Int?
+  ng              Int?
+  kategori_ng     String?
+  break_menit     Int?
+  stasiun         String?
+  extra           Json      @default("{}")
+  kode            String?   @unique
+  dandori_menit   Decimal?  @default(0)
+  downtime_menit  Decimal?  @default(0)
+  manpower        Decimal?
+  is_active       Boolean   @default(true)
+  created_by      String?
+  updated_by      String?
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  downtime_logs     ProdDowntimeLog[]
+  production_planning ProdProductionPlanning[]
+
+  @@map("prod_production_log")
+}
+
+model ProdDowntimeLog {
+  id                String   @id @default(uuid())
+  mesin             String
+  line_id           String?
+  waktu_awal        DateTime
+  waktu_akhir       DateTime
+  kategori          String?
+  problem           String?
+  penyebab          String?
+  countermeasure    String?
+  stasiun           String?
+  production_log_id String?
+  is_active         Boolean  @default(true)
+  created_by        String?
+  updated_by        String?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  production_log ProdProductionLog? @relation(fields: [production_log_id], references: [id], onDelete: Cascade)
+
+  @@map("prod_downtime_log")
+}
+
+model ProdPartNumber {
+  id             String   @id @default(uuid())
+  mesin          String
+  line_id        String?
+  value          String
+  next_processes Json     @default("[]")
+  output_ratio   Decimal  @default(1)
+  stroke_ratio   Decimal?
+  std_mp         Decimal?
+  std_ct         Decimal?
+  harga_pcs      Decimal?
+  document_id    String?
+  is_active      Boolean  @default(true)
+  created_at     DateTime @default(now())
+
+  @@unique([mesin, value])
+  @@map("prod_part_numbers")
+}
+
+model ProdDowntimeProblem {
+  id         String   @id @default(uuid())
+  mesin      String
+  line_id    String?
+  value      String
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+
+  @@unique([mesin, value])
+  @@map("prod_downtime_problems")
+}
+
+model ProdKodeCounter {
+  mesin   String
+  tanggal DateTime @db.Date
+  counter Int      @default(0)
+
+  @@id([mesin, tanggal])
+  @@map("prod_kode_counter")
+}
+
+model ProdDandoriLog {
+  id          String    @id @default(uuid())
+  mesin       String
+  line_id     String?
+  waktu_awal  DateTime
+  waktu_akhir DateTime?
+  kategori    String    @default("DANDORI")
+  stasiun     String?
+  part_dari   String?
+  part_ke     String?
+  keterangan  String?
+  break_menit Int?
+  is_active   Boolean   @default(true)
+  created_by  String?
+  updated_by  String?
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  @@map("prod_dandori_log")
+}
+
+model ProdProductionPlanning {
+  id                    String    @id @default(uuid())
+  mesin                 String
+  line_id               String?
+  stasiun               String?
+  part_number           String
+  qty_rencana           Int?
+  jam_rencana_mulai     DateTime
+  jam_rencana_selesai   DateTime
+  status                String    @default("pending") // 'pending' | 'selesai'
+  actual_production_id  String?
+  is_active             Boolean   @default(true)
+  created_by            String?
+  updated_by            String?
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @updatedAt
+
+  actual_production ProdProductionLog? @relation(fields: [actual_production_id], references: [id], onDelete: SetNull)
+
+  @@map("prod_production_planning")
+}
+
+model ProdNonproduksiType {
+  id         String   @id @default(uuid())
+  mesin      String
+  line_id    String?
+  nama       String
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+
+  @@unique([mesin, nama])
+  @@map("prod_nonproduksi_types")
+}
+
+model ProdMesinSettings {
+  mesin              String   @id // machine_type enum value
+  gsph_target_mode   String   @default("fixed") // 'fixed' | 'per_part'
+  gsph_target_fixed  Decimal  @default(0)
+  target_availability Decimal?
+  updated_by         String?
+  updated_at         DateTime @updatedAt
+
+  @@map("prod_mesin_settings")
+}
+
+model ProdAttendanceLog {
+  id           String   @id @default(uuid())
+  tanggal      DateTime @db.Date
+  shift        String   // '1' | '2'
+  total_orang  Int      @default(0)
+  hadir        Int      @default(0)
+  absen        Int      @default(0)
+  overtime_jam Decimal  @default(0)
+  cuti         Int      @default(0)
+  is_active    Boolean  @default(true)
+  created_by   String?
+  updated_by   String?
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@unique([tanggal, shift])
+  @@map("prod_attendance_log")
+}
+
+model ProdSafetyLog {
+  id         String   @id @default(uuid())
+  tanggal    DateTime @db.Date
+  kategori   String   @default("ACCIDENT")
+  keterangan String?
+  is_active  Boolean  @default(true)
+  created_by String?
+  created_at DateTime @default(now())
+
+  @@map("prod_safety_log")
+}
+
+model ProdScrapTopEnd {
+  id                String   @id @default(uuid())
+  tahun             Int
+  bulan             Int
+  scrap_value_kidr  Decimal  @default(0)
+  total_value_kidr  Decimal  @default(0)
+  target_rasio      Decimal?
+  is_active         Boolean  @default(true)
+  created_at        DateTime @default(now())
+
+  @@unique([tahun, bulan])
+  @@map("prod_scrap_top_end")
+}
+
+model ProductivityDailyReference {
+  id         String   @id @default(uuid())
+  tanggal    DateTime @unique @db.Date
+  eh_jam     Decimal  @default(0)
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+
+  @@map("productivity_daily_reference")
+}
+
+model ProdLineSettings {
+  line_id            String   @id
+  station_mode       String   @default("none") // 'none' | 'fixed' | 'variant'
+  stations           Json     @default("[]")
+  station_variants   Json     @default("{}")
+  routing_max        Int      @default(0)
+  extra_fields       Json     @default("[]")
+  kategori_options   Json     @default("[\"MESIN\",\"DIES\",\"OTHER\"]")
+  gsph_target_mode   String   @default("fixed")
+  gsph_target_fixed  Decimal  @default(0)
+  updated_by         String?
+  updated_at         DateTime @updatedAt
+
+  line Line @relation(fields: [line_id], references: [id], onDelete: Cascade)
+
+  @@map("prod_line_settings")
+}

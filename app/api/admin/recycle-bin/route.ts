@@ -295,16 +295,16 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: linesFetchError.message }, { status: 500 });
     }
 
-    const docIds = (documents ?? []).map((document) => document.id);
-    const folderIds = (folders ?? []).map((folder) => folder.id);
-    const lineIds = (lines ?? []).map((line) => line.id);
-    const reportIds = (reports ?? []).map((report) => report.id);
+    const docIds = (documents ?? []).map((document: any) => document.id);
+    const folderIds = (folders ?? []).map((folder: any) => folder.id);
+    const lineIds = (lines ?? []).map((line: any) => line.id);
+    const reportIds = (reports ?? []).map((report: any) => report.id);
 
     // 2. Delete physical files from Supabase Storage. Missing files should not block DB cleanup.
     if ((documents ?? []).length > 0) {
       const filePaths = (documents ?? [])
-        .map((d) => d.file_path)
-        .filter((path): path is string => typeof path === "string" && path.length > 0);
+        .map((d: any) => d.file_path)
+        .filter((path: any): path is string => typeof path === "string" && path.length > 0);
 
       if (filePaths.length > 0) {
         const { error: storageError } = await supabase.storage
@@ -443,7 +443,7 @@ export async function POST(request: Request) {
         .select("id")
         .eq("line_id", id);
 
-      const folderIds = (folders ?? []).map((f) => f.id);
+      const folderIds = (folders ?? []).map((f: any) => f.id);
 
       if (folderIds.length > 0) {
         await supabase.from("folders").update({ is_active: true }).in("id", folderIds);
@@ -470,7 +470,7 @@ export async function POST(request: Request) {
           .in("parent_id", currentIds);
 
         if (children && children.length > 0) {
-          const childIds = children.map((f) => f.id as number);
+          const childIds = children.map((f: any) => f.id as number);
           allFolderIds.push(...childIds);
           queue.push(...childIds);
         }

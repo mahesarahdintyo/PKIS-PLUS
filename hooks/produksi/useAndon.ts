@@ -280,15 +280,19 @@ export function usePanggilLeader(params: {
         onDone?.("Leader sudah dipanggil. Menunggu respons...", false);
         await loadActiveCall();
         if (callId) {
-          supabase.functions
-            .invoke("send-andon-push", { body: { call_id: callId, tier: 1 } })
-            .then(({ error: fnError }) => {
-              if (fnError) {
-                console.error("Gagal mengirim notifikasi push andon (edge function error):", fnError);
+          fetch("/api/push/send-andon", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ call_id: callId, tier: 1 }),
+          })
+            .then((res) => res.json())
+            .then((result) => {
+              if (result.error) {
+                console.error("Gagal mengirim notifikasi push andon:", result.error);
               }
             })
             .catch((err) => {
-              console.error("Error memanggil edge function send-andon-push:", err);
+              console.error("Error memanggil /api/push/send-andon:", err);
             });
         }
       }

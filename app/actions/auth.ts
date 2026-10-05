@@ -1,7 +1,15 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { prisma } from "@/lib/prisma";
+import {
+  hashPassword,
+  createSession,
+  destroySession,
+  getSessionCookieName,
+  getSessionCookieOptions,
+} from "@/lib/auth";
 
 export async function login(state: any, formData: FormData) {
   const usernameOrEmail = formData.get("username") as string;
@@ -16,48 +24,43 @@ export async function login(state: any, formData: FormData) {
     ? usernameOrEmail.trim().toLowerCase()
     : `${usernameOrEmail.trim().toLowerCase()}@futaba.co.id`;
 
-  const supabase = await createClient();
+  try {
+    // Cari user di database lokal
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: { profile: true },
+    });
 
-  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (authError) {
-    let errorMsg = authError.message;
-    if (errorMsg === "Invalid login credentials") {
-      errorMsg = "Username atau password salah.";
+    if (!user) {
+      return { error: "Username atau password salah." };
     }
-    return { error: errorMsg };
+
+    // Verifikasi password
+    const expectedHash = hashPassword(password);
+    if (user.password_hash !== expectedHash) {
+      return { error: "Username atau password salah." };
+    }
+
+    // Buat session dan set cookie
+    const token = await createSession(user.id);
+    const cookieStore = await cookies();
+    cookieStore.set(getSessionCookieName(), token, getSessionCookieOptions());
+
+    const profile = user.profile;
+    const rawRole = (profile?.role ?? "operator") as string;
+    const role = rawRole.trim().toLowerCase();
+    const lineId = profile?.line_id ?? null;
+
+    return { success: true, redirectUrl: "/", role, lineId, landId: lineId };
+  } catch (err) {
+    console.error("Login error:", err);
+    return { error: "Terjadi kesalahan server. Coba lagi." };
   }
-
-  const user = authData.user;
-  if (!user) {
-    return { error: "User tidak ditemukan." };
-  }
-
-  // Ambil role dan line_id dari tabel profiles
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("role, line_id")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (profileError) {
-    console.error("Login profile query error:", profileError);
-  }
-
-  const rawRole = (profile?.role || user.user_metadata?.role || user.app_metadata?.role || "operator") as string;
-  const role = rawRole.trim().toLowerCase();
-  const lineId = profile?.line_id ?? user.user_metadata?.line_id ?? null;
-
-  const redirectUrl = "/";
-
-  return { success: true, redirectUrl, role, lineId, landId: lineId };
 }
 
 export async function logout() {
-  const supabase = await createClient();
-  await supabase.auth.signOut();
+  await destroySession();
+  const cookieStore = await cookies();
+  cookieStore.delete(getSessionCookieName());
   redirect("/");
 }

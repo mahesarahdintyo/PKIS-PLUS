@@ -1,45 +1,51 @@
-import { createClient } from '@/lib/supabase/server'
-import { NextResponse } from 'next/server'
+// app/api/print-file/route.ts
+// Menyajikan file dokumen lokal untuk diprint/preview di browser
+
+import { NextResponse } from "next/server";
+import fs from "fs/promises";
+import path from "path";
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url)
-    const filePath = searchParams.get('filePath')
+    const { searchParams } = new URL(request.url);
+    const filePath = searchParams.get("filePath");
 
     if (!filePath) {
       return NextResponse.json(
-        { error: 'File path is required' },
+        { error: "File path is required" },
         { status: 400 }
-      )
+      );
     }
 
-    const supabase = await createClient()
-    const { data, error } = await supabase.storage
-      .from('documents')
-      .download(filePath)
+    // Bersihkan path
+    const safePath = filePath.replace(/^[/\\]+/, "").replace(/\.\./g, "");
+    const fullPath = path.join(process.cwd(), "public", "uploads", safePath);
 
-    if (error) {
-      console.error('Print file error:', error)
-      return NextResponse.json(
-        { error: error.message },
-        { status: 500 }
-      )
+    try {
+      const fileBuffer = await fs.readFile(fullPath);
+      const fileName = path.basename(safePath) || "document";
+
+      // Tebak content-type dari ekstensi
+      let contentType = "application/octet-stream";
+      if (fileName.endsWith(".pdf")) contentType = "application/pdf";
+      else if (fileName.endsWith(".png")) contentType = "image/png";
+      else if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg")) contentType = "image/jpeg";
+
+      return new NextResponse(fileBuffer, {
+        headers: {
+          "Cache-Control": "private, max-age=300",
+          "Content-Disposition": `inline; filename="${fileName}"`,
+          "Content-Type": contentType,
+        },
+      });
+    } catch {
+      return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
-
-    const fileName = filePath.split('/').pop()?.replace(/"/g, '') || 'document'
-
-    return new NextResponse(data, {
-      headers: {
-        'Cache-Control': 'private, max-age=300',
-        'Content-Disposition': `inline; filename="${fileName}"`,
-        'Content-Type': data.type || 'application/octet-stream'
-      }
-    })
-  } catch (error) {
-    console.error('Print file handler error:', error)
+  } catch (error: any) {
+    console.error("Print file handler error:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: error?.message || "Internal server error" },
       { status: 500 }
-    )
+    );
   }
 }
