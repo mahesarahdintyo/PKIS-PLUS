@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Upload, X, Loader2, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/db/client'
 
 const ALLOWED_FILE_TYPES = ['application/pdf', 'image/jpeg', 'image/png']
 const ALLOWED_FILE_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png']

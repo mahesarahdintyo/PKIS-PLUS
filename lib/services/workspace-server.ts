@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/db/server";
 import { getCurrentUserProfile } from "@/lib/services/auth-server";
 import type { Document } from "@/lib/services/document";
 import type { Folder } from "@/lib/services/folder";

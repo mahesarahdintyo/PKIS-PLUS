@@ -1,14 +1,11 @@
-// lib/supabase/admin.ts
+// lib/db/admin.ts
 // ============================================================
-// COMPATIBILITY SHIM — Supabase Admin Client → Prisma
-// Mengganti createAdminClient() dengan Prisma direct access.
-// Admin client memiliki akses penuh tanpa RLS filter.
+// PKIS Server Admin Database Client (Local Prisma + Direct Access)
 // ============================================================
 
 import { prisma } from "@/lib/prisma";
-import { SupabaseLikeQuery } from "@/lib/supabase/server";
+import { SupabaseLikeQuery } from "@/lib/db/server";
 
-// Re-export prisma sebagai admin client
 export function createAdminClient() {
   return {
     from(table: string) {

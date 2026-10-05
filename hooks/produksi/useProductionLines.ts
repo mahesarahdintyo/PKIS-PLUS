@@ -5,7 +5,7 @@
 // =========================================================
 
 import { useState, useCallback, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/db/client";
 import { toast } from "sonner";
 import type {
   ProdStationPhase,

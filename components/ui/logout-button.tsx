@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { LogOut, Loader2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/db/client";
 
 interface LogoutButtonProps {
   className?: string;

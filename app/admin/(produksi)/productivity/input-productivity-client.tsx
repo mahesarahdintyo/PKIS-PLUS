@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { ArrowLeft, RefreshCw, Pencil, Trash2, Search, AlertTriangle } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/db/client";
 import { ProdProductivityRecord } from "@/types/produksi";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";

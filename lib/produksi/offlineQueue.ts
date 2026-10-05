@@ -1,8 +1,7 @@
 // ---------- Offline queue (localStorage) ----------
 // Porting dari project-experiment/lib/offlineQueue.ts
 // Import supabase sudah diganti ke pola PKIS-PLUS (@/lib/supabase/client)
-
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/db/client";
 
 const OFFLINE_QUEUE_KEY = "offline_queue_prod_v1";
 

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { ArrowLeft, RefreshCw, Plus, Pencil, Trash2, Search, Filter, AlertTriangle, Bell, PhoneCall, Volume2, VolumeX } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/db/client";
 import { ProdProfile } from "@/types/produksi";
 import { useAndonAlerts, useAndonLeaders, andonSubscribePush, AndonCall } from "@/hooks/produksi/useAndon";
 import { Button } from "@/components/ui/button";

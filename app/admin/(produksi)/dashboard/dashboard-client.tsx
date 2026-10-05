@@ -7,7 +7,7 @@ import { useThemeListener } from "@/hooks/produksi/useThemeListener";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/db/client";
 import { ProdProfile } from "@/types/produksi";
 import Chart from "chart.js/auto";
 import { registerInternalVizPlugins } from "@/lib/produksi/chartPlugins";

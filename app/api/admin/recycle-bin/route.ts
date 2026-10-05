@@ -1,5 +1,5 @@
-import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/db/admin";
+import { createClient } from "@/lib/db/server";
 import { NextResponse } from "next/server";
 
 /** Verify the caller is an authenticated admin or leader. Returns 401/403 response on failure. */

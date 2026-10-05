@@ -1,21 +1,13 @@
-// lib/supabase/client.ts
+// lib/db/client.ts
 // ============================================================
-// COMPATIBILITY SHIM — Supabase Browser Client → API Routes + Socket.io
-//
-// Mengganti @supabase/supabase-js di browser dengan thin wrapper
-// yang melakukan fetch ke API routes internal (untuk data ops)
-// dan socket.io (untuk realtime).
-//
-// Ini mempertahankan interface yang sama sehingga komponen
-// frontend tidak perlu diubah banyak.
+// PKIS Browser Database & Realtime Client (Local Prisma + Socket.io)
 // ============================================================
 
 import type { Socket } from "socket.io-client";
 
-// Lazy load socket.io-client agar tidak crash di SSR
 let _socketInstance: Socket | null = null;
 
-function getSocket(): Socket | null {
+export function getSocket(): Socket | null {
   if (typeof window === "undefined") return null;
   if (_socketInstance) return _socketInstance;
   try {
@@ -30,7 +22,7 @@ function getSocket(): Socket | null {
   }
 }
 
-// ─── Session cookie helper ─────────────────────────────────────────────────────
+// ─── Session helpers ─────────────────────────────────────────────────────────
 
 function getStoredSession() {
   if (typeof window === "undefined") return null;
@@ -56,12 +48,10 @@ function clearStoredSession() {
   } catch {}
 }
 
-// ─── Auth state change listeners ──────────────────────────────────────────────
-
 type AuthChangeCallback = (event: string, session: any) => void;
 const authListeners: AuthChangeCallback[] = [];
 
-// ─── Main createClient factory ────────────────────────────────────────────────
+// ─── Main Client Factory ─────────────────────────────────────────────────────
 
 export function createClient() {
   return {
@@ -135,7 +125,7 @@ export function createClient() {
       return new RpcBuilder(fn, args);
     },
 
-    // Socket.io realtime — mengganti supabase.channel()
+    // Socket.io realtime
     channel(name: string) {
       return new ChannelBuilder(name);
     },
@@ -150,40 +140,42 @@ export function createClient() {
       from(bucket: string) {
         return {
           getPublicUrl(path: string) {
-            const baseUrl = "/api/storage";
-            return { data: { publicUrl: `${baseUrl}/${bucket}/${path}` } };
+            return {
+              data: {
+                publicUrl: `/uploads/${path.replace(/^[/\\]+/, "")}`,
+              },
+            };
           },
         };
       },
     },
 
     functions: {
-      async invoke(name: string, options?: { body?: any }) {
-        // Edge functions → internal API routes
-        const routeMap: Record<string, string> = {
-          "send-andon-push": "/api/push/send-andon",
-        };
-        const url = routeMap[name] || `/api/functions/${name}`;
-        try {
-          const res = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: options?.body ? JSON.stringify(options.body) : undefined,
-          });
-          return { data: await res.json().catch(() => null), error: null };
-        } catch (e: any) {
-          return { data: null, error: { message: e.message } };
+      async invoke(name: string, options?: any) {
+        if (name === "send-andon-push") {
+          try {
+            const res = await fetch("/api/push/send-andon", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(options?.body || {}),
+            });
+            const data = await res.json();
+            return { data, error: null };
+          } catch (e: any) {
+            return { data: null, error: e };
+          }
         }
+        return { data: null, error: null };
       },
     },
   };
 }
 
-// ─── Client-side Query Builder (fetch → API routes) ───────────────────────────
+// ─── Client Query Builder ────────────────────────────────────────────────────
 
-class ClientQueryBuilder {
+export class ClientQueryBuilder {
   private _table: string;
-  private _select = "*";
+  private _select: string = "*";
   private _filters: [string, any][] = [];
   private _inFilters: [string, any[]][] = [];
   private _order: { field: string; asc: boolean } | null = null;
@@ -265,7 +257,7 @@ class ClientQueryBuilder {
   }
 }
 
-// ─── RPC Builder ──────────────────────────────────────────────────────────────
+// ─── RPC Builder ─────────────────────────────────────────────────────────────
 
 class RpcBuilder {
   private fn: string;
@@ -299,7 +291,7 @@ class RpcBuilder {
   }
 }
 
-// ─── Channel Builder (Socket.io-based realtime) ───────────────────────────────
+// ─── Channel Builder (Socket.io Realtime) ───────────────────────────────────
 
 class ChannelBuilder {
   private name: string;

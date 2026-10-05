@@ -1,23 +1,20 @@
-// lib/supabase/server.ts
+// lib/db/server.ts
 // ============================================================
-// COMPATIBILITY SHIM — Supabase Client → Prisma Client
-// Mengemulasi pola query Supabase (.from().select().eq() dll)
-// di atas Prisma + custom session auth.
+// PKIS Server Database Client (Local Prisma + Custom Auth)
+// Mengemulasi antarmuka query builder di atas Prisma Client.
 // ============================================================
 
 import { getCurrentUserProfile } from "@/lib/services/auth-server";
 import { prisma } from "@/lib/prisma";
 
-// Re-export getCurrentUserProfile agar kode yang import dari sini masih jalan
+// Re-export getCurrentUserProfile agar helper auth mudah diakses
 export { getCurrentUserProfile };
 
-// Supabase-like query builder wrapper (untuk backward compat sementara)
-// Gunakan ini selama migrasi bertahap.
 export async function createClient() {
-  return createSupabaseLikeClient();
+  return createServerClient();
 }
 
-function createSupabaseLikeClient() {
+function createServerClient() {
   return {
     auth: {
       async getUser() {
@@ -50,7 +47,6 @@ function createSupabaseLikeClient() {
       return new SupabaseLikeQuery(table);
     },
     rpc(fn: string, args?: Record<string, any>) {
-      // RPC functions diimplementasikan sebagai raw SQL via Prisma.$queryRaw
       return {
         async then(resolve: (v: any) => any) {
           try {
@@ -112,7 +108,7 @@ function createSupabaseLikeClient() {
   };
 }
 
-// ─── Supabase-like Query Builder ─────────────────────────────────────────────
+// ─── Query Builder ───────────────────────────────────────────────────────────
 
 export class SupabaseLikeQuery {
   private _table: string;
@@ -229,7 +225,6 @@ export class SupabaseLikeQuery {
     return this.execute();
   }
 
-  // Allow await on the query builder directly
   then(resolve: (v: any) => any, reject?: (e: any) => any) {
     return this.execute().then(resolve, reject);
   }
@@ -420,11 +415,10 @@ function buildWhere(
     where[f.field] = { not: f.value };
   }
 
-  // OR filters: parse basic supabase OR syntax
+  // OR filters: parse basic OR syntax
   if (orFilters.length > 0) {
     const orClauses: any[] = [];
     for (const orStr of orFilters) {
-      // e.g. "is_active.eq.true,is_active.is.null" or "line_id.eq.abc,mesin.eq.xyz"
       const parts = orStr.split(",");
       for (const part of parts) {
         const segs = part.trim().split(".");
@@ -451,7 +445,6 @@ function buildWhere(
 
 function parseSelectForIncludes(select: string, table: string): any {
   if (!select.includes("(")) return null;
-  // e.g. "line_id, folders ( line_id )" → include: { folder: true }
   const relationMap: Record<string, Record<string, string>> = {
     documents: { folders: "folder" },
   };
@@ -470,8 +463,6 @@ function parseSelectForIncludes(select: string, table: string): any {
 // ─── RPC Functions ────────────────────────────────────────────────────────────
 
 async function callRpc(fn: string, args?: Record<string, any>): Promise<any> {
-  // RPC functions yang dipakai di production akan diimplementasikan sebagai raw SQL
-  // Untuk sekarang return null sebagai fallback
   console.warn(`[Prisma Shim] RPC '${fn}' dipanggil tapi belum diimplementasikan. Pakai raw query.`);
   return null;
 }

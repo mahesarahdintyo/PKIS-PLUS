@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { getLines, type Line } from "@/lib/services/line";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/db/client";
 import { toast } from "sonner";
 
 const LOG_REFRESH_INTERVAL_MS = 5000;

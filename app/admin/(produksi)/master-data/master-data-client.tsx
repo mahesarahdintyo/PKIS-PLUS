@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { ArrowLeft, RefreshCw } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/db/client";
 import { MACHINE_CONFIGS, getMachineConfig } from "@/components/produksi/machines/MachineDetailClient";
 import MasterDataTab from "@/components/produksi/machines/MasterDataTab";
 import type {

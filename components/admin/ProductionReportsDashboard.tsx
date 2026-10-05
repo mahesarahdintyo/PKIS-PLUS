@@ -26,7 +26,7 @@ import {
   type ProductionReport,
 } from "@/lib/services/production-report";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/db/client";
 import { toast } from "sonner";
 
 const PRODUCTION_REPORT_REFRESH_INTERVAL_MS = 3000;

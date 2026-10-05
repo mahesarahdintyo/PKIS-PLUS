@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { AppHeader } from "@/components/ui/app-header";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LogoutButton } from "@/components/ui/logout-button";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/db/client";
 import type { Line } from "@/lib/services/line";
 import { Loader2, AlertCircle } from "lucide-react";
 import "@/app/admin/(produksi)/produksi.css";

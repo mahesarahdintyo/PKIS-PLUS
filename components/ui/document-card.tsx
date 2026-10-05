@@ -26,7 +26,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 import { toast } from 'sonner'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/db/client'
 
 const DISPLAY_DOCUMENT_STORAGE_KEY = 'futaba.display.document'
 

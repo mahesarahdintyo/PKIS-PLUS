@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { AlertTriangle, Bell, PhoneCall, Volume2, VolumeX, CheckCircle, ExternalLink } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/db/client";
 import { useAndonAlerts, AndonCall } from "@/hooks/produksi/useAndon";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { ArrowLeft, RefreshCw, Pencil, Trash2, Search, AlertTriangle } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/db/client";
 import { ProdScrapRecord } from "@/types/produksi";
 import { enqueueOffline, isNetworkError } from "@/lib/produksi/offlineQueue";
 import { Button } from "@/components/ui/button";

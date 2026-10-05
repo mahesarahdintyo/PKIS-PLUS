@@ -7,7 +7,7 @@
 // =========================================================
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/db/client";
 
 // Public VAPID key — dipasangkan dengan VAPID_PRIVATE_KEY di edge function send-andon-push.
 const ANDON_VAPID_PUBLIC_KEY = "BCPEeRkRPz2P0UQKWiu1X3nAjZ5C3UrVG4In4KJXw8Z9TGJhHlRxCzxbqPekSEU7M_nOsoitqZr9Ry7Q0bFeNAw";
