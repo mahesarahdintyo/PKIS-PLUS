@@ -303,62 +303,122 @@ export default function DashboardClient() {
 
   /* ── fetchDowntimeTrend (Exhaust & Harian) ── */
   const fetchDowntimeTrend = useCallback(async () => {
-    let start: Date, end: Date, bucket: string, labels: string[], keyOf: (d: Date) => number;
+    // 1. Parameter Downtime Exhaust (dinamis sesuai periodMode)
+    let exhaustStart: Date, exhaustEnd: Date, exhaustBucket: string, exhaustLabels: string[];
+    let exhaustKeyOf: (d: Date) => number;
+
     if (periodMode === "harian") {
       const base = new Date(tanggal + "T00:00:00");
-      start = new Date(base.getFullYear(), base.getMonth(), base.getDate());
-      end = new Date(base.getFullYear(), base.getMonth(), base.getDate() + 1);
-      bucket = "hour";
-      labels = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0") + ":00");
-      keyOf = (d) => d.getHours();
+      exhaustStart = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+      exhaustEnd = new Date(base.getFullYear(), base.getMonth(), base.getDate() + 1);
+      exhaustBucket = "hour";
+      exhaustLabels = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0") + ":00");
+      exhaustKeyOf = (d) => d.getHours();
     } else if (periodMode === "bulanan") {
       const y = tahunPilih, m = bulanPilih;
       const n = new Date(y, m + 1, 0).getDate();
-      start = new Date(y, m, 1);
-      end = new Date(y, m + 1, 1);
-      bucket = "day";
-      labels = Array.from({ length: n }, (_, i) => String(i + 1));
-      keyOf = (d) => d.getDate() - 1;
+      exhaustStart = new Date(y, m, 1);
+      exhaustEnd = new Date(y, m + 1, 1);
+      exhaustBucket = "day";
+      exhaustLabels = Array.from({ length: n }, (_, i) => String(i + 1));
+      exhaustKeyOf = (d) => d.getDate() - 1;
     } else {
       const y = tahunPilih;
-      start = new Date(y, 0, 1);
-      end = new Date(y + 1, 0, 1);
-      bucket = "month";
-      labels = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
-      keyOf = (d) => d.getMonth();
+      exhaustStart = new Date(y, 0, 1);
+      exhaustEnd = new Date(y + 1, 0, 1);
+      exhaustBucket = "month";
+      exhaustLabels = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+      exhaustKeyOf = (d) => d.getMonth();
     }
 
+    // 2. Parameter Downtime Harian (SELALU tanggal 1 - 30/31 pada bulan terpilih)
+    let harianYear = tahunPilih;
+    let harianMonth = bulanPilih;
+    if (periodMode === "harian") {
+      const base = new Date(tanggal + "T00:00:00");
+      harianYear = base.getFullYear();
+      harianMonth = base.getMonth();
+    }
+    const daysInMonth = new Date(harianYear, harianMonth + 1, 0).getDate();
+    const harianStart = new Date(harianYear, harianMonth, 1);
+    const harianEnd = new Date(harianYear, harianMonth + 1, 1);
+    const harianLabels = Array.from({ length: daysInMonth }, (_, i) => String(i + 1));
+    const harianKeyOf = (d: Date) => d.getDate() - 1;
+
     try {
-      const { data, error } = await supabase.rpc("prod_downtime_trend_bucketed", {
-        p_start: start.toISOString(),
-        p_end: end.toISOString(),
-        p_bucket: bucket,
-      });
+      if (periodMode === "bulanan") {
+        // Pada mode bulanan, query exhaust dan harian identik (1 RPC call cukup)
+        const { data, error } = await supabase.rpc("prod_downtime_trend_bucketed", {
+          p_start: exhaustStart.toISOString(),
+          p_end: exhaustEnd.toISOString(),
+          p_bucket: "day",
+        });
 
-      if (error) {
-        console.warn("fetchDowntimeTrend error:", error);
-        return;
-      }
-
-      const values = new Array(labels.length).fill(0);
-      (data || []).forEach((r: any) => {
-        const d = new Date(r.bucket_start);
-        const i = keyOf(d);
-        if (i >= 0 && i < values.length) {
-          values[i] = Math.round(Number(r.total_menit) || 0);
+        if (error) {
+          console.warn("fetchDowntimeTrend error:", error);
+          return;
         }
-      });
 
-      setDowntimeTrendData({
-        exhaustLabels: labels,
-        exhaustValues: values,
-        harianLabels: labels,
-        harianValues: values,
-      });
+        const values = new Array(exhaustLabels.length).fill(0);
+        (data || []).forEach((r: any) => {
+          const d = new Date(r.bucket_start);
+          const i = exhaustKeyOf(d);
+          if (i >= 0 && i < values.length) {
+            values[i] = Math.round(Number(r.total_menit) || 0);
+          }
+        });
+
+        setDowntimeTrendData({
+          exhaustLabels,
+          exhaustValues: values,
+          harianLabels,
+          harianValues: values,
+        });
+      } else {
+        // Mode harian / tahunan: query exhaust dan harian secara paralel
+        const [resExhaust, resHarian] = await Promise.all([
+          supabase.rpc("prod_downtime_trend_bucketed", {
+            p_start: exhaustStart.toISOString(),
+            p_end: exhaustEnd.toISOString(),
+            p_bucket: exhaustBucket,
+          }),
+          supabase.rpc("prod_downtime_trend_bucketed", {
+            p_start: harianStart.toISOString(),
+            p_end: harianEnd.toISOString(),
+            p_bucket: "day",
+          }),
+        ]);
+
+        const exhaustVals = new Array(exhaustLabels.length).fill(0);
+        (resExhaust.data || []).forEach((r: any) => {
+          const d = new Date(r.bucket_start);
+          const i = exhaustKeyOf(d);
+          if (i >= 0 && i < exhaustVals.length) {
+            exhaustVals[i] = Math.round(Number(r.total_menit) || 0);
+          }
+        });
+
+        const harianVals = new Array(harianLabels.length).fill(0);
+        (resHarian.data || []).forEach((r: any) => {
+          const d = new Date(r.bucket_start);
+          const i = harianKeyOf(d);
+          if (i >= 0 && i < harianVals.length) {
+            harianVals[i] = Math.round(Number(r.total_menit) || 0);
+          }
+        });
+
+        setDowntimeTrendData({
+          exhaustLabels,
+          exhaustValues: exhaustVals,
+          harianLabels,
+          harianValues: harianVals,
+        });
+      }
     } catch (e) {
       console.warn("fetchDowntimeTrend failed:", e);
     }
   }, [periodMode, tanggal, bulanPilih, tahunPilih, supabase]);
+
 
 
   /* ── fetchProductivityTrend & fetchProductivityToday ── */
@@ -2208,7 +2268,7 @@ export default function DashboardClient() {
                       </Card>
                       <Card className="dash-panel dash-panel-fit card-glow-warn">
                         <p className="dash-panel-title">
-                          <span>{periodMode === "harian" ? "Downtime Per Jam" : periodMode === "bulanan" ? "Downtime Harian" : "Downtime Per Bulan"}</span>
+                          <span>Downtime Harian</span>
                           <span className="count">Total {fmtNum(downtimeTrendData.harianValues.reduce((a, b) => (a || 0) + (b || 0), 0))} menit</span>
                         </p>
                         <div className="dash-chart-trend">
