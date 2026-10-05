@@ -51,12 +51,12 @@ const pieCenterText = {
     const fontSizeLbl = Math.max(8, Math.min(10, Math.round(size * 0.08)));
 
     ctx.fillStyle = mainColor;
-    ctx.font = `700 ${fontSizeVal}px ` + (opts.fontFamily || "'Space Grotesk', sans-serif");
-    ctx.fillText(opts.value, cx, cy - (opts.label ? (fontSizeLbl * 0.7) : 0));
+    ctx.font = `700 ${fontSizeVal}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+    ctx.fillText(String(opts.value).toUpperCase(), cx, cy - (opts.label ? (fontSizeLbl * 0.7) : 0));
     if (opts.label) {
       ctx.fillStyle = labelColor;
-      ctx.font = `600 ${fontSizeLbl}px ` + (opts.fontFamily || "sans-serif");
-      ctx.fillText(opts.label, cx, cy + (fontSizeVal * 0.6));
+      ctx.font = `600 ${fontSizeLbl}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+      ctx.fillText(String(opts.label).toUpperCase(), cx, cy + (fontSizeVal * 0.6));
     }
     ctx.restore();
   },
@@ -86,7 +86,7 @@ const sliceLabels = {
       const sliceColor = perSliceColors ? (perSliceColors[i] || fallbackColor) : fallbackColor;
       ctx.save();
       ctx.fillStyle = sliceColor;
-      ctx.font = "bold 11px " + (opts.fontFamily || "sans-serif");
+      ctx.font = "bold 11px " + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       // Thin dark stroke for legibility on light/coloured backgrounds
@@ -124,11 +124,11 @@ const varianceArrows = {
       const labelY = Math.min(barTopY, targetY) - 24;
       ctx.save();
       ctx.textAlign = "center";
-      ctx.font = "700 11px " + (opts.fontFamily || "sans-serif");
+      ctx.font = "700 11px " + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
       ctx.fillStyle = color;
       const sign = variance > 0 ? "+" : "";
       const text = sign + (opts.fmt ? opts.fmt(variance) : Math.round(variance));
-      ctx.fillText(text, x, labelY);
+      ctx.fillText(String(text).toUpperCase(), x, labelY);
       const y1 = labelY + 7, y2 = labelY + 19;
       ctx.strokeStyle = color;
       ctx.fillStyle = color;
@@ -180,23 +180,23 @@ const barValueLabels = {
 
           const centerY = (el.y + base) / 2;
           ctx.save();
-          ctx.font = "700 10px 'Space Grotesk', sans-serif";
+          ctx.font = "700 10px 'Aptos', 'Aptos Display', sans-serif";
           ctx.fillStyle = labelColor;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.fillText(fmt(val), el.x, centerY);
+          ctx.fillText(String(fmt(val)).toUpperCase(), el.x, centerY);
           ctx.restore();
           return;
         }
 
         const pos = el.tooltipPosition ? el.tooltipPosition() : { x: el.x, y: el.y };
         ctx.save();
-        ctx.font = "700 10px 'Space Grotesk', sans-serif";
+        ctx.font = "700 10px 'Aptos', 'Aptos Display', sans-serif";
         ctx.fillStyle = labelColor;
         ctx.textAlign = "center";
         ctx.textBaseline = "bottom";
         const offsetY = isLine ? -8 : -4;
-        ctx.fillText(fmt(val), pos.x, pos.y + offsetY);
+        ctx.fillText(String(fmt(val)).toUpperCase(), pos.x, pos.y + offsetY);
         ctx.restore();
       });
     });
@@ -208,6 +208,7 @@ let registered = false;
 // Idempotent — aman dipanggil dari useEffect tiap render.
 export function registerInternalVizPlugins() {
   if (registered) return;
+  Chart.defaults.font.family = "'Aptos', 'Aptos Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
   Chart.register(pieCenterText, sliceLabels, varianceArrows, barValueLabels);
   registered = true;
 }

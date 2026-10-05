@@ -22,12 +22,16 @@ import { Sun, Moon, AlertTriangle, ShieldCheck, Home, Maximize, Minimize } from 
 const ENABLE_REALTIME = process.env.NEXT_PUBLIC_ENABLE_REALTIME === "true";
 
 const MACHINES = [
-  { key: "tandem", label: "Tandem", shortLabel: "Tandem", slug: "tandem" },
-  { key: "blanking", label: "Blanking", shortLabel: "Blanking", slug: "blanking" },
-  { key: "transfer_2000t", label: "Transfer 2000t", shortLabel: "TR 2000t", slug: "transfer-2000t" },
-  { key: "transfer_800t", label: "Transfer 800t", shortLabel: "TR 800t", slug: "transfer-800t" },
-  { key: "pc200t", label: "PC200t", shortLabel: "PC200t", slug: "pc200t" },
+  { key: "tandem", label: "TANDEM", shortLabel: "TANDEM", slug: "tandem" },
+  { key: "blanking", label: "BLANKING", shortLabel: "BLANKING", slug: "blanking" },
+  { key: "transfer_2000t", label: "TRANSFER 2000T", shortLabel: "TR 2000T", slug: "transfer-2000t" },
+  { key: "transfer_800t", label: "TRANSFER 800T", shortLabel: "TR 800T", slug: "transfer-800t" },
+  { key: "pc200t", label: "PC200T", shortLabel: "PC200T", slug: "pc200t" },
 ];
+
+if (typeof window !== "undefined") {
+  Chart.defaults.font.family = "'Aptos', 'Aptos Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+}
 
 const KIJUN_PEFF = 0.775471310201421;
 
@@ -271,7 +275,7 @@ export default function DashboardClient() {
       const y = d.getFullYear();
       start = new Date(y, 0, 1); end = new Date(y + 1, 0, 1);
       bucket = "month";
-      labels = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+      labels = ["JAN", "FEB", "MAR", "APR", "MEI", "JUN", "JUL", "AGU", "SEP", "OKT", "NOV", "DES"];
       keyOf = (dt: Date) => dt.getMonth();
     }
 
@@ -327,7 +331,7 @@ export default function DashboardClient() {
       exhaustStart = new Date(y, 0, 1);
       exhaustEnd = new Date(y + 1, 0, 1);
       exhaustBucket = "month";
-      exhaustLabels = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+      exhaustLabels = ["JAN", "FEB", "MAR", "APR", "MEI", "JUN", "JUL", "AGU", "SEP", "OKT", "NOV", "DES"];
       exhaustKeyOf = (d) => d.getMonth();
     }
 
@@ -442,7 +446,7 @@ export default function DashboardClient() {
       const y = tahunPilih;
       start = new Date(y, 0, 1); end = new Date(y + 1, 0, 1);
       bucket = "month";
-      labels = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+      labels = ["JAN", "FEB", "MAR", "APR", "MEI", "JUN", "JUL", "AGU", "SEP", "OKT", "NOV", "DES"];
       keyOf = (d) => d.getMonth();
     }
 
@@ -1307,7 +1311,7 @@ export default function DashboardClient() {
           datasets: [
             {
               type: "line",
-              label: "Productivity",
+              label: "PRODUCTIVITY",
               data: pt.values,
               borderColor: getCssVar("--amber") || "#f59e0b",
               backgroundColor: getCssVar("--amber") || "#f59e0b",
@@ -1360,7 +1364,7 @@ export default function DashboardClient() {
               padding: 10,
               callbacks: {
                 label: (ctx: any) =>
-                  ctx.dataset.label === "Productivity" ? `Productivity: ${fmtNum(ctx.parsed.y)}%` : null,
+                  ctx.dataset.label === "PRODUCTIVITY" ? `PRODUCTIVITY: ${fmtNum(ctx.parsed.y)}%` : null,
               },
             },
             barValueLabels: {
@@ -1397,7 +1401,7 @@ export default function DashboardClient() {
           datasets: [
             {
               type: "line",
-              label: "Akumulasi",
+              label: "AKUMULASI",
               data: pt.cumValues,
               borderColor: getCssVar("--teal") || "#2dd4bf",
               backgroundColor: getCssVar("--teal") || "#2dd4bf",
@@ -1489,7 +1493,7 @@ export default function DashboardClient() {
           datasets: [
             {
               type: "bar",
-              label: "Actual",
+              label: "ACTUAL",
               data: actual,
               backgroundColor: getCssVar("--sky") || "#38bdf8",
               borderRadius: 4,
@@ -1500,7 +1504,7 @@ export default function DashboardClient() {
             },
             {
               type: "line",
-              label: "Target",
+              label: "TARGET",
               data: target,
               showLine: false,
               pointStyle: "rectRot",
@@ -1575,7 +1579,7 @@ export default function DashboardClient() {
           datasets: [
             {
               type: "bar",
-              label: "Actual",
+              label: "ACTUAL",
               data: actual,
               backgroundColor: getCssVar("--teal") || "#2dd4bf",
               borderRadius: 4,
@@ -1586,7 +1590,7 @@ export default function DashboardClient() {
             },
             {
               type: "line",
-              label: "Target",
+              label: "TARGET",
               data: target,
               showLine: false,
               pointStyle: "rectRot",
@@ -1658,7 +1662,7 @@ export default function DashboardClient() {
           labels: MACHINES.map((m) => m.label),
           datasets: [
             {
-              label: "Downtime",
+              label: "DOWNTIME",
               data: MACHINES.map((m) => machineDataMap[m.key]?.downtime || 0),
               backgroundColor: getCssVar("--blue") || "#3b82f6",
               borderRadius: 4,
@@ -1896,7 +1900,7 @@ export default function DashboardClient() {
         data: {
           labels: downtimeTrendData.exhaustLabels,
           datasets: [{
-            label: "Downtime (menit)",
+            label: "DOWNTIME (MENIT)",
             data: downtimeTrendData.exhaustValues,
             backgroundColor: "#ea580c",
             borderRadius: 3,
@@ -1954,7 +1958,7 @@ export default function DashboardClient() {
         data: {
           labels: downtimeTrendData.harianLabels,
           datasets: [{
-            label: "Downtime (menit)",
+            label: "DOWNTIME HARIAN (MENIT)",
             data: downtimeTrendData.harianValues,
             borderColor: "#ea580c",
             backgroundColor: "rgba(234, 88, 12, 0.22)",

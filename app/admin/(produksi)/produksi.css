@@ -7,8 +7,19 @@
 .app-shell,
 .machine-hub-container,
 .modal-overlay {
-  --font-display: var(--font-oswald), "Oswald", var(--font-geist-sans);
-  --font-body: var(--font-oswald), "Oswald", var(--font-geist-sans);
+  --font-display: 'Aptos', 'Aptos Display', var(--font-aptos), sans-serif;
+  --font-body: 'Aptos', 'Aptos Display', var(--font-aptos), sans-serif;
+  --font-mono: 'Aptos', 'Aptos Display', var(--font-geist-mono), monospace;
+}
+
+/* Enforce Uppercase on /admin/dashboard */
+.app-shell-dashboard,
+.main-dashboard,
+.main-dashboard *,
+.dash-topbar *,
+.viz-mode-toggle *,
+.dash-body * {
+  text-transform: uppercase;
 }
 
 .app-shell {
