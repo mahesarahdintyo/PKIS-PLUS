@@ -7,8 +7,8 @@
 .app-shell,
 .machine-hub-container,
 .modal-overlay {
-  --font-display: var(--font-geist-sans), 'Geist Fallback';
-  --font-body: var(--font-geist-sans), 'Geist Fallback';
+  --font-display: var(--font-oswald), "Oswald", var(--font-geist-sans);
+  --font-body: var(--font-oswald), "Oswald", var(--font-geist-sans);
 }
 
 .app-shell {
