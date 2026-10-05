@@ -2382,7 +2382,7 @@ table.perf-dialog-table th,
 /* ═══ Visualisasi Internal Split Layout (Kiri: Non-Downtime | Kanan: Downtime) ═══ */
 .internal-viz-split {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 38fr 62fr;
   gap: 16px;
   align-items: stretch;
 }
@@ -2414,7 +2414,7 @@ table.perf-dialog-table th,
 
 .internal-right-top-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 2.3fr;
   gap: 12px;
   flex: 0 0 auto;
 }
@@ -2839,7 +2839,7 @@ table.perf-dialog-table th,
     flex: 1;
     min-height: 0;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 38fr 62fr;
     gap: var(--row-gap, 8px);
     align-items: stretch;
     overflow: hidden;
@@ -2872,10 +2872,10 @@ table.perf-dialog-table th,
     min-height: 0;
   }
 
-  /* Baris atas 2 card: Downtime Exhaust + Downtime Harian */
+  /* Baris atas 2 card: Downtime Exhaust + Downtime Harian (Harian dilebarkan agar seluruh tanggal 1-31 terlihat) */
   .internal-right-top-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 2.3fr;
     gap: var(--row-gap, 8px);
     flex: 1.1;
     min-height: 0;

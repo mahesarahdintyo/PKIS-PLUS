@@ -1971,7 +1971,7 @@ export default function DashboardClient() {
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          layout: { padding: { top: 18, right: 8 } },
+          layout: { padding: { top: 18, right: 10, left: 6 } },
           plugins: {
             legend: { display: false },
             tooltip: {
@@ -1993,7 +1993,13 @@ export default function DashboardClient() {
           } as any,
           scales: {
             x: {
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9 } },
+              ticks: {
+                color: getCssVar("--chart-tick") || "#64748b",
+                font: { size: 8.5 },
+                autoSkip: false,
+                maxRotation: 0,
+                minRotation: 0,
+              },
               grid: { display: false },
               border: { display: false },
             },
