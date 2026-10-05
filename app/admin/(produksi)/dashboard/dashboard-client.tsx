@@ -2262,11 +2262,11 @@ export default function DashboardClient() {
 
                   {/* ── SISI KANAN: DOWNTIME (SEMUA CARD BERHUBUNGAN DENGAN DOWNTIME) ── */}
                   <div className="internal-col-right">
-                    {/* Baris Baru: Downtime Exhaust (Tren Bar) & Downtime Harian (Area Chart) */}
+                    {/* Baris Baru: Downtime Press Production (Tren Bar) & Downtime Harian (Area Chart) */}
                     <div className="internal-right-top-row">
                       <Card className="dash-panel dash-panel-fit card-glow-warn">
                         <p className="dash-panel-title">
-                          <span>Downtime Exhaust</span>
+                          <span>Downtime Press Production</span>
                         </p>
                         <div className="dash-chart-trend">
                           <canvas ref={internalDowntimeExhaustRef} />
