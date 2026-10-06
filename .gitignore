@@ -19,3 +19,4 @@ scripts/data/
 supabase/.temp/
 _migrate-source/
 tsconfig.tsbuildinfo
+.env
