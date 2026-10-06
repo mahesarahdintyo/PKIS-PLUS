@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
-import { ThumbsUp, ArrowLeft, RefreshCw, Pencil, Trash2, Search, Filter, AlertTriangle } from "lucide-react";
-import { createClient } from "@/lib/db/client";
+import { Search, Trash2, ThumbsUp, Pencil, AlertTriangle, ArrowLeft, RefreshCw } from "lucide-react";
+import { safetyApi } from "@/lib/api-client";
 import { ProdSafetyRecord } from "@/types/produksi";
 import { enqueueOffline, isNetworkError } from "@/lib/produksi/offlineQueue";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,6 @@ import { toast } from "sonner";
 const PAGE_SIZE = 60;
 
 export default function InputSafetyClient({ embedded }: { embedded?: boolean }) {
-  const supabase = useMemo(() => createClient(), []);
   const [rows, setRows] = useState<ProdSafetyRecord[]>([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -69,20 +68,12 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
     else setLoading(true);
 
     try {
-      const from = targetPage * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-      let q = supabase
-        .from("prod_safety_log")
-        .select("*")
-        .eq("is_active", true)
-        .order("tanggal", { ascending: false })
-        .range(from, to);
+      const res = await safetyApi.get({
+        kategori: filterKategori !== "all" ? filterKategori : undefined,
+        limit: PAGE_SIZE,
+        page: targetPage,
+      });
 
-      if (filterKategori !== "all") {
-        q = q.eq("kategori", filterKategori);
-      }
-
-      const res = await q;
       if (res.data) {
         if (targetPage === 0) {
           setRows(res.data);
@@ -96,7 +87,7 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
       if (targetPage > 0) setLoadingMore(false);
       else setLoading(false);
     }
-  }, [filterKategori, supabase]);
+  }, [filterKategori]);
 
   useEffect(() => {
     fetchRows(0);
@@ -111,8 +102,8 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
     };
 
     try {
-      const res = await supabase.from("prod_safety_log").insert(payload);
-      if (res.error) throw res.error;
+      const res = await safetyApi.create(payload);
+      if (res.error) throw new Error(res.error.message || String(res.error));
 
       flash("Insiden berhasil dicatat!");
       setForm({ tanggal: today, kategori: "ACCIDENT", keterangan: "" });
@@ -154,11 +145,8 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
       keterangan: editForm.keterangan || null,
     };
     try {
-      const { error } = await supabase
-        .from("prod_safety_log")
-        .update(payload)
-        .eq("id", editTarget.id);
-      if (error) throw error;
+      const { error } = await safetyApi.update(editTarget.id, payload);
+      if (error) throw new Error(error.message || String(error));
 
       flash("Data insiden diperbarui!");
       setEditTarget(null);
@@ -174,11 +162,8 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
     if (!deleteTarget?.id) return;
     setIsDeleting(true);
     try {
-      const { error } = await supabase
-        .from("prod_safety_log")
-        .update({ is_active: false })
-        .eq("id", deleteTarget.id);
-      if (error) throw error;
+      const { error } = await safetyApi.deleteMany([deleteTarget.id]);
+      if (error) throw new Error(error.message || String(error));
 
       flash("Data insiden berhasil dihapus.");
       setDeleteTarget(null);
@@ -242,12 +227,9 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
       setBulkDeleteError("");
 
       const ids = Array.from(selectedIds);
-      const { error } = await supabase
-        .from("prod_safety_log")
-        .update({ is_active: false })
-        .in("id", ids);
+      const { error } = await safetyApi.deleteMany(ids);
 
-      if (error) throw error;
+      if (error) throw new Error(error.message || String(error));
 
       flash(`${ids.length} data insiden berhasil dipindahkan ke Tempat Sampah.`);
       setSelectedIds(new Set());

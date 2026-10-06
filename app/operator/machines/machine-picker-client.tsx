@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { AppHeader } from "@/components/ui/app-header";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LogoutButton } from "@/components/ui/logout-button";
-import { createClient } from "@/lib/db/client";
-import type { Line } from "@/lib/services/line";
+import { getLines, type Line } from "@/lib/services/line";
+import { subscribeToSocketEvent } from "@/lib/api-client";
 import { Loader2, AlertCircle } from "lucide-react";
 import "@/app/admin/(produksi)/produksi.css";
 
@@ -16,27 +16,14 @@ export default function MachinePickerClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const channelNameRef = useRef(
-    `lines_picker_watch_${Math.random().toString(36).slice(2)}`
-  );
-
   const fetchLines = useCallback(async (showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
-      const supabase = createClient();
-      const { data, error: fetchError } = await supabase
-        .from("lines")
-        .select("*")
-        .eq("is_active", true)
-        .eq("hidden_from_operator", false)
-        .not("machine_type", "is", null)
-        .order("name");
-
-      if (fetchError) {
-        throw new Error(fetchError.message);
-      }
-
-      setLines((data as Line[]) ?? []);
+      const allLines = await getLines({ includeHidden: false });
+      const filtered = (allLines || []).filter(
+        (l) => l.is_active && !l.hidden_from_operator && Boolean(l.machine_type)
+      );
+      setLines(filtered);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal memuat daftar line produksi");
     } finally {
@@ -47,20 +34,12 @@ export default function MachinePickerClient() {
   useEffect(() => {
     fetchLines(true);
 
-    const supabase = createClient();
-    const channel = supabase
-      .channel(channelNameRef.current)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "lines" },
-        () => {
-          fetchLines(false);
-        }
-      )
-      .subscribe();
+    const unsubscribe = subscribeToSocketEvent("lines", "*", () => {
+      fetchLines(false);
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      unsubscribe();
     };
   }, [fetchLines]);
 

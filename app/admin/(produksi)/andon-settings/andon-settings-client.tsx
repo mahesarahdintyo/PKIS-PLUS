@@ -2,8 +2,20 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
-import { ArrowLeft, RefreshCw, Plus, Pencil, Trash2, Search, Filter, AlertTriangle, Bell, PhoneCall, Volume2, VolumeX } from "lucide-react";
-import { createClient } from "@/lib/db/client";
+import {
+  AlertTriangle,
+  VolumeX,
+  Volume2,
+  RefreshCw,
+  PhoneCall,
+  Bell,
+  Plus,
+  Search,
+  Trash2,
+  Pencil,
+  ArrowLeft,
+} from "lucide-react";
+import { andonApi } from "@/lib/api-client";
 import { ProdProfile } from "@/types/produksi";
 import { useAndonAlerts, useAndonLeaders, andonSubscribePush, AndonCall } from "@/hooks/produksi/useAndon";
 import { Button } from "@/components/ui/button";
@@ -97,7 +109,6 @@ interface Props {
 }
 
 export default function AndonSettingsClient({ userId, role, embedded }: Props) {
-  const supabase = useMemo(() => createClient(), []);
   const isLeaderOrAdmin = ["admin", "leader"].includes(role);
 
   const { activeCalls, acknowledgeCall } = useAndonAlerts(!!isLeaderOrAdmin);
@@ -247,22 +258,13 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
     else setLoadingHistory(true);
 
     const from = targetPage * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
 
-    let q = supabase
-      .from("andon_calls")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .range(from, to);
-
-    if (filterMesin !== "all") {
-      q = q.eq("mesin", filterMesin);
-    }
-    if (filterStatus !== "all") {
-      q = q.eq("status", filterStatus);
-    }
-
-    const { data } = await q;
+    const { data } = await andonApi.getCalls({
+      mesin: filterMesin !== "all" ? filterMesin : undefined,
+      status_single: filterStatus !== "all" ? filterStatus : undefined,
+      limit: PAGE_SIZE,
+      offset: from,
+    });
 
     if (data) {
       if (targetPage === 0) {
@@ -275,7 +277,7 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
     setPage(targetPage);
     if (targetPage > 0) setLoadingMore(false);
     else setLoadingHistory(false);
-  }, [filterMesin, filterStatus, supabase]);
+  }, [filterMesin, filterStatus]);
 
   useEffect(() => {
     if (isLeaderOrAdmin) fetchHistory(0);
@@ -358,8 +360,8 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
         triggered_by: userId || null,
       };
 
-      const { error } = await supabase.from("andon_calls").insert(payload);
-      if (error) throw error;
+      const { error } = await andonApi.createCall(payload);
+      if (error) throw new Error(error.message || String(error));
 
       toast.success("Panggilan Andon berhasil dibuat!");
       setShowCreateModal(false);
@@ -399,16 +401,8 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
         status: editForm.status,
       };
 
-      const { data, error } = await supabase
-        .from("andon_calls")
-        .update(payload)
-        .eq("id", editTarget.id)
-        .select();
-
-      if (error) throw error;
-      if (!data || data.length === 0) {
-        throw new Error("Tidak ada data yang diperbarui. Periksa izin role Anda.");
-      }
+      const { error } = await andonApi.updateCall(editTarget.id, payload);
+      if (error) throw new Error(error.message || String(error));
 
       toast.success("Riwayat panggilan berhasil diperbarui!");
       setEditTarget(null);
@@ -427,16 +421,8 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
       setIsDeleting(true);
       setDeleteError("");
 
-      const { data, error } = await supabase
-        .from("andon_calls")
-        .delete()
-        .eq("id", deleteTarget.id)
-        .select();
-
-      if (error) throw error;
-      if (!data || data.length === 0) {
-        throw new Error("Tidak ada data yang dihapus. Periksa izin role Anda.");
-      }
+      const { error } = await andonApi.deleteCall(deleteTarget.id);
+      if (error) throw new Error(error.message || String(error));
 
       toast.success("Riwayat panggilan berhasil dihapus.");
       setDeleteTarget(null);
@@ -461,15 +447,11 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
       setBulkDeleteError("");
 
       const ids = Array.from(selectedIds);
-      const { data, error } = await supabase
-        .from("andon_calls")
-        .delete()
-        .in("id", ids)
-        .select();
+      const { data, error } = await andonApi.deleteCalls(ids);
 
-      if (error) throw error;
+      if (error) throw new Error(error.message || String(error));
 
-      const n = data?.length ?? ids.length;
+      const n = data?.count ?? ids.length;
       toast.success(`${n} riwayat panggilan berhasil dihapus.`);
       setSelectedIds(new Set());
       setShowBulkDeleteModal(false);

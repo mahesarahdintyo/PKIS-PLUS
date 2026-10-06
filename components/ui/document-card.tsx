@@ -26,7 +26,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 import { toast } from 'sonner'
-import { createClient } from '@/lib/db/client'
+import { partNumbersApi } from '@/lib/api-client'
 
 const DISPLAY_DOCUMENT_STORAGE_KEY = 'futaba.display.document'
 
@@ -371,26 +371,10 @@ export function DocumentCard({
     async function fetchAvailableParts() {
       try {
         setIsLoadingAvailableParts(true)
-        const supabase = createClient()
-        let query = supabase
-          .from('prod_part_numbers' as any)
-          .select('id, value, is_active, line_id, mesin')
-          .eq('is_active', true)
-
-        const { data: lineData } = await supabase
-          .from('lines')
-          .select('name, machine_type')
-          .eq('id', lineId)
-          .maybeSingle()
-
-        const mesinKey = lineData?.machine_type ? lineData.machine_type.replace(/-/g, '_') : null
-        if (mesinKey) {
-          query = query.or(`line_id.eq.${lineId},mesin.eq.${mesinKey}`)
-        } else {
-          query = query.eq('line_id', lineId)
-        }
-
-        const { data, error } = await query.order('value')
+        const { data, error } = await partNumbersApi.get({
+          line_id: lineId || undefined,
+          is_active: true,
+        })
         if (!error && data) {
           setAvailablePartNumbers(
             data.map((p: any) => ({

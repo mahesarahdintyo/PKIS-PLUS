@@ -5,7 +5,7 @@
 // =========================================================
 
 import { useState, useCallback, useEffect } from "react";
-import { createClient } from "@/lib/db/client";
+import { partNumbersApi } from "@/lib/api-client";
 import { toast } from "sonner";
 import type {
   ProdStationPhase,
@@ -454,21 +454,15 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
         if (foundInMaster?.document_id) {
           docId = foundInMaster.document_id;
         } else {
-          const supabase = createClient();
-          let query = supabase
-            .from("prod_part_numbers" as any)
-            .select("id, value, document_id, line_id, mesin")
-            .eq("is_active", true)
-            .ilike("value", partNumber.trim());
-
-          if (lineId) {
-            query = query.or(`line_id.eq.${lineId},mesin.eq.${config.key}`);
-          } else if (config.key) {
-            query = query.eq("mesin", config.key);
-          }
-
-          const { data: partRows } = await query.limit(1);
-          const partRow = partRows?.[0];
+          const { data: partRows } = await partNumbersApi.get({
+            search: partNumber.trim(),
+            line_id: lineId || undefined,
+            mesin: !lineId ? config.key : undefined,
+            is_active: true,
+          });
+          const partRow = (partRows || []).find(
+            (p: any) => p.value && p.value.trim().toLowerCase() === normalized
+          ) || partRows?.[0];
           if (partRow?.document_id) {
             docId = partRow.document_id;
           }
@@ -476,17 +470,14 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
 
         if (!docId) return;
 
-        const supabase = createClient();
-        const { data: docData, error: docErr } = await supabase
-          .from("documents")
-          .select("id, title, description, file_name, file_path, file_size, file_type, target_time, line_id")
-          .eq("id", docId)
-          .single();
+        const docRes = await fetch(`/api/documents/${docId}`);
+        const docData = docRes.ok ? await docRes.json() : null;
 
-        if (docErr || !docData) {
-          console.error("Gagal mengambil data dokumen terhubung:", docErr);
+        if (!docData || docData.error) {
+          const errMsg = docData?.error ?? "Dokumen tidak ditemukan";
+          console.error("Gagal mengambil data dokumen terhubung:", errMsg);
           toast.error(
-            `Gagal mengambil SOP untuk part "${partNumber}": ${docErr?.message ?? "Dokumen tidak ditemukan"}. Cek koneksi atau hubungi admin.`
+            `Gagal mengambil SOP untuk part "${partNumber}": ${errMsg}. Cek koneksi atau hubungi admin.`
           );
           return;
         }

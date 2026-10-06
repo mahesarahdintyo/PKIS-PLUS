@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { ArrowLeft, RefreshCw } from "lucide-react";
-import { createClient } from "@/lib/db/client";
+import { linesApi, masterDataApi, partNumbersApi, subscribeToSocketEvent } from "@/lib/api-client";
 import { MACHINE_CONFIGS, getMachineConfig } from "@/components/produksi/machines/MachineDetailClient";
 import MasterDataTab from "@/components/produksi/machines/MasterDataTab";
 import type {
@@ -46,25 +46,18 @@ export default function MasterDataClient() {
   const [selectedMachineSlug, setSelectedMachineSlug] = useState<string>("tandem");
   const [loading, setLoading] = useState<boolean>(true);
 
-  const channelNameRef = useRef(
-    `master_data_lines_watch_${Math.random().toString(36).slice(2)}`
-  );
+
 
   const fetchMachineList = useCallback(async () => {
     try {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("lines")
-        .select("id, name, machine_type, is_active")
-        .not("machine_type", "is", null)
-        .order("name", { ascending: true });
+      const { data, error } = await linesApi.get();
 
       if (error) {
-        console.warn("Gagal fetch lines untuk master-data, gunakan fallback:", error.message);
+        console.warn("Gagal fetch lines untuk master-data, gunakan fallback:", error);
         return;
       }
 
-      const mapped: MachineItem[] = (data || []).map((l: any) => ({
+      const mapped: MachineItem[] = (data || []).filter((l: any) => l.machine_type).map((l: any) => ({
         id: l.id,
         slug: normalizeMachineSlug(l.machine_type),
         label: l.name,
@@ -79,20 +72,13 @@ export default function MasterDataClient() {
   useEffect(() => {
     fetchMachineList();
 
-    const supabase = createClient();
-    const channel = supabase
-      .channel(channelNameRef.current)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "lines" },
-        () => {
-          fetchMachineList();
-        }
-      )
-      .subscribe();
+    // Subscribe to line changes via Socket.io
+    const unsub = subscribeToSocketEvent("lines", "*", () => {
+      fetchMachineList();
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      unsub();
     };
   }, [fetchMachineList]);
 
@@ -146,13 +132,8 @@ export default function MasterDataClient() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const supabase = createClient();
       // 1. Target settings
-      const { data: settingsData } = await supabase
-        .from("prod_mesin_settings" as any)
-        .select("*")
-        .eq("mesin", currentConfig.key)
-        .maybeSingle();
+      const { data: settingsData } = await masterDataApi.get({ type: "settings", mesin: currentConfig.key });
 
       if (settingsData) {
         setMesinSettingsDraft({
@@ -174,21 +155,13 @@ export default function MasterDataClient() {
         });
       }
 
-      // 2. Part Numbers (check line_id OR mesin key)
+      // 2. Part Numbers
       const selectedLineId = selectedMachineItem?.id;
-      let pNumQuery = supabase
-        .from("prod_part_numbers" as any)
-        .select("*")
-        .eq("is_active", true)
-        .order("value");
-
-      if (selectedLineId) {
-        pNumQuery = pNumQuery.or(`line_id.eq.${selectedLineId},mesin.eq.${currentConfig.key}`);
-      } else {
-        pNumQuery = pNumQuery.eq("mesin", currentConfig.key);
-      }
-
-      const { data: pNumData, error: pNumErr } = await pNumQuery;
+      const { data: pNumData, error: pNumErr } = await partNumbersApi.get(
+        selectedLineId
+          ? { line_id: selectedLineId, mesin: currentConfig.key, is_active: true }
+          : { mesin: currentConfig.key, is_active: true }
+      );
 
       if (!pNumErr && pNumData) {
         const mappedParts: ProdMasterPart[] = pNumData.map((p: any) => ({
@@ -216,23 +189,13 @@ export default function MasterDataClient() {
       }
 
       // 3. Downtime Problems Master
-      const { data: probs } = await supabase
-        .from("prod_downtime_problems" as any)
-        .select("*")
-        .eq("mesin", currentConfig.key)
-        .eq("is_active", true)
-        .order("value", { ascending: true });
-      if (probs) setProblemList(probs as ProdDowntimeProblem[]);
+      const { data: probs } = await masterDataApi.get({ type: "problems", mesin: currentConfig.key });
+      if (probs && Array.isArray(probs)) setProblemList(probs as ProdDowntimeProblem[]);
       else setProblemList([]);
 
       // 4. Non-Produksi Types
-      const { data: npTypes } = await supabase
-        .from("prod_nonproduksi_types" as any)
-        .select("*")
-        .eq("mesin", currentConfig.key)
-        .eq("is_active", true)
-        .order("nama", { ascending: true });
-      if (npTypes) setNonProduksiTypes(npTypes as ProdNonProduksiType[]);
+      const { data: npTypes } = await masterDataApi.get({ type: "nonproduksi", mesin: currentConfig.key });
+      if (npTypes && Array.isArray(npTypes)) setNonProduksiTypes(npTypes as ProdNonProduksiType[]);
       else setNonProduksiTypes([]);
     } catch (err: any) {
       console.error("Master data load error:", err?.message || err);
@@ -249,7 +212,6 @@ export default function MasterDataClient() {
   // Target Settings Handler
   const handleSaveMesinSettings = async () => {
     try {
-      const supabase = createClient();
       const payload = {
         mesin: currentConfig.key,
         gsph_target_mode: mesinSettingsDraft.gsph_target_mode,
@@ -264,11 +226,9 @@ export default function MasterDataClient() {
         updated_at: new Date().toISOString(),
       };
 
-      const { error } = await supabase
-        .from("prod_mesin_settings" as any)
-        .upsert(payload, { onConflict: "mesin" });
+      const { error } = await masterDataApi.post("settings", payload);
 
-      if (error) throw error;
+      if (error) throw new Error(error);
       toast.success("Target GSPH & Availability berhasil disimpan!");
       loadData();
     } catch (err: any) {
@@ -282,7 +242,6 @@ export default function MasterDataClient() {
     if (!newPartKode.trim()) return;
 
     try {
-      const supabase = createClient();
       const payload = {
         line_id: selectedMachineItem?.id || null,
         mesin: currentConfig.key,
@@ -291,9 +250,8 @@ export default function MasterDataClient() {
         harga_pcs: newPartHarga === "" ? null : Number(newPartHarga),
       };
 
-
-      const { error } = await supabase.from("prod_part_numbers" as any).insert([payload]);
-      if (error) throw error;
+      const { error } = await partNumbersApi.create(payload);
+      if (error) throw new Error(error);
 
       toast.success("Part Number berhasil ditambahkan!");
       setNewPartKode("");
@@ -321,18 +279,14 @@ export default function MasterDataClient() {
   const handleSaveEditPartNumber = async (id: string) => {
     if (!editPartForm.kode_part.trim()) return;
     try {
-      const supabase = createClient();
       const payload = {
         value: editPartForm.kode_part.trim(),
         std_ct: editPartForm.std_ct === "" ? null : Number(editPartForm.std_ct),
         harga_pcs: editPartForm.harga_rp === "" ? null : Number(editPartForm.harga_rp),
       };
 
-      const { error } = await supabase
-        .from("prod_part_numbers" as any)
-        .update(payload)
-        .eq("id", id);
-      if (error) throw error;
+      const { error } = await partNumbersApi.update(id, payload);
+      if (error) throw new Error(error);
 
       toast.success("Part Number berhasil diperbarui!");
       setEditingPartId(null);
@@ -345,12 +299,8 @@ export default function MasterDataClient() {
   const handleDeletePartNumber = async (id: string) => {
     if (!confirm("Hapus part number ini?")) return;
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("prod_part_numbers" as any)
-        .update({ is_active: false })
-        .eq("id", id);
-      if (error) throw error;
+      const { error } = await partNumbersApi.delete(id);
+      if (error) throw new Error(error);
       toast.success("Part Number berhasil dihapus!");
       loadData();
     } catch (err: any) {
@@ -363,11 +313,8 @@ export default function MasterDataClient() {
     const v = newNonProduksiTypeValue.trim();
     if (!v) return;
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("prod_nonproduksi_types" as any)
-        .insert({ mesin: currentConfig.key, nama: v });
-      if (error) throw error;
+      const { error } = await masterDataApi.post("nonproduksi", { mesin: currentConfig.key, nama: v });
+      if (error) throw new Error(error);
       setNewNonProduksiTypeValue("");
       toast.success("Jenis non-produksi berhasil ditambahkan!");
       loadData();
@@ -379,12 +326,8 @@ export default function MasterDataClient() {
   const handleDeleteNonProduksiType = async (id: string) => {
     if (!confirm("Hapus jenis ini?")) return;
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("prod_nonproduksi_types" as any)
-        .update({ is_active: false })
-        .eq("id", id);
-      if (error) throw error;
+      const { error } = await masterDataApi.delete("nonproduksi", id);
+      if (error) throw new Error(error);
       toast.success("Jenis non-produksi berhasil dihapus!");
       loadData();
     } catch (err: any) {
@@ -397,18 +340,15 @@ export default function MasterDataClient() {
     const v = newProblemValue.trim();
     if (!v) return;
     try {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("prod_downtime_problems" as any)
-        .insert({ mesin: currentConfig.key, value: v })
-        .select()
-        .single();
-      if (error) throw error;
-      setProblemList((prev) =>
-        [...prev, data as ProdDowntimeProblem].sort((a, b) =>
-          a.value.localeCompare(b.value)
-        )
-      );
+      const { data, error } = await masterDataApi.post("problems", { mesin: currentConfig.key, value: v });
+      if (error) throw new Error(error);
+      if (data) {
+        setProblemList((prev) =>
+          [...prev, data as ProdDowntimeProblem].sort((a, b) =>
+            a.value.localeCompare(b.value)
+          )
+        );
+      }
       setNewProblemValue("");
       toast.success("Problem downtime berhasil ditambahkan!");
     } catch (err: any) {
@@ -433,14 +373,9 @@ export default function MasterDataClient() {
       return;
     }
     try {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("prod_downtime_problems" as any)
-        .update({ value: v })
-        .eq("id", id)
-        .select();
-      if (error) throw error;
-      if (!data || data.length === 0) {
+      const { data, error } = await masterDataApi.patch("problems", id, { value: v });
+      if (error) throw new Error(error);
+      if (!data) {
         toast.error("Gagal simpan — periksa izin akses.");
         return;
       }
@@ -457,12 +392,8 @@ export default function MasterDataClient() {
   const handleDeleteProblem = async (id: string) => {
     if (!confirm("Hapus problem ini?")) return;
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("prod_downtime_problems" as any)
-        .update({ is_active: false })
-        .eq("id", id);
-      if (error) throw error;
+      const { error } = await masterDataApi.delete("problems", id);
+      if (error) throw new Error(error);
       setProblemList((prev) => prev.filter((p) => p.id !== id));
       toast.success("Problem downtime berhasil dihapus!");
     } catch (err: any) {

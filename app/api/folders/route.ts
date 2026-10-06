@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/db/server'
+import { prisma } from '@/lib/prisma'
 import { getCurrentUserProfile } from '@/lib/services/auth-server'
 import { NextResponse } from 'next/server'
 
@@ -11,107 +11,102 @@ export async function GET(request: Request) {
     const includeAll = searchParams.get('includeAll') === 'true'
     const searchQuery = searchParams.get('search')?.trim()
     const showTrash = searchParams.get('trash') === 'true'
-    const parentId = parentIdStr ? parseInt(parentIdStr) : null
+    const parentId = parentIdStr ? BigInt(parentIdStr) : null
 
     const userProfile = await getCurrentUserProfile()
     if (!userProfile.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    const lineId = userProfile.role === 'operator' && userProfile.lineId ? userProfile.lineId : reqLineId
+    const lineId =
+      userProfile.role === 'operator' && userProfile.lineId
+        ? userProfile.lineId
+        : reqLineId
 
-    const supabase = await createClient()
-
-    let query = supabase.from('folders').select('*')
+    const where: any = {}
 
     if (showTrash) {
-      query = query.eq('is_active', false)
+      where.is_active = false
     } else {
-      query = query.or('is_active.eq.true,is_active.is.null')
+      where.OR = [{ is_active: true }, { is_active: null }]
     }
 
     if (lineId) {
-      query = query.eq('line_id', lineId)
+      where.line_id = lineId
     }
 
     if (searchQuery) {
-      const escapedSearch = searchQuery.replace(/[%_]/g, '\\$&')
-      query = query.ilike('name', `%${escapedSearch}%`)
+      where.name = { contains: searchQuery, mode: 'insensitive' }
     }
 
     if (!includeAll && parentId === null) {
-      query = query.is('parent_id', null)
+      where.parent_id = null
     } else if (!includeAll && parentIdStr) {
-      query = query.eq('parent_id', parentId)
+      where.parent_id = parentId
     }
 
-    const { data: folders, error } = await query.order('name', { ascending: true })
+    const folders = await prisma.folder.findMany({
+      where,
+      orderBy: { name: 'asc' },
+    })
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
-    const folderIds = (folders ?? []).map((folder: any) => folder.id)
+    const folderIds = folders.map((f) => f.id)
 
     if (folderIds.length === 0) {
-      return NextResponse.json(folders ?? [])
+      return NextResponse.json(folders)
     }
 
-    let childFolderQuery = supabase
-      .from('folders')
-      .select('parent_id')
-      .in('parent_id', folderIds)
-      .or('is_active.eq.true,is_active.is.null')
-
-    let childDocumentQuery = supabase
-      .from('documents')
-      .select('folder_id')
-      .in('folder_id', folderIds)
-      .or('is_active.eq.true,is_active.is.null')
-
-    if (lineId) {
-      childFolderQuery = childFolderQuery.eq('line_id', lineId)
-      childDocumentQuery = childDocumentQuery.eq('line_id', lineId)
+    const childWhereCondition: any = {
+      OR: [{ is_active: true }, { is_active: null }],
     }
+    if (lineId) childWhereCondition.line_id = lineId
 
-    const [
-      { data: childFolders, error: childFoldersError },
-      { data: childDocuments, error: childDocumentsError },
-    ] = await Promise.all([childFolderQuery, childDocumentQuery])
+    const [childFolders, childDocuments] = await Promise.all([
+      prisma.folder.findMany({
+        where: {
+          parent_id: { in: folderIds },
+          ...childWhereCondition,
+        },
+        select: { parent_id: true },
+      }),
+      prisma.document.findMany({
+        where: {
+          folder_id: { in: folderIds },
+          ...childWhereCondition,
+        },
+        select: { folder_id: true },
+      }),
+    ])
 
-    if (childFoldersError || childDocumentsError) {
-      return NextResponse.json(
-        { error: childFoldersError?.message ?? childDocumentsError?.message },
-        { status: 500 }
-      )
-    }
+    const contentCountByFolderId = new Map<bigint, number>()
 
-    const contentCountByFolderId = new Map<number, number>()
-
-    for (const childFolder of childFolders ?? []) {
-      if (typeof childFolder.parent_id !== 'number') continue
+    for (const childFolder of childFolders) {
+      if (childFolder.parent_id === null || childFolder.parent_id === undefined) continue
       contentCountByFolderId.set(
         childFolder.parent_id,
         (contentCountByFolderId.get(childFolder.parent_id) ?? 0) + 1
       )
     }
 
-    for (const childDocument of childDocuments ?? []) {
-      if (typeof childDocument.folder_id !== 'number') continue
+    for (const childDocument of childDocuments) {
+      if (childDocument.folder_id === null || childDocument.folder_id === undefined) continue
       contentCountByFolderId.set(
         childDocument.folder_id,
         (contentCountByFolderId.get(childDocument.folder_id) ?? 0) + 1
       )
     }
 
-    const foldersWithCounts = folders.map((folder: any) => ({
+    const foldersWithCounts = folders.map((folder) => ({
       ...folder,
       item_count: contentCountByFolderId.get(folder.id) ?? 0,
     }))
 
     return NextResponse.json(foldersWithCounts)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Folders GET error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json(
+      { error: error.message || 'Internal server error' },
+      { status: 500 }
+    )
   }
 }
 
@@ -119,7 +114,6 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-
     const { name, parentId, lineId: reqLineId } = body
 
     if (!name || typeof name !== 'string' || !name.trim()) {
@@ -133,34 +127,32 @@ export async function POST(request: Request) {
     if (!userProfile.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    const lineId = userProfile.role === 'operator' && userProfile.lineId ? userProfile.lineId : reqLineId
+    const lineId =
+      userProfile.role === 'operator' && userProfile.lineId
+        ? userProfile.lineId
+        : reqLineId
 
     const baseName = name.trim()
-    const supabase = await createClient()
-    const parsedParentId = parentId ? parseInt(parentId) : null
+    const parsedParentId = parentId ? BigInt(parentId) : null
 
-    // Ambil semua folder dalam scope yang sama (parent + line)
-    let siblingQuery = supabase
-      .from('folders')
-      .select('name')
-      .ilike('name', `${baseName}%`)
-      .or('is_active.eq.true,is_active.is.null')
-
-    if (lineId) {
-      siblingQuery = siblingQuery.eq('line_id', lineId)
+    const siblingWhere: any = {
+      name: { startsWith: baseName, mode: 'insensitive' },
+      OR: [{ is_active: true }, { is_active: null }],
     }
-
+    if (lineId) siblingWhere.line_id = lineId
     if (parsedParentId !== null) {
-      siblingQuery = siblingQuery.eq('parent_id', parsedParentId)
+      siblingWhere.parent_id = parsedParentId
     } else {
-      siblingQuery = siblingQuery.is('parent_id', null)
+      siblingWhere.parent_id = null
     }
 
-    const { data: siblings } = await siblingQuery
+    const siblings = await prisma.folder.findMany({
+      where: siblingWhere,
+      select: { name: true },
+    })
 
-    // Cari nama yang tersedia dengan pola: "Nama", "Nama (01)", "Nama (02)", dst.
     const existingNames = new Set(
-      (siblings ?? []).map((f: any) => f.name.toLowerCase())
+      siblings.map((f) => f.name.toLowerCase())
     )
 
     let finalName = baseName
@@ -177,31 +169,29 @@ export async function POST(request: Request) {
       }
     }
 
-    const { data: newFolder, error } = await supabase
-      .from('folders')
-      .insert({
+    const newFolder = await prisma.folder.create({
+      data: {
         name: finalName,
         parent_id: parsedParentId,
-        line_id: lineId,
-      })
-      .select()
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
+        line_id: lineId || null,
+        is_active: true,
+      },
+    })
 
     return NextResponse.json(
-      { ...newFolder[0], originalName: baseName, finalName },
+      { ...newFolder, originalName: baseName, finalName },
       { status: 201 }
     )
-  } catch (error) {
+  } catch (error: any) {
     console.error('Folders POST error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json(
+      { error: error.message || 'Internal server error' },
+      { status: 500 }
+    )
   }
 }
 
-
-// DELETE - Delete a folder beserta seluruh isinya (dokumen & sub-folder) secara rekursif
+// DELETE - Delete a folder beserta seluruh isinya secara rekursif (soft delete)
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -214,79 +204,64 @@ export async function DELETE(request: Request) {
       )
     }
 
-    const rootId = parseInt(idStr)
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
+    const rootId = BigInt(idStr)
+    const userProfile = await getCurrentUserProfile()
+    if (!userProfile.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // Kumpulkan semua folder ID secara rekursif (BFS)
-    const allFolderIds: number[] = [rootId]
-    const queue: number[] = [rootId]
+    const allFolderIds: bigint[] = [rootId]
+    const queue: bigint[] = [rootId]
 
     while (queue.length > 0) {
       const currentIds = queue.splice(0, queue.length)
+      const children = await prisma.folder.findMany({
+        where: { parent_id: { in: currentIds } },
+        select: { id: true },
+      })
 
-      const { data: children, error: childErr } = await supabase
-        .from('folders')
-        .select('id')
-        .in('parent_id', currentIds)
-
-      if (childErr) {
-        return NextResponse.json({ error: childErr.message }, { status: 500 })
-      }
-
-      if (children && children.length > 0) {
-        const childIds = children.map((f: any) => f.id as number)
+      if (children.length > 0) {
+        const childIds = children.map((f) => f.id)
         allFolderIds.push(...childIds)
         queue.push(...childIds)
       }
     }
 
-    // 1. Ambil ID dokumen yang berada di dalam folder-folder ini untuk dihapus dari layar display
-    const { data: docsToClear, error: docsFetchError } = await supabase
-      .from('documents')
-      .select('id')
-      .in('folder_id', allFolderIds)
+    // 1. Ambil ID dokumen di folder-folder ini untuk dihapus dari display_documents
+    const docsToClear = await prisma.document.findMany({
+      where: { folder_id: { in: allFolderIds } },
+      select: { id: true },
+    })
 
-    if (!docsFetchError && docsToClear && docsToClear.length > 0) {
-      const docIds = docsToClear.map((d: any) => d.id)
-      await supabase.from('display_documents').delete().in('document_id', docIds)
-      for (const docId of docIds) {
-        await supabase.from('display_documents').delete().eq('document->>id', docId)
-      }
+    if (docsToClear.length > 0) {
+      const docIds = docsToClear.map((d) => d.id)
+      await prisma.displayDocument.deleteMany({
+        where: { document_id: { in: docIds } },
+      })
     }
 
-    // 2. Soft delete semua dokumen yang berada di dalam folder-folder tersebut
-    const { error: docDeleteError } = await supabase
-      .from('documents')
-      .update({ is_active: false })
-      .in('folder_id', allFolderIds)
-
-    if (docDeleteError) {
-      return NextResponse.json({ error: docDeleteError.message }, { status: 500 })
-    }
+    // 2. Soft delete semua dokumen di dalam folder-folder tersebut
+    await prisma.document.updateMany({
+      where: { folder_id: { in: allFolderIds } },
+      data: { is_active: false },
+    })
 
     // 3. Soft delete semua folder (dari child ke root)
-    const { error: folderDeleteError } = await supabase
-      .from('folders')
-      .update({ is_active: false })
-      .in('id', allFolderIds)
-
-    if (folderDeleteError) {
-      return NextResponse.json({ error: folderDeleteError.message }, { status: 500 })
-    }
+    await prisma.folder.updateMany({
+      where: { id: { in: allFolderIds } },
+      data: { is_active: false },
+    })
 
     return NextResponse.json({
       success: true,
       message: 'Folder dan seluruh isinya berhasil di-soft delete',
       deletedFolderIds: allFolderIds,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Folders DELETE error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: error.message || 'Internal server error' },
       { status: 500 }
     )
   }

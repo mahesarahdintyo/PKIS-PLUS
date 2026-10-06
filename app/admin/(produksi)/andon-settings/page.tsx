@@ -1,24 +1,16 @@
-import { createClient } from "@/lib/db/server";
+import { getCurrentUserProfile } from "@/lib/services/auth-server";
 import { redirect } from "next/navigation";
 import AndonSettingsClient from "./andon-settings-client";
 
 export const dynamic = "force-dynamic";
 
 export default async function AndonSettingsPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { user, role } = await getCurrentUserProfile();
 
   if (!user) redirect("/");
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile || !["admin", "leader"].includes(profile.role)) {
+  if (!role || !["admin", "leader"].includes(role)) {
     redirect("/operator");
   }
 
-  return <AndonSettingsClient userId={user.id} role={profile.role} />;
+  return <AndonSettingsClient userId={user.id} role={role} />;
 }

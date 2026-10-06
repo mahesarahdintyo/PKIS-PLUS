@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/db/client";
 
 export default function OperatorGateClient() {
   const router = useRouter();
@@ -11,17 +10,21 @@ export default function OperatorGateClient() {
     let cancelled = false;
 
     async function checkAndRedirect() {
-      const supabase = createClient();
-      const { data: { user }, error } = await supabase.auth.getUser();
+      try {
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
 
-      if (cancelled) return;
+        if (cancelled) return;
 
-      if (error || !user) {
-        window.location.href = "/";
-        return;
+        if (!res.ok || !data.user) {
+          window.location.href = "/";
+          return;
+        }
+
+        router.replace("/operator/machines");
+      } catch {
+        if (!cancelled) window.location.href = "/";
       }
-
-      router.replace("/operator/machines");
     }
 
     checkAndRedirect();

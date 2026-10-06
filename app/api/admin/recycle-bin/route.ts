@@ -1,26 +1,16 @@
-import { createAdminClient } from "@/lib/db/admin";
-import { createClient } from "@/lib/db/server";
+import { prisma } from "@/lib/prisma";
+import { getCurrentUserProfile } from "@/lib/services/auth-server";
 import { NextResponse } from "next/server";
+import * as fs from "fs/promises";
+import * as path from "path";
 
 /** Verify the caller is an authenticated admin or leader. Returns 401/403 response on failure. */
 async function requireAdminOrLeader(): Promise<NextResponse | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
+  const { user, role } = await getCurrentUserProfile();
 
-  if (authError || !user) {
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const role = (profile?.role ?? user.user_metadata?.role ?? user.app_metadata?.role ?? "") as string;
 
   if (role !== "admin" && role !== "leader") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -30,149 +20,157 @@ async function requireAdminOrLeader(): Promise<NextResponse | null> {
 }
 
 // All production tables that support soft-delete via is_active
-const PROD_LOG_TABLES: Record<string, string> = {
-  attendance_log: "prod_attendance_log",
-  productivity_ref: "productivity_daily_reference",
-  scrap: "prod_scrap_top_end",
-  safety_log: "prod_safety_log",
-  production_log: "prod_production_log",
-  downtime_log: "prod_downtime_log",
-  dandori_log: "prod_dandori_log",
-  production_planning: "prod_production_planning",
-  andon_leader: "andon_leaders",
-  part_number: "prod_part_numbers",
-  nonproduksi_type: "prod_nonproduksi_types",
-  downtime_problem: "prod_downtime_problems",
+const PROD_LOG_MODELS: Record<string, { model: any; key: string; label: string }> = {
+  attendance_log: { model: prisma.prodAttendanceLog, key: "attendance_log", label: "Absensi" },
+  productivity_ref: { model: prisma.productivityDailyReference, key: "productivity_ref", label: "Earned Hours" },
+  scrap: { model: prisma.prodScrapTopEnd, key: "scrap", label: "Scrap" },
+  safety_log: { model: prisma.prodSafetyLog, key: "safety_log", label: "Safety" },
+  production_log: { model: prisma.prodProductionLog, key: "production_log", label: "Produksi" },
+  downtime_log: { model: prisma.prodDowntimeLog, key: "downtime_log", label: "Downtime" },
+  dandori_log: { model: prisma.prodDandoriLog, key: "dandori_log", label: "Non-Produksi" },
+  production_planning: { model: prisma.prodProductionPlanning, key: "production_planning", label: "Planning" },
+  andon_leader: { model: prisma.andonLeader, key: "andon_leader", label: "Andon Leader" },
+  part_number: { model: prisma.prodPartNumber, key: "part_number", label: "Part Number" },
+  nonproduksi_type: { model: prisma.prodNonproduksiType, key: "nonproduksi_type", label: "Jenis Non-Produksi" },
+  downtime_problem: { model: prisma.prodDowntimeProblem, key: "downtime_problem", label: "Problem Downtime" },
 };
 
+async function deletePhysicalFiles(filePaths: string[]) {
+  const uploadDir = process.env.UPLOAD_DIR || path.join(process.cwd(), "public", "uploads");
+  for (const filePath of filePaths) {
+    if (!filePath) continue;
+    try {
+      const fullPath = path.isAbsolute(filePath) ? filePath : path.join(uploadDir, filePath);
+      await fs.unlink(fullPath).catch(() => {});
+    } catch {}
+  }
+}
+
 // Helper to hard delete a single record according to its type
-async function hardDeleteRecord(supabase: any, type: string, id: string | number): Promise<{ success: boolean; error?: string }> {
-  if (type === "line" || type === "land") {
-    const { data: folders } = await supabase
-      .from("folders")
-      .select("id")
-      .eq("line_id", id);
-    const folderIds = (folders ?? []).map((f: any) => f.id);
+async function hardDeleteRecord(type: string, id: string | number): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (type === "line" || type === "land") {
+      const lineId = String(id);
+      const folders = await prisma.folder.findMany({
+        where: { line_id: lineId },
+        select: { id: true },
+      });
+      const folderIds = folders.map((f) => f.id);
 
-    const { data: docsInLine } = await supabase
-      .from("documents")
-      .select("id, file_path")
-      .eq("line_id", id);
+      const docsInLine = await prisma.document.findMany({
+        where: { line_id: lineId },
+        select: { id: true, file_path: true },
+      });
 
-    let docsInFolders: { id: number | string; file_path: string | null }[] = [];
-    if (folderIds.length > 0) {
-      const { data: df } = await supabase
-        .from("documents")
-        .select("id, file_path")
-        .in("folder_id", folderIds);
-      docsInFolders = df ?? [];
-    }
-
-    const allDocs = [...(docsInLine ?? []), ...docsInFolders];
-    const uniqueDocsMap = new Map();
-    allDocs.forEach((d) => uniqueDocsMap.set(d.id, d));
-    const docs = Array.from(uniqueDocsMap.values());
-
-    const filePaths = docs
-      .map((d: any) => d.file_path)
-      .filter((p: any): p is string => typeof p === "string" && p.length > 0);
-
-    if (filePaths.length > 0) {
-      await supabase.storage.from("documents").remove(filePaths);
-    }
-
-    const docIds = docs.map((d: any) => d.id);
-    if (docIds.length > 0) {
-      await supabase.from("display_documents").delete().in("document_id", docIds);
-      for (const dId of docIds) {
-        await supabase.from("display_documents").delete().eq("document->id", dId);
-      }
-      await supabase.from("documents").delete().in("id", docIds);
-    }
-
-    if (folderIds.length > 0) {
-      await supabase.from("folders").delete().in("id", folderIds);
-    }
-
-    await supabase.from("production_reports").delete().eq("line_id", id);
-    await supabase.from("display_heartbeats").delete().eq("line_id", id);
-
-    const { error } = await supabase.from("lines").delete().eq("id", id);
-    if (error) return { success: false, error: error.message };
-    return { success: true };
-  } else if (type === "folder") {
-    const folderId = typeof id === "string" ? parseInt(id) : id;
-
-    const allFolderIds: number[] = [folderId];
-    const queue: number[] = [folderId];
-
-    while (queue.length > 0) {
-      const currentIds = queue.splice(0, queue.length);
-      const { data: children } = await supabase
-        .from("folders")
-        .select("id")
-        .in("parent_id", currentIds);
-
-      if (children && children.length > 0) {
-        const childIds = children.map((f: any) => f.id as number);
-        allFolderIds.push(...childIds);
-        queue.push(...childIds);
-      }
-    }
-
-    const { data: docs } = await supabase
-      .from("documents")
-      .select("id, file_path")
-      .in("folder_id", allFolderIds);
-
-    if (docs && docs.length > 0) {
-      const filePaths = docs
-        .map((d: any) => d.file_path)
-        .filter((p: any): p is string => typeof p === "string" && p.length > 0);
-
-      if (filePaths.length > 0) {
-        await supabase.storage.from("documents").remove(filePaths);
+      let docsInFolders: { id: string; file_path: string }[] = [];
+      if (folderIds.length > 0) {
+        docsInFolders = await prisma.document.findMany({
+          where: { folder_id: { in: folderIds } },
+          select: { id: true, file_path: true },
+        });
       }
 
-      const docIds = docs.map((d: any) => d.id);
-      await supabase.from("display_documents").delete().in("document_id", docIds);
-      for (const dId of docIds) {
-        await supabase.from("display_documents").delete().eq("document->id", dId);
+      const allDocs = [...docsInLine, ...docsInFolders];
+      const uniqueDocsMap = new Map<string, { id: string; file_path: string }>();
+      allDocs.forEach((d) => uniqueDocsMap.set(d.id, d));
+      const docs = Array.from(uniqueDocsMap.values());
+
+      const filePaths = docs.map((d) => d.file_path).filter(Boolean);
+      await deletePhysicalFiles(filePaths);
+
+      const docIds = docs.map((d) => d.id);
+      if (docIds.length > 0) {
+        await prisma.displayDocument.deleteMany({
+          where: { document_id: { in: docIds } },
+        });
+        await prisma.document.deleteMany({
+          where: { id: { in: docIds } },
+        });
       }
-      await supabase.from("documents").delete().in("id", docIds);
+
+      if (folderIds.length > 0) {
+        await prisma.folder.deleteMany({
+          where: { id: { in: folderIds } },
+        });
+      }
+
+      await prisma.productionReport.deleteMany({ where: { line_id: lineId } });
+      await prisma.displayHeartbeat.deleteMany({ where: { line_id: lineId } });
+      await prisma.line.deleteMany({ where: { id: lineId } });
+
+      return { success: true };
+    } else if (type === "folder") {
+      const folderId = typeof id === "string" ? BigInt(id) : BigInt(id as number);
+
+      const allFolderIds: bigint[] = [folderId];
+      const queue: bigint[] = [folderId];
+
+      while (queue.length > 0) {
+        const currentIds = queue.splice(0, queue.length);
+        const children = await prisma.folder.findMany({
+          where: { parent_id: { in: currentIds } },
+          select: { id: true },
+        });
+
+        if (children.length > 0) {
+          const childIds = children.map((f) => f.id);
+          allFolderIds.push(...childIds);
+          queue.push(...childIds);
+        }
+      }
+
+      const docs = await prisma.document.findMany({
+        where: { folder_id: { in: allFolderIds } },
+        select: { id: true, file_path: true },
+      });
+
+      if (docs.length > 0) {
+        await deletePhysicalFiles(docs.map((d) => d.file_path).filter(Boolean));
+        const docIds = docs.map((d) => d.id);
+        await prisma.displayDocument.deleteMany({
+          where: { document_id: { in: docIds } },
+        });
+        await prisma.document.deleteMany({
+          where: { id: { in: docIds } },
+        });
+      }
+
+      await prisma.folder.deleteMany({
+        where: { id: { in: allFolderIds } },
+      });
+
+      return { success: true };
+    } else if (type === "document") {
+      const docId = String(id);
+      const doc = await prisma.document.findUnique({
+        where: { id: docId },
+        select: { id: true, file_path: true },
+      });
+
+      if (doc?.file_path) {
+        await deletePhysicalFiles([doc.file_path]);
+      }
+
+      await prisma.displayDocument.deleteMany({
+        where: { document_id: docId },
+      });
+      await prisma.document.deleteMany({
+        where: { id: docId },
+      });
+
+      return { success: true };
+    } else if (type === "production_report") {
+      await prisma.productionReport.deleteMany({ where: { id: String(id) } });
+      return { success: true };
+    } else if (PROD_LOG_MODELS[type]) {
+      const { model } = PROD_LOG_MODELS[type];
+      await model.deleteMany({ where: { id: String(id) } });
+      return { success: true };
+    } else {
+      return { success: false, error: `Tipe tidak valid: ${type}` };
     }
-
-    const { error } = await supabase.from("folders").delete().in("id", allFolderIds);
-    if (error) return { success: false, error: error.message };
-    return { success: true };
-  } else if (type === "document") {
-    const { data: doc } = await supabase
-      .from("documents")
-      .select("id, file_path")
-      .eq("id", id)
-      .single();
-
-    if (doc?.file_path) {
-      await supabase.storage.from("documents").remove([doc.file_path]);
-    }
-
-    await supabase.from("display_documents").delete().eq("document_id", id);
-    await supabase.from("display_documents").delete().eq("document->id", id);
-
-    const { error } = await supabase.from("documents").delete().eq("id", id);
-    if (error) return { success: false, error: error.message };
-    return { success: true };
-  } else if (type === "production_report") {
-    const { error } = await supabase.from("production_reports").delete().eq("id", id);
-    if (error) return { success: false, error: error.message };
-    return { success: true };
-  } else if (PROD_LOG_TABLES[type]) {
-    const tableName = PROD_LOG_TABLES[type];
-    const { error } = await supabase.from(tableName as any).delete().eq("id", id);
-    if (error) return { success: false, error: error.message };
-    return { success: true };
-  } else {
-    return { success: false, error: `Tipe tidak valid: ${type}` };
+  } catch (error: any) {
+    return { success: false, error: error.message || String(error) };
   }
 }
 
@@ -182,8 +180,6 @@ export async function DELETE(request: Request) {
   if (authResponse) return authResponse;
 
   try {
-    const supabase = createAdminClient();
-
     let type: string | null = null;
     let id: string | number | null = null;
     let items: Array<{ type: string; id: string | number }> | null = null;
@@ -206,16 +202,14 @@ export async function DELETE(request: Request) {
       action = searchParams.get("action");
     }
 
-    // -------------------------------------------------------------
-    // Bulk Items Permanent Hard Delete
-    // -------------------------------------------------------------
+    // 1. Bulk Items Permanent Hard Delete
     if (items && items.length > 0) {
       const errors: string[] = [];
       let deletedCount = 0;
 
       for (const item of items) {
         if (!item.type || !item.id) continue;
-        const res = await hardDeleteRecord(supabase, item.type, item.id);
+        const res = await hardDeleteRecord(item.type, item.id);
         if (res.success) {
           deletedCount++;
         } else if (res.error) {
@@ -234,11 +228,9 @@ export async function DELETE(request: Request) {
       });
     }
 
-    // -------------------------------------------------------------
-    // Single Item Permanent Hard Delete
-    // -------------------------------------------------------------
+    // 2. Single Item Permanent Hard Delete
     if (type && id) {
-      const res = await hardDeleteRecord(supabase, type, id);
+      const res = await hardDeleteRecord(type, id);
       if (!res.success) {
         return NextResponse.json({ error: res.error ?? "Gagal menghapus item" }, { status: 500 });
       }
@@ -248,9 +240,7 @@ export async function DELETE(request: Request) {
       });
     }
 
-    // -------------------------------------------------------------
-    // Empty Entire Recycle Bin (Only when action === 'empty_all')
-    // -------------------------------------------------------------
+    // 3. Empty Entire Recycle Bin (action === 'empty_all')
     if (action !== "empty_all") {
       return NextResponse.json(
         { error: "Parameter type/id, items, atau action=empty_all diperlukan" },
@@ -258,164 +248,74 @@ export async function DELETE(request: Request) {
       );
     }
 
-    // 1. Fetch all inactive records first so deletes can be scoped by explicit IDs.
-    const { data: documents, error: docsFetchError } = await supabase
-      .from("documents")
-      .select("id, file_path")
-      .eq("is_active", false);
+    const documents = await prisma.document.findMany({
+      where: { is_active: false },
+      select: { id: true, file_path: true },
+    });
 
-    if (docsFetchError) {
-      return NextResponse.json({ error: docsFetchError.message }, { status: 500 });
-    }
+    const docIds = documents.map((d) => d.id);
+    await deletePhysicalFiles(documents.map((d) => d.file_path).filter(Boolean));
 
-    const { data: folders, error: foldersFetchError } = await supabase
-      .from("folders")
-      .select("id")
-      .eq("is_active", false);
-
-    if (foldersFetchError) {
-      return NextResponse.json({ error: foldersFetchError.message }, { status: 500 });
-    }
-
-    const { data: reports, error: reportsFetchError } = await supabase
-      .from("production_reports")
-      .select("id")
-      .eq("is_active", false);
-
-    if (reportsFetchError) {
-      return NextResponse.json({ error: reportsFetchError.message }, { status: 500 });
-    }
-
-    const { data: lines, error: linesFetchError } = await supabase
-      .from("lines")
-      .select("id")
-      .eq("is_active", false);
-
-    if (linesFetchError) {
-      return NextResponse.json({ error: linesFetchError.message }, { status: 500 });
-    }
-
-    const docIds = (documents ?? []).map((document: any) => document.id);
-    const folderIds = (folders ?? []).map((folder: any) => folder.id);
-    const lineIds = (lines ?? []).map((line: any) => line.id);
-    const reportIds = (reports ?? []).map((report: any) => report.id);
-
-    // 2. Delete physical files from Supabase Storage. Missing files should not block DB cleanup.
-    if ((documents ?? []).length > 0) {
-      const filePaths = (documents ?? [])
-        .map((d: any) => d.file_path)
-        .filter((path: any): path is string => typeof path === "string" && path.length > 0);
-
-      if (filePaths.length > 0) {
-        const { error: storageError } = await supabase.storage
-          .from("documents")
-          .remove(filePaths);
-
-        if (storageError) {
-          console.error("Supabase Storage hard delete error during empty trash:", storageError);
-          // We continue to clean the database even if storage removal failed (e.g. missing files)
-        }
-      }
-
-      // Clear references in display_documents for these documents
-      await supabase.from("display_documents").delete().in("document_id", docIds);
-      for (const docId of docIds) {
-        await supabase.from("display_documents").delete().eq("document->id", docId);
-      }
-    }
-
-    // 3. Database DELETE inactive documents
-    let deletedDocuments = 0;
     if (docIds.length > 0) {
-      const { count, error: docDeleteError } = await supabase
-        .from("documents")
-        .delete({ count: "exact" })
-        .in("id", docIds);
-
-      if (docDeleteError) {
-        return NextResponse.json({ error: docDeleteError.message }, { status: 500 });
-      }
-
-      deletedDocuments = count ?? 0;
+      await prisma.displayDocument.deleteMany({
+        where: { document_id: { in: docIds } },
+      });
+      await prisma.document.deleteMany({
+        where: { id: { in: docIds } },
+      });
     }
 
-    // 4. Delete inactive folders.
-    let deletedFolders = 0;
-    if (folderIds.length > 0) {
-      const { count, error: folderDeleteError } = await supabase
-        .from("folders")
-        .delete({ count: "exact" })
-        .in("id", folderIds);
+    const deletedFolders = await prisma.folder.deleteMany({
+      where: { is_active: false },
+    });
 
-      if (folderDeleteError) {
-        return NextResponse.json({ error: folderDeleteError.message }, { status: 500 });
-      }
+    const deletedProductionReports = await prisma.productionReport.deleteMany({
+      where: { is_active: false },
+    });
 
-      deletedFolders = count ?? 0;
-    }
-
-    // 5. Delete inactive production reports.
-    let deletedProductionReports = 0;
-    if (reportIds.length > 0) {
-      const { count, error: reportDeleteError } = await supabase
-        .from("production_reports")
-        .delete({ count: "exact" })
-        .in("id", reportIds);
-
-      if (reportDeleteError) {
-        return NextResponse.json({ error: reportDeleteError.message }, { status: 500 });
-      }
-
-      deletedProductionReports = count ?? 0;
-    }
-
-    // 6. Delete inactive lines and related heartbeat rows.
-    let deletedLines = 0;
+    const inactiveLines = await prisma.line.findMany({
+      where: { is_active: false },
+      select: { id: true },
+    });
+    const lineIds = inactiveLines.map((l) => l.id);
     if (lineIds.length > 0) {
-      await supabase.from("display_heartbeats").delete().in("line_id", lineIds);
-
-      const { count, error: lineDeleteError } = await supabase
-        .from("lines")
-        .delete({ count: "exact" })
-        .in("id", lineIds);
-
-      if (lineDeleteError) {
-        return NextResponse.json({ error: lineDeleteError.message }, { status: 500 });
-      }
-
-      deletedLines = count ?? 0;
+      await prisma.displayHeartbeat.deleteMany({
+        where: { line_id: { in: lineIds } },
+      });
+      await prisma.line.deleteMany({
+        where: { id: { in: lineIds } },
+      });
     }
 
-    // 7. Delete all inactive production module records
     let deletedProdLogs = 0;
-    for (const tableName of Object.values(PROD_LOG_TABLES)) {
-      const { count } = await supabase
-        .from(tableName as any)
-        .delete({ count: "exact" })
-        .eq("is_active", false);
-      deletedProdLogs += count ?? 0;
+    for (const { model } of Object.values(PROD_LOG_MODELS)) {
+      const res = await model.deleteMany({
+        where: { is_active: false },
+      });
+      deletedProdLogs += res.count;
     }
 
     return NextResponse.json({
       success: true,
       message: "Tempat sampah berhasil dikosongkan secara permanen.",
       deleted: {
-        lines: deletedLines,
-        folders: deletedFolders,
-        documents: deletedDocuments,
-        productionReports: deletedProductionReports,
+        lines: lineIds.length,
+        folders: deletedFolders.count,
+        documents: documents.length,
+        productionReports: deletedProductionReports.count,
         prodLogs: deletedProdLogs,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Recycle Bin empty error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal server error" },
+      { error: error?.message || "Internal server error" },
       { status: 500 }
     );
   }
 }
-// POST - Restore a single item (set is_active = true, and recursively activate its dependencies)
+
+// POST - Restore a single item (set is_active = true)
 export async function POST(request: Request) {
   const authResponse = await requireAdminOrLeader();
   if (authResponse) return authResponse;
@@ -431,135 +331,115 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = createAdminClient();
-
     if (type === "line" || type === "land") {
-      // 1. Restore the line itself
-      await supabase.from("lines").update({ is_active: true }).eq("id", id);
+      const lineId = String(id);
+      await prisma.line.updateMany({ where: { id: lineId }, data: { is_active: true } });
 
-      // 2. Restore all folders of this line
-      const { data: folders } = await supabase
-        .from("folders")
-        .select("id")
-        .eq("line_id", id);
-
-      const folderIds = (folders ?? []).map((f: any) => f.id);
+      const folders = await prisma.folder.findMany({
+        where: { line_id: lineId },
+        select: { id: true },
+      });
+      const folderIds = folders.map((f) => f.id);
 
       if (folderIds.length > 0) {
-        await supabase.from("folders").update({ is_active: true }).in("id", folderIds);
-        // Restore documents inside the line's folders
-        await supabase.from("documents").update({ is_active: true }).in("folder_id", folderIds);
+        await prisma.folder.updateMany({ where: { id: { in: folderIds } }, data: { is_active: true } });
+        await prisma.document.updateMany({ where: { folder_id: { in: folderIds } }, data: { is_active: true } });
       }
 
-      // 3. Restore all documents directly in the line
-      await supabase.from("documents").update({ is_active: true }).eq("line_id", id);
-
+      await prisma.document.updateMany({ where: { line_id: lineId }, data: { is_active: true } });
     } else if (type === "folder") {
-      const folderId = typeof id === "string" ? parseInt(id) : id;
+      const folderId = typeof id === "string" ? BigInt(id) : BigInt(id as number);
 
-      // 1. Restore folder and all its child folders/documents recursively
-      const allFolderIds: number[] = [folderId];
-      const queue: number[] = [folderId];
+      const allFolderIds: bigint[] = [folderId];
+      const queue: bigint[] = [folderId];
 
       while (queue.length > 0) {
         const currentIds = queue.splice(0, queue.length);
+        const children = await prisma.folder.findMany({
+          where: { parent_id: { in: currentIds } },
+          select: { id: true },
+        });
 
-        const { data: children } = await supabase
-          .from("folders")
-          .select("id")
-          .in("parent_id", currentIds);
-
-        if (children && children.length > 0) {
-          const childIds = children.map((f: any) => f.id as number);
+        if (children.length > 0) {
+          const childIds = children.map((f) => f.id);
           allFolderIds.push(...childIds);
           queue.push(...childIds);
         }
       }
 
-      // Restore all folders in the hierarchy
-      await supabase.from("folders").update({ is_active: true }).in("id", allFolderIds);
+      await prisma.folder.updateMany({ where: { id: { in: allFolderIds } }, data: { is_active: true } });
+      await prisma.document.updateMany({ where: { folder_id: { in: allFolderIds } }, data: { is_active: true } });
 
-      // Restore all documents in these folders
-      await supabase.from("documents").update({ is_active: true }).in("folder_id", allFolderIds);
-
-      // 2. Recursively ensure parent chain (parent folders and parent line) is active
-      let currentFolderId: number | null = folderId;
+      // Recursively ensure parent chain is active
+      let currentFolderId: bigint | null = folderId;
       while (currentFolderId) {
-        const { data: folder } = await supabase
-          .from("folders")
-          .select("parent_id, line_id")
-          .eq("id", currentFolderId)
-          .single();
+        const folder: any = await prisma.folder.findUnique({
+          where: { id: currentFolderId },
+          select: { parent_id: true, line_id: true },
+        });
 
         if (!folder) break;
 
         if (folder.parent_id) {
-          await supabase.from("folders").update({ is_active: true }).eq("id", folder.parent_id);
+          await prisma.folder.updateMany({ where: { id: folder.parent_id }, data: { is_active: true } });
           currentFolderId = folder.parent_id;
         } else {
           if (folder.line_id) {
-            await supabase.from("lines").update({ is_active: true }).eq("id", folder.line_id);
+            await prisma.line.updateMany({ where: { id: folder.line_id }, data: { is_active: true } });
           }
           break;
         }
       }
-
     } else if (type === "production_report") {
-      await supabase.from("production_reports").update({ is_active: true }).eq("id", id);
-
+      await prisma.productionReport.updateMany({ where: { id: String(id) }, data: { is_active: true } });
     } else if (type === "document") {
-      // 1. Restore the document itself
-      await supabase.from("documents").update({ is_active: true }).eq("id", id);
+      const docId = String(id);
+      await prisma.document.updateMany({ where: { id: docId }, data: { is_active: true } });
 
-      // 2. Ensure its parent folder or parent line is active
-      const { data: doc } = await supabase
-        .from("documents")
-        .select("folder_id, line_id")
-        .eq("id", id)
-        .single();
+      const doc = await prisma.document.findUnique({
+        where: { id: docId },
+        select: { folder_id: true, line_id: true },
+      });
 
       if (doc) {
         if (doc.line_id) {
-          await supabase.from("lines").update({ is_active: true }).eq("id", doc.line_id);
+          await prisma.line.updateMany({ where: { id: doc.line_id }, data: { is_active: true } });
         }
         if (doc.folder_id) {
-          await supabase.from("folders").update({ is_active: true }).eq("id", doc.folder_id);
+          await prisma.folder.updateMany({ where: { id: doc.folder_id }, data: { is_active: true } });
 
-          // Recursively restore parent folders
-          let currentFolderId: number | null = doc.folder_id;
+          let currentFolderId: bigint | null = doc.folder_id;
           while (currentFolderId) {
-            const { data: folder } = await supabase
-              .from("folders")
-              .select("parent_id, line_id")
-              .eq("id", currentFolderId)
-              .single();
+            const folder: any = await prisma.folder.findUnique({
+              where: { id: currentFolderId },
+              select: { parent_id: true, line_id: true },
+            });
 
             if (!folder) break;
 
             if (folder.parent_id) {
-              await supabase.from("folders").update({ is_active: true }).eq("id", folder.parent_id);
+              await prisma.folder.updateMany({ where: { id: folder.parent_id }, data: { is_active: true } });
               currentFolderId = folder.parent_id;
             } else {
               if (folder.line_id) {
-                await supabase.from("lines").update({ is_active: true }).eq("id", folder.line_id);
+                await prisma.line.updateMany({ where: { id: folder.line_id }, data: { is_active: true } });
               }
               break;
             }
           }
         }
       }
-    } else if (PROD_LOG_TABLES[type]) {
-      // Restore a production module record
-      const tableName = PROD_LOG_TABLES[type];
-      await supabase.from(tableName as any).update({ is_active: true }).eq("id", id);
+    } else if (PROD_LOG_MODELS[type]) {
+      const { model } = PROD_LOG_MODELS[type];
+      await model.updateMany({ where: { id: String(id) }, data: { is_active: true } });
     } else {
       return NextResponse.json({ error: "Invalid type specified" }, { status: 400 });
     }
 
     return NextResponse.json({ success: true, message: "Item berhasil dipulihkan." });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Recycle Bin restore error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: error?.message || "Internal server error" }, { status: 500 });
   }
 }
 
@@ -572,70 +452,61 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const group = searchParams.get("group"); // "log_produksi" | "master_data" | "andon"
 
-    const supabase = createAdminClient();
-
     if (group === "log_produksi") {
       const tables = [
-        { key: "attendance_log", table: "prod_attendance_log", label: "Absensi" },
-        { key: "productivity_ref", table: "productivity_daily_reference", label: "Earned Hours" },
-        { key: "scrap", table: "prod_scrap_top_end", label: "Scrap" },
-        { key: "safety_log", table: "prod_safety_log", label: "Safety" },
-        { key: "production_log", table: "prod_production_log", label: "Produksi" },
-        { key: "downtime_log", table: "prod_downtime_log", label: "Downtime" },
-        { key: "dandori_log", table: "prod_dandori_log", label: "Non-Produksi" },
-        { key: "production_planning", table: "prod_production_planning", label: "Planning" },
+        PROD_LOG_MODELS.attendance_log,
+        PROD_LOG_MODELS.productivity_ref,
+        PROD_LOG_MODELS.scrap,
+        PROD_LOG_MODELS.safety_log,
+        PROD_LOG_MODELS.production_log,
+        PROD_LOG_MODELS.downtime_log,
+        PROD_LOG_MODELS.dandori_log,
+        PROD_LOG_MODELS.production_planning,
       ];
 
       const results: any[] = [];
       for (const t of tables) {
-        const { data } = await supabase
-          .from(t.table as any)
-          .select("*")
-          .eq("is_active", false)
-          .order("created_at", { ascending: false })
-          .limit(200);
-        if (data) {
-          results.push(...data.map((r: any) => ({ ...r, _type: t.key, _label: t.label })));
-        }
+        const data = await t.model.findMany({
+          where: { is_active: false },
+          orderBy: { created_at: "desc" },
+          take: 200,
+        });
+        results.push(...data.map((r: any) => ({ ...r, _type: t.key, _label: t.label })));
       }
       return NextResponse.json(results);
     }
 
     if (group === "master_data") {
       const tables = [
-        { key: "part_number", table: "prod_part_numbers", label: "Part Number" },
-        { key: "nonproduksi_type", table: "prod_nonproduksi_types", label: "Jenis Non-Produksi" },
-        { key: "downtime_problem", table: "prod_downtime_problems", label: "Problem Downtime" },
+        PROD_LOG_MODELS.part_number,
+        PROD_LOG_MODELS.nonproduksi_type,
+        PROD_LOG_MODELS.downtime_problem,
       ];
 
       const results: any[] = [];
       for (const t of tables) {
-        const { data } = await supabase
-          .from(t.table as any)
-          .select("*")
-          .eq("is_active", false)
-          .order("created_at", { ascending: false })
-          .limit(200);
-        if (data) {
-          results.push(...data.map((r: any) => ({ ...r, _type: t.key, _label: t.label })));
-        }
+        const data = await t.model.findMany({
+          where: { is_active: false },
+          orderBy: { created_at: "desc" },
+          take: 200,
+        });
+        results.push(...data.map((r: any) => ({ ...r, _type: t.key, _label: t.label })));
       }
       return NextResponse.json(results);
     }
 
     if (group === "andon") {
-      const { data } = await supabase
-        .from("andon_leaders" as any)
-        .select("*, profiles(full_name, email)")
-        .eq("is_active", false)
-        .order("created_at", { ascending: false })
-        .limit(200);
-      return NextResponse.json(data ?? []);
+      const data = await prisma.andonLeader.findMany({
+        where: { is_active: false },
+        orderBy: { created_at: "desc" },
+        take: 200,
+      });
+      return NextResponse.json(data);
     }
 
     return NextResponse.json({ error: "group parameter required" }, { status: 400 });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Recycle Bin GET error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: error?.message || "Internal server error" }, { status: 500 });
   }
 }

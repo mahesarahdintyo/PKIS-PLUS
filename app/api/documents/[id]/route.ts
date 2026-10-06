@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/db/server'
+import { prisma } from '@/lib/prisma'
 import { getCurrentUserProfile } from '@/lib/services/auth-server'
 import { NextResponse } from 'next/server'
 
@@ -51,40 +51,28 @@ export async function PATCH(
       )
     }
 
-    if (
-      typeof fileName !== 'undefined' &&
-      typeof fileName !== 'string'
-    ) {
+    if (typeof fileName !== 'undefined' && typeof fileName !== 'string') {
       return NextResponse.json(
         { error: 'File name must be a string' },
         { status: 400 }
       )
     }
 
-    if (
-      typeof title !== 'undefined' &&
-      typeof title !== 'string'
-    ) {
+    if (typeof title !== 'undefined' && typeof title !== 'string') {
       return NextResponse.json(
         { error: 'Title must be a string' },
         { status: 400 }
       )
     }
 
-    if (
-      typeof linkPartNumberId !== 'undefined' &&
-      typeof linkPartNumberId !== 'string'
-    ) {
+    if (typeof linkPartNumberId !== 'undefined' && typeof linkPartNumberId !== 'string') {
       return NextResponse.json(
         { error: 'linkPartNumberId must be a string' },
         { status: 400 }
       )
     }
 
-    if (
-      typeof unlinkPartNumberId !== 'undefined' &&
-      typeof unlinkPartNumberId !== 'string'
-    ) {
+    if (typeof unlinkPartNumberId !== 'undefined' && typeof unlinkPartNumberId !== 'string') {
       return NextResponse.json(
         { error: 'unlinkPartNumberId must be a string' },
         { status: 400 }
@@ -125,72 +113,42 @@ export async function PATCH(
       )
     }
 
-    const supabase = await createClient()
-
     let documentData: any = null
 
     if (Object.keys(updateFields).length > 0) {
-      // Mengganti .single() dengan .select() agar aman dari error single row coercion
-      const { data: rawData, error } = await supabase
-        .from('documents')
-        .update(updateFields)
-        .eq('id', id)
-        .select('id, target_time, hidden_from_operator, file_name, title')
-
-      if (error) {
-        return NextResponse.json(
-          { error: error.message },
-          { status: 500 }
-        )
-      }
-
-      documentData = Array.isArray(rawData) ? rawData[0] : rawData
-
-      if (!documentData) {
-        return NextResponse.json(
-          { error: 'Document not found or update failed' },
-          { status: 404 }
-        )
-      }
+      documentData = await prisma.document.update({
+        where: { id },
+        data: updateFields,
+        select: {
+          id: true,
+          target_time: true,
+          hidden_from_operator: true,
+          file_name: true,
+          title: true,
+        },
+      })
     }
 
     if (linkPartNumberId) {
-      const { error: linkErr } = await supabase
-        .from('prod_part_numbers' as any)
-        .update({ document_id: id })
-        .eq('id', linkPartNumberId)
-
-      if (linkErr) {
-        return NextResponse.json(
-          { error: linkErr.message },
-          { status: 500 }
-        )
-      }
+      await prisma.prodPartNumber.update({
+        where: { id: linkPartNumberId },
+        data: { document_id: id },
+      })
     }
 
     if (unlinkPartNumberId) {
-      const { error: unlinkErr } = await supabase
-        .from('prod_part_numbers' as any)
-        .update({ document_id: null })
-        .eq('id', unlinkPartNumberId)
-        .eq('document_id', id)
-
-      if (unlinkErr) {
-        return NextResponse.json(
-          { error: unlinkErr.message },
-          { status: 500 }
-        )
-      }
+      await prisma.prodPartNumber.updateMany({
+        where: { id: unlinkPartNumberId, document_id: id },
+        data: { document_id: null },
+      })
     }
 
-    // Query linked part numbers to return updated list
-    const { data: linkedParts } = await supabase
-      .from('prod_part_numbers' as any)
-      .select('id, value')
-      .eq('document_id', id)
-      .eq('is_active', true)
+    const linkedParts = await prisma.prodPartNumber.findMany({
+      where: { document_id: id, is_active: true },
+      select: { id: true, value: true },
+    })
 
-    const linkedPartNumbers = (linkedParts || []).map((p: any) => ({
+    const linkedPartNumbers = linkedParts.map((p) => ({
       id: p.id,
       value: p.value || '-',
     }))
@@ -211,9 +169,42 @@ export async function PATCH(
             linkedPartNumbers,
           },
     })
-  } catch (error) {
+  } catch (error: any) {
+    console.error('Documents PATCH error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: error.message || 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Document ID is required' },
+        { status: 400 }
+      )
+    }
+
+    const doc = await prisma.document.findUnique({
+      where: { id },
+    })
+
+    if (!doc) {
+      return NextResponse.json({ error: 'Document not found' }, { status: 404 })
+    }
+
+    return NextResponse.json(doc)
+  } catch (error: any) {
+    console.error('Documents GET error:', error)
+    return NextResponse.json(
+      { error: error.message || 'Internal server error' },
       { status: 500 }
     )
   }
@@ -233,36 +224,27 @@ export async function DELETE(
       )
     }
 
-    const supabase = await createClient()
     const userProfile = await getCurrentUserProfile()
     if (!userProfile.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // --- Hapus referensi dari layar display agar langsung hilang di layar TV ---
-    await supabase.from('display_documents').delete().eq('document_id', id)
-    
-    // (Fail-safe) Jika skema menggunakan format JSON (document->>id)
-    await supabase.from('display_documents').delete().eq('document->>id', id)
-    // ---------------------------------------------------------
+    // Hapus referensi dari layar display
+    await prisma.displayDocument.deleteMany({
+      where: { document_id: id },
+    })
 
     // Soft delete document record (update is_active = false)
-    const { error: deleteError } = await supabase
-      .from('documents')
-      .update({ is_active: false })
-      .eq('id', id)
-
-    if (deleteError) {
-      return NextResponse.json(
-        { error: deleteError.message },
-        { status: 500 }
-      )
-    }
+    await prisma.document.update({
+      where: { id },
+      data: { is_active: false },
+    })
 
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch (error: any) {
+    console.error('Documents DELETE error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: error.message || 'Internal server error' },
       { status: 500 }
     )
   }

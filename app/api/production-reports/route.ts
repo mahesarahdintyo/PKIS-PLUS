@@ -1,11 +1,11 @@
-import { createClient } from "@/lib/db/server";
+import { prisma } from "@/lib/prisma";
 import { getCurrentUserProfile } from "@/lib/services/auth-server";
 import { NextResponse } from "next/server";
 
-function formatDatePart(isoString?: string | null): string {
-  if (!isoString) return "-";
+function formatDatePart(dateVal?: Date | string | null): string {
+  if (!dateVal) return "-";
   try {
-    const d = new Date(isoString);
+    const d = new Date(dateVal);
     if (isNaN(d.getTime())) return "-";
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, "0");
@@ -16,10 +16,10 @@ function formatDatePart(isoString?: string | null): string {
   }
 }
 
-function formatTimePart(isoString?: string | null): string {
-  if (!isoString) return "-";
+function formatTimePart(dateVal?: Date | string | null): string {
+  if (!dateVal) return "-";
   try {
-    const d = new Date(isoString);
+    const d = new Date(dateVal);
     if (isNaN(d.getTime())) return "-";
     const hours = String(d.getHours()).padStart(2, "0");
     const minutes = String(d.getMinutes()).padStart(2, "0");
@@ -42,69 +42,66 @@ export async function GET(request: Request) {
     if (!userProfile.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const lineId = userProfile.role === "operator" && userProfile.lineId ? userProfile.lineId : reqLineId;
+    const lineId =
+      userProfile.role === "operator" && userProfile.lineId
+        ? userProfile.lineId
+        : reqLineId;
 
-    const supabase = await createClient();
-
-    let query = supabase
-      .from("prod_production_log" as any)
-      .select(`
-        *,
-        line:lines(name)
-      `);
+    const where: any = {};
 
     if (showTrash) {
-      query = query.eq("is_active", false);
+      where.is_active = false;
     } else {
-      query = query.or("is_active.eq.true,is_active.is.null");
+      where.OR = [{ is_active: true }, { is_active: null }];
     }
 
-    // Only filter by line if lineId is specified and is not "all"
     if (lineId && lineId !== "all" && lineId !== "undefined") {
-      query = query.eq("line_id", lineId);
+      where.line_id = lineId;
     }
 
-    // Filter by date range if provided (from waktu_awal)
-    if (startDate) {
-      query = query.gte("waktu_awal", `${startDate}T00:00:00.000Z`);
-    }
-    if (endDate) {
-      query = query.lte("waktu_awal", `${endDate}T23:59:59.999Z`);
+    if (startDate || endDate) {
+      where.waktu_awal = {};
+      if (startDate) where.waktu_awal.gte = new Date(`${startDate}T00:00:00.000Z`);
+      if (endDate) where.waktu_awal.lte = new Date(`${endDate}T23:59:59.999Z`);
     }
 
-    const { data: rows, error } = await query
-      .order("waktu_awal", { ascending: false })
-      .order("created_at", { ascending: false });
+    const rows = await prisma.prodProductionLog.findMany({
+      where,
+      orderBy: [
+        { waktu_awal: "desc" },
+        { created_at: "desc" },
+      ],
+    });
 
-    if (error) {
-      console.error("Error fetching production reports:", error);
-      return NextResponse.json(
-        { error: error.message },
-        { status: 500 }
+    const userIds = Array.from(
+      new Set(rows.map((r: any) => r.created_by).filter(Boolean))
+    ) as string[];
+
+    const lineIds = Array.from(
+      new Set(rows.map((r: any) => r.line_id).filter(Boolean))
+    ) as string[];
+
+    let profilesMap: Record<string, string> = {};
+    if (userIds.length > 0) {
+      const profiles = await prisma.profile.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, full_name: true },
+      });
+      profilesMap = Object.fromEntries(
+        profiles.map((p) => [p.id, p.full_name || "-"])
       );
     }
 
-    const rawRows = (rows as any[]) ?? [];
-
-    // Fetch operator profiles for created_by
-    const userIds = Array.from(
-      new Set(rawRows.map((r: any) => r.created_by).filter(Boolean))
-    );
-    let profilesMap: Record<string, string> = {};
-    if (userIds.length > 0) {
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .in("id", userIds);
-      if (profiles) {
-        profilesMap = Object.fromEntries(
-          profiles.map((p: any) => [p.id, p.full_name || "-"])
-        );
-      }
+    let linesMap: Record<string, string> = {};
+    if (lineIds.length > 0) {
+      const lines = await prisma.line.findMany({
+        where: { id: { in: lineIds } },
+        select: { id: true, name: true },
+      });
+      linesMap = Object.fromEntries(lines.map((l) => [l.id, l.name]));
     }
 
-    // Map to ProductionReport shape (without shift)
-    const mappedReports = rawRows.map((row: any) => ({
+    const mappedReports = rows.map((row: any) => ({
       id: row.id,
       line_id: row.line_id || "",
       report_date: formatDatePart(row.waktu_awal),
@@ -118,15 +115,15 @@ export async function GET(request: Request) {
       ng_category: row.kategori_ng ?? null,
       created_at: row.created_at,
       updated_at: row.updated_at,
-      line: row.line ? { name: row.line.name } : null,
+      line: row.line_id && linesMap[row.line_id] ? { name: linesMap[row.line_id] } : null,
       is_active: row.is_active,
     }));
 
     return NextResponse.json(mappedReports);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Production reports GET error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: error.message || "Internal server error" },
       { status: 500 }
     );
   }
@@ -154,9 +151,11 @@ export async function POST(request: Request) {
     if (!userProfile.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const line_id = userProfile.role === "operator" && userProfile.lineId ? userProfile.lineId : reqLineId;
+    const line_id =
+      userProfile.role === "operator" && userProfile.lineId
+        ? userProfile.lineId
+        : reqLineId;
 
-    // Validate required fields
     if (
       !line_id ||
       !report_date ||
@@ -175,11 +174,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = await createClient();
-
-    const { data, error } = await supabase
-      .from("production_reports")
-      .insert({
+    const newReport = await prisma.productionReport.create({
+      data: {
         line_id,
         report_date,
         shift,
@@ -192,24 +188,54 @@ export async function POST(request: Request) {
         ng_category: ng_category ? ng_category.trim() : null,
         break_minutes: parseInt(break_minutes) || 0,
         is_active: true,
-      })
-      .select()
-      .single();
+      },
+    });
 
-    if (error) {
-      console.error("Error creating production report:", error);
-      return NextResponse.json(
-        { error: error.message },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json(data, { status: 201 });
-  } catch (error) {
+    return NextResponse.json(newReport, { status: 201 });
+  } catch (error: any) {
     console.error("Production reports POST error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: error.message || "Internal server error" },
       { status: 500 }
     );
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const userProfile = await getCurrentUserProfile();
+    if (!userProfile.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const ids = body.ids;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json(
+        { error: "Daftar ID laporan wajib diisi" },
+        { status: 400 }
+      );
+    }
+
+    // Soft delete in prod_production_log and production_reports
+    await prisma.prodProductionLog.updateMany({
+      where: { id: { in: ids } },
+      data: { is_active: false },
+    });
+
+    await prisma.productionReport.updateMany({
+      where: { id: { in: ids } },
+      data: { is_active: false },
+    });
+
+    return NextResponse.json({ success: true, count: ids.length });
+  } catch (error: any) {
+    console.error("Production reports bulk DELETE error:", error);
+    return NextResponse.json(
+      { error: error.message || "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+

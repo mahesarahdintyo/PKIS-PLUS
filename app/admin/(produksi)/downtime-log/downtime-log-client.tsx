@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -17,7 +17,7 @@ import {
   Check,
   Layers,
 } from "lucide-react";
-import { createClient } from "@/lib/db/client";
+import { downtimeApi, masterDataApi, linesApi, subscribeToSocketEvent } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -113,8 +113,6 @@ const emptyForm = (): DowntimeFormState => {
 };
 
 export default function DowntimeLogClient() {
-  const supabase = useMemo(() => createClient(), []);
-
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const sevenDaysAgo = useMemo(() => {
     const d = new Date();
@@ -161,9 +159,6 @@ export default function DowntimeLogClient() {
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const [deleteError, setDeleteError] = useState<string>("");
 
-  const channelNameRef = useRef<string>(
-    "downtime_log_watch_" + Math.random().toString(36).slice(2)
-  );
 
   // Machine lookup list
   const machineOptions = useMemo(() => {
@@ -189,10 +184,10 @@ export default function DowntimeLogClient() {
     async function loadAuxData() {
       try {
         const [{ data: probs }, { data: lineData }] = await Promise.all([
-          supabase.from("prod_downtime_problems" as any).select("value").eq("is_active", true).order("value"),
-          supabase.from("lines").select("id, name").eq("is_active", true).order("name"),
+          masterDataApi.get({ type: "problems", mesin: "all" }),
+          linesApi.get(),
         ]);
-        if (probs) {
+        if (probs && Array.isArray(probs)) {
           setProblemSuggestions(probs.map((p: any) => p.value).filter(Boolean));
         }
         if (lineData) {
@@ -203,7 +198,7 @@ export default function DowntimeLogClient() {
       }
     }
     loadAuxData();
-  }, [supabase]);
+  }, []);
 
   // Fetch Downtime
   const fetchDowntime = useCallback(
@@ -215,36 +210,19 @@ export default function DowntimeLogClient() {
       }
 
       try {
-        const from = targetPage * PAGE_SIZE;
-        const to = from + PAGE_SIZE - 1;
+        const params: Parameters<typeof downtimeApi.get>[0] = {
+          page: targetPage,
+          limit: PAGE_SIZE,
+          is_active: true,
+        };
 
-        let q = supabase
-          .from("prod_downtime_log" as any)
-          .select("*")
-          .eq("is_active", true)
-          .order("waktu_awal", { ascending: false })
-          .range(from, to);
+        if (filterMesin !== "all") params.mesin = filterMesin;
+        if (filterKategori !== "all") params.kategori = filterKategori;
+        if (filterTanggalDari) params.startDate = `${filterTanggalDari}T00:00:00`;
+        if (filterTanggalSampai) params.endDate = `${filterTanggalSampai}T23:59:59.999`;
 
-        if (filterMesin !== "all") {
-          q = q.eq("mesin", filterMesin);
-        }
-
-        if (filterKategori !== "all") {
-          q = q.eq("kategori", filterKategori);
-        }
-
-        if (filterTanggalDari) {
-          const startIso = new Date(`${filterTanggalDari}T00:00:00`).toISOString();
-          q = q.gte("waktu_awal", startIso);
-        }
-
-        if (filterTanggalSampai) {
-          const endIso = new Date(`${filterTanggalSampai}T23:59:59.999`).toISOString();
-          q = q.lte("waktu_awal", endIso);
-        }
-
-        const { data, error } = await q;
-        if (error) throw error;
+        const { data, error } = await downtimeApi.get(params);
+        if (error) throw new Error(error);
 
         const rows = (data || []).map((r: any) => {
           let durasi = r.durasi_menit || r.durasi;
@@ -277,30 +255,20 @@ export default function DowntimeLogClient() {
         }
       }
     },
-    [filterMesin, filterKategori, filterTanggalDari, filterTanggalSampai, supabase]
+    [filterMesin, filterKategori, filterTanggalDari, filterTanggalSampai]
   );
 
   useEffect(() => {
     fetchDowntime(0);
   }, [fetchDowntime]);
 
-  // Supabase Realtime subscription
+  // Socket.io subscription for realtime updates
   useEffect(() => {
-    const channel = supabase
-      .channel(channelNameRef.current)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "prod_downtime_log" },
-        () => {
-          fetchDowntime(0);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchDowntime, supabase]);
+    const unsub = subscribeToSocketEvent("prod_downtime_log", "*", () => {
+      fetchDowntime(0);
+    });
+    return () => unsub();
+  }, [fetchDowntime]);
 
   const resetFilters = () => {
     setFilterMesin("all");
@@ -394,8 +362,8 @@ export default function DowntimeLogClient() {
         is_active: true,
       };
 
-      const { error } = await supabase.from("prod_downtime_log" as any).insert(payload);
-      if (error) throw error;
+      const { error } = await downtimeApi.create(payload);
+      if (error) throw new Error(error);
 
       toast.success("Data downtime berhasil ditambahkan.");
       setShowCreateModal(false);
@@ -448,12 +416,8 @@ export default function DowntimeLogClient() {
         countermeasure: editForm.countermeasure.trim() || null,
       };
 
-      const { error } = await supabase
-        .from("prod_downtime_log" as any)
-        .update(payload)
-        .eq("id", editTarget.id);
-
-      if (error) throw error;
+      const { error } = await downtimeApi.update(editTarget.id, payload);
+      if (error) throw new Error(error);
 
       toast.success("Data downtime berhasil diperbarui.");
       setEditTarget(null);
@@ -473,12 +437,8 @@ export default function DowntimeLogClient() {
       setIsDeleting(true);
       setDeleteError("");
 
-      const { error } = await supabase
-        .from("prod_downtime_log" as any)
-        .update({ is_active: false })
-        .eq("id", deleteTarget.id);
-
-      if (error) throw error;
+      const { error } = await downtimeApi.deleteMany([deleteTarget.id]);
+      if (error) throw new Error(error);
 
       toast.success("Data downtime berhasil dipindahkan ke Tempat Sampah.");
       setDeleteTarget(null);
@@ -504,12 +464,8 @@ export default function DowntimeLogClient() {
       setBulkDeleteError("");
 
       const ids = Array.from(selectedIds);
-      const { error } = await supabase
-        .from("prod_downtime_log" as any)
-        .update({ is_active: false })
-        .in("id", ids);
-
-      if (error) throw error;
+      const { error } = await downtimeApi.deleteMany(ids);
+      if (error) throw new Error(error);
 
       const count = ids.length;
       toast.success(`${count} data downtime berhasil dipindahkan ke Tempat Sampah.`);

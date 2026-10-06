@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
-import { ArrowLeft, RefreshCw, Plus, Pencil, Trash2, Search, Filter, AlertTriangle } from "lucide-react";
-import { createClient } from "@/lib/db/client";
+import { Search, Trash2, Pencil, AlertTriangle, ArrowLeft, RefreshCw } from "lucide-react";
+import { attendanceApi } from "@/lib/api-client";
 import { ProdAttendanceRecord } from "@/types/produksi";
 import { enqueueOffline, isNetworkError } from "@/lib/produksi/offlineQueue";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,6 @@ interface Props {
 const PAGE_SIZE = 60;
 
 export default function InputAttendanceClient({ userId: initialUserId, embedded }: Props) {
-  const supabase = useMemo(() => createClient(), []);
   const [rows, setRows] = useState<ProdAttendanceRecord[]>([]);
   const [userId] = useState<string | null>(initialUserId || null);
   const [page, setPage] = useState(0);
@@ -88,20 +87,12 @@ export default function InputAttendanceClient({ userId: initialUserId, embedded 
     else setLoading(true);
 
     try {
-      const from = targetPage * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-      let q = supabase
-        .from("prod_attendance_log")
-        .select("*")
-        .eq("is_active", true)
-        .order("tanggal", { ascending: false })
-        .range(from, to);
+      const res = await attendanceApi.get({
+        shift: filterShift !== "all" ? filterShift : undefined,
+        limit: PAGE_SIZE,
+        page: targetPage,
+      });
 
-      if (filterShift !== "all") {
-        q = q.eq("shift", Number(filterShift));
-      }
-
-      const res = await q;
       if (res.data) {
         if (targetPage === 0) {
           setRows(res.data);
@@ -115,7 +106,7 @@ export default function InputAttendanceClient({ userId: initialUserId, embedded 
       if (targetPage > 0) setLoadingMore(false);
       else setLoading(false);
     }
-  }, [filterShift, supabase]);
+  }, [filterShift]);
 
   useEffect(() => {
     fetchRows(0);
@@ -124,7 +115,7 @@ export default function InputAttendanceClient({ userId: initialUserId, embedded 
   const save = async () => {
     const payload = {
       tanggal: form.tanggal,
-      shift: Number(form.shift),
+      shift: String(form.shift),
       total_orang: Number(form.total_orang),
       hadir: Number(form.hadir),
       cuti: Number(form.cuti),
@@ -135,10 +126,8 @@ export default function InputAttendanceClient({ userId: initialUserId, embedded 
     };
 
     try {
-      const res = await supabase
-        .from("prod_attendance_log")
-        .upsert(payload, { onConflict: "tanggal,shift" });
-      if (res.error) throw res.error;
+      const res = await attendanceApi.create(payload);
+      if (res.error) throw new Error(res.error.message || String(res.error));
 
       flash("Absensi berhasil disimpan!");
       setForm({ tanggal: today, shift: 1, total_orang: 0, hadir: 0, cuti: 0, absen: 0, overtime_jam: 0 });
@@ -178,15 +167,8 @@ export default function InputAttendanceClient({ userId: initialUserId, embedded 
     };
 
     try {
-      const res = await supabase
-        .from("prod_attendance_log")
-        .update(payload)
-        .eq("id", editTarget.id)
-        .select();
-      if (res.error) throw res.error;
-      if (!res.data || res.data.length === 0) {
-        throw new Error("Tidak ada baris yang diperbarui (data tidak ditemukan atau izin RLS ditolak).");
-      }
+      const res = await attendanceApi.update(editTarget.id, payload);
+      if (res.error) throw new Error(res.error.message || String(res.error));
 
       flash("Data absensi diperbarui!");
       setEditTarget(null);
@@ -210,14 +192,10 @@ export default function InputAttendanceClient({ userId: initialUserId, embedded 
     if (!deleteTarget) return;
     setIsDeleting(true);
     try {
-      let q = supabase.from("prod_attendance_log").update({ is_active: false });
       if (deleteTarget.id) {
-        q = q.eq("id", deleteTarget.id);
-      } else {
-        q = q.eq("tanggal", deleteTarget.tanggal).eq("shift", deleteTarget.shift);
+        const { error } = await attendanceApi.deleteMany([deleteTarget.id]);
+        if (error) throw new Error(error.message || String(error));
       }
-      const { error } = await q;
-      if (error) throw error;
 
       flash(`Data absensi tanggal ${deleteTarget.tanggal} (Shift ${deleteTarget.shift}) berhasil dihapus.`);
       setDeleteTarget(null);
@@ -280,12 +258,9 @@ export default function InputAttendanceClient({ userId: initialUserId, embedded 
       setBulkDeleteError("");
 
       const ids = Array.from(selectedIds);
-      const { error } = await supabase
-        .from("prod_attendance_log")
-        .update({ is_active: false })
-        .in("id", ids);
+      const { error } = await attendanceApi.deleteMany(ids);
 
-      if (error) throw error;
+      if (error) throw new Error(error.message || String(error));
 
       flash(`${ids.length} data absensi berhasil dipindahkan ke Tempat Sampah.`);
       setSelectedIds(new Set());

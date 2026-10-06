@@ -1,9 +1,9 @@
-import { createClient } from '@/lib/db/server'
+import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-interface DisplayDocument {
+interface DisplayDocumentPayload {
   id: string
   lineId?: string
   title: string
@@ -21,202 +21,119 @@ interface DisplayDocument {
 
 declare global {
   // eslint-disable-next-line no-var
-  var futabaDisplayDocumentsByLine: Record<string, DisplayDocument | null> | undefined
-}
-
-const LEGACY_DISPLAY_LINE_KEY = '__default__'
-
-function getDisplayLineKey(lineId?: string | null) {
-  return lineId || LEGACY_DISPLAY_LINE_KEY
+  var futabaDisplayDocumentsByLine: Record<string, DisplayDocumentPayload | null> | undefined
 }
 
 function getMemoryDisplayDocument(lineId?: string | null) {
   const displayDocuments = globalThis.futabaDisplayDocumentsByLine ?? {}
-  return displayDocuments[getDisplayLineKey(lineId)] ?? null
+  return displayDocuments[lineId || '__default__'] ?? null
 }
 
-function setMemoryDisplayDocument(lineId: string | undefined, document: DisplayDocument) {
+function setMemoryDisplayDocument(lineId: string | undefined, document: DisplayDocumentPayload) {
   globalThis.futabaDisplayDocumentsByLine = {
     ...(globalThis.futabaDisplayDocumentsByLine ?? {}),
-    [getDisplayLineKey(lineId)]: document,
+    [lineId || '__default__']: document,
   }
 }
 
 function clearMemoryDisplayDocument(lineId?: string | null) {
   globalThis.futabaDisplayDocumentsByLine = {
     ...(globalThis.futabaDisplayDocumentsByLine ?? {}),
-    [getDisplayLineKey(lineId)]: null,
+    [lineId || '__default__']: null,
   }
 }
 
-function toIsoDateTime(value: number) {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString()
-}
+function isDisplayDocument(value: unknown): value is Omit<DisplayDocumentPayload, 'updatedAt'> {
+  if (!value || typeof value !== 'object') return false
 
-function toUpdatedAt(value?: string | null) {
-  if (!value) return Date.now()
+  const document = value as Partial<DisplayDocumentPayload>
 
-  const time = new Date(value).getTime()
-  return Number.isNaN(time) ? Date.now() : time
-}
-
-function isMissingDisplayTableError(error: { code?: string; message?: string } | null) {
   return (
-    error?.code === '42P01' ||
-    error?.message?.toLowerCase().includes('display_documents') === true
+    typeof document.id === 'string' &&
+    typeof document.title === 'string' &&
+    typeof document.type === 'string' &&
+    Boolean(document.file && typeof document.file === 'object' && typeof document.file.name === 'string' && typeof document.file.path === 'string')
   )
 }
 
-async function getDocumentTargetTime(id: string) {
-  const supabase = await createClient()
-
-  const { data, error } = await supabase
-    .from('documents')
-    .select('target_time')
-    .eq('id', id)
-    .single()
-
-  if (error) {
-    console.error('Display target time lookup error:', error)
-    return undefined
+async function getDatabaseDisplayDocument(lineId: string | null) {
+  if (!lineId) {
+    return { document: getMemoryDisplayDocument(lineId), hasDatabase: false }
   }
 
-  return data?.target_time ?? null
-}
+  try {
+    const data = await prisma.displayDocument.findUnique({
+      where: { line_id: lineId },
+      include: { document: true },
+    })
 
-async function getDatabaseDisplayDocument(lineId: string | null) {
-  const supabase = await createClient()
-  const lineKey = getDisplayLineKey(lineId)
-
-  const { data, error } = await supabase
-    .from('display_documents')
-    .select('document, updated_at')
-    .eq('line_key', lineKey)
-    .maybeSingle()
-
-  if (error) {
-    if (isMissingDisplayTableError(error)) {
-      return { document: getMemoryDisplayDocument(lineId), hasDatabase: false }
+    if (!data || !data.document) {
+      return { document: null, hasDatabase: true }
     }
 
-    throw error
-  }
-
-  if (!data?.document || !isDisplayDocument(data.document)) {
-    return { document: null, hasDatabase: true }
-  }
-
-  return {
-    document: {
-      ...data.document,
-      updatedAt: toUpdatedAt(data.updated_at),
-    },
-    hasDatabase: true,
+    const doc = data.document
+    const payload: DisplayDocumentPayload = {
+      id: doc.id,
+      lineId: doc.line_id ?? undefined,
+      title: doc.title,
+      description: doc.description ?? undefined,
+      type: doc.file_type ?? 'application/octet-stream',
+      file: {
+        name: doc.file_name,
+        path: doc.file_path,
+        size: doc.file_size ? Number(doc.file_size) : undefined,
+      },
+      targetTime: doc.target_time ? doc.target_time.toISOString() : null,
+      updatedAt: data.updated_at.getTime(),
+    }
+    return { document: payload, hasDatabase: true }
+  } catch (error) {
+    console.warn('display_documents table lookup warn:', error)
+    return { document: getMemoryDisplayDocument(lineId), hasDatabase: false }
   }
 }
 
 async function saveDatabaseDisplayDocument(
   lineId: string | undefined,
-  document: DisplayDocument
+  document: DisplayDocumentPayload
 ) {
-  const supabase = await createClient()
-  const lineKey = getDisplayLineKey(lineId)
+  setMemoryDisplayDocument(lineId, document)
 
-  const cleanDocument: DisplayDocument = {
-    id: document.id,
-    lineId: document.lineId || undefined,
-    title: document.title,
-    description: document.description || undefined,
-    category: document.category || undefined,
-    type: document.type,
-    file: {
-      name: document.file.name,
-      path: document.file.path,
-      size: typeof document.file.size === 'number' ? document.file.size : undefined,
-    },
-    targetTime: document.targetTime ?? null,
-    updatedAt: document.updatedAt,
-  }
+  if (!lineId) return { hasDatabase: false }
 
-  setMemoryDisplayDocument(lineId, cleanDocument)
-
-  const { error } = await supabase
-    .from('display_documents')
-    .upsert(
-      {
-        line_key: lineKey,
-        line_id: lineId || null,
-        document: cleanDocument,
-        updated_at: toIsoDateTime(document.updatedAt),
+  try {
+    await prisma.displayDocument.upsert({
+      where: { line_id: lineId },
+      create: {
+        line_id: lineId,
+        document_id: document.id,
       },
-      {
-        onConflict: 'line_key',
-      }
-    )
-
-  if (error) {
-    if (isMissingDisplayTableError(error)) {
-      return { hasDatabase: false }
-    }
-
-    throw error
+      update: {
+        document_id: document.id,
+      },
+    })
+    return { hasDatabase: true }
+  } catch (error) {
+    console.warn('display_documents upsert warn:', error)
+    return { hasDatabase: false }
   }
-
-  return { hasDatabase: true }
 }
 
 async function clearDatabaseDisplayDocument(lineId: string | null) {
-  const supabase = await createClient()
-  const lineKey = getDisplayLineKey(lineId)
-
-  const { error } = await supabase
-    .from('display_documents')
-    .delete()
-    .eq('line_key', lineKey)
-
-  if (error) {
-    if (isMissingDisplayTableError(error)) {
-      clearMemoryDisplayDocument(lineId)
-      return { hasDatabase: false }
-    }
-
-    throw error
-  }
-
   clearMemoryDisplayDocument(lineId)
-  return { hasDatabase: true }
-}
 
-function isDisplayDocument(value: unknown): value is Omit<DisplayDocument, 'updatedAt'> {
-  if (!value || typeof value !== 'object') return false
+  if (!lineId) return { hasDatabase: false }
 
-  const document = value as Partial<DisplayDocument>
-
-  return (
-    typeof document.id === 'string' &&
-    (typeof document.lineId === 'undefined' || document.lineId === null || typeof document.lineId === 'string') &&
-    typeof document.title === 'string' &&
-    typeof document.type === 'string' &&
-    Boolean(document.file && typeof document.file === 'object' && typeof document.file.name === 'string' && typeof document.file.path === 'string') &&
-    (typeof document.description === 'undefined' || document.description === null || typeof document.description === 'string') &&
-    (typeof document.category === 'undefined' || document.category === null || typeof document.category === 'string') &&
-    (
-      typeof document.targetTime === 'undefined' ||
-      document.targetTime === null ||
-      typeof document.targetTime === 'string'
-    ) &&
-    (typeof document.file?.size === 'undefined' || document.file?.size === null || typeof document.file?.size === 'number')
-  )
-}
-
-function getRequestedAt(value: unknown) {
-  if (!value || typeof value !== 'object') return Date.now()
-
-  const document = value as Partial<DisplayDocument>
-  return typeof document.updatedAt === 'number' && Number.isFinite(document.updatedAt)
-    ? document.updatedAt
-    : Date.now()
+  try {
+    await prisma.displayDocument.update({
+      where: { line_id: lineId },
+      data: { document_id: null },
+    }).catch(() => {/* ok if not found */})
+    return { hasDatabase: true }
+  } catch (error) {
+    console.warn('display_documents delete warn:', error)
+    return { hasDatabase: false }
+  }
 }
 
 export async function GET(request: Request) {
@@ -224,29 +141,10 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const lineId = searchParams.get('lineId') ?? searchParams.get('landId')
     const result = await getDatabaseDisplayDocument(lineId)
-    let document = result.document
-
-    if (document) {
-      const targetTime = await getDocumentTargetTime(document.id)
-      if (typeof targetTime !== 'undefined' && targetTime !== document.targetTime) {
-        document = {
-          ...document,
-          targetTime,
-          updatedAt: Date.now(),
-        }
-
-        if (result.hasDatabase) {
-          await saveDatabaseDisplayDocument(document.lineId, document)
-        } else {
-          setMemoryDisplayDocument(document.lineId, document)
-        }
-      }
-    }
+    const document = result.document
 
     return NextResponse.json(
-      {
-        document,
-      },
+      { document },
       {
         headers: {
           'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
@@ -274,12 +172,10 @@ export async function POST(request: Request) {
       )
     }
 
-    const targetTime = body.targetTime ?? await getDocumentTargetTime(body.id)
-    const requestedAt = getRequestedAt(body)
     const lineId = body.lineId ? String(body.lineId) : undefined
-    const updatedAt = Math.max(requestedAt, Date.now())
+    const updatedAt = Date.now()
 
-    const nextDocument: DisplayDocument = {
+    const nextDocument: DisplayDocumentPayload = {
       id: body.id,
       lineId,
       title: body.title,
@@ -291,7 +187,7 @@ export async function POST(request: Request) {
         path: body.file.path,
         size: typeof body.file.size === 'number' ? body.file.size : undefined,
       },
-      targetTime,
+      targetTime: body.targetTime ?? null,
       updatedAt,
     }
 

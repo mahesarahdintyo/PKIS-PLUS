@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Upload, X, Loader2, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { createClient } from '@/lib/db/client'
+import { partNumbersApi } from '@/lib/api-client'
 
 const ALLOWED_FILE_TYPES = ['application/pdf', 'image/jpeg', 'image/png']
 const ALLOWED_FILE_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png']
@@ -76,27 +76,10 @@ export function UploadDialog({
     async function fetchParts() {
       try {
         setIsLoadingPartNumbers(true)
-        const supabase = createClient()
-        let query = supabase
-          .from('prod_part_numbers' as any)
-          .select('id, value, is_active, line_id, mesin')
-          .eq('is_active', true)
-
-        if (lineId) {
-          const { data: lineData } = await supabase
-            .from('lines')
-            .select('name, machine_type')
-            .eq('id', lineId)
-            .maybeSingle()
-
-          const mesinKey = lineData?.machine_type ? lineData.machine_type.replace(/-/g, '_') : null
-          if (mesinKey) {
-            query = query.or(`line_id.eq.${lineId},mesin.eq.${mesinKey}`)
-          } else {
-            query = query.eq('line_id', lineId)
-          }
-        }
-        const { data, error } = await query.order('value')
+        const { data, error } = await partNumbersApi.get({
+          line_id: lineId || undefined,
+          is_active: true,
+        })
         if (!error && data) {
           setPartNumbers(
             data.map((p: any) => ({

@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/db/server";
+import { prisma } from "@/lib/prisma";
 import { getCurrentUserProfile } from "@/lib/services/auth-server";
 import { NextResponse } from "next/server";
 
@@ -16,30 +16,21 @@ export async function DELETE(
       );
     }
 
-    const supabase = await createClient();
     const userProfile = await getCurrentUserProfile();
     if (!userProfile.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { error } = await supabase
-      .from("prod_production_log" as any)
-      .update({ is_active: false })
-      .eq("id", id);
-
-    if (error) {
-      console.error("Error soft deleting production report:", error);
-      return NextResponse.json(
-        { error: error.message },
-        { status: 500 }
-      );
-    }
+    await prisma.prodProductionLog.update({
+      where: { id },
+      data: { is_active: false },
+    });
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Production reports DELETE error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: error.message || "Internal server error" },
       { status: 500 }
     );
   }

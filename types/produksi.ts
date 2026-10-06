@@ -12,7 +12,7 @@ export interface ProdProfile {
 export interface ProdAttendanceRecord {
   id?: string;
   tanggal: string;
-  shift?: number;
+  shift?: number | string;
   total_orang: number;
   hadir: number;
   cuti?: number;

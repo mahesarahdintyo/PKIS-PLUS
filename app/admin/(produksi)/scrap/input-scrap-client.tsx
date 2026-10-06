@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
-import { ArrowLeft, RefreshCw, Pencil, Trash2, Search, AlertTriangle } from "lucide-react";
-import { createClient } from "@/lib/db/client";
+import { Search, Trash2, Pencil, AlertTriangle, ArrowLeft, RefreshCw } from "lucide-react";
+import { scrapApi } from "@/lib/api-client";
 import { ProdScrapRecord } from "@/types/produksi";
 import { enqueueOffline, isNetworkError } from "@/lib/produksi/offlineQueue";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,6 @@ const BULAN_OPTIONS = [
 const PAGE_SIZE = 36;
 
 export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
-  const supabase = useMemo(() => createClient(), []);
   const [rows, setRows] = useState<ProdScrapRecord[]>([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -83,21 +82,12 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
     else setLoading(true);
 
     try {
-      const from = targetPage * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-      let q = supabase
-        .from("prod_scrap_top_end")
-        .select("*")
-        .eq("is_active", true)
-        .order("tahun", { ascending: false })
-        .order("bulan", { ascending: false })
-        .range(from, to);
+      const res = await scrapApi.get({
+        tahun: filterTahun !== "all" ? Number(filterTahun) : undefined,
+        limit: PAGE_SIZE,
+        page: targetPage,
+      });
 
-      if (filterTahun !== "all") {
-        q = q.eq("tahun", Number(filterTahun));
-      }
-
-      const res = await q;
       if (res.data) {
         if (targetPage === 0) {
           setRows(res.data);
@@ -111,7 +101,7 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
       if (targetPage > 0) setLoadingMore(false);
       else setLoading(false);
     }
-  }, [filterTahun, supabase]);
+  }, [filterTahun]);
 
   useEffect(() => {
     fetchRows(0);
@@ -128,10 +118,8 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
     };
 
     try {
-      const res = await supabase
-        .from("prod_scrap_top_end")
-        .upsert(payload, { onConflict: "tahun,bulan" });
-      if (res.error) throw res.error;
+      const res = await scrapApi.create(payload);
+      if (res.error) throw new Error(res.error.message || String(res.error));
 
       flash("Scrap berhasil disimpan!");
       setForm({ tahun: now.getFullYear(), bulan: now.getMonth() + 1, scrap_value_kidr: 0, total_value_kidr: 0, target_rasio: 0.0046 });
@@ -168,15 +156,8 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
     };
 
     try {
-      const res = await supabase
-        .from("prod_scrap_top_end")
-        .update(payload)
-        .eq("id", editTarget.id)
-        .select();
-      if (res.error) throw res.error;
-      if (!res.data || res.data.length === 0) {
-        throw new Error("Tidak ada baris yang diperbarui (data tidak ditemukan atau izin RLS ditolak).");
-      }
+      const res = await scrapApi.update(editTarget.id, payload);
+      if (res.error) throw new Error(res.error.message || String(res.error));
 
       flash("Data scrap diperbarui!");
       setEditTarget(null);
@@ -200,14 +181,10 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
     if (!deleteTarget) return;
     setIsDeleting(true);
     try {
-      let q = supabase.from("prod_scrap_top_end").update({ is_active: false });
       if (deleteTarget.id) {
-        q = q.eq("id", deleteTarget.id);
-      } else {
-        q = q.eq("tahun", deleteTarget.tahun).eq("bulan", deleteTarget.bulan);
+        const { error } = await scrapApi.deleteMany([deleteTarget.id]);
+        if (error) throw new Error(error.message || String(error));
       }
-      const { error } = await q;
-      if (error) throw error;
 
       flash(`Data scrap ${BULAN_OPTIONS[deleteTarget.bulan - 1]} ${deleteTarget.tahun} berhasil dihapus.`);
       setDeleteTarget(null);
@@ -270,12 +247,9 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
       setBulkDeleteError("");
 
       const ids = Array.from(selectedIds);
-      const { error } = await supabase
-        .from("prod_scrap_top_end")
-        .update({ is_active: false })
-        .in("id", ids);
+      const { error } = await scrapApi.deleteMany(ids);
 
-      if (error) throw error;
+      if (error) throw new Error(error.message || String(error));
 
       flash(`${ids.length} data scrap berhasil dipindahkan ke Tempat Sampah.`);
       setSelectedIds(new Set());

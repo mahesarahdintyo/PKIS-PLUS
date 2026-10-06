@@ -1,25 +1,23 @@
-import { createClient } from "@/lib/db/server";
+import { prisma } from "@/lib/prisma";
 import { getCurrentUserProfile } from "@/lib/services/auth-server";
 import type { Document } from "@/lib/services/document";
 import type { Folder } from "@/lib/services/folder";
 import type { Line } from "@/lib/services/line";
 
 export async function getInitialLines(): Promise<Line[]> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from("lines")
-    .select("*")
-    .or("is_active.eq.true,is_active.is.null")
-    .eq("hidden_from_operator", false)
-    .order("name", { ascending: true });
-
-  if (error) {
+  try {
+    const lines = await prisma.line.findMany({
+      where: {
+        hidden_from_operator: false,
+        OR: [{ is_active: true }, { is_active: null }],
+      },
+      orderBy: { name: "asc" },
+    });
+    return lines as any;
+  } catch (error) {
     console.error("Initial lines error:", error);
     return [];
   }
-
-  return data ?? [];
 }
 
 export async function getInitialFolders(lineId: string): Promise<Folder[]> {
@@ -29,22 +27,20 @@ export async function getInitialFolders(lineId: string): Promise<Folder[]> {
       ? userProfile.lineId
       : lineId;
 
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from("folders")
-    .select("*")
-    .eq("line_id", effectiveLineId)
-    .is("parent_id", null)
-    .or("is_active.eq.true,is_active.is.null")
-    .order("name", { ascending: true });
-
-  if (error) {
+  try {
+    const folders = await prisma.folder.findMany({
+      where: {
+        line_id: effectiveLineId,
+        parent_id: null,
+        OR: [{ is_active: true }, { is_active: null }],
+      },
+      orderBy: { name: "asc" },
+    });
+    return folders as any;
+  } catch (error) {
     console.error("Initial folders error:", error);
     return [];
   }
-
-  return data ?? [];
 }
 
 export async function getInitialDocuments(lineId: string): Promise<Document[]> {
@@ -54,65 +50,49 @@ export async function getInitialDocuments(lineId: string): Promise<Document[]> {
       ? userProfile.lineId
       : lineId;
 
-  const supabase = await createClient();
+  try {
+    const docs = await prisma.document.findMany({
+      where: {
+        folder_id: null,
+        line_id: effectiveLineId,
+        hidden_from_operator: false,
+        OR: [{ is_active: true }, { is_active: null }],
+      },
+      include: {
+        folder: {
+          select: {
+            id: true,
+            name: true,
+            line_id: true,
+          },
+        },
+      },
+      orderBy: { created_at: "desc" },
+    });
 
-  const { data, error } = await supabase
-    .from("documents")
-    .select(
-      `
-        id,
-        title,
-        description,
-        file_name,
-        file_path,
-        file_type,
-        file_size,
-        target_time,
-        hidden_from_operator,
-        created_at,
-        folder_id,
-        line_id,
-        folders (
-          id,
-          name,
-          line_id
-        ),
-        prod_part_numbers (
-          id,
-          value
-        )
-      `
-    )
-    .is("folder_id", null)
-    .eq("line_id", effectiveLineId)
-    .eq("hidden_from_operator", false)
-    .or("is_active.eq.true,is_active.is.null")
-    .order("created_at", { ascending: false });
-
-  if (error) {
+    return docs.map((doc: any) => ({
+      id: doc.id,
+      lineId: doc.line_id ?? doc.folder?.line_id ?? undefined,
+      title: doc.title,
+      description: doc.description,
+      category: "Lainnya",
+      type: doc.file_type,
+      file: {
+        name: doc.file_name,
+        path: doc.file_path,
+        size: doc.file_size,
+      },
+      targetTime: doc.target_time,
+      hiddenFromOperator: doc.hidden_from_operator,
+      linkedPartNumbers: Array.isArray(doc.prod_part_numbers)
+        ? doc.prod_part_numbers.map((p: any) => ({
+            id: p.id,
+            value: p.value || "-",
+          }))
+        : [],
+    }));
+  } catch (error) {
     console.error("Initial documents error:", error);
     return [];
   }
-
-  return (data ?? []).map((doc: any) => ({
-    id: doc.id,
-    lineId: doc.line_id ?? doc.folders?.line_id ?? undefined,
-    title: doc.title,
-    description: doc.description,
-    category: "Lainnya",
-    type: doc.file_type,
-    file: {
-      name: doc.file_name,
-      path: doc.file_path,
-      size: doc.file_size,
-    },
-    targetTime: doc.target_time,
-    hiddenFromOperator: doc.hidden_from_operator,
-    linkedPartNumbers: Array.isArray(doc.prod_part_numbers)
-      ? doc.prod_part_numbers.map((p: any) => ({
-          id: p.id,
-          value: p.value || "-",
-        }))
-      : [],
-  }));
 }

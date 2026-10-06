@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/db/client";
+import { auth } from "@/lib/api-client";
 import {
   andonSubscribePush,
   useAndonLeaders,
@@ -66,8 +66,7 @@ export default function AndonNotificationModal({
   // Ambil user ID jika belum ada
   useEffect(() => {
     if (!userId) {
-      const supabase = createClient();
-      supabase.auth.getUser().then(({ data: { user } }) => {
+      auth.getUser().then(({ user }) => {
         if (user) setUserId(user.id);
       });
     }

@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { getLines, type Line } from "@/lib/services/line";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/db/client";
+import { productionLogsApi, partNumbersApi, subscribeToSocketEvent } from "@/lib/api-client";
 import { toast } from "sonner";
 
 const LOG_REFRESH_INTERVAL_MS = 5000;
@@ -123,8 +123,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 export default function ProductionLogDashboard() {
-  const supabase = createClient();
-
   const [logs, setLogs] = useState<CombinedLogItem[]>([]);
   const [lines, setLines] = useState<Line[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -189,41 +187,23 @@ export default function ProductionLogDashboard() {
         if (showLoading) setIsLoading(true);
         setError("");
 
-        // 1. Fetch Production Logs
-        let prodQuery = supabase
-          .from("prod_production_log" as any)
-          .select("*, line:lines(name)")
-          .eq("is_active", true)
-          .order("waktu_awal", { ascending: false })
-          .limit(500);
+        // Fetch Production & Non-Production Logs
+        const params: Parameters<typeof productionLogsApi.get>[0] = {
+          table: "both",
+          limit: 500,
+          is_active: true,
+        };
+        if (selectedLineId !== "all") params.line_id = selectedLineId;
+        if (startDate) params.startDate = startDate;
+        if (endDate) params.endDate = endDate;
 
-        // 2. Fetch Non-Production Logs (Dandori/Setup/etc)
-        let nonProdQuery = supabase
-          .from("prod_dandori_log" as any)
-          .select("*, line:lines(name)")
-          .eq("is_active", true)
-          .order("waktu_awal", { ascending: false })
-          .limit(500);
-
-        if (selectedLineId !== "all") {
-          prodQuery = prodQuery.eq("line_id", selectedLineId);
-          nonProdQuery = nonProdQuery.eq("line_id", selectedLineId);
-        }
-        if (startDate) {
-          prodQuery = prodQuery.gte("waktu_awal", `${startDate}T00:00:00`);
-          nonProdQuery = nonProdQuery.gte("waktu_awal", `${startDate}T00:00:00`);
-        }
-        if (endDate) {
-          prodQuery = prodQuery.lte("waktu_awal", `${endDate}T23:59:59`);
-          nonProdQuery = nonProdQuery.lte("waktu_awal", `${endDate}T23:59:59`);
-        }
-
-        const [{ data: prodData, error: prodErr }, { data: nonProdData, error: nonProdErr }] =
-          await Promise.all([prodQuery, nonProdQuery]);
+        const { data, error: logsErr } = await productionLogsApi.get(params);
 
         if (requestIdRef.current !== reqId) return;
-        if (prodErr) throw prodErr;
-        if (nonProdErr) throw nonProdErr;
+        if (logsErr) throw new Error(logsErr);
+
+        const prodData = data?.production || [];
+        const nonProdData = data?.dandori || [];
 
         const combined: CombinedLogItem[] = [
           ...(prodData || []).map((row: any) => ({
@@ -267,14 +247,13 @@ export default function ProductionLogDashboard() {
 
   const loadPartOptions = useCallback(async (lineId?: string) => {
     try {
-      let q = supabase
-        .from("prod_part_numbers" as any)
-        .select("value")
-        .eq("is_active", true);
+      const params: Parameters<typeof partNumbersApi.get>[0] = {
+        is_active: true,
+      };
       if (lineId && lineId !== "all") {
-        q = q.eq("line_id", lineId);
+        params.line_id = lineId;
       }
-      const { data } = await q.order("value");
+      const { data } = await partNumbersApi.get(params);
       if (data) {
         const parts = (data as any[])
           .map((p) => p.value)
@@ -305,17 +284,15 @@ export default function ProductionLogDashboard() {
 
   useEffect(() => {
     const refresh = () => void loadLogs({ showLoading: false });
-    const channelProd = supabase
-      .channel("admin-prod-log-channel")
-      .on("postgres_changes", { event: "*", schema: "public", table: "prod_production_log" }, refresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "prod_dandori_log" }, refresh)
-      .subscribe();
+    const unsubProd = subscribeToSocketEvent("prod_production_log", "*", refresh);
+    const unsubDandori = subscribeToSocketEvent("prod_dandori_log", "*", refresh);
     const interval = window.setInterval(refresh, LOG_REFRESH_INTERVAL_MS);
     window.addEventListener("focus", refresh);
     return () => {
       window.clearInterval(interval);
       window.removeEventListener("focus", refresh);
-      void supabase.removeChannel(channelProd);
+      unsubProd();
+      unsubDandori();
     };
   }, [loadLogs]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -395,19 +372,15 @@ export default function ProductionLogDashboard() {
 
       const promises = [];
       if (prodIds.length > 0) {
-        promises.push(
-          supabase.from("prod_production_log" as any).update({ is_active: false }).in("id", prodIds)
-        );
+        promises.push(productionLogsApi.deleteMany("production", prodIds));
       }
       if (nonProdIds.length > 0) {
-        promises.push(
-          supabase.from("prod_dandori_log" as any).update({ is_active: false }).in("id", nonProdIds)
-        );
+        promises.push(productionLogsApi.deleteMany("dandori", nonProdIds));
       }
 
       const results = await Promise.all(promises);
       for (const res of results) {
-        if (res.error) throw res.error;
+        if (res.error) throw new Error(res.error);
       }
 
       toast.success(`${selectedIds.size} baris riwayat berhasil dihapus.`);
@@ -593,11 +566,12 @@ export default function ProductionLogDashboard() {
           payload.waktu_awal = new Date(editProdForm.waktu_awal).toISOString();
         }
 
-        const { error: err } = await supabase
-          .from("prod_production_log" as any)
-          .update(payload)
-          .eq("id", editTarget.id);
-        if (err) throw err;
+        const { error: err } = await productionLogsApi.update(
+          "production",
+          editTarget.id,
+          payload
+        );
+        if (err) throw new Error(err);
       } else {
         const payload: Record<string, any> = {
           waktu_awal: new Date(editNonProdForm.waktu_awal).toISOString(),
@@ -606,11 +580,12 @@ export default function ProductionLogDashboard() {
           keterangan: editNonProdForm.nama,
           break_menit: editNonProdForm.break_menit !== "" ? Number(editNonProdForm.break_menit) : null,
         };
-        const { error: err } = await supabase
-          .from("prod_dandori_log" as any)
-          .update(payload)
-          .eq("id", editTarget.id);
-        if (err) throw err;
+        const { error: err } = await productionLogsApi.update(
+          "dandori",
+          editTarget.id,
+          payload
+        );
+        if (err) throw new Error(err);
       }
 
       toast.success("Data riwayat berhasil diperbarui!");
@@ -644,12 +619,9 @@ export default function ProductionLogDashboard() {
     try {
       setIsDeleting(true);
       setDeleteError("");
-      const table = deleteTarget.jenis === "produksi" ? "prod_production_log" : "prod_dandori_log";
-      const { error: err } = await supabase
-        .from(table as any)
-        .update({ is_active: false })
-        .eq("id", deleteTarget.id);
-      if (err) throw err;
+      const table = deleteTarget.jenis === "produksi" ? "production" : "dandori";
+      const { error: err } = await productionLogsApi.deleteMany(table, [deleteTarget.id]);
+      if (err) throw new Error(err);
 
       toast.success("Baris riwayat berhasil dihapus (soft-delete).");
       setLogs((prev) => prev.filter((l) => l.id !== deleteTarget.id));
@@ -727,8 +699,8 @@ export default function ProductionLogDashboard() {
           is_active: true,
         };
 
-        const { error: insErr } = await supabase.from("prod_production_log" as any).insert(payload);
-        if (insErr) throw insErr;
+        const { error: insErr } = await productionLogsApi.create("production", payload);
+        if (insErr) throw new Error(insErr);
       } else {
         const payload = {
           line_id: createForm.line_id,
@@ -740,8 +712,8 @@ export default function ProductionLogDashboard() {
           break_menit: createForm.break_menit !== "" ? Number(createForm.break_menit) : null,
           is_active: true,
         };
-        const { error: insErr } = await supabase.from("prod_dandori_log" as any).insert(payload);
-        if (insErr) throw insErr;
+        const { error: insErr } = await productionLogsApi.create("dandori", payload);
+        if (insErr) throw new Error(insErr);
       }
 
       toast.success("Entri baru berhasil ditambahkan!");

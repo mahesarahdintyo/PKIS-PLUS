@@ -7,7 +7,16 @@ import { useThemeListener } from "@/hooks/produksi/useThemeListener";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { createClient } from "@/lib/db/client";
+import {
+  rpcApi,
+  downtimeApi,
+  masterDataApi,
+  safetyApi,
+  scrapApi,
+  attendanceApi,
+  auth,
+  subscribeToSocketEvent,
+} from "@/lib/api-client";
 import { ProdProfile } from "@/types/produksi";
 import Chart from "chart.js/auto";
 import { registerInternalVizPlugins } from "@/lib/produksi/chartPlugins";
@@ -18,7 +27,7 @@ import { Sun, Moon, AlertTriangle, ShieldCheck, Home, Maximize, Minimize } from 
 // Realtime subscription pada dashboard (auto-update saat operator input downtime).
 // Saat false: data hanya dimuat saat halaman dibuka atau filter diubah.
 // Aktifkan setelah migrasi ke database & server lokal untuk menghindari
-// log ingestion berlebih di Supabase cloud.
+// log ingestion berlebih di database.
 const ENABLE_REALTIME = process.env.NEXT_PUBLIC_ENABLE_REALTIME === "true";
 
 const MACHINES = [
@@ -40,7 +49,6 @@ function localDateStr(d: Date): string {
 }
 
 export default function DashboardClient() {
-  const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [periodMode, setPeriodMode] = useState<"harian" | "bulanan" | "tahunan">("harian");
   const [tanggal, setTanggal] = useState(new Date().toISOString().split("T")[0]);
@@ -226,14 +234,14 @@ export default function DashboardClient() {
   const openDowntimeDetail = useCallback(async (filters: { mesin?: string; mesinLabel?: string; kategori?: string }) => {
     setDowntimeModal({ open: true, loading: true, title: "", rows: [] });
     const { start, end } = bounds();
-    let q = supabase.from("prod_downtime_log").select("*")
-      .eq("is_active", true)
-      .gte("waktu_awal", start.toISOString()).lt("waktu_awal", end.toISOString())
-      .order("waktu_awal", { ascending: false })
-      .limit(200);
-    if (filters.mesin) q = q.eq("mesin", filters.mesin);
-    if (filters.kategori) q = q.eq("kategori", filters.kategori);
-    const { data } = await q;
+    const { data } = await downtimeApi.get({
+      mesin: filters.mesin,
+      kategori: filters.kategori,
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
+      is_active: true,
+      limit: 200,
+    });
     const rows = (data || []).map((r: any) => ({
       ...r,
       mesinLabel: (MACHINES.find((m) => m.key === r.mesin) || {}).label || r.mesin,
@@ -246,7 +254,7 @@ export default function DashboardClient() {
       open: true, loading: false, rows,
       title: "Detail Downtime" + (parts.length ? " — " + parts.join(" · ") : " — Semua Line"),
     });
-  }, [bounds, supabase]);
+  }, [bounds]);
 
   const closeDowntimeDetail = () => setDowntimeModal((prev) => ({ ...prev, open: false }));
 
@@ -281,7 +289,7 @@ export default function DashboardClient() {
 
     try {
       const res = await Promise.all(MACHINES.map((m) =>
-        supabase.rpc("prod_gsph_trend_bucketed", {
+        rpcApi.call("prod_gsph_trend_bucketed", {
           p_mesin: m.key, p_start: start.toISOString(), p_end: end.toISOString(), p_bucket: bucket,
         })
       ));
@@ -303,7 +311,7 @@ export default function DashboardClient() {
     } catch (e) {
       console.warn("fetchLineTrend failed:", e);
     }
-  }, [periodMode, tanggal, bulanPilih, supabase]);
+  }, [periodMode, tanggal, bulanPilih]);
 
   /* ── fetchDowntimeTrend (Exhaust & Harian) ── */
   const fetchDowntimeTrend = useCallback(async () => {
@@ -352,7 +360,7 @@ export default function DashboardClient() {
     try {
       if (periodMode === "bulanan") {
         // Pada mode bulanan, query exhaust dan harian identik (1 RPC call cukup)
-        const { data, error } = await supabase.rpc("prod_downtime_trend_bucketed", {
+        const { data, error } = await rpcApi.call("prod_downtime_trend_bucketed", {
           p_start: exhaustStart.toISOString(),
           p_end: exhaustEnd.toISOString(),
           p_bucket: "day",
@@ -381,12 +389,12 @@ export default function DashboardClient() {
       } else {
         // Mode harian / tahunan: query exhaust dan harian secara paralel
         const [resExhaust, resHarian] = await Promise.all([
-          supabase.rpc("prod_downtime_trend_bucketed", {
+          rpcApi.call("prod_downtime_trend_bucketed", {
             p_start: exhaustStart.toISOString(),
             p_end: exhaustEnd.toISOString(),
             p_bucket: exhaustBucket,
           }),
-          supabase.rpc("prod_downtime_trend_bucketed", {
+          rpcApi.call("prod_downtime_trend_bucketed", {
             p_start: harianStart.toISOString(),
             p_end: harianEnd.toISOString(),
             p_bucket: "day",
@@ -421,7 +429,7 @@ export default function DashboardClient() {
     } catch (e) {
       console.warn("fetchDowntimeTrend failed:", e);
     }
-  }, [periodMode, tanggal, bulanPilih, tahunPilih, supabase]);
+  }, [periodMode, tanggal, bulanPilih, tahunPilih]);
 
 
 
@@ -451,7 +459,7 @@ export default function DashboardClient() {
     }
 
     try {
-      const { data } = await supabase.rpc("prod_productivity_trend_bucketed", {
+      const { data } = await rpcApi.call("prod_productivity_trend_bucketed", {
         p_start: start.toISOString(),
         p_end: end.toISOString(),
         p_bucket: bucket,
@@ -497,14 +505,14 @@ export default function DashboardClient() {
     } catch (e) {
       console.warn("fetchProductivityTrend failed:", e);
     }
-  }, [periodMode, tanggal, bulanPilih, tahunPilih, supabase]);
+  }, [periodMode, tanggal, bulanPilih, tahunPilih]);
 
   const fetchProductivityToday = useCallback(async () => {
     try {
       const now = new Date();
       const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-      const { data } = await supabase.rpc("prod_productivity_trend_bucketed", {
+      const { data } = await rpcApi.call("prod_productivity_trend_bucketed", {
         p_start: start.toISOString(),
         p_end: end.toISOString(),
         p_bucket: "day",
@@ -526,7 +534,7 @@ export default function DashboardClient() {
     } catch (e) {
       console.warn("fetchProductivityToday failed:", e);
     }
-  }, [supabase]);
+  }, []);
 
   /* ── fetchMiniTrend ─────────────── */
   const fetchMiniTrend = useCallback(async () => {
@@ -561,11 +569,11 @@ export default function DashboardClient() {
         const sIso = p.start.toISOString(), eIso = p.end.toISOString();
         const sDate = localDateStr(p.start), eDate = localDateStr(p.end);
 
-        const safetyRpcP = Promise.resolve(supabase.rpc("prod_safety_summary", { p_start: sDate, p_end: eDate })).catch(() => ({ data: null, error: true }));
-        const attRpcP = Promise.resolve(supabase.rpc("prod_attendance_summary", { p_start: sDate, p_end: eDate })).catch(() => ({ data: null, error: true }));
-        const scrapRpcP = Promise.resolve(supabase.rpc("prod_scrap_top_end_summary", { p_start: sDate, p_end: eDate })).catch(() => ({ data: null, error: true }));
+        const safetyRpcP = rpcApi.call("prod_safety_summary", { p_start: sDate, p_end: eDate });
+        const attRpcP = rpcApi.call("prod_attendance_summary", { p_start: sDate, p_end: eDate });
+        const scrapRpcP = rpcApi.call("prod_scrap_top_end_summary", { p_start: sDate, p_end: eDate });
         const aggAllP = Promise.all(MACHINES.map((m) =>
-          supabase.rpc("prod_performance_aggregate", { p_mesin: m.key, p_stasiun_list: null, p_start: sIso, p_end: eIso })
+          rpcApi.call("prod_performance_aggregate", { p_mesin: m.key, p_stasiun_list: null, p_start: sIso, p_end: eIso })
         ));
         const [aggAll, safetyRes, attRes, scrapRes] = await Promise.all([
           aggAllP,
@@ -612,14 +620,14 @@ export default function DashboardClient() {
     } catch (e) {
       console.warn("fetchMiniTrend failed:", e);
     }
-  }, [periodMode, tanggal, bulanPilih, supabase]);
+  }, [periodMode, tanggal, bulanPilih]);
 
   /* ── fetchAttendanceByShift ──────── */
   const fetchAttendanceByShift = useCallback(async (startDate: string, endDate: string) => {
     try {
       const [r1, r2] = await Promise.all([
-        supabase.rpc("prod_attendance_summary", { p_start: startDate, p_end: endDate, p_shift: "1" }),
-        supabase.rpc("prod_attendance_summary", { p_start: startDate, p_end: endDate, p_shift: "2" }),
+        rpcApi.call("prod_attendance_summary", { p_start: startDate, p_end: endDate, p_shift: "1" }),
+        rpcApi.call("prod_attendance_summary", { p_start: startDate, p_end: endDate, p_shift: "2" }),
       ]);
       const row1 = (!r1.error && r1.data && r1.data[0]) || {};
       const row2 = (!r2.error && r2.data && r2.data[0]) || {};
@@ -630,17 +638,21 @@ export default function DashboardClient() {
     } catch {
       return undefined;
     }
-  }, [supabase]);
+  }, []);
 
   /* ── Fetch Main Data ───────────────────────────────────── */
   const fetchDashboardData = useCallback(async (isCancelled: () => boolean = () => false) => {
     setLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await auth.getSession();
       let profileResult: ProdProfile | null = null;
       if (session?.user) {
-        const { data: profData } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
-        if (profData) profileResult = profData as ProdProfile;
+        const u = session.user as any;
+        profileResult = {
+          id: u.id,
+          role: (u.profile?.role || u.user_metadata?.role || "operator").trim().toLowerCase(),
+          nama: u.profile?.nama || u.user_metadata?.username || u.user_metadata?.name || u.email || "",
+        } as ProdProfile;
       }
 
       let startDate = tanggal;
@@ -661,15 +673,15 @@ export default function DashboardClient() {
 
       const [aggResults, topProbResults, byCatResults, settingsRes] = await Promise.all([
         Promise.all(MACHINES.map((m) =>
-          supabase.rpc("prod_performance_aggregate", { p_mesin: m.key, p_stasiun_list: null, p_start: rangeStartIso, p_end: rangeEndIso })
+          rpcApi.call("prod_performance_aggregate", { p_mesin: m.key, p_stasiun_list: null, p_start: rangeStartIso, p_end: rangeEndIso })
         )),
         Promise.all(MACHINES.map((m) =>
-          supabase.rpc("prod_downtime_top_problems", { p_mesin: m.key, p_stasiun_list: null, p_start: rangeStartIso, p_end: rangeEndIso, p_limit: 10 })
+          rpcApi.call("prod_downtime_top_problems", { p_mesin: m.key, p_stasiun_list: null, p_start: rangeStartIso, p_end: rangeEndIso, p_limit: 10 })
         )),
         Promise.all(MACHINES.map((m) =>
-          supabase.rpc("prod_downtime_by_category", { p_mesin: m.key, p_stasiun_list: null, p_start: rangeStartIso, p_end: rangeEndIso })
+          rpcApi.call("prod_downtime_by_category", { p_mesin: m.key, p_stasiun_list: null, p_start: rangeStartIso, p_end: rangeEndIso })
         )),
-        supabase.from("prod_mesin_settings").select("*"),
+        masterDataApi.get({ type: "settings" }),
       ]);
 
       const settingsMap: Record<string, { mode: string; fixed: number; targetAvailability: number }> = {};
@@ -763,7 +775,7 @@ export default function DashboardClient() {
 
       try {
         const achResults = await Promise.all(MACHINES.map((m) =>
-          supabase.rpc("prod_achievement_aggregate", { p_mesin: m.key, p_start: rangeStartIso, p_end: rangeEndIso })
+          rpcApi.call("prod_achievement_aggregate", { p_mesin: m.key, p_start: rangeStartIso, p_end: rangeEndIso })
         ));
         const achTotal = achResults.reduce((acc, r) => {
           const row = (r.data && r.data[0]) || {};
@@ -814,13 +826,13 @@ export default function DashboardClient() {
       /* Safety */
       let accidentCount = 0, daysWithoutAccident = 0;
       try {
-        const safetyRpc = await supabase.rpc("prod_safety_summary", { p_start: startDate, p_end: endDate });
+        const safetyRpc = await rpcApi.call("prod_safety_summary", { p_start: startDate, p_end: endDate });
         if (!safetyRpc.error && safetyRpc.data && safetyRpc.data[0]) {
           const row = safetyRpc.data[0];
           accidentCount = Number(row.accident_count) || 0;
           daysWithoutAccident = Number(row.hari_tanpa_accident) || 0;
         } else {
-          const sr = await supabase.from("prod_safety_log").select("*").eq("is_active", true).gte("tanggal", startDate).lte("tanggal", endDate);
+          const sr = await safetyApi.get({ startDate, endDate, is_active: true });
           if (sr.data && sr.data.length > 0) {
             accidentCount = sr.data.filter((s: any) => s.kategori === "ACCIDENT").length;
             const totalDays = periodMode === "harian" ? 1
@@ -834,7 +846,7 @@ export default function DashboardClient() {
       /* Scrap */
       let scrapValueRpResult = 0, scrapRasioResult = 0, scrapTargetRasioResult = 0;
       try {
-        const scrapRpc = await supabase.rpc("prod_scrap_top_end_summary", { p_start: startDate, p_end: endDate });
+        const scrapRpc = await rpcApi.call("prod_scrap_top_end_summary", { p_start: startDate, p_end: endDate });
         if (!scrapRpc.error && scrapRpc.data && scrapRpc.data[0]) {
           const row = scrapRpc.data[0];
           scrapValueRpResult = (Number(row.scrap_value_kidr) || 0) * 1000;
@@ -843,8 +855,9 @@ export default function DashboardClient() {
         } else {
           const scrapYear = periodMode === "tahunan" ? tahunPilih : new Date(endDate).getFullYear();
           const scrapMonth = periodMode === "tahunan" ? new Date().getMonth() + 1 : new Date(endDate).getMonth() + 1;
-          const sr = await supabase.from("prod_scrap_top_end").select("*").eq("is_active", true).eq("tahun", scrapYear).eq("bulan", scrapMonth).maybeSingle();
-          scrapValueRpResult = sr.data ? (sr.data.scrap_value_kidr || 0) * 1000 : 0;
+          const sr = await scrapApi.get({ tahun: scrapYear, bulan: scrapMonth });
+          const scrapRow = (Array.isArray(sr.data) ? sr.data[0] : sr.data) as any;
+          scrapValueRpResult = scrapRow ? (Number(scrapRow.scrap_value_kidr) || 0) * 1000 : 0;
         }
       } catch { /* defaults */ }
 
@@ -852,7 +865,7 @@ export default function DashboardClient() {
       let attendanceResult: typeof attendance;
       let attendanceByShiftResult: typeof attendanceByShift;
       try {
-        const attRpc = await supabase.rpc("prod_attendance_summary", { p_start: startDate, p_end: endDate });
+        const attRpc = await rpcApi.call("prod_attendance_summary", { p_start: startDate, p_end: endDate });
         if (!attRpc.error && attRpc.data && attRpc.data[0]) {
           const row = attRpc.data[0];
           const totalSlot = Number(row.total_orang) || 0;
@@ -883,9 +896,13 @@ export default function DashboardClient() {
       } catch {
         let attList: any[] = [];
         try {
-          let aq = supabase.from("prod_attendance_log").select("*").eq("is_active", true).gte("tanggal", startDate).lte("tanggal", endDate);
-          if (shiftFilter !== "all") aq = aq.eq("shift", shiftFilter);
-          const ar = await aq;
+          const params: Parameters<typeof attendanceApi.get>[0] = {
+            startDate,
+            endDate,
+            is_active: true,
+          };
+          if (shiftFilter !== "all") params.shift = shiftFilter;
+          const ar = await attendanceApi.get(params);
           if (ar.data) attList = ar.data;
         } catch { attList = []; }
 
@@ -921,7 +938,7 @@ export default function DashboardClient() {
       if (periodMode === "harian") {
         try {
           const hourlyRes = await Promise.all(MACHINES.map((m) =>
-            supabase.rpc("prod_gsph_hourly", { p_mesin: m.key, p_start: rangeStartIso, p_end: rangeEndIso })
+            rpcApi.call("prod_gsph_hourly", { p_mesin: m.key, p_start: rangeStartIso, p_end: rangeEndIso })
           ));
           MACHINES.forEach((m, idx) => {
             const rows = (hourlyRes[idx].data || []) as any[];
@@ -951,7 +968,7 @@ export default function DashboardClient() {
     } finally {
       if (!isCancelled()) setLoading(false);
     }
-  }, [periodMode, tanggal, bulanPilih, tahunPilih, shiftFilter, bounds, fetchAttendanceByShift, supabase]);
+  }, [periodMode, tanggal, bulanPilih, tahunPilih, shiftFilter, bounds, fetchAttendanceByShift]);
 
   useEffect(() => {
     let cancelled = false;
@@ -985,38 +1002,21 @@ export default function DashboardClient() {
       return;
     }
 
-    const channel = supabase
-      .channel("dashboard-realtime-refresh")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "prod_downtime_log" },
-        () => {
-          let cancelled = false;
-          fetchDashboardData(() => cancelled);
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "prod_production_log" },
-        () => {
-          let cancelled = false;
-          fetchDashboardData(() => cancelled);
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "prod_dandori_log" },
-        () => {
-          let cancelled = false;
-          fetchDashboardData(() => cancelled);
-        }
-      )
-      .subscribe();
+    const onRealtimeUpdate = () => {
+      let cancelled = false;
+      fetchDashboardData(() => cancelled);
+    };
+
+    const unsubDt = subscribeToSocketEvent("prod_downtime_log", "*", onRealtimeUpdate);
+    const unsubProd = subscribeToSocketEvent("prod_production_log", "*", onRealtimeUpdate);
+    const unsubDandori = subscribeToSocketEvent("prod_dandori_log", "*", onRealtimeUpdate);
 
     return () => {
-      supabase.removeChannel(channel);
+      unsubDt();
+      unsubProd();
+      unsubDandori();
     };
-  }, [supabase, fetchDashboardData]);
+  }, [fetchDashboardData]);
 
   const ngRatePct = totals.stroke > 0 ? (totals.ng / totals.stroke) * 100 : 0;
 

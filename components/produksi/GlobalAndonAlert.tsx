@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { AlertTriangle, Bell, PhoneCall, Volume2, VolumeX, CheckCircle, ExternalLink } from "lucide-react";
-import { createClient } from "@/lib/db/client";
+import { auth, andonApi } from "@/lib/api-client";
 import { useAndonAlerts, AndonCall } from "@/hooks/produksi/useAndon";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -72,7 +72,6 @@ function stopGlobalVibration() {
 export function GlobalAndonAlert() {
   const pathname = usePathname();
   const router = useRouter();
-  const supabase = useMemo(() => createClient(), []);
 
   const [userId, setUserId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -84,7 +83,7 @@ export function GlobalAndonAlert() {
   // Ambil sesi & role user saat ini
   useEffect(() => {
     async function loadUser() {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { user } = await auth.getUser();
       if (!user) {
         setUserId(null);
         setUserRole(null);
@@ -93,25 +92,18 @@ export function GlobalAndonAlert() {
       }
       setUserId(user.id);
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      const rawRole = (profile?.role || user.user_metadata?.role || user.app_metadata?.role || "") as string;
+      const rawRole = (user.profile?.role || user.user_metadata?.role || user.app_metadata?.role || "") as string;
       const role = rawRole.trim().toLowerCase();
       setUserRole(role);
 
       // [FILTER_ANDON_PER_MESIN] Muat daftar mesin yang terdaftar untuk leader ini.
       // Admin tidak difilter (lihat semua), leader hanya mesin yang didaftarkan.
       if (role === "leader") {
-        const { data: leaderRows } = await supabase
-          .from("andon_leaders" as any)
-          .select("mesin")
-          .eq("user_id", user.id)
-          .eq("is_active", true);
-        setMyMesins((leaderRows as any[] || []).map((r: any) => r.mesin));
+        const { data: leaderRows } = await andonApi.getLeaders({
+          user_id: user.id,
+          is_active: true,
+        });
+        setMyMesins(((leaderRows as any[]) || []).map((r: any) => r.mesin));
       } else {
         setMyMesins([]);
       }
@@ -119,14 +111,14 @@ export function GlobalAndonAlert() {
 
     loadUser();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(() => {
+    const authListener = auth.onAuthStateChange(() => {
       loadUser();
     });
 
     return () => {
-      authListener?.subscription.unsubscribe();
+      authListener.unsubscribe();
     };
-  }, [supabase]);
+  }, []);
 
   const isLeaderOrAdmin = userRole === "leader" || userRole === "admin";
   const isAdmin = userRole === "admin";

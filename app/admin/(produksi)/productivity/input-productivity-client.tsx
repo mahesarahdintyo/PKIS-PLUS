@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { ArrowLeft, RefreshCw, Pencil, Trash2, Search, AlertTriangle } from "lucide-react";
-import { createClient } from "@/lib/db/client";
+import { productivityApi } from "@/lib/api-client";
 import { ProdProductivityRecord } from "@/types/produksi";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -31,7 +31,6 @@ function fmtTgl(iso: string): string {
 const PAGE_SIZE = 90;
 
 export default function InputProductivityClient({ embedded }: { embedded?: boolean }) {
-  const supabase = useMemo(() => createClient(), []);
   const [rows, setRows] = useState<ProdProductivityRecord[]>([]);
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(0);
@@ -76,14 +75,7 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
     else setLoading(true);
 
     try {
-      const from = targetPage * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-      const { data } = await supabase
-        .from("productivity_daily_reference")
-        .select("id, tanggal, eh_jam")
-        .eq("is_active", true)
-        .order("tanggal", { ascending: false })
-        .range(from, to);
+      const { data } = await productivityApi.get({ page: targetPage, limit: PAGE_SIZE, is_active: true });
       if (data) {
         if (targetPage === 0) {
           setRows(data);
@@ -97,11 +89,12 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
       if (targetPage > 0) setLoadingMore(false);
       else setLoading(false);
     }
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     fetchRows(0);
   }, [fetchRows]);
+
 
   const simpan = async () => {
     if (!form.tanggal || form.eh_jam === "") {
@@ -109,19 +102,14 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
       return;
     }
     setSaving(true);
-    const { error } = await supabase
-      .from("productivity_daily_reference")
-      .upsert(
-        {
-          tanggal: form.tanggal,
-          eh_jam: Number(form.eh_jam),
-          is_active: true,
-        },
-        { onConflict: "tanggal" }
-      );
+    const { error } = await productivityApi.upsert({
+      tanggal: form.tanggal,
+      eh_jam: Number(form.eh_jam),
+      is_active: true,
+    });
     setSaving(false);
     if (error) {
-      flash("Gagal simpan: " + error.message, true);
+      flash("Gagal simpan: " + error, true);
       return;
     }
     flash("Earned Hours " + form.tanggal + " disimpan.");
@@ -149,16 +137,15 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
       tanggal: editForm.tanggal,
       eh_jam: Number(editForm.eh_jam),
     };
-    let q = supabase.from("productivity_daily_reference").update(payload);
+    let result: { error: any };
     if (editTarget.id) {
-      q = q.eq("id", editTarget.id);
+      result = await productivityApi.update(editTarget.id, payload);
     } else {
-      q = q.eq("tanggal", editTarget.tanggal);
+      result = await productivityApi.updateByTanggal(editTarget.tanggal, payload);
     }
-    const { error } = await q;
     setIsSavingEdit(false);
-    if (error) {
-      flash("Gagal simpan: " + error.message, true);
+    if (result.error) {
+      flash("Gagal simpan: " + result.error, true);
       return;
     }
     flash("Earned Hours " + editForm.tanggal + " diperbarui.");
@@ -169,16 +156,11 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setIsDeleting(true);
-    let q = supabase.from("productivity_daily_reference").update({ is_active: false });
-    if (deleteTarget.id) {
-      q = q.eq("id", deleteTarget.id);
-    } else {
-      q = q.eq("tanggal", deleteTarget.tanggal);
-    }
-    const { error } = await q;
+    const ids = deleteTarget.id ? [deleteTarget.id] : [deleteTarget.tanggal];
+    const { error } = await productivityApi.deleteMany(ids);
     setIsDeleting(false);
     if (error) {
-      flash("Gagal menghapus: " + error.message, true);
+      flash("Gagal menghapus: " + error, true);
       return;
     }
     flash("Data Earned Hours " + deleteTarget.tanggal + " berhasil dihapus.");
@@ -243,13 +225,9 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
       setBulkDeleteError("");
 
       const keys = Array.from(selectedIds);
-      // Soft delete by id or tanggal
-      const { error } = await supabase
-        .from("productivity_daily_reference")
-        .update({ is_active: false })
-        .or(`id.in.(${keys.join(",")}),tanggal.in.(${keys.join(",")})`);
+      const { error } = await productivityApi.deleteMany(keys);
 
-      if (error) throw error;
+      if (error) throw new Error(error);
 
       flash(`${keys.length} data Earned Hours berhasil dipindahkan ke Tempat Sampah.`);
       setSelectedIds(new Set());

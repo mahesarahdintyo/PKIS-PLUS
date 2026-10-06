@@ -26,7 +26,7 @@ import {
   type ProductionReport,
 } from "@/lib/services/production-report";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/db/client";
+import { subscribeToSocketEvent } from "@/lib/api-client";
 import { toast } from "sonner";
 
 const PRODUCTION_REPORT_REFRESH_INTERVAL_MS = 3000;
@@ -140,20 +140,15 @@ export default function ProductionReportsDashboard() {
   }, [loadReports]);
 
   useEffect(() => {
-    const supabase = createClient();
-
     const refreshReports = () => {
       void loadReports({ showLoading: false });
     };
 
-    const channel = supabase
-      .channel("admin-production-reports")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "prod_production_log" },
-        refreshReports
-      )
-      .subscribe();
+    const unsubscribe = subscribeToSocketEvent(
+      "prod_production_log",
+      "*",
+      refreshReports
+    );
 
     const intervalId = window.setInterval(() => {
       void loadReports({ showLoading: false });
@@ -164,7 +159,7 @@ export default function ProductionReportsDashboard() {
     return () => {
       window.clearInterval(intervalId);
       window.removeEventListener("focus", refreshReports);
-      void supabase.removeChannel(channel);
+      unsubscribe();
     };
   }, [loadReports]);
 
@@ -243,13 +238,16 @@ export default function ProductionReportsDashboard() {
       setBulkDeleteError("");
       const idsToDelete = Array.from(selectedIds);
 
-      const supabase = createClient();
-      const { error: err } = await supabase
-        .from("prod_production_log" as any)
-        .update({ is_active: false })
-        .in("id", idsToDelete);
+      const res = await fetch("/api/production-reports", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: idsToDelete }),
+      });
 
-      if (err) throw err;
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null);
+        throw new Error(errJson?.error || "Gagal menghapus laporan terpilih");
+      }
 
       toast.success(`${idsToDelete.length} laporan produksi berhasil dihapus.`);
       setReports((prev) => prev.filter((r) => !selectedIds.has(r.id)));

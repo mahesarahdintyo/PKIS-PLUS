@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { LogOut, Loader2 } from "lucide-react";
-import { createClient } from "@/lib/db/client";
 
 interface LogoutButtonProps {
   className?: string;
@@ -17,13 +16,13 @@ export function LogoutButton({ className = "", variant = "default" }: LogoutButt
     try {
       localStorage.removeItem("futaba.operator.selectedMachine");
       localStorage.removeItem("futaba.operator.location");
+      localStorage.removeItem("pkis_user_session");
     } catch {}
 
     try {
-      const supabase = createClient();
-      await supabase.auth.signOut();
+      await fetch("/api/auth/logout", { method: "POST" });
     } catch (err) {
-      console.error("SignOut error:", err);
+      console.error("Logout error:", err);
     } finally {
       window.location.href = "/";
     }

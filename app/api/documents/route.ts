@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/db/server";
+import { prisma } from "@/lib/prisma";
 import { getCurrentUserProfile } from "@/lib/services/auth-server";
 import { NextResponse } from "next/server";
 
@@ -19,92 +19,67 @@ export async function GET(request: Request) {
     if (!userProfile.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const lineId = userProfile.role === "operator" && userProfile.lineId ? userProfile.lineId : reqLineId;
+    const lineId =
+      userProfile.role === "operator" && userProfile.lineId
+        ? userProfile.lineId
+        : reqLineId;
 
-    const supabase = await createClient();
-
-    let query = supabase
-      .from("documents")
-      .select(`
-        id,
-        title,
-        description,
-        file_name,
-        file_path,
-        file_type,
-        file_size,
-        target_time,
-        hidden_from_operator,
-        created_at,
-        folder_id,
-        line_id,
-        folders (
-          id,
-          name,
-          line_id
-        ),
-        prod_part_numbers (
-          id,
-          value
-        )
-      `);
+    const where: any = {};
 
     if (showTrash) {
-      query = query.eq("is_active", false);
+      where.is_active = false;
     } else {
-      query = query.or("is_active.eq.true,is_active.is.null");
+      where.OR = [{ is_active: true }, { is_active: null }];
     }
 
-    // Filter berdasarkan folder
     if (searchQuery) {
-      // Saat search, jangan filter folder
+      where.AND = [
+        ...(where.AND || []),
+        {
+          OR: [
+            { title: { contains: searchQuery, mode: "insensitive" } },
+            { description: { contains: searchQuery, mode: "insensitive" } },
+            { file_name: { contains: searchQuery, mode: "insensitive" } },
+          ],
+        },
+      ];
     } else if (folderIdStr) {
-      query = query.eq("folder_id", folderId);
+      where.folder_id = folderId;
     } else {
-      query = query.is("folder_id", null);
-    }
-
-    // Filter search
-    if (searchQuery) {
-      const escapedSearch = searchQuery.replace(/[%_]/g, "\\$&");
-
-      query = query.or(
-        `title.ilike.%${escapedSearch}%,description.ilike.%${escapedSearch}%,file_name.ilike.%${escapedSearch}%`
-      );
+      where.folder_id = null;
     }
 
     if (!includeHidden) {
-      query = query.eq("hidden_from_operator", false);
+      where.hidden_from_operator = false;
     }
 
-    const { data, error } = await query.order("created_at", {
-      ascending: false,
+    const rawDocs = await prisma.document.findMany({
+      where,
+      include: {
+        folder: {
+          select: {
+            id: true,
+            name: true,
+            line_id: true,
+          },
+        },
+      },
+      orderBy: { created_at: "desc" },
     });
-
-    if (error) {
-      console.error(error);
-      return NextResponse.json(
-        { error: error.message },
-        { status: 500 }
-      );
-    }
 
     // Filter line di sisi server
     const documents = lineId
-      ? data.filter((doc: any) => {
-        // Kalau dokumen ada di dalam folder
-        if (doc.folder_id) {
-          return doc.folders?.line_id === lineId
-        }
+      ? rawDocs.filter((doc) => {
+          if (doc.folder_id) {
+            return doc.folder?.line_id === lineId;
+          }
+          return doc.line_id === lineId;
+        })
+      : rawDocs;
 
-        // Kalau dokumen berada di root Line
-        return doc.line_id === lineId
-      })
-      : data
-
-    const transformedDocuments = documents.map((doc: any) => ({
+    const transformedDocuments = documents.map((doc) => ({
       id: doc.id,
-      lineId: doc.line_id ?? doc.folders?.line_id ?? undefined,
+      lineId: doc.line_id ?? doc.folder?.line_id ?? undefined,
       title: doc.title,
       description: doc.description,
       category: "Lainnya",
@@ -116,20 +91,14 @@ export async function GET(request: Request) {
       },
       targetTime: doc.target_time,
       hiddenFromOperator: doc.hidden_from_operator,
-      linkedPartNumbers: Array.isArray(doc.prod_part_numbers)
-        ? doc.prod_part_numbers.map((p: any) => ({
-            id: p.id,
-            value: p.value || "-",
-          }))
-        : [],
+      linkedPartNumbers: [],
     }));
 
     return NextResponse.json(transformedDocuments);
-  } catch (error) {
-    console.error(error);
-
+  } catch (error: any) {
+    console.error("Documents GET error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: error.message || "Internal server error" },
       { status: 500 }
     );
   }
@@ -139,7 +108,6 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-
     const {
       title,
       description,
@@ -148,7 +116,9 @@ export async function POST(request: Request) {
       file_path,
       file_size,
       file_type,
-      target_time
+      target_time,
+      folder_id,
+      line_id,
     } = body;
 
     if (!title || !file_name || !file_path) {
@@ -158,81 +128,72 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const userProfile = await getCurrentUserProfile();
+    if (!userProfile.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data, error } = await supabase
-      .from("documents")
-      .insert({
+    const newDoc = await prisma.document.create({
+      data: {
         title,
-        description,
-        category_id: category_id || null,
+        description: description || null,
+        category_id: category_id ? parseInt(category_id) : null,
+        folder_id: folder_id ? parseInt(folder_id) : null,
+        line_id: line_id || null,
         file_name,
         file_path,
-        file_size,
-        file_type,
+        file_size: file_size ? parseInt(file_size) : null,
+        file_type: file_type || "pdf",
         target_time: target_time || null,
-      })
-      .select();
+        is_active: true,
+      },
+    });
 
-    if (error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json(data[0], { status: 201 });
-  } catch (error) {
+    return NextResponse.json(newDoc, { status: 201 });
+  } catch (error: any) {
+    console.error("Documents POST error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: error.message || "Internal server error" },
       { status: 500 }
     );
   }
 }
+
 // DELETE - Bulk soft-delete documents
 export async function DELETE(request: Request) {
   try {
-    const body = await request.json().catch(() => ({}))
-    const ids: string[] = Array.isArray(body?.ids) ? body.ids : []
+    const body = await request.json().catch(() => ({}));
+    const ids: string[] = Array.isArray(body?.ids) ? body.ids : [];
 
     if (ids.length === 0) {
       return NextResponse.json(
         { error: "No document IDs provided" },
         { status: 400 }
-      )
+      );
     }
 
-    const supabase = await createClient()
-    const userProfile = await getCurrentUserProfile()
+    const userProfile = await getCurrentUserProfile();
     if (!userProfile.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Remove from display_documents first
-    await supabase.from("display_documents").delete().in("document_id", ids)
+    await prisma.displayDocument.deleteMany({
+      where: { document_id: { in: ids } },
+    });
 
     // Soft-delete all documents
-    const { error } = await supabase
-      .from("documents")
-      .update({ is_active: false })
-      .in("id", ids)
+    await prisma.document.updateMany({
+      where: { id: { in: ids } },
+      data: { is_active: false },
+    });
 
-    if (error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 500 }
-      )
-    }
-
-    return NextResponse.json({ success: true, deleted: ids.length })
-  } catch (error) {
+    return NextResponse.json({ success: true, deleted: ids.length });
+  } catch (error: any) {
+    console.error("Documents bulk DELETE error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: error.message || "Internal server error" },
       { status: 500 }
-    )
+    );
   }
 }
