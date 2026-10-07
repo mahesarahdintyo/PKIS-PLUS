@@ -1,171 +1,112 @@
-# 📚 Panduan Pengguna (User Guide)
+# 📚 Panduan Pengguna (User Guide) — PKIS-PLUS
 
-Aplikasi **Futaba PKIS** memiliki tiga peran utama: **Admin**, **Operator**, dan **TV Display**. Dokumen ini menjelaskan cara penggunaan lengkap untuk setiap peran.
-
----
-
-## 🔑 1. Login & Autentikasi
-
-Buka aplikasi di browser dan masukkan **username** dan **password** yang telah dibuat oleh admin sistem.
-
-- **Admin** → diarahkan ke halaman `/admin`. Tersedia shortcut ke **Status & Monitoring Sistem** (`/system`) di halaman utama setelah login.
-- **Operator** → diarahkan ke halaman `/operator`
-- **TV Display** → buka langsung `/display/[landId]` tanpa login (read-only)
-
-### 📲 Install Aplikasi (PWA)
-
-Saat membuka halaman login, tombol **"Install Aplikasi Futaba PKIS"** akan muncul di bawah form jika browser mendukung instalasi PWA.
-
-- **Android / Chrome / Tablet**: Klik tombol → ikuti panduan instalasi browser.
-- **iOS / iPad Safari**: Klik tombol → ikuti instruksi tekan **Share ⎋** → **"Add to Home Screen"**.
-
-Setelah diinstal, aplikasi dapat dibuka langsung dari layar utama perangkat tanpa membuka browser secara manual.
+Aplikasi **Futaba PKIS (PKIS-PLUS)** dirancang untuk mendukung operasional lini produksi dengan empat peran utama: **Admin**, **Leader**, **Operator**, dan **TV Display**.
 
 ---
 
-## 👑 2. Panduan Admin
+## 🔑 1. Login & Hak Akses Pengguna
 
-Halaman Admin memiliki lima tab utama di navigation bar sidebar:
+Buka aplikasi di peramban web dan masukkan **username** / **email** serta **password**.
 
-### Tab A: Workspace — Manajemen Dokumen
+- **Admin** → Diarahkan ke dashboard utama `/admin` untuk manajemen lini, dokumen, part number, laporan produksi, dan sistem monitoring `/system`.
+- **Leader** → Diarahkan ke dashboard pengawas untuk memantau status lini produksi, menerima panggilan Andon, dan merespons kendala lapangan.
+- **Operator** → Diarahkan ke antarmuka tablet `/operator` untuk mengontrol dokumen display, mencatat laporan produksi, downtime, dan memicu panggilan Andon.
+- **TV Display** → Langsung membuka tautan `/display/[lineId]` di browser TV tanpa perlu login (mode tayang otomatis).
 
-#### 🗺️ Navigasi Land & Folder
-- Di halaman awal, pilih **Land** (lini produksi) yang ingin dikelola, contoh: **500T**, **800T**.
-- Gunakan **breadcrumb** di bagian atas workspace untuk melihat posisi folder saat ini dan navigasi kembali ke folder induk.
+### 📲 Instalasi Progressive Web App (PWA)
 
-#### 📁 Pengelolaan Folder
-- **Buat Folder**: Klik tombol **Create Folder** di header, masukkan nama, simpan.
-- **Hapus Folder**: Klik ikon hapus pada kartu folder.
-
-#### 📄 Pengelolaan Dokumen
-**Upload Dokumen Baru:**
-1. Klik **Upload Document** di header kanan atas.
-2. Isi formulir: Judul, Deskripsi (opsional), Target Waktu (opsional), pilih file (PDF/JPG/PNG, maks 50MB per file, maks 5 file sekaligus).
-3. Klik **Upload**.
-
-**Edit Judul & Nama File (Inline Edit):**
-- Klik ikon **Pencil** di samping judul → ubah judul → Enter atau klik centang.
-- Klik ikon **Pencil** di samping nama file → ubah nama (ekstensi dipertahankan otomatis) → Enter.
-
-**Visibilitas Operator:**
-- Klik ikon mata coret untuk **menyembunyikan** dokumen dari operator (berguna untuk draft).
-- Klik kembali untuk **menampilkan**.
-
-**Hapus Dokumen:**
-- Klik ikon **Trash** (merah) → konfirmasi di pop-up → dokumen dihapus dari database dan storage.
+Aplikasi mendukung instalasi langsung sebagai PWA ke layar utama tablet atau ponsel:
+- **Android / Chrome / Tablet**: Tekan tombol **"Install Aplikasi Futaba PKIS"** di bawah formulir login atau menu browser *Add to Home screen*.
+- **iOS / iPad Safari**: Tekan tombol **Share ⎋** pada Safari → pilih **Add to Home Screen**.
 
 ---
 
-### Tab B: Laporan Produksi
+## 👑 2. Panduan Administrator
 
-Dashboard untuk memantau semua laporan harian yang dikirim operator.
+Halaman Admin (`/admin`) menyediakan kontrol terpusat melalui tab navigasi:
 
-Dashboard akan memperbarui daftar laporan secara otomatis saat operator menyimpan laporan baru. Admin tidak perlu melakukan refresh browser; tombol **Perbarui** tetap tersedia untuk refresh manual jika koneksi realtime sedang bermasalah.
+### Tab A: Workspace (Manajemen Dokumen & Folder)
+- **Pemilihan Lini (Line)**: Pilih lini produksi yang ingin dikelola (misal: **Line 500T**, **Line 800T**).
+- **Pengelolaan Folder**: Buat folder hierarkis untuk mengelompokkan dokumen berdasarkan stasiun kerja, jenis proses, atau kategori.
+- **Unggah Dokumen (Upload)**:
+  - Klik **Upload Document** di sudut kanan atas.
+  - Masukkan judul, deskripsi, pilih folder tujuan, dan tentukan berkas (PDF, JPG, PNG hingga 50MB).
+  - Berkas fisik otomatis tersimpan di direktori server lokal `public/uploads/documents/`.
+- **Inline Edit & Visibilitas**:
+  - Klik ikon **Pensil** untuk mengganti judul atau nama file display secara langsung tanpa perlu re-upload.
+  - Klik ikon **Mata Coret** untuk menyembunyikan dokumen dari tablet operator (berguna untuk dokumen draft/revisi).
+- **Recycle Bin**: Dokumen yang dihapus dapat dipulihkan atau dibersihkan permanen melalui menu Tempat Sampah (`/admin/recycle-bin`).
 
-#### 🔍 Filter & Pencarian
-- **Filter Lini/Card**: Dropdown pilih lini produksi tertentu.
-- **Filter Tanggal**: Tentukan rentang tanggal.
-- **Filter Shift**: Pilih Shift 1 atau Shift 2.
-- **Pencarian**: Ketik nama operator atau part number.
+### Tab B: Laporan Produksi & Log Aktivitas
+- Pantau laporan harian yang diisi operator secara langsung (*realtime update* tanpa perlu refresh browser).
+- Filter data berdasarkan lini, rentang tanggal, shift kerja, atau pencarian nama operator / part number.
+- Ekspor data laporan kerja ke format **CSV** untuk analisis lanjutan.
 
-#### 📊 Tabel Laporan
-Kolom yang ditampilkan: **Tanggal**, **Line/Card**, **Operator**, **Shift**, **Part Number**, **Mulai–Selesai**, **QTY OK**, **QTY NG**, **NG Rate**, **Aksi**.
+### Tab C: Manajemen Part Number
+- Tambah, ubah, atau nonaktifkan part number per lini/mesin.
+- Setiap penambahan part number akan langsung tersinkron ke dropdown tablet operator melalui Socket.io.
 
-- Klik ikon **mata** untuk melihat detail laporan lengkap (termasuk kategori NG).
-- Klik ikon **hapus** untuk menghapus laporan (dengan konfirmasi modal).
+### Tab D: Kategori Cacat (NG)
+- Kelola master kategori cacat (contoh: *Dimensi*, *Permukaan*, *Material*, *Proses*).
+- Pilihan ini otomatis muncul di formulir operator ketika jumlah NG diisi lebih dari 0.
 
-#### 📋 Salin & Export
-- Di modal detail laporan, klik **Salin Laporan** untuk menyalin teks laporan ke clipboard.
-- Klik tombol **Export CSV** di header tabel untuk mengunduh semua laporan yang terfilter.
-
----
-
-### Tab C: Part Number — Manajemen Part Number
-
-Panel untuk mengelola daftar part number yang bisa dipilih operator.
-
-- **Tambah**: Isi kode part number + deskripsi (opsional) → klik **Simpan Part Number**.
-- **Hapus**: Klik ikon **Trash** pada baris yang ingin dihapus → konfirmasi modal.
-
-> Part number yang dihapus tidak lagi muncul di form operator. Laporan lama yang sudah memakai part number tersebut tidak terpengaruh.
-
-Dropdown part number di halaman operator ikut tersinkron otomatis saat admin menambah atau menghapus part number. Jika part number yang sedang dipilih operator dihapus, pilihan akan dikosongkan dan operator perlu memilih ulang.
-
----
-
-### Tab D: Kategori NG — Manajemen Kategori Cacat
-
-Panel untuk mengelola daftar kategori cacat (NG) yang bisa dipilih operator saat ada produk NG.
-
-- **Tambah**: Isi nama kategori + deskripsi (opsional) → klik **Simpan Kategori NG**.
-- **Hapus**: Klik ikon **Trash** → konfirmasi modal.
-
-> Contoh kategori: Dimensi, Permukaan, Material, Proses, Lainnya.
+### 🖥️ Halaman Monitoring Sistem (`/system`)
+- **Status Koneksi Database**: Memverifikasi kesiapan PostgreSQL dan latensi query.
+- **Status TV Display per Lini**: Memantau apakah layar TV di setiap lini sedang online atau offline berdasarkan sinyal *heartbeat* otomatis setiap 30 detik.
+- **Status Penyimpanan**: Memeriksa ketersediaan folder upload berkas lokal.
 
 ---
 
-### Halaman System Monitoring (`/system`)
+## 📱 3. Panduan Operator (Tablet Lini)
 
-Halaman khusus admin untuk memantau kondisi sistem secara menyeluruh. Dapat diakses dari halaman utama setelah login sebagai admin.
+Antarmuka operator dirancang khusus untuk layar sentuh tablet di area lini kerja:
 
-- **Status Database & Storage**: Cek koneksi ke Supabase (PostgreSQL & Storage Bucket).
-- **Status TV Display per Lini**: Lihat status online/offline setiap TV Display beserta waktu terakhir terlihat aktif.
-- **Refresh Manual**: Klik tombol **Refresh** untuk memperbarui status secara manual.
+### A. Kontrol Dokumen TV Display
+1. Pilih lini kerja Anda (misal: Line 500T).
+2. Masuk ke folder dokumen yang diinginkan.
+3. Klik tombol **Preview** untuk membaca dokumen di layar tablet.
+4. Klik tombol **Tampilkan** (ikon monitor hijau) untuk menayangkan dokumen tersebut ke TV Display lini.
+5. TV Display di lini Anda akan berganti menampilkan dokumen tersebut dalam hitungan milidetik secara realtime.
 
----
+### B. Input Laporan Produksi & Downtime
+1. **Pilih Part Number** dari daftar dropdown.
+2. Waktu mulai akan tercatat otomatis.
+3. Setelah sesi kerja selesai, tekan **Finish** untuk mencatat jam selesai.
+4. Masukkan jumlah **QTY OK** (wajib > 0).
+5. Masukkan jumlah **NG** jika terdapat produk cacat:
+   - Tombol **Kategori NG** akan muncul secara otomatis.
+   - Pilih kategori cacat yang sesuai.
+6. Masukkan durasi **Break** (istirahat) jika ada.
+7. Tekan **Simpan Laporan** — data langsung tersimpan ke database lokal dan muncul di dashboard pengawas.
 
-## 📱 3. Panduan Operator (Tablet)
-
-Halaman operator diakses via tablet di masing-masing lini produksi.
-
-### A. Form Laporan Produksi
-
-**Langkah pengisian:**
-1. **Pilih Part Number** dari dropdown — sistem otomatis mengisi waktu mulai.
-2. **Lakukan produksi** sesuai durasi sesi.
-3. Tekan **Finish** saat selesai — sistem otomatis mengisi waktu selesai.
-4. **Isi QTY** (jumlah total produksi). Wajib diisi dan tidak boleh 0.
-5. **Isi NG** (jumlah produk cacat). Jika NG > 0:
-   - Secara otomatis muncul pilihan **Kategori NG** (chip/tombol pilihan).
-   - Pilih satu kategori yang sesuai — **wajib dipilih** sebelum bisa menyimpan.
-   - Jika NG dikembalikan ke 0, pilihan kategori akan hilang otomatis.
-6. **Isi BREAK** (menit istirahat, jika ada).
-7. Pilih **PC-1** dan **PC-2**.
-8. Klik **Simpan Laporan**.
-
-Setelah laporan tersimpan, laporan tersebut otomatis muncul di tab **Laporan Produksi** halaman admin tanpa refresh manual.
-
-**Validasi yang berlaku:**
-- QTY tidak boleh 0
-- QTY NG tidak boleh melebihi QTY
-- Kategori NG wajib dipilih jika NG > 0
-
-### B. Tampilkan Dokumen ke TV Display
-
-1. Navigasi ke folder dokumen yang sesuai.
-2. Klik **Preview** (ikon mata) untuk melihat isi dokumen.
-3. Klik **Tampilkan** (ikon monitor hijau) untuk mengirim dokumen ke layar TV Display lini ini secara realtime.
-4. Kartu dokumen yang sedang aktif ditampilkan akan memiliki tanda khusus di tablet.
+### C. Panggilan Bantuan (Andon Call)
+- Jika mesin mengalami kendala atau butuh bantuan Leader/QC/Maintenance:
+  - Tekan tombol **Andon Call**.
+  - Pilih alasan kendala (misal: *Mesin Rusak*, *Dies Problem*, *Material Habis*).
+  - Panggilan akan disiarkan seketika ke dashboard Leader dan TV Display.
 
 ---
 
-## 📺 4. TV Display
+## 📺 4. Panduan TV Display Lini
 
-Layar TV Display diletakkan di area kerja setiap lini (stasiun kerja).
+Layar TV Display dipasang permanen di atas lini produksi:
 
-- Buka browser TV dengan URL: `http://[alamat-server]/display/[landId]`
-- TV Display **tidak memerlukan login** dan bekerja sepenuhnya otomatis.
-- Dokumen yang dikirim operator akan tampil **dalam waktu < 1 detik** secara realtime.
-- Jika operator mengganti dokumen, TV Display memperbarui tampilannya secara otomatis.
+- Cukup buka browser TV dengan alamat URL:
+  ```
+  http://[ip-server-pabrik]:3000/display/[lineId]
+  ```
+  *(Contoh: `http://192.168.1.100:3000/display/500T`)*
+- Layar **tidak memerlukan login** atau interaksi fisik.
+- Mengirim sinyal *heartbeat* otomatis ke server setiap 30 detik.
+- Saat operator menekan tombol **Tampilkan** pada tablet, layar TV akan langsung memuat dan menampilkan dokumen kerja (PDF/Gambar) yang dipilih dalam resolusi optimal.
 
 ---
 
-## 💡 Tips & Catatan
+## 💡 Troubleshooting & FAQ
 
-| Situasi | Solusi |
-|---|---|
-| Part number belum muncul | Minta admin tambah di Tab **Part Number** |
-| Laporan baru belum muncul di admin | Tunggu beberapa detik, klik **Perbarui**, lalu cek koneksi Supabase Realtime |
-| Kategori NG tidak ada | Minta admin tambah di Tab **Kategori NG** |
-| Dokumen tidak muncul di operator | Cek visibilitas dokumen (ikon mata) di admin |
-| TV Display tidak update | Refresh halaman TV Display, cek koneksi jaringan |
+| Masalah | Kemungkinan Penyebab | Tindakan Solusi |
+|---|---|---|
+| TV Display tidak merespons perubahan dokumen | Koneksi jaringan terputus atau Socket.io disconnected | Muat ulang (*refresh*) halaman TV Display, periksa kabel LAN/WiFi TV. |
+| Part Number baru tidak muncul di dropdown tablet | Belum diinput oleh admin atau koneksi socket offline | Hubungi Admin untuk memastikan part number aktif di tab Part Number, atau refresh halaman. |
+| Gagal mengunggah dokumen | Format berkas tidak didukung atau ukuran melebihi 50MB | Pastikan file berformat PDF, JPG, atau PNG dengan ukuran di bawah 50MB. |
+| Status TV Display di `/system` bertuliskan Offline | TV belum membuka URL `/display/[lineId]` atau sinyal heartbeat terhenti | Pastikan browser TV tetap membuka halaman display dan tidak masuk ke mode sleep. |

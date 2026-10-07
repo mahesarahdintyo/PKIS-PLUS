@@ -1,85 +1,105 @@
-# ✅ Panduan Pengujian (Testing Guide)
+# ✅ Panduan Pengujian (Testing Guide) — PKIS-PLUS
 
-Dokumen ini memandu pengembang atau tim QA untuk memverifikasi fungsionalitas aplikasi **Futaba Digital Document Management System** baik secara otomatis (type checking & build validation) maupun manual.
+Dokumen ini memandu pengembang dan tim QA untuk memverifikasi fungsionalitas aplikasi **Futaba PKIS (PKIS-PLUS)**, mencakup pengujian kompilasi otomatis (*type check & build*) serta skenario verifikasi manual terstruktur.
 
 ---
 
-## ⚙️ 1. Pengujian Otomatis & Kompilasi
+## ⚙️ 1. Pengujian Otomatis & Kompilasi Kode
 
-Sebelum mengajukan perubahan kode ke cabang produksi, lakukan pengujian berikut di terminal lokal Anda:
+Sebelum mengajukan commit atau melakukan deployment ke server produksi, jalankan langkah validasi berikut di terminal:
 
 ### A. Validasi TypeScript (Type Safety Check)
-Pastikan tidak ada kesalahan tipe data pada kode TypeScript:
+Memastikan seluruh komponen, API routes, dan model Prisma bebas dari kesalahan tipe:
 ```bash
 npx tsc --noEmit
 ```
-*Hasil yang diharapkan: Perintah selesai tanpa output kesalahan (clean exit).*
+*Hasil yang diharapkan: Perintah selesai tanpa output kesalahan (exit code 0).*
 
-### B. Validasi Build Produksi (Production Build Check)
-Pastikan aplikasi Next.js dapat dikompilasi ke versi produksi dengan lancar:
+### B. Validasi Kompilasi Produksi (Production Build Check)
+Memastikan Next.js dapat mengompilasi seluruh rute statis dan dinamis dengan sukses:
 ```bash
 npm run build
 ```
-*Hasil yang diharapkan: Build berhasil (`Compiled successfully`) dan semua halaman statis/dinamis terbuat tanpa warning fatal.*
+*Hasil yang diharapkan: Menampilkan pesan `Compiled successfully` dan ringkasan seluruh routes (exit code 0).*
+
+### C. Validasi Skema Database (Prisma Validate)
+Memastikan file `prisma/schema.prisma` konsisten dan sinkron dengan client:
+```bash
+npx prisma validate
+```
 
 ---
 
 ## 📝 2. Skenario Pengujian Manual (Manual Verification Checklist)
 
-Jalankan server lokal (`pnpm dev` atau `npm run start`) lalu verifikasi fungsionalitas berikut di browser:
+Jalankan server aplikasi lokal:
+```bash
+npm run dev
+```
+Buka peramban di `http://localhost:3000`.
+
+---
 
 ### 👑 A. Halaman Admin (`/admin`)
 
-#### 1. Navigasi & Folder
-- [ ] Pilih salah satu Land (misal: 500T). Pastikan masuk ke halaman workspace Land.
-- [ ] Buat folder baru. Pastikan folder muncul di daftar.
-- [ ] Klik folder untuk memasukinya. Pastikan navigasi breadcrumb di atas terisi dengan benar.
-- [ ] Klik ikon tempat sampah pada folder untuk menghapusnya. Pastikan folder hilang dari daftar.
+#### 1. Manajemen Lini (Line) & Folder
+- [ ] Buka tab **Workspace**, pilih salah satu Line (misal: *Line 500T*).
+- [ ] Buat folder baru (misal: *Folder SOP Press*). Pastikan folder langsung tampil di daftar.
+- [ ] Klik folder untuk masuk ke dalamnya. Pastikan tautan breadcrumb di atas terisi dengan tepat.
+- [ ] Uji buat sub-folder di dalam folder tersebut.
 
-#### 2. Unggah Dokumen (Upload)
-- [ ] Klik **Upload Document**.
-- [ ] Coba unggah file dengan format tidak valid (selain PDF, JPG, PNG). Pastikan muncul pesan error.
-- [ ] Coba unggah file berukuran di atas 50MB. Pastikan muncul pesan error.
-- [ ] Unggah file PDF/JPG/PNG yang valid. Masukkan judul dan deskripsi. Pastikan file muncul di daftar dokumen setelah proses unggah selesai.
+#### 2. Unggah & Manajemen Dokumen
+- [ ] Klik tombol **Upload Document**.
+- [ ] Coba unggah file dengan ekstensi selain PDF, JPG, atau PNG (misal `.exe` atau `.txt`). Pastikan sistem menolak dengan pesan validasi.
+- [ ] Unggah file PDF valid. Beri judul dan deskripsi.
+- [ ] Pastikan file muncul di daftar dokumen dan berkas fisik tersimpan di direktori lokal `public/uploads/documents/`.
+- [ ] Klik ikon **Pensil** di samping judul dokumen. Ubah judul lalu simpan. Pastikan judul terbarui seketika.
+- [ ] Klik ikon **Mata Coret** untuk menyembunyikan dokumen dari operator. Pastikan kartu dokumen ditandai berstatus tersembunyi.
+- [ ] Klik ikon **Trash** pada kartu dokumen. Pastikan dokumen berpindah ke tempat sampah (*Recycle Bin*).
 
-#### 3. Edit Judul & Nama File (Inline Edit)
-- [ ] Pada kartu dokumen, klik tombol **Pencil** di samping judul utama dokumen. Pastikan input teks muncul dan terisi dengan judul saat ini.
-- [ ] Ubah judul, lalu klik ikon **Save** (atau tekan Enter). Pastikan judul terupdate di kartu dokumen.
-- [ ] Ulangi langkah di atas tetapi klik tombol **Batal** (atau tekan Escape). Pastikan judul kembali ke nilai semula.
-- [ ] Klik tombol **Pencil** di samping nama file asli (bagian bawah). Pastikan input teks muncul tanpa menampilkan ekstensi file (misal: hanya `manual-kerja`).
-- [ ] Ubah nama file, lalu klik ikon **Save** (atau tekan Enter). Pastikan nama file terupdate lengkap dengan ekstensinya (misal: `manual-kerja-baru.pdf`).
+#### 3. Tempat Sampah (Recycle Bin)
+- [ ] Akses halaman `/admin/recycle-bin`.
+- [ ] Verifikasi dokumen atau folder yang baru saja dihapus muncul di daftar sampah.
+- [ ] Uji fitur **Restore** (dokumen kembali ke workspace).
+- [ ] Uji fitur **Purge** (dokumen dihapus permanen dari database dan file fisik terhapus dari disk).
 
-#### 4. Waktu Target & Visibilitas Operator
-- [ ] Pilih tanggal dan jam target, lalu klik **Simpan**. Pastikan teks target waktu tertera di kartu dokumen.
-- [ ] Klik tombol **Reset**. Pastikan target waktu hilang.
-- [ ] Klik ikon mata coret untuk menyembunyikan dokumen dari operator. Pastikan warna kartu berubah menjadi kekuningan dan terdapat lencana "Disembunyikan dari operator".
-
-#### 5. Penghapusan Dokumen
-- [ ] Klik ikon **Trash** pada dokumen. Konfirmasi dialog. Pastikan dokumen tersebut hilang dari daftar admin dan berkas fisiknya terhapus dari bucket Supabase Storage.
+#### 4. Master Data Part Number & Kategori NG
+- [ ] Tambah part number baru di tab **Part Number**.
+- [ ] Tambah kategori cacat baru di tab **Kategori NG**.
+- [ ] Pastikan data tersimpan di PostgreSQL dan tampil di tabel admin.
 
 ---
 
 ### 📱 B. Halaman Operator (`/operator`)
 
-- [ ] Buka halaman operator di tab browser baru.
-- [ ] Navigasikan masuk ke dalam folder. Pastikan folder dan dokumen yang ada di admin (yang tidak disembunyikan) muncul.
-- [ ] Lakukan pencarian dokumen pada search bar. Pastikan filter pencarian berjalan instan.
-- [ ] Klik tombol **Preview** pada dokumen. Pastikan dokumen terbuka di tab baru.
-- [ ] Pastikan dokumen yang diset **hidden** di halaman admin **tidak muncul** sama sekali di halaman operator.
+- [ ] Login menggunakan akun operator (`operator@pabrik.local`).
+- [ ] Masuk ke menu lini kerja terkait.
+- [ ] Pastikan dokumen yang disembunyikan (*hidden*) oleh admin **tidak muncul** pada tampilan operator.
+- [ ] Buka fitur **Preview** pada salah satu dokumen kerja. Pastikan dokumen terbuka dengan benar di peramban.
 
-#### Laporan Produksi & Part Number Realtime
-- [ ] Buka halaman admin tab **Part Number** dan halaman operator tab **Laporan Produksi** di dua tab browser.
-- [ ] Tambah part number baru dari admin. Pastikan dropdown part number operator bertambah otomatis tanpa refresh.
-- [ ] Hapus part number dari admin. Pastikan dropdown operator berkurang otomatis tanpa refresh.
-- [ ] Buka halaman admin tab **Laporan Produksi** dan halaman operator tab **Laporan Produksi** di dua tab browser.
-- [ ] Submit laporan produksi dari operator. Pastikan laporan baru muncul otomatis di dashboard admin tanpa refresh browser.
+#### Realtime Synchronization Test (Multi-Tab)
+- [ ] Buka tab Browser 1: Halaman Admin (Tab Part Number).
+- [ ] Buka tab Browser 2: Halaman Operator (Form Laporan Produksi).
+- [ ] Tambahkan part number baru di Browser 1. Perhatikan dropdown part number di Browser 2 bertambah secara otomatis tanpa perlu merefresh halaman.
+- [ ] Buka tab Browser 1: Halaman Admin (Tab Laporan Produksi).
+- [ ] Di Browser 2 (Operator), isi formulir produksi dan klik **Simpan Laporan**.
+- [ ] Perhatikan tabel laporan di Browser 1 langsung memperbarui baris baru secara otomatis.
 
 ---
 
-### 📺 C. Halaman Display TV (`/display`)
+### 📺 C. TV Display Realtime (`/display/[lineId]`)
 
-- [ ] Buka halaman display TV di tab browser terpisah.
-- [ ] Pada halaman operator, klik tombol **Tampilkan** pada salah satu dokumen.
-- [ ] Pastikan halaman display TV **seketika memuat** dan menampilkan dokumen tersebut tanpa perlu melakukan refresh halaman.
-- [ ] Pada halaman admin, coba edit judul atau nama file dokumen yang sedang ditampilkan di TV tersebut.
-- [ ] Pastikan halaman display TV langsung memperbarui metadata judul/nama file yang berubah secara realtime.
+- [ ] Buka tab Browser 1: Halaman Operator (`/operator`).
+- [ ] Buka tab Browser 2: Halaman Display TV (`/display/500T`).
+- [ ] Pada Browser 1, pilih salah satu dokumen kerja dan klik tombol **Tampilkan** (ikon monitor hijau).
+- [ ] Verifikasi Browser 2 (TV Display) langsung memuat dan menampilkan dokumen tersebut dalam hitungan < 1 detik melalui koneksi Socket.io.
+- [ ] Di halaman admin, ubah judul dokumen yang sedang aktif ditampilkan. Pastikan teks judul di TV Display terbarui secara realtime.
+
+---
+
+### 🖥️ D. Pemantauan Sistem (`/system`)
+
+- [ ] Buka halaman `/system` saat TV Display sedang aktif di tab lain.
+- [ ] Verifikasi status TV Display lini tersebut ditandai **Online** dengan indikator hijau.
+- [ ] Tutup tab TV Display dan tunggu 1 menit (melewati siklus heartbeat). Status TV Display akan berubah menjadi **Offline**.
+- [ ] Periksa indikator status database PostgreSQL dan direktori penyimpanan berkas menunjukkan status **Healthy / Normal**.

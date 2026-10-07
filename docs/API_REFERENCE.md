@@ -1,275 +1,257 @@
-# 🔌 Referensi API (API Reference)
+# 🔌 Referensi API (API Reference) — PKIS-PLUS
 
-Dokumen ini mendokumentasikan semua API Endpoints yang tersedia pada aplikasi **Futaba PKIS**.
+Dokumen ini mendokumentasikan API Endpoints yang tersedia pada aplikasi **Futaba PKIS (PKIS-PLUS)**.
 
-> Semua endpoint menggunakan **Next.js Route Handlers** (`app/api/`) dan berkomunikasi dengan Supabase PostgreSQL sebagai database.
+> Semua endpoint menggunakan **Next.js Route Handlers** (`app/api/`), terhubung ke **PostgreSQL lokal** melalui **Prisma ORM**, dan didukung oleh event bus realtime **Socket.io**.
 
 ---
 
-## 🏭 Lini Produksi (Lands)
+## 🔐 1. Autentikasi (`/api/auth`)
 
-### `GET /api/lands`
-Mengambil daftar semua lini produksi (lands).
+Sistem menggunakan session-based authentication dengan cookie HTTP-only (`pkis_session`) dan enkripsi password HMAC-SHA256.
+
+### `POST /api/auth/login`
+Melakukan otentikasi user (Admin, Operator, atau Leader).
+
+**Request Body (`application/json`):**
+```json
+{
+  "username": "admin@pabrik.local",
+  "password": "admin123"
+}
+```
+*(Input `username` dapat berupa email lengkap atau alias nama pengguna).*
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "role": "admin",
+  "lineId": null,
+  "user": {
+    "id": "uuid",
+    "email": "admin@pabrik.local"
+  }
+}
+```
+
+### `POST /api/auth/logout`
+Menghapus session token dari database dan membersihkan session cookie.
+
+### `GET /api/auth/me`
+Mendapatkan profil dan role dari user yang sedang login via session cookie.
+
+---
+
+## 🏭 2. Lini Produksi (`/api/lines`)
+
+Mengelola data lini produksi (sebelumnya dinamai *lands*).
+
+### `GET /api/lines`
+Mengambil seluruh daftar lini produksi yang terdaftar.
 
 **Query Parameters:**
 | Parameter | Tipe | Keterangan |
 |---|---|---|
-| `includeHidden` | boolean | Sertakan lini yang disembunyikan (default: `false`) |
+| `includeHidden` | boolean | Sertakan lini yang disembunyikan dari operator (default: `false`) |
 
 **Response `200`:**
 ```json
-[{ "id": "500T", "name": "Line 500T", "description": "..." }]
+[
+  {
+    "id": "500T",
+    "name": "Line 500T",
+    "description": "Lini Press 500 Ton",
+    "machine_type": "500T",
+    "is_active": true
+  }
+]
 ```
+
+### `POST /api/lines`
+Membuat atau mendaftarkan lini produksi baru (Admin only).
 
 ---
 
-## 📂 Folder
+## 📂 3. Folder Dokumen (`/api/folders`)
 
 ### `GET /api/folders`
-Mengambil daftar folder dalam suatu lini atau subfolder.
+Mengambil daftar folder hierarkis dalam suatu lini.
 
 **Query Parameters:**
 | Parameter | Tipe | Keterangan |
 |---|---|---|
-| `landId` | string | **(Wajib)** ID lini produksi |
-| `parentId` | number | ID folder induk (null = root) |
-| `search` | string | Kata kunci pencarian nama folder |
-| `includeAll` | boolean | Abaikan filter kedalaman jika `true` |
+| `lineId` | string | **(Wajib)** ID lini produksi |
+| `parentId` | number/string | ID folder induk (`null` untuk root folder) |
+| `search` | string | Pencarian nama folder |
+
+### `POST /api/folders`
+Membuat folder baru di dalam suatu lini.
+
+### `DELETE /api/folders`
+Menghapus folder beserta sub-folder atau dokumen di dalamnya.
 
 ---
 
-## 📄 Dokumen
+## 📄 4. Dokumen Kerja (`/api/documents`)
 
 ### `GET /api/documents`
-Mengambil daftar dokumen berdasarkan filter.
+Mengambil daftar dokumen kerja berdasarkan filter lini dan folder.
 
 **Query Parameters:**
 | Parameter | Tipe | Keterangan |
 |---|---|---|
-| `landId` | string | Filter berdasarkan lini |
+| `lineId` | string | Filter berdasarkan lini |
 | `folderId` | number | Filter berdasarkan folder |
-| `search` | string | Pencarian judul/deskripsi/nama file |
+| `search` | string | Pencarian judul / nama file |
 | `includeHidden` | boolean | Sertakan dokumen tersembunyi (default: `false`) |
 
-**Response `200`:**
-```json
-[
-  {
-    "id": "uuid",
-    "title": "SOP Perakitan Awal",
-    "description": "...",
-    "category": "SOP",
-    "type": "application/pdf",
-    "file": { "name": "sop-v2.pdf", "path": "documents/...", "size": 1048576 },
-    "targetTime": "2026-07-15T08:00:00.000Z",
-    "hiddenFromOperator": false
-  }
-]
-```
-
 ### `PATCH /api/documents/[id]`
-Update metadata dokumen (judul, nama file, target waktu, visibilitas).
-
-**Request Body:**
-```json
-{
-  "title": "Judul Baru",
-  "file_name": "nama-baru.pdf",
-  "target_time": "2026-07-20T08:00:00.000Z",
-  "hidden_from_operator": false
-}
-```
+Memperbarui metadata dokumen (judul, nama file display, target time, visibilitas operator).
 
 ### `DELETE /api/documents/[id]`
-Hapus dokumen dari database **dan** storage bucket secara permanen.
+Menghapus dokumen (memindahkan ke recycle bin atau menghapus permanen dari storage lokal).
 
 ---
 
-## 📊 Laporan Produksi
-
-### `GET /api/production-reports`
-Mengambil semua laporan produksi.
-
-**Query Parameters:**
-| Parameter | Tipe | Keterangan |
-|---|---|---|
-| `landId` | string | Filter berdasarkan lini |
-| `startDate` | string | Tanggal awal filter (YYYY-MM-DD) |
-| `endDate` | string | Tanggal akhir filter (YYYY-MM-DD) |
-
-**Response `200`:**
-```json
-[
-  {
-    "id": "uuid",
-    "land_id": "500T",
-    "report_date": "2026-07-13",
-    "shift": "Shift 1",
-    "operator_name": "Operator",
-    "start_time": "08:00:00",
-    "end_time": "16:00:00",
-    "part_number": "FTB-001-A",
-    "qty": 150,
-    "ng_qty": 3,
-    "ng_category": "Dimensi",
-    "break_minutes": 60,
-    "created_at": "2026-07-13T01:00:00Z",
-    "land": { "name": "Line 500T" }
-  }
-]
-```
-
-### `POST /api/production-reports`
-Simpan laporan produksi baru (digunakan operator).
-
-**Request Body:**
-```json
-{
-  "land_id": "500T",
-  "report_date": "2026-07-13",
-  "shift": "Shift 1",
-  "operator_name": "Operator",
-  "start_time": "08:00:00",
-  "end_time": "16:00:00",
-  "part_number": "FTB-001-A",
-  "qty": 150,
-  "ng_qty": 3,
-  "ng_category": "Dimensi",
-  "break_minutes": 60
-}
-```
-
-**Validasi:**
-- `qty` tidak boleh 0
-- `ng_qty` tidak boleh melebihi `qty`
-- `ng_category` wajib diisi jika `ng_qty > 0`
-
-**Response `201`:**
-```json
-{ "id": "uuid", "...": "..." }
-```
-
-### `DELETE /api/production-reports/[id]`
-Hapus laporan produksi berdasarkan ID (admin only).
-
----
-
-## 🔢 Part Number
-
-### `GET /api/part-numbers`
-Mengambil semua part number yang aktif (public — dapat diakses operator).
-
-**Response `200`:**
-```json
-[{ "id": "uuid", "code": "FTB-001-A", "description": "Part number tipe A" }]
-```
-
-### `POST /api/part-numbers`
-Tambah part number baru. **(Memerlukan login admin)**
-
-**Request Body:**
-```json
-{ "code": "FTB-004-D", "description": "Deskripsi opsional" }
-```
-
-### `DELETE /api/part-numbers?id=[id]`
-Hapus part number berdasarkan ID. **(Memerlukan login admin)**
-
----
-
-## 🏷️ Kategori NG
-
-### `GET /api/ng-categories`
-Mengambil semua kategori NG yang aktif (public — dapat diakses operator).
-
-**Response `200`:**
-```json
-[{ "id": "uuid", "name": "Dimensi", "description": "Cacat dimensi/ukuran" }]
-```
-
-### `POST /api/ng-categories`
-Tambah kategori NG baru. **(Memerlukan login admin)**
-
-**Request Body:**
-```json
-{ "name": "Dimensi", "description": "Deskripsi opsional" }
-```
-
-**Response `201`:**
-```json
-{ "id": "uuid", "name": "Dimensi", "description": "...", "created_at": "..." }
-```
-
-### `DELETE /api/ng-categories?id=[id]`
-Hapus kategori NG berdasarkan ID. **(Memerlukan login admin)**
-
----
-
-## 💾 Upload & Download
+## 💾 5. Upload, Download, & Print (`/api/upload`, `/api/download`)
 
 ### `POST /api/upload`
-Unggah file ke Supabase Storage + buat record dokumen di database.
+Mengunggah berkas kerja (PDF, JPG, PNG) ke server lokal (`public/uploads/documents/`) dan membuat entri dokumen di database.
 
 **Request Body (`multipart/form-data`):**
 | Field | Tipe | Keterangan |
 |---|---|---|
-| `file` | File | PDF/JPG/PNG, maks 50MB |
+| `file` | File | Berkas PDF / JPG / PNG (maks. 50MB) |
 | `title` | string | **(Wajib)** Judul dokumen |
-| `description` | string | Keterangan (opsional) |
-| `landId` | string | **(Wajib)** ID lini |
+| `lineId` | string | **(Wajib)** ID lini |
 | `folderId` | number | ID folder tujuan (opsional) |
-| `targetTime` | string | Target waktu ISO (opsional) |
+| `description`| string | Keterangan tambahan (opsional) |
+| `targetTime` | string | Target waktu ISO 8601 (opsional) |
 
 **Response `201`:**
 ```json
 {
   "success": true,
   "message": "Document uploaded successfully",
-  "document": { "id": "uuid", "title": "...", "file_name": "...", "file_path": "..." }
+  "document": {
+    "id": "uuid",
+    "title": "SOP Mesin 500T",
+    "file_name": "sop_500t.pdf",
+    "file_path": "documents/1720000000_sop_500t.pdf"
+  }
 }
 ```
 
 ### `POST /api/download`
-Hasilkan Signed URL (berlaku 1 jam) untuk mengakses file di storage.
-
-**Request Body:**
-```json
-{ "filePath": "documents/1720000000-file.pdf" }
-```
+Menyediakan path berkas lokal yang aman untuk diakses/dibaca oleh browser/viewer.
 
 **Response `200`:**
 ```json
-{ "success": true, "url": "https://...supabase.co/storage/v1/object/sign/..." }
+{
+  "success": true,
+  "url": "/uploads/documents/1720000000_sop_500t.pdf"
+}
 ```
+
+### `POST /api/print-file`
+Menyediakan buffer file langsung untuk keperluan pencetakan dokumen.
 
 ---
 
-## 📺 Display Document
+## 📺 6. TV Display (`/api/display-document`)
 
-### `GET /api/display-document?landId=[landId]`
-Mengambil dokumen yang sedang aktif ditampilkan di TV Display untuk lini tertentu.
+### `GET /api/display-document?lineId=[lineId]`
+Mengambil informasi dokumen yang sedang aktif ditayangkan di TV Display untuk lini tertentu.
 
 ### `POST /api/display-document`
-Mengatur dokumen aktif untuk TV Display (dikirim operator saat menekan tombol Tampilkan).
+Mengubah dokumen yang sedang aktif ditampilkan di TV Display (dipanggil operator saat menekan tombol **Tampilkan**). Sekaligus memicu event realtime Socket.io ke TV Display lini terkait.
 
 **Request Body:**
 ```json
-{ "landId": "500T", "documentId": "uuid" }
+{
+  "lineId": "500T",
+  "documentId": "uuid-dokumen"
+}
 ```
 
 ---
 
-## ❤️ System Health
+## 📊 7. Modul Produksi Modern (`/api/produksi/*`)
 
-### `GET /api/system/health`
-Cek status koneksi server & database. Dipakai halaman System Status.
+Modul ini mengelola siklus operasional produksi pabrik secara komprehensif:
 
-### `POST /api/system/display-heartbeat`
-Kirim heartbeat dari TV Display agar admin bisa memantau status online/offline layar.
+| Endpoint | Method | Deskripsi |
+|---|---|---|
+| `/api/produksi/logs` | `GET`, `POST`, `PATCH`, `DELETE` | Catatan produksi berjalan (Part Number, QTY, NG, waktu mulai/selesai, Manpower) |
+| `/api/produksi/downtime` | `GET`, `POST`, `DELETE` | Log downtime mesin (kategori problem, penyebab, countermeasure) |
+| `/api/produksi/planning` | `GET`, `POST`, `PATCH` | Perencanaan jadwal produksi per mesin/shift |
+| `/api/produksi/attendance`| `GET`, `POST` | Data absensi kehadiran dan lembur operator per shift |
+| `/api/produksi/productivity`| `GET`, `POST` | Data referensi produktivitas harian (EH Jam) |
+| `/api/produksi/safety` | `GET`, `POST` | Log insiden keselamatan kerja (Safety accident / near-miss) |
+| `/api/produksi/scrap` | `GET`, `POST` | Data akumulasi scrap nilai rupiah bulanan |
+| `/api/produksi/part-numbers`| `GET`, `POST` | Master part number spesifik per tipe mesin beserta output ratio |
+| `/api/produksi/master-data` | `GET` | Pengambilan master data terpadu untuk form operator |
+| `/api/produksi/sync-offline`| `POST` | Sinkronisasi antrean laporan yang dibuat operator saat jaringan terputus |
 
 ---
 
-## 🗂️ Kategori Dokumen
+## 🚨 8. Sistem Andon & Notifikasi (`/api/andon/*`, `/api/push/*`)
 
-### `GET /api/categories`
-Mengambil semua kategori dokumen (SOP, Manual, Form, Lainnya).
+### `GET /api/andon/calls`
+Mengambil daftar panggilan Andon aktif di lantai produksi.
+
+### `POST /api/andon/calls`
+Membuat panggilan Andon baru oleh operator ketika terjadi kendala mesin/material/kualitas. Secara otomatis memicu notifikasi realtime dan Web Push ke para Leader terkait.
+
+### `PATCH /api/andon/calls`
+Leader merespons / mengonfirmasi (acknowledge / solve) panggilan Andon.
+
+### `POST /api/push/send-andon`
+Mengirim notifikasi Web Push ke browser perangkat Leader yang telah berlangganan (*push subscription*).
+
+---
+
+## 🗑️ 9. Recycle Bin Admin (`/api/admin/recycle-bin`)
+
+### `GET /api/admin/recycle-bin`
+Melihat daftar dokumen, folder, dan entri data yang dihapus sementara (*soft delete*).
+
+### `POST /api/admin/recycle-bin`
+Memulihkan (*restore*) atau menghapus secara permanen (*purge*) data beserta berkas fisik terkait.
+
+---
+
+## ❤️ 10. Monitoring & Health Check (`/api/system/*`)
+
+### `GET /api/system/health`
+Memeriksa status kesehatan server, akses koneksi PostgreSQL via Prisma, dan kesiapan direktori upload file.
+
+**Response `200`:**
+```json
+{
+  "status": "healthy",
+  "database": "connected",
+  "storage": "accessible",
+  "timestamp": "2026-10-07T07:00:00.000Z"
+}
+```
+
+### `POST /api/system/display-heartbeat`
+Menerima sinyal detak jantung (*heartbeat*) berkala dari TV Display setiap 30 detik untuk menandai status online/offline di dashboard monitoring `/system`.
+
+---
+
+## ⚡ 11. WebSocket Realtime (Socket.io)
+
+Aplikasi menyertakan Socket.io server yang berjalan berdampingan di `server.js`:
+
+- **Path WebSocket**: `/api/socket`
+- **Rooms**:
+  - `line:[lineId]` — Room komunikasi spesifik lini (pembaruan dokumen display TV)
+  - `mesin:[mesinId]` — Room aktivitas spesifik mesin
+- **Events Utama**:
+  - `join:line` (Client -> Server): TV Display atau Tablet bergabung ke channel lini
+  - `display:update` (Server -> Client): Memberitahukan TV Display untuk merender dokumen baru seketika
+  - `andon:created` (Server -> Client): Siaran panggilan andon baru ke dashboard pengawas
+  - `production:updated` (Server -> Client): Pembaruan realtime log produksi

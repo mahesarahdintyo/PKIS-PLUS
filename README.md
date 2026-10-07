@@ -1,259 +1,173 @@
-# 🏭 Futaba PKIS — Production & Knowledge Information System
+# 🏭 Futaba PKIS — Production & Knowledge Information System (PKIS-PLUS)
 
-**Futaba PKIS** adalah sistem informasi produksi dan manajemen dokumen kerja digital yang dirancang khusus untuk lini produksi **PT FUTABA**. Sistem ini menggabungkan dua fungsi utama dalam satu platform terintegrasi:
+**Futaba PKIS (PKIS-PLUS)** adalah sistem informasi produksi terpadu dan manajemen dokumen kerja digital yang dirancang khusus untuk operasional lini produksi di lingkungan pabrik **PT FUTABA**.
 
-1. **Manajemen Dokumen Kerja** — Admin mengelola SOP, manual, dan form kerja. Operator di tablet menampilkan dokumen ke layar TV Display secara realtime.
-2. **Laporan Produksi Harian** — Operator mengisi laporan produksi (QTY, NG, Kategori NG) langsung dari tablet, dan Admin memantau serta menganalisis data tersebut di dashboard.
+Sistem ini menggabungkan manajemen dokumen digital, pencatatan produksi dan downtime secara realtime, sistem bantuan operator (Andon Call), serta pemantauan status lini secara terpusat tanpa ketergantungan pada layanan cloud eksternal.
 
 ---
 
 ## ✨ Fitur Utama
 
-### 👑 Admin
+### 👑 Administrator
 | Fitur | Keterangan |
 |---|---|
-| Workspace Dokumen | Kelola folder, unggah/hapus dokumen SOP/Manual/Form per lini (Land) |
-| Laporan Produksi | Pantau laporan harian semua operator secara realtime — filter, search, export CSV |
-| Detail Laporan | Lihat detail lengkap + salin laporan ke clipboard |
-| Hapus Laporan | Hapus laporan dengan konfirmasi modal |
-| Manajemen Part Number | Tambah & hapus part number yang langsung tersinkron ke dropdown operator |
-| Manajemen Kategori NG | Tambah & hapus kategori cacat (NG) yang dipakai operator |
-| **Status & Monitoring Sistem** | Pantau status online/offline setiap TV Display lini produksi dari halaman `/system` |
+| **Workspace Dokumen** | Kelola folder hierarkis, unggah berkas SOP/Drawing/IK per lini kerja (Line), edit inline nama/judul, dan sembunyikan dokumen draft. |
+| **Laporan Produksi Realtime** | Pantau laporan harian operator secara realtime tanpa refresh halaman — filter lini, tanggal, shift, pencarian, dan export CSV. |
+| **Manajemen Part Number** | Kelola master part number per mesin yang langsung tersinkron ke tablet operator via WebSocket. |
+| **Manajemen Kategori NG** | Kelola kategori cacat produk (NG) yang dapat dipilih oleh operator. |
+| **Tempat Sampah (Recycle Bin)** | Pulihkan (*restore*) atau bersihkan permanen (*purge*) dokumen dan folder yang terhapus sementara. |
+| **Monitoring Sistem (`/system`)** | Pantau status online/offline TV Display setiap lini produksi, kesehatan database, dan direktori penyimpanan file. |
 
-### 📱 Operator
+### 🚨 Pengawas / Leader
 | Fitur | Keterangan |
 |---|---|
-| Tampilkan Dokumen | Pilih & kirim dokumen ke TV Display secara realtime |
-| Laporan Produksi | Isi QTY, NG, Kategori NG per sesi produksi; hasilnya langsung muncul di dashboard admin |
-| Kategori NG Dinamis | Pilihan kategori NG muncul otomatis saat NG > 0, wajib dipilih |
-| Validasi Form | QTY tidak boleh 0; Kategori NG wajib jika ada NG |
+| **Andon Monitor** | Menerima panggilan darurat (*Andon Call*) dari operator lini saat terjadi kendala mesin, dies, atau material. |
+| **Web Push Notification** | Mendukung notifikasi push langsung ke browser ponsel/tablet pengawas saat operator memicu panggilan Andon. |
+
+### 📱 Operator (Tablet Lini)
+| Fitur | Keterangan |
+|---|---|
+| **Tayangkan Dokumen ke TV** | Pilih dokumen SOP / Drawing dan kirimkan langsung ke layar TV Display secara instan (< 1 detik). |
+| **Pencatatan Produksi Harian** | Input QTY OK, jumlah NG, kategori cacat dinamis, waktu mulai/selesai sesi, dan menit istirahat (*break*). |
+| **Pencatatan Downtime** | Catat waktu henti lini beserta kategori masalah, penyebab, dan tindakan penanganan (*countermeasure*). |
+| **Panggilan Andon** | Panggil Leader/Maintenance dalam satu sentuhan tombol ketika lini mengalami hambatan. |
 
 ### 📺 TV Display
-- Menampilkan dokumen aktif secara realtime (update < 1 detik)
-- Tidak memerlukan interaksi fisik — cukup buka sekali di browser
+- Menampilkan dokumen kerja aktif secara realtime di atas lini produksi.
+- Berjalan otomatis di peramban TV tanpa login (`/display/[lineId]`).
+- Mengirimkan sinyal detak jantung (*heartbeat*) berkala untuk monitoring keandalan.
 
 ### 📲 Progressive Web App (PWA)
-- Dapat diinstal ke layar utama perangkat (Android, Tablet, iOS)
-- Tombol **Install Aplikasi** muncul di form login saat browser mendukung
-- Panduan instalasi untuk iOS Safari tampil otomatis di perangkat Apple
-- Service Worker dengan strategi caching cerdas: network-only untuk Supabase & `/api/*`, network-first untuk navigasi halaman, cache-first untuk static assets
-- Halaman **Offline fallback** saat koneksi terputus
+- Dapat diinstal langsung ke layar utama perangkat (Android Tablet, iPad Safari, Desktop Chrome).
+- Dilengkapi custom Service Worker untuk performa tinggi dan halaman fallback saat jaringan offline.
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Layer | Teknologi |
+| Komponen | Teknologi |
 |---|---|
-| **Framework** | Next.js 16 (React 19 + TypeScript) + Turbopack |
-| **Styling** | Tailwind CSS + shadcn/ui |
-| **Database** | Supabase (PostgreSQL + RLS) |
-| **Storage** | Supabase Storage Bucket (`documents`) |
-| **Realtime** | Supabase Realtime Channels |
-| **Auth** | Supabase Auth (email/password) + RBAC middleware |
-| **PWA** | Custom Service Worker (manual, tanpa plugin) + Web App Manifest |
-| **Package Manager** | npm |
+| **App Framework** | Next.js 16 (React 19 + TypeScript) |
+| **Runtime & Server** | Node.js Custom Server (`server.js`) dengan Express & HTTP |
+| **Realtime Engine** | WebSocket via Socket.io (`socket.io` & `socket.io-client`) |
+| **Database** | PostgreSQL lokal / on-premise (didukung via Laragon / Docker) |
+| **ORM & Data Modeling** | Prisma ORM 6 (`@prisma/client`) |
+| **Penyimpanan Berkas** | Local Disk Storage (`./public/uploads/documents/`) |
+| **Autentikasi** | Native Session Cookie (`pkis_session`) + HMAC-SHA256 password hashing |
+| **Tampilan UI** | Tailwind CSS v4 + Radix UI / shadcn/ui + Lucide Icons |
+| **PWA** | Custom Service Worker + Web App Manifest |
 
 ---
 
 ## 📦 Struktur Proyek
 
 ```
-Futaba-Project/
+PKIS-PLUS/
 ├── app/
-│   ├── admin/                  # Halaman Admin (workspace + laporan + manajemen)
-│   ├── operator/               # Halaman Operator (tablet)
-│   ├── display/[landId]/       # Halaman TV Display per lini
+│   ├── admin/                  # Dashboard Admin (workspace, laporan, master data)
+│   ├── operator/               # Antarmuka tablet Operator (display dokumen, form input)
+│   ├── display/[lineId]/       # Halaman TV Display per lini kerja
 │   ├── system/                 # Halaman Status & Monitoring Sistem
-│   ├── offline/                # Halaman fallback PWA saat tidak ada koneksi
-│   └── api/                    # API Routes (Next.js Route Handlers)
-│       ├── ng-categories/      # CRUD kategori NG
-│       ├── part-numbers/       # CRUD part number
-│       ├── production-reports/ # CRUD laporan produksi
-│       ├── documents/          # CRUD dokumen
-│       ├── folders/            # CRUD folder
-│       ├── lands/              # CRUD lini produksi (land)
-│       └── system/             # System health & display heartbeat API
+│   ├── offline/                # Halaman fallback PWA saat offline
+│   └── api/                    # API Route Handlers (Next.js)
+│       ├── andon/              # API Panggilan Andon & Leader
+│       ├── auth/               # API Login, Logout, dan Session
+│       ├── documents/          # CRUD dokumen kerja
+│       ├── folders/            # CRUD folder hierarkis
+│       ├── lines/              # CRUD data lini produksi (Line)
+│       ├── produksi/           # Endpoint modul produksi terpadu
+│       ├── system/             # Health check & display heartbeat
+│       └── upload/             # Handler upload berkas lokal
 ├── components/
-│   ├── admin/
-│   │   ├── AdminLandCard.tsx               # Card Land admin
-│   │   ├── CreateLandDialog.tsx            # Dialog buat Land admin
-│   │   ├── ProductionReportsDashboard.tsx  # Dashboard laporan produksi admin
-│   │   ├── AdminPartNumbersPanel.tsx       # Panel manajemen part number
-│   │   └── AdminNgCategoriesPanel.tsx      # Panel manajemen kategori NG
-│   ├── operator/
-│   │   ├── OperatorHeader.tsx
-│   │   ├── ProductionReportForm.tsx        # Form laporan produksi operator
-│   │   └── DocumentList.tsx               # List berkas di operator
-│   ├── ui/                                 # Komponen reusable / umum
-│   │   ├── app-header.tsx                 # Header aplikasi dengan logo PKIS
-│   │   ├── login-form.tsx                 # Form login + tombol install PWA
-│   │   ├── logout-button.tsx
-│   │   └── ...
-│   └── pwa-register.tsx                   # Registrasi Service Worker & event PWA
-├── public/
-│   ├── manifest.json                      # Web App Manifest (PWA)
-│   ├── service-worker.js                  # Custom Service Worker (PWA)
-│   ├── icon-192.png                       # Ikon PWA 192×192
-│   ├── icon-512.png                       # Ikon PWA 512×512
-│   ├── icon-512-maskable.png              # Ikon PWA maskable 512×512
-│   ├── icon.svg                           # Favicon PKIS (monogram "P" hijau)
-│   ├── apple-icon.png                     # Apple Touch Icon
-│   └── pkis-logo-wordmark(final).png      # Logo wordmark PKIS
+│   ├── admin/                  # Komponen UI panel admin
+│   ├── operator/               # Komponen UI tablet operator
+│   └── ui/                     # Komponen reusable shadcn/ui
+├── docs/                       # Dokumentasi teknis lengkap proyek
+│   ├── 02-system-overview.md   # Gambaran umum sistem
+│   ├── API_REFERENCE.md        # Spesifikasi endpoint API
+│   ├── DEPLOYMENT.md           # Panduan deployment mandiri / VPS
+│   ├── INSTALLATION.md         # Panduan instalasi lokal
+│   ├── TESTING.md              # Panduan pengujian & QA
+│   └── USER_GUIDE.md           # Panduan penggunaan per role
 ├── lib/
-│   └── services/               # Service layer (fetch helpers)
-│       ├── production-report.ts
-│       ├── part-number.ts
-│       ├── ng-category.ts
-│       └── ...
-└── supabase/
-    └── migrations/             # File SQL migrasi database
+│   ├── auth.ts                 # Utilitas autentikasi & session token
+│   ├── prisma.ts               # Inisialisasi Prisma Client singleton
+│   ├── socket.ts               # Client koneksi Socket.io
+│   └── services/               # Abstraksi data layer & API helpers
+├── prisma/
+│   ├── schema.prisma           # Skema deklaratif database PostgreSQL
+│   └── seed.js                 # Seeder akun default (admin, operator, leader)
+├── public/
+│   ├── uploads/                # Direktori penyimpanan berkas dokumen lokal
+│   ├── manifest.json           # Konfigurasi PWA Manifest
+│   └── service-worker.js       # Service worker PWA
+├── server.js                   # Custom Next.js server terintegrasi Socket.io
+└── package.json
 ```
 
 ---
 
-## 🚀 Panduan Setup Lokal
+## 🚀 Panduan Memulai Cepat (Quick Start)
 
-### Prasyarat
-- **Node.js** v18+ (LTS recommended)
-- **npm** v9+ (sudah termasuk dengan Node.js)
-- **Akun Supabase** (free tier cukup)
+### 1. Prasyarat
+- **Node.js** v18+ (disarankan v20 LTS)
+- **PostgreSQL** v14+ aktif (bisa melalui Laragon, Docker, atau PostgreSQL native)
 
-### 1. Clone & Install
-
+### 2. Instalasi Dependensi
 ```bash
-git clone https://github.com/mahesarahdintyo/Futaba-Project.git
-cd Futaba-Project
+git clone https://github.com/mahesarahdintyo/PKIS-PLUS.git
+cd PKIS-PLUS
 npm install
 ```
 
-### 2. Environment Variables
-
-Buat file `.env.local` di root proyek:
-
+### 3. Konfigurasi Lingkungan (`.env`)
+Salin file template lingkungan:
+```bash
+cp .env.example .env
+```
+Pastikan variabel `DATABASE_URL` di `.env` mengarah ke database PostgreSQL Anda:
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/pkis_plus?schema=public"
 ```
 
-### 3. Setup Database Supabase
+### 4. Setup Database & Inisialisasi Data
+Jalankan sinkronisasi skema tabel dan seeder data awal:
+```bash
+# Generate Prisma Client
+npm run db:generate
 
-Jalankan semua file SQL di folder `supabase/migrations/` secara berurutan via **Supabase SQL Editor**:
+# Sinkronkan skema tabel ke PostgreSQL
+npm run db:push
 
-| File | Keterangan |
-|---|---|
-| `20260708_create_production_reports.sql` | Tabel laporan produksi + RLS |
-| `20260710_create_part_numbers.sql` | Tabel part number + RLS |
-| `ng_categories.sql` | Tabel kategori NG + RLS |
-| *(migrations lainnya)* | Lihat folder `supabase/migrations/` |
+# Isi data awal (Akun Admin, Operator, Leader & Kategori dokumen dasar)
+npm run db:seed
+```
 
-Untuk tabel dasar (`lands`, `folders`, `documents`, dll.) lihat [docs/INSTALLATION.md](./docs/INSTALLATION.md).
-
-### 4. Setup Storage Bucket
-
-Di dashboard Supabase → **Storage** → buat bucket bernama `documents` → set **Public**.
+> **Akun Bawaan Seeder:**
+> - **Admin**: `admin@pabrik.local` (Password: `admin123`)
+> - **Operator**: `operator@pabrik.local` (Password: `operator123`)
+> - **Leader**: `leader@pabrik.local` (Password: `leader123`)
 
 ### 5. Jalankan Aplikasi
-
 ```bash
-npm run dev        # Development mode
-# atau
-npm run build && npm run start   # Production mode
+npm run dev
 ```
-
-Buka **[http://localhost:3000](http://localhost:3000)**.
-
----
-
-## 🧭 Alur Penggunaan
-
-```
-Admin Login (halaman utama)
-  └─ Ke Dashboard Admin (/admin)
-  │    └─ Tab: Workspace       → Kelola dokumen/folder per lini
-  │    └─ Tab: Laporan Produksi→ Pantau laporan operator secara realtime
-  │    └─ Tab: Part Number     → Tambah/hapus part number
-  │    └─ Tab: Kategori NG     → Tambah/hapus kategori cacat
-  └─ Akses Sebagai Operator (/operator)
-  └─ Status & Monitoring Sistem (/system)
-
-Operator (tablet)
-  └─ Pilih Part Number
-  └─ Sistem otomatis set waktu mulai
-  └─ Tekan Finish → sistem set waktu selesai
-  └─ Isi QTY (wajib, > 0)
-  └─ Isi NG (jika ada → pilih Kategori NG)
-  └─ Simpan Laporan → dashboard admin otomatis update tanpa refresh
-
-TV Display
-  └─ Buka /display/[landId] di browser TV
-  └─ Operator kirim dokumen → tampil otomatis realtime
-
-PWA Install
-  └─ Buka halaman login
-  └─ Klik tombol "Install Aplikasi Futaba PKIS" (jika muncul)
-  └─ iOS: tekan Share → Add to Home Screen
-```
+Buka peramban di **[http://localhost:3000](http://localhost:3000)**.
 
 ---
 
 ## 📖 Dokumentasi Lengkap
 
-| File | Keterangan |
-|---|---|
-| [docs/INSTALLATION.md](./docs/INSTALLATION.md) | Setup database lengkap & storage bucket |
-| [docs/USER_GUIDE.md](./docs/USER_GUIDE.md) | Panduan Admin, Operator, TV Display & PWA |
-| [docs/API_REFERENCE.md](./docs/API_REFERENCE.md) | Referensi semua API endpoint |
-| [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) | Panduan deploy ke Vercel & konfigurasi RLS produksi |
+Dokumentasi terperinci tersedia di folder [`docs/`](file:///c:/laragon/www/PKIS-PLUS/docs/):
+- 📘 [Panduan Instalasi Lokal (docs/INSTALLATION.md)](file:///c:/laragon/www/PKIS-PLUS/docs/INSTALLATION.md)
+- 📗 [Panduan Pengguna / User Guide (docs/USER_GUIDE.md)](file:///c:/laragon/www/PKIS-PLUS/docs/USER_GUIDE.md)
+- 📙 [Referensi API (docs/API_REFERENCE.md)](file:///c:/laragon/www/PKIS-PLUS/docs/API_REFERENCE.md)
+- 📕 [Panduan Deployment Produksi (docs/DEPLOYMENT.md)](file:///c:/laragon/www/PKIS-PLUS/docs/DEPLOYMENT.md)
+- 📋 [Panduan Pengujian & Checklist (docs/TESTING.md)](file:///c:/laragon/www/PKIS-PLUS/docs/TESTING.md)
+- 📓 [System Overview (docs/02-system-overview.md)](file:///c:/laragon/www/PKIS-PLUS/docs/02-system-overview.md)
 
 ---
 
-## 🗄️ Skema Database (Ringkasan)
-
-| Tabel | Keterangan |
-|---|---|
-| `lands` | Lini produksi (500T, 800T, dsb.) |
-| `folders` | Folder hierarkis per lini |
-| `documents` | Dokumen kerja (SOP, Manual, Form) |
-| `categories` | Kategori dokumen |
-| `land_display_documents` | Dokumen aktif yang sedang ditampilkan TV Display |
-| `production_reports` | Laporan produksi harian operator |
-| `part_numbers` | Daftar part number yang dapat dipilih |
-| `ng_categories` | Kategori cacat (NG) yang dapat dipilih operator |
-| `profiles` | Profil user + role (admin/operator) |
-
----
-
-## 🔐 Autentikasi & Akses
-
-Sistem menggunakan **Supabase Auth** dengan RBAC berbasis role:
-
-| Role | Akses |
-|---|---|
-| `admin` | Semua halaman — workspace, laporan, manajemen part number & kategori NG, **monitoring sistem** |
-| `operator` | Halaman operator (tampilkan dokumen + isi laporan produksi) |
-| *(tanpa login)* | TV Display (`/display/[landId]`) — read-only |
-
----
-
-## 📲 PWA — Progressive Web App
-
-Aplikasi ini mendukung instalasi sebagai PWA di semua perangkat modern.
-
-### Cara Install
-- **Android / Chrome / Edge / Tablet**: Tombol **"Install Aplikasi Futaba PKIS"** akan muncul di form login. Klik untuk memulai instalasi.
-- **iOS / iPad Safari**: Tombol yang sama akan muncul dengan instruksi: tekan **Share ⎋** → pilih **"Add to Home Screen"**.
-
-### Strategi Caching (Service Worker)
-| Jenis Request | Strategi |
-|---|---|
-| Supabase (`supabase.co`) & `/api/*` | **Network-Only** — data realtime selalu fresh |
-| Navigasi halaman (HTML) | **Network-First** — fallback ke `/offline` jika tidak ada koneksi |
-| Static assets (`/_next/static/`, gambar, ikon) | **Cache-First** — cepat dari cache |
-
----
-
-## 📝 Lisensi
+## 📝 Lisensi & Hak Cipta
 
 © 2026 PT FUTABA. Internal use only — all rights reserved.
