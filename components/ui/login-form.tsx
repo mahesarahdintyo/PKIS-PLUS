@@ -1,14 +1,21 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import { login } from "@/app/actions/auth";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { User, Lock, Eye, EyeOff, Loader2, AlertCircle, Download } from "lucide-react";
 import Image from "next/image";
 
 export function LoginForm() {
+  const router = useRouter();
+
+  // State form
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [isLoading, setIsLoading] = useState(false);
+
+  // State PWA
   const [canInstall, setCanInstall] = useState(false);
   const [isIos, setIsIos] = useState(false);
   const [showIosGuide, setShowIosGuide] = useState(false);
@@ -57,34 +64,79 @@ export function LoginForm() {
     }
   };
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+    // 1. Mencegah perilaku default submit form HTML
+    e.preventDefault();
     setError(null);
 
-    const formData = new FormData(event.currentTarget);
-    const username = formData.get("username") as string;
-    const password = formData.get("password") as string;
-
     if (!username.trim() || !password.trim()) {
-      setError("Silakan masukkan username dan password Anda.");
+      const msg = "Username/Email dan password wajib diisi.";
+      setError(msg);
+      alert(msg);
       return;
     }
 
-    startTransition(async () => {
-      try {
-        const result = await login(null, formData);
+    setIsLoading(true);
 
-        if (result?.error) {
-          setError(result.error);
-        } else if (result?.success && result?.redirectUrl) {
-          // Redirect using window.location for a full reload/redirect to ensure session is active
-          window.location.href = result.redirectUrl;
+    try {
+      // Menangani format input jika user memasukkan email lengkap atau sekadar username
+      const emailValue = username.includes("@")
+        ? username.trim().toLowerCase()
+        : username.trim().toLowerCase() === "admin"
+        ? "admin@pabrik.local"
+        : username.trim().toLowerCase() === "operator"
+        ? "operator@pabrik.local"
+        : `${username.trim().toLowerCase()}@futaba.co.id`;
+
+      // 2 & 3. POST request ke endpoint /api/auth/login dengan body email/username dan password
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: emailValue,
+          username: username.trim(),
+          password,
+        }),
+      });
+
+      const data = await res.json();
+
+      // 4. Jika response berhasil (res.ok)
+      if (res.ok) {
+        // Simpan session ke localStorage untuk sinkronisasi client helper
+        if (typeof window !== "undefined" && data?.user) {
+          localStorage.setItem(
+            "pkis_user_session",
+            JSON.stringify({ user: data.user, access_token: data.token })
+          );
         }
-      } catch (err) {
-        setError("Terjadi kesalahan sistem. Silakan coba lagi.");
-        console.error(err);
+
+        // Arahkan ke rute dashboard yang sesuai berdasarkan role pengguna
+        const role = data?.role || data?.user?.app_metadata?.role || data?.user?.user_metadata?.role;
+        if (role === "admin") {
+          router.push("/admin");
+        } else if (role === "leader") {
+          router.push("/admin/andon-settings");
+        } else {
+          router.push("/operator");
+        }
+        router.refresh();
+      } else {
+        // 5. Jika gagal, munculkan peringatan (alert/toast) bahwa password salah
+        const errorMessage = data?.error || "Password salah atau kredensial tidak valid.";
+        setError(errorMessage);
+        alert(errorMessage);
       }
-    });
+    } catch (err: any) {
+      console.error("[Login] Network or server error:", err);
+      const networkError = "Terjadi kesalahan jaringan atau server. Silakan coba lagi.";
+      setError(networkError);
+      alert(networkError);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -117,14 +169,14 @@ export function LoginForm() {
         )}
 
         {/* Form */}
-        <form method="POST" onSubmit={handleSubmit} className="space-y-5">
-          {/* Username field */}
+        <form method="POST" onSubmit={handleLogin} className="space-y-5">
+          {/* Username / Email field */}
           <div className="space-y-1.5">
             <label
               htmlFor="username"
               className="text-xs font-bold text-slate-500 uppercase tracking-wider block"
             >
-              Username
+              Username / Email
             </label>
             <div className="relative flex items-center rounded-xl border border-slate-300 bg-white hover:border-slate-400 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 transition duration-200 px-3.5">
               <User className="h-5 w-5 text-slate-400 mr-2.5 flex-shrink-0" />
@@ -132,8 +184,10 @@ export function LoginForm() {
                 id="username"
                 name="username"
                 type="text"
-                placeholder="operator1"
-                disabled={isPending}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="operator@pabrik.local atau operator1"
+                disabled={isLoading}
                 className="h-11 w-full bg-transparent text-sm text-slate-800 placeholder-slate-400 outline-none"
                 autoComplete="username"
                 required
@@ -155,8 +209,10 @@ export function LoginForm() {
                 id="password"
                 name="password"
                 type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                disabled={isPending}
+                disabled={isLoading}
                 className="h-11 w-full bg-transparent text-sm text-slate-800 placeholder-slate-400 outline-none pr-8"
                 autoComplete="current-password"
                 required
@@ -164,7 +220,7 @@ export function LoginForm() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                disabled={isPending}
+                disabled={isLoading}
                 className="absolute right-3.5 text-slate-400 hover:text-slate-600 transition cursor-pointer"
                 tabIndex={-1}
               >
@@ -180,10 +236,10 @@ export function LoginForm() {
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={isPending}
+            disabled={isLoading}
             className="w-full h-11 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm rounded-xl transition duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mt-2"
           >
-            {isPending ? (
+            {isLoading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin text-white" />
                 <span>Memproses...</span>
