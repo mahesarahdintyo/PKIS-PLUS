@@ -19,9 +19,7 @@ async function main() {
   const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD || "admin123";
 
   const existingAdmin = await prisma.user.findFirst({
-    where: {
-      OR: [{ email: adminEmail }, { username: "admin" }],
-    },
+    where: { email: adminEmail },
   });
 
   let adminUser = existingAdmin;
@@ -29,7 +27,6 @@ async function main() {
     adminUser = await prisma.user.create({
       data: {
         email: adminEmail,
-        username: "admin",
         password_hash: hashPassword(adminPassword),
       },
     });
@@ -54,14 +51,13 @@ async function main() {
   const opEmail = "operator@pabrik.local";
   const opPassword = "operator123";
   let opUser = await prisma.user.findFirst({
-    where: { OR: [{ email: opEmail }, { username: "operator" }] },
+    where: { email: opEmail },
   });
 
   if (!opUser) {
     opUser = await prisma.user.create({
       data: {
         email: opEmail,
-        username: "operator",
         password_hash: hashPassword(opPassword),
       },
     });
@@ -83,14 +79,13 @@ async function main() {
   const leaderEmail = "leader@pabrik.local";
   const leaderPassword = "leader123";
   let leaderUser = await prisma.user.findFirst({
-    where: { OR: [{ email: leaderEmail }, { username: "leader" }] },
+    where: { email: leaderEmail },
   });
 
   if (!leaderUser) {
     leaderUser = await prisma.user.create({
       data: {
         email: leaderEmail,
-        username: "leader",
         password_hash: hashPassword(leaderPassword),
       },
     });
