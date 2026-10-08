@@ -9,7 +9,11 @@ const { Server: SocketIOServer } = require("socket.io");
 const next = require("next");
 const path = require("path");
 
-const dev = process.env.NODE_ENV === "development";
+// Default ke production untuk kehandalan server lokal. Hanya aktifkan mode dev jika argumen --dev diberikan.
+const dev = process.argv.includes("--dev");
+if (!dev) {
+  process.env.NODE_ENV = "production";
+}
 const hostname = process.env.HOST || "0.0.0.0";
 const port = parseInt(process.env.PORT || "3000", 10);
 

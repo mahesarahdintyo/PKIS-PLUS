@@ -171,7 +171,14 @@ export function LoginForm() {
         )}
 
         {/* Form */}
-        <form onSubmit={handleLogin} className="space-y-5">
+        <form
+          action="javascript:void(0);"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleLogin(e);
+          }}
+          className="space-y-5"
+        >
           {/* Username / Email field */}
           <div className="space-y-1.5">
             <label
