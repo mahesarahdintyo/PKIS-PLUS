@@ -10,7 +10,7 @@ const next = require("next");
 const path = require("path");
 
 const dev = process.env.NODE_ENV !== "production";
-const hostname = process.env.HOST || "localhost";
+const hostname = process.env.HOST || "0.0.0.0";
 const port = parseInt(process.env.PORT || "3000", 10);
 
 const app = next({ dev, hostname, port });
@@ -63,7 +63,7 @@ app.prepare().then(() => {
     });
   });
 
-  httpServer.listen(port, () => {
+  httpServer.listen(port, hostname, () => {
     console.log(`\n✅ PKIS-PLUS server ready at http://${hostname}:${port}`);
     console.log(`   Socket.io listening on path: /api/socket`);
     console.log(`   Mode: ${dev ? "development" : "production"}\n`);

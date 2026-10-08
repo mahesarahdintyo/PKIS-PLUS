@@ -115,14 +115,16 @@ export function LoginForm() {
 
         // Arahkan ke rute dashboard yang sesuai berdasarkan role pengguna
         const role = data?.role || data?.user?.app_metadata?.role || data?.user?.user_metadata?.role;
+        let targetUrl = "/operator";
         if (role === "admin") {
-          router.push("/admin");
+          targetUrl = "/admin";
         } else if (role === "leader") {
-          router.push("/admin/andon-settings");
-        } else {
-          router.push("/operator");
+          targetUrl = "/admin/andon-settings";
         }
-        router.refresh();
+        
+        // Gunakan full page navigation agar cookie session langsung terkirim dan terbaca oleh Server Component
+        window.location.href = targetUrl;
+        return;
       } else {
         // 5. Jika gagal, munculkan peringatan (alert/toast) bahwa password salah
         const errorMessage = data?.error || "Password salah atau kredensial tidak valid.";

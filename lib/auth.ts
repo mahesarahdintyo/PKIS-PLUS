@@ -95,7 +95,9 @@ export function getSessionCookieName() {
 export function getSessionCookieOptions() {
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    // Di server lokal yang menggunakan HTTP, 'secure: true' akan menyebabkan browser menolak cookie.
+    // Hanya aktif jika COOKIE_SECURE=true di .env (misalnya saat menggunakan domain HTTPS/SSL).
+    secure: process.env.COOKIE_SECURE === "true",
     sameSite: "lax" as const,
     maxAge: SESSION_DURATION_MS / 1000,
     path: "/",
