@@ -11,7 +11,11 @@ function toAllowedDevHostname(origin) {
 }
 
 const localNetworkOrigins = [
+  '192.168.205.25',
+  '192.168.205.25:3000',
   '172.20.10.5:3000',
+  'localhost:3000',
+  '127.0.0.1:3000',
   ...(process.env.NEXT_ALLOWED_DEV_ORIGINS?.split(',') ?? []),
 ]
   .map(toAllowedDevHostname)

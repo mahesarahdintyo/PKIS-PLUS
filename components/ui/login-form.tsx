@@ -171,7 +171,7 @@ export function LoginForm() {
         )}
 
         {/* Form */}
-        <form method="POST" onSubmit={handleLogin} className="space-y-5">
+        <form onSubmit={handleLogin} className="space-y-5">
           {/* Username / Email field */}
           <div className="space-y-1.5">
             <label

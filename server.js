@@ -9,7 +9,7 @@ const { Server: SocketIOServer } = require("socket.io");
 const next = require("next");
 const path = require("path");
 
-const dev = process.env.NODE_ENV !== "production";
+const dev = process.env.NODE_ENV === "development";
 const hostname = process.env.HOST || "0.0.0.0";
 const port = parseInt(process.env.PORT || "3000", 10);
 
