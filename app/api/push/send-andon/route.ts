@@ -4,6 +4,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { broadcastAndonEvent } from "@/lib/socket";
+import { getFirebaseMessaging } from "@/lib/firebase-admin";
 
 export async function POST(request: Request) {
   try {
@@ -46,12 +47,16 @@ export async function POST(request: Request) {
       });
     }
 
-    // Cari push subscriptions
+    // Ambil SEMUA push subscriptions leader (Web Push maupun FCM)
     const subs = await prisma.pushSubscription.findMany({
       where: {
         user_id: { in: userIds },
       },
     });
+
+    // Pisahkan berdasarkan type
+    const webSubs = subs.filter((s) => s.type === "WEB" && s.endpoint);
+    const fcmSubs = subs.filter((s) => s.type === "FCM" && s.fcm_token);
 
     const vapidPublic = process.env.VAPID_PUBLIC_KEY;
     const vapidPrivate = process.env.VAPID_PRIVATE_KEY;
@@ -59,7 +64,10 @@ export async function POST(request: Request) {
     let sent = 0;
     let failed = 0;
 
-    if (vapidPublic && vapidPrivate && subs.length > 0) {
+    const lineDisplayName = call.line_name || call.mesin;
+
+    // ─── Blok 1: Web Push (Browser) ─────────────────────────────────────────
+    if (vapidPublic && vapidPrivate && webSubs.length > 0) {
       try {
         // @ts-ignore
         const webpush = await import("web-push");
@@ -69,7 +77,6 @@ export async function POST(request: Request) {
           vapidPrivate
         );
 
-        const lineDisplayName = call.line_name || call.mesin;
         const payload = JSON.stringify({
           title:
             tier === 2
@@ -83,7 +90,7 @@ export async function POST(request: Request) {
           tier,
         });
 
-        for (const sub of subs) {
+        for (const sub of webSubs) {
           try {
             await webpush.sendNotification(
               {
@@ -100,6 +107,7 @@ export async function POST(request: Request) {
           } catch (err: any) {
             failed++;
             if (err?.statusCode === 410 || err?.statusCode === 404) {
+              // Subscription sudah tidak valid — hapus dari database
               await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {});
             }
           }
@@ -109,11 +117,75 @@ export async function POST(request: Request) {
       }
     }
 
+    // ─── Blok 2: FCM Push (Android Native) ──────────────────────────────────
+    if (fcmSubs.length > 0) {
+      const messaging = getFirebaseMessaging();
+
+      if (!messaging) {
+        console.warn(
+          "[FCM] FIREBASE_SERVICE_ACCOUNT_JSON belum dikonfigurasi di .env — " +
+          `${fcmSubs.length} perangkat Android dilewati.`
+        );
+      } else {
+        const andonTitle =
+          tier === 2
+            ? `🚨 ESKALASI Andon - ${lineDisplayName}`
+            : `🔔 Panggilan Andon - ${lineDisplayName}`;
+
+        for (const sub of fcmSubs) {
+          if (!sub.fcm_token) continue;
+
+          try {
+            await messaging.send({
+              token: sub.fcm_token,
+              // Gunakan 'data' (bukan 'notification') agar Android bisa handle
+              // notifikasi sendiri di background/foreground secara konsisten.
+              data: {
+                action: "andon_alert",
+                call_id: call.id,
+                mesin: call.mesin,
+                line_id: call.line_id ?? "",
+                line_name: call.line_name ?? call.mesin,
+                alasan: call.alasan ?? "",
+                title: andonTitle,
+                body: call.alasan
+                  ? `Alasan: ${call.alasan}`
+                  : "Operator memanggil leader",
+                tier: String(tier),
+              },
+              android: {
+                priority: "high",
+                ttl: 120 * 1000, // 2 menit dalam milliseconds
+              },
+            });
+            sent++;
+          } catch (err: any) {
+            failed++;
+            const errCode = err?.errorInfo?.code ?? "";
+            // Token expired / unregistered → hapus dari database
+            if (
+              errCode === "messaging/invalid-registration-token" ||
+              errCode === "messaging/registration-token-not-registered"
+            ) {
+              await prisma.pushSubscription
+                .delete({ where: { id: sub.id } })
+                .catch(() => {});
+              console.log(`[FCM] Token kadaluarsa dihapus: ${sub.id}`);
+            } else {
+              console.error(`[FCM] Gagal kirim ke ${sub.id}:`, errCode, err?.message);
+            }
+          }
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       sent,
       failed,
       subscribersCount: subs.length,
+      webCount: webSubs.length,
+      fcmCount: fcmSubs.length,
       realtimeBroadcast: true,
     });
   } catch (error: any) {

@@ -185,6 +185,52 @@ export default function OperatorPage({
     folderPathHistoryRef.current = folderPathHistory;
   }, [folderPathHistory]);
 
+  // ─── Android FCM JS Bridge ────────────────────────────────────────────────
+  // Fungsi global ini dipanggil oleh native Android WebView melalui:
+  //   webView.evaluateJavascript("window.saveAndroidFcmToken('TOKEN_FCM_DISINI')", null)
+  // Setelah FCM token didapat di sisi Android (dari FirebaseMessaging.getInstance().getToken()).
+  useEffect(() => {
+    (window as any).saveAndroidFcmToken = async (
+      token: string,
+      deviceLabel?: string
+    ): Promise<{ success: boolean; message?: string; error?: string }> => {
+      if (!token || typeof token !== "string") {
+        console.warn("[FCM Bridge] Token tidak valid:", token);
+        return { success: false, error: "Token tidak valid" };
+      }
+
+      try {
+        const res = await fetch("/api/push/save-fcm-token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include", // Kirim session cookie agar server bisa validasi user
+          body: JSON.stringify({
+            fcmToken: token,
+            deviceLabel: deviceLabel ?? "Android Device",
+          }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          console.error("[FCM Bridge] Gagal menyimpan token:", data.error);
+          return { success: false, error: data.error };
+        }
+
+        console.log("[FCM Bridge] Token berhasil disimpan:", data.message);
+        return { success: true, message: data.message };
+      } catch (err: any) {
+        console.error("[FCM Bridge] Network error:", err?.message ?? err);
+        return { success: false, error: "Network error" };
+      }
+    };
+
+    // Cleanup: hapus referensi global saat komponen unmount
+    return () => {
+      delete (window as any).saveAndroidFcmToken;
+    };
+  }, []); // Tidak ada dependency — fungsi ini statis dan tidak bergantung state
+
   // For operators: clear any stale line from previous sessions on mount
   useEffect(() => {
     if (isOperator) {
@@ -194,6 +240,7 @@ export default function OperatorPage({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
 
   const persistOperatorLocation = (line: Line, history: BreadcrumbItem[]) => {
     // For operators, don't persist lineId to localStorage (it's enforced from profile)

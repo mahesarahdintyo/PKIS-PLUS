@@ -228,9 +228,11 @@ model AndonLeader {
 model PushSubscription {
   id           String   @id @default(uuid())
   user_id      String
-  endpoint     String   @unique
-  p256dh       String
-  auth_key     String
+  type         String   @default("WEB") // "WEB" | "FCM"
+  endpoint     String?  @unique          // Hanya untuk type="WEB"
+  p256dh       String?                   // Hanya untuk type="WEB"
+  auth_key     String?                   // Hanya untuk type="WEB"
+  fcm_token    String?  @unique          // Hanya untuk type="FCM" (Android Native)
   device_label String?
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
