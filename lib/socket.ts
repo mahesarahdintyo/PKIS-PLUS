@@ -11,6 +11,38 @@ declare global {
 }
 
 /**
+ * Dapatkan URL koneksi Socket.io client.
+ * Dinamis membaca window.location.origin jika di browser,
+ * atau fallback ke env NEXT_PUBLIC_SOCKET_URL / 'http://0.0.0.0:3000'.
+ */
+export function getSocketUrl(): string {
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return window.location.origin;
+  }
+  return process.env.NEXT_PUBLIC_SOCKET_URL || "http://0.0.0.0:3000";
+}
+
+let _clientSocket: any = null;
+
+/**
+ * Dapatkan instance Socket.io client dengan URL dinamis.
+ */
+export function getSocketClient() {
+  if (typeof window === "undefined") return null;
+  if (_clientSocket) return _clientSocket;
+  try {
+    const { io } = require("socket.io-client");
+    _clientSocket = io(getSocketUrl(), {
+      path: "/api/socket",
+      transports: ["websocket", "polling"],
+    });
+    return _clientSocket;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Dapatkan instance Socket.io server.
  * Harus sudah diinisialisasi oleh server.js.
  */

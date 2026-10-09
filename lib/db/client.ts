@@ -12,7 +12,10 @@ export function getSocket(): Socket | null {
   if (_socketInstance) return _socketInstance;
   try {
     const { io } = require("socket.io-client");
-    _socketInstance = io(window.location.origin, {
+    const socketUrl = (typeof window !== "undefined" && window.location?.origin)
+      ? window.location.origin
+      : (process.env.NEXT_PUBLIC_SOCKET_URL || "http://0.0.0.0:3000");
+    _socketInstance = io(socketUrl, {
       path: "/api/socket",
       transports: ["websocket", "polling"],
     });
