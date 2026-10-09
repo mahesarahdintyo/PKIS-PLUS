@@ -69,8 +69,8 @@ export async function POST(request: Request) {
     // ─── Blok 1: Web Push (Browser) ─────────────────────────────────────────
     if (vapidPublic && vapidPrivate && webSubs.length > 0) {
       try {
-        // @ts-ignore
-        const webpush = await import("web-push");
+        const webpushModule = await import("web-push");
+        const webpush = (webpushModule as any).default || webpushModule;
         webpush.setVapidDetails(
           process.env.VAPID_SUBJECT || "mailto:admin@localhost",
           vapidPublic,

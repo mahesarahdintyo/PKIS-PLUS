@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     //   b. Jika token ini milik user lain (device berpindah tangan) → pindahkan ke user ini
     //   c. Jika belum ada → buat baru
 
-    const existingByToken = await prisma.pushSubscription.findUnique({
+    const existingByToken = await prisma.pushSubscription.findFirst({
       where: { fcm_token: cleanToken },
     });
 
