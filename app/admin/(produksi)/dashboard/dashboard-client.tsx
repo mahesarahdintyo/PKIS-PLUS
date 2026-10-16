@@ -17,10 +17,21 @@ import {
   auth,
   subscribeToSocketEvent,
 } from "@/lib/api-client";
-import { ProdProfile } from "@/types/produksi";
 import Chart from "chart.js/auto";
-import { registerInternalVizPlugins } from "@/lib/produksi/chartPlugins";
+import {
+  registerInternalVizPlugins,
+  createVerticalGradient,
+  createAreaGradient,
+} from "@/lib/produksi/chartPlugins";
+import { ProdProfile } from "@/types/produksi";
 import { Sun, Moon, AlertTriangle, ShieldCheck, Home, Maximize, Minimize } from "lucide-react";
+
+const CAT_GRAD_COLORS: Record<string, { top: string; bottom: string }> = {
+  MESIN: { top: "#38bdf8", bottom: "#0284c7" },
+  DIES: { top: "#fb7185", bottom: "#e11d48" },
+  FINGER: { top: "#34d399", bottom: "#059669" },
+  OTHER: { top: "#fbbf24", bottom: "#d97706" },
+};
 
 // ─── Feature Flag ────────────────────────────────────────────────────────────
 // Set NEXT_PUBLIC_ENABLE_REALTIME=true di .env.local untuk mengaktifkan
@@ -1100,21 +1111,39 @@ export default function DashboardClient() {
         datasets = MACHINES.map((m, idx) => {
           const hMap: Record<number, number> = {};
           (hourlyData[m.key] || []).forEach((h) => { hMap[h.jam] = h.gsph; });
+          const color = lineColors[idx % lineColors.length];
           return {
             type: "line", label: m.label,
             data: jamList.map((j) => (hMap[j] !== undefined ? Number(hMap[j].toFixed(1)) : null)),
-            borderColor: lineColors[idx % lineColors.length], backgroundColor: "transparent",
-            tension: 0.4, pointRadius: 0, pointHoverRadius: 4, spanGaps: true, borderWidth: 2.5,
+            borderColor: color,
+            backgroundColor: (ctx: any) => {
+              const chart = ctx.chart;
+              return createAreaGradient(chart.ctx, chart.chartArea, color, 0.22, 0.05, 0.0);
+            },
+            fill: true,
+            tension: 0.35, pointRadius: 0, pointHoverRadius: 5,
+            pointBackgroundColor: color, pointBorderColor: "#ffffff", pointBorderWidth: 1.5,
+            spanGaps: true, borderWidth: 2.5,
           };
         });
       } else {
         const lt = lineTrend || { labels: [], perLine: [] };
         labels = lt.labels;
-        datasets = (lt.perLine || []).map((pl, idx) => ({
-          type: "line", label: pl.label, data: pl.values,
-          borderColor: lineColors[idx % lineColors.length], backgroundColor: "transparent",
-          tension: 0.4, pointRadius: 0, pointHoverRadius: 4, spanGaps: true, borderWidth: 2.5,
-        }));
+        datasets = (lt.perLine || []).map((pl, idx) => {
+          const color = lineColors[idx % lineColors.length];
+          return {
+            type: "line", label: pl.label, data: pl.values,
+            borderColor: color,
+            backgroundColor: (ctx: any) => {
+              const chart = ctx.chart;
+              return createAreaGradient(chart.ctx, chart.chartArea, color, 0.22, 0.05, 0.0);
+            },
+            fill: true,
+            tension: 0.35, pointRadius: 0, pointHoverRadius: 5,
+            pointBackgroundColor: color, pointBorderColor: "#ffffff", pointBorderWidth: 1.5,
+            spanGaps: true, borderWidth: 2.5,
+          };
+        });
       }
 
       destroyChartOnCanvas(hourlyCanvasRef.current);
@@ -1143,7 +1172,6 @@ export default function DashboardClient() {
     if (fleetCanvasRef.current) {
       if (chartInstances.current.fleet) chartInstances.current.fleet.destroy();
       const categories = ["MESIN", "DIES", "FINGER", "OTHER"];
-      const catColors: Record<string, string> = { MESIN: getCssVar("--chart-2") || "#38bdf8", DIES: getCssVar("--chart-5") || "#fb7185", FINGER: getCssVar("--chart-1") || "#34d399", OTHER: getCssVar("--chart-4") || "#fbbf24" };
       destroyChartOnCanvas(fleetCanvasRef.current);
       chartInstances.current.fleet = new Chart(fleetCanvasRef.current, {
         type: "bar",
@@ -1152,8 +1180,14 @@ export default function DashboardClient() {
           datasets: categories.map((cat) => ({
             label: cat,
             data: MACHINES.map((m) => (dtByCategoryMap[m.key]?.[cat] || 0)),
-            backgroundColor: catColors[cat],
+            backgroundColor: (context: any) => {
+              const chart = context.chart;
+              const pair = CAT_GRAD_COLORS[cat] || { top: "#38bdf8", bottom: "#0284c7" };
+              return createVerticalGradient(chart.ctx, chart.chartArea, pair.top, pair.bottom);
+            },
             borderRadius: 4,
+            borderWidth: 1,
+            borderColor: "rgba(255, 255, 255, 0.12)",
           })),
         },
         options: {
@@ -1186,7 +1220,6 @@ export default function DashboardClient() {
     if (categoryPieRef.current) {
       if (chartInstances.current.categoryPie) chartInstances.current.categoryPie.destroy();
       const categories = ["MESIN", "DIES", "FINGER", "OTHER"];
-      const catColors: Record<string, string> = { MESIN: getCssVar("--chart-2") || "#38bdf8", DIES: getCssVar("--chart-5") || "#fb7185", FINGER: getCssVar("--chart-1") || "#34d399", OTHER: getCssVar("--chart-4") || "#fbbf24" };
       const totalsPerCat = categories.map((cat) =>
         MACHINES.reduce((sum, m) => sum + (dtByCategoryMap[m.key]?.[cat] || 0), 0)
       );
@@ -1196,11 +1229,23 @@ export default function DashboardClient() {
         type: "doughnut",
         data: {
           labels: categories,
-          datasets: [{ data: totalsPerCat, backgroundColor: categories.map((c) => catColors[c]), borderWidth: 0 }],
+          datasets: [{
+            data: totalsPerCat,
+            backgroundColor: (context: any) => {
+              const chart = context.chart;
+              const c = categories[context.dataIndex] || categories[0];
+              const pair = CAT_GRAD_COLORS[c] || { top: "#38bdf8", bottom: "#0284c7" };
+              return createVerticalGradient(chart.ctx, chart.chartArea, pair.top, pair.bottom);
+            },
+            spacing: 5,
+            borderRadius: 6,
+            borderWidth: 1.5,
+            borderColor: "rgba(255, 255, 255, 0.12)",
+          }],
         },
         options: {
           responsive: true, maintainAspectRatio: false,
-          layout: { padding: { top: 2, right: 4, bottom: 2, left: 4 } },
+          layout: { padding: { top: 4, right: 6, bottom: 4, left: 6 } },
           onClick: (evt: any, elements: any[]) => {
             if (!elements.length) return;
             const cat = categories[elements[0].index];
@@ -1214,12 +1259,12 @@ export default function DashboardClient() {
               position: "bottom",
               labels: {
                 color: getCssVar("--muted-foreground") || "#94a3b8",
-                boxWidth: 6,
-                boxHeight: 6,
+                boxWidth: 8,
+                boxHeight: 8,
                 usePointStyle: true,
                 pointStyle: "circle",
                 font: { size: 9 },
-                padding: 6,
+                padding: 8,
                 generateLabels: (chart: any) => {
                   const dataset = chart.data.datasets[0];
                   const total = (dataset.data as number[]).reduce((a: number, b: number) => a + b, 0);
@@ -1227,10 +1272,11 @@ export default function DashboardClient() {
                   return (chart.data.labels as string[]).map((label: string, i: number) => {
                     const val = (dataset.data as number[])[i] || 0;
                     const pct = total > 0 ? Math.round((val / total) * 100) : 0;
+                    const pair = CAT_GRAD_COLORS[label] || { top: "#38bdf8", bottom: "#0284c7" };
                     return {
                       text: `${label} ${pct}%`,
                       fontColor: legendTextColor,
-                      fillStyle: (dataset.backgroundColor as string[])[i],
+                      fillStyle: pair.top,
                       strokeStyle: "transparent",
                       lineWidth: 0,
                       hidden: false,
@@ -1265,12 +1311,18 @@ export default function DashboardClient() {
               },
             },
           } as any,
-          ...(({ cutout: "70%" } as any)),
+          ...(({ cutout: "68%" } as any)),
         },
       });
     }
 
-    /* ── Donuts OEE ─────────────────────────────────────── */
+    /* ── Donuts OEE (2.5D Gauge Rings) ─────────────────── */
+    const donutGrads: Record<string, { top: string; bottom: string }> = {
+      donutAvail: { top: "#38bdf8", bottom: "#0284c7" },
+      donutPerf: { top: "#34d399", bottom: "#059669" },
+      donutQual: { top: "#c084fc", bottom: "#7c3aed" },
+    };
+
     const renderDonut = (canvas: HTMLCanvasElement | null, id: string, val: number, color: string, labelName: string = "") => {
       if (!canvas) return;
       if (chartInstances.current[id]) chartInstances.current[id].destroy();
@@ -1279,11 +1331,24 @@ export default function DashboardClient() {
       chartInstances.current[id] = new Chart(canvas, {
         type: "doughnut",
         data: {
-          labels: [labelName || "Capaian", "Sisa"],
-          datasets: [{ data: [v, Math.max(0, 100 - v)], backgroundColor: [color, getCssVar("--panel-2") || "#1e293b"], borderWidth: 0 }],
+          labels: [labelName || "CAPAIAN", "SISA"],
+          datasets: [{
+            data: [v, Math.max(0, 100 - v)],
+            backgroundColor: (context: any) => {
+              const chart = context.chart;
+              if (context.dataIndex === 0) {
+                const pair = donutGrads[id] || { top: color, bottom: color };
+                return createVerticalGradient(chart.ctx, chart.chartArea, pair.top, pair.bottom);
+              }
+              return getCssVar("--panel-2") || "rgba(255, 255, 255, 0.06)";
+            },
+            borderRadius: [8, 0],
+            borderWidth: 0,
+          }],
         },
         options: {
           responsive: true, maintainAspectRatio: false,
+          cutout: "72%",
           plugins: {
             legend: { display: false },
             tooltip: {
@@ -1304,20 +1369,41 @@ export default function DashboardClient() {
               },
             },
           },
-          ...(({ cutout: "70%" } as any)),
         },
         plugins: [{
           id: "centerText",
           afterDatasetsDraw(chart: any) {
             const { ctx, chartArea } = chart;
+            const cx = (chartArea.left + chartArea.right) / 2;
+            const cy = (chartArea.top + chartArea.bottom) / 2;
             ctx.save();
+
+            // 2.5D Dial Disc
             const size = Math.min(chartArea.right - chartArea.left, chartArea.bottom - chartArea.top);
+            const innerR = size * 0.32;
+            if (innerR > 10) {
+              const radGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, innerR);
+              radGrad.addColorStop(0, "rgba(255, 255, 255, 0.08)");
+              radGrad.addColorStop(0.8, "rgba(255, 255, 255, 0.02)");
+              radGrad.addColorStop(1, "rgba(0, 0, 0, 0.25)");
+              ctx.fillStyle = radGrad;
+              ctx.beginPath();
+              ctx.arc(cx, cy, innerR, 0, Math.PI * 2);
+              ctx.fill();
+
+              ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.arc(cx, cy, innerR, 0, Math.PI * 2);
+              ctx.stroke();
+            }
+
             const fontSize = Math.max(10, Math.min(13, Math.round(size * 0.22)));
-            ctx.font = `700 ${fontSize}px 'Space Grotesk', sans-serif`;
+            ctx.font = `700 ${fontSize}px 'Aptos', sans-serif`;
             ctx.fillStyle = getCssVar("--text") || "#f1f5f9";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-            ctx.fillText(fmtNum(v) + "%", (chartArea.left + chartArea.right) / 2, (chartArea.top + chartArea.bottom) / 2);
+            ctx.fillText(fmtNum(v) + "%", cx, cy);
             ctx.restore();
           },
         }],
@@ -1363,14 +1449,18 @@ export default function DashboardClient() {
               type: "line",
               label: "PRODUCTIVITY",
               data: pt.values,
-              borderColor: getCssVar("--amber") || "#f59e0b",
-              backgroundColor: getCssVar("--amber") || "#f59e0b",
-              borderWidth: 2,
-              tension: 0.25,
-              pointRadius: 4,
+              borderColor: "#f59e0b",
+              backgroundColor: (ctx: any) => {
+                const chart = ctx.chart;
+                return createAreaGradient(chart.ctx, chart.chartArea, "#f59e0b", 0.32, 0.08, 0.0);
+              },
+              fill: true,
+              borderWidth: 2.5,
+              tension: 0.3,
+              pointRadius: 3.5,
               pointHoverRadius: 6,
-              pointBackgroundColor: getCssVar("--amber") || "#f59e0b",
-              pointBorderColor: getCssVar("--panel") || "#1e293b",
+              pointBackgroundColor: "#f59e0b",
+              pointBorderColor: "#ffffff",
               pointBorderWidth: 1.5,
               spanGaps: true,
               order: 2,
@@ -1453,14 +1543,18 @@ export default function DashboardClient() {
               type: "line",
               label: "AKUMULASI",
               data: pt.cumValues,
-              borderColor: getCssVar("--teal") || "#2dd4bf",
-              backgroundColor: getCssVar("--teal") || "#2dd4bf",
-              borderWidth: 2,
-              tension: 0.25,
-              pointRadius: 4,
+              borderColor: "#2dd4bf",
+              backgroundColor: (ctx: any) => {
+                const chart = ctx.chart;
+                return createAreaGradient(chart.ctx, chart.chartArea, "#2dd4bf", 0.35, 0.1, 0.0);
+              },
+              fill: true,
+              borderWidth: 2.5,
+              tension: 0.3,
+              pointRadius: 3.5,
               pointHoverRadius: 6,
-              pointBackgroundColor: getCssVar("--teal") || "#2dd4bf",
-              pointBorderColor: getCssVar("--panel") || "#1e293b",
+              pointBackgroundColor: "#2dd4bf",
+              pointBorderColor: "#ffffff",
               pointBorderWidth: 1.5,
               spanGaps: true,
               order: 2,
@@ -1504,7 +1598,7 @@ export default function DashboardClient() {
               padding: 10,
               callbacks: {
                 label: (ctx: any) =>
-                  ctx.dataset.label === "Akumulasi" ? `Akumulasi: ${fmtNum(ctx.parsed.y)}%` : null,
+                  ctx.dataset.label === "AKUMULASI" ? `AKUMULASI: ${fmtNum(ctx.parsed.y)}%` : null,
               },
             },
             barValueLabels: {
@@ -1545,11 +1639,16 @@ export default function DashboardClient() {
               type: "bar",
               label: "ACTUAL",
               data: actual,
-              backgroundColor: getCssVar("--sky") || "#38bdf8",
-              borderRadius: 4,
+              backgroundColor: (ctx: any) => {
+                const chart = ctx.chart;
+                return createVerticalGradient(chart.ctx, chart.chartArea, "#38bdf8", "#0284c7");
+              },
+              borderRadius: { topLeft: 6, topRight: 6 },
               borderSkipped: false,
-              barPercentage: 0.5,
-              categoryPercentage: 0.7,
+              borderWidth: 1,
+              borderColor: "rgba(255, 255, 255, 0.15)",
+              barPercentage: 0.52,
+              categoryPercentage: 0.72,
               order: 2,
             },
             {
@@ -1631,11 +1730,16 @@ export default function DashboardClient() {
               type: "bar",
               label: "ACTUAL",
               data: actual,
-              backgroundColor: getCssVar("--teal") || "#2dd4bf",
-              borderRadius: 4,
+              backgroundColor: (ctx: any) => {
+                const chart = ctx.chart;
+                return createVerticalGradient(chart.ctx, chart.chartArea, "#34d399", "#059669");
+              },
+              borderRadius: { topLeft: 6, topRight: 6 },
               borderSkipped: false,
-              barPercentage: 0.5,
-              categoryPercentage: 0.7,
+              borderWidth: 1,
+              borderColor: "rgba(255, 255, 255, 0.15)",
+              barPercentage: 0.52,
+              categoryPercentage: 0.72,
               order: 2,
             },
             {
@@ -1714,11 +1818,16 @@ export default function DashboardClient() {
             {
               label: "DOWNTIME",
               data: MACHINES.map((m) => machineDataMap[m.key]?.downtime || 0),
-              backgroundColor: getCssVar("--blue") || "#3b82f6",
-              borderRadius: 4,
+              backgroundColor: (ctx: any) => {
+                const chart = ctx.chart;
+                return createVerticalGradient(chart.ctx, chart.chartArea, "#60a5fa", "#1d4ed8");
+              },
+              borderRadius: { topLeft: 6, topRight: 6 },
               borderSkipped: false,
-              barPercentage: 0.6,
-              categoryPercentage: 0.7,
+              borderWidth: 1,
+              borderColor: "rgba(255, 255, 255, 0.15)",
+              barPercentage: 0.58,
+              categoryPercentage: 0.72,
             },
           ],
         },
@@ -1770,12 +1879,6 @@ export default function DashboardClient() {
         chartInstances.current.internalCategoryPie.destroy();
       }
       const categories = ["MESIN", "DIES", "FINGER", "OTHER"];
-      const catColors: Record<string, string> = {
-        MESIN: getCssVar("--chart-2") || "#38bdf8",
-        DIES: getCssVar("--chart-5") || "#fb7185",
-        FINGER: getCssVar("--chart-1") || "#34d399",
-        OTHER: getCssVar("--chart-4") || "#fbbf24",
-      };
       const totalsPerCat = categories.map((cat) =>
         MACHINES.reduce((sum, m) => sum + (dtByCategoryMap[m.key]?.[cat] || 0), 0)
       );
@@ -1785,11 +1888,24 @@ export default function DashboardClient() {
         type: "doughnut",
         data: {
           labels: categories,
-          datasets: [{ data: totalsPerCat, backgroundColor: categories.map((c) => catColors[c]), borderWidth: 0 }],
+          datasets: [{
+            data: totalsPerCat,
+            backgroundColor: (context: any) => {
+              const chart = context.chart;
+              const c = categories[context.dataIndex] || categories[0];
+              const pair = CAT_GRAD_COLORS[c] || { top: "#38bdf8", bottom: "#0284c7" };
+              return createVerticalGradient(chart.ctx, chart.chartArea, pair.top, pair.bottom);
+            },
+            spacing: 5,
+            borderRadius: 6,
+            borderWidth: 1.5,
+            borderColor: "rgba(255, 255, 255, 0.12)",
+          }],
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          layout: { padding: { top: 4, right: 6, bottom: 4, left: 6 } },
           onClick: (evt: any, elements: any[]) => {
             if (!elements.length) return;
             const cat = categories[elements[0].index];
@@ -1816,10 +1932,11 @@ export default function DashboardClient() {
                   return (chart.data.labels as string[]).map((label: string, i: number) => {
                     const val = (dataset.data as number[])[i] || 0;
                     const pct = total > 0 ? Math.round((val / total) * 100) : 0;
+                    const pair = CAT_GRAD_COLORS[label] || { top: "#38bdf8", bottom: "#0284c7" };
                     return {
                       text: `${label}  ${pct}%`,
                       fontColor: legendTextColor,
-                      fillStyle: (dataset.backgroundColor as string[])[i],
+                      fillStyle: pair.top,
                       strokeStyle: "transparent",
                       lineWidth: 0,
                       hidden: false,
@@ -1854,7 +1971,7 @@ export default function DashboardClient() {
               },
             },
           } as any,
-          ...(({ cutout: "72%" } as any)),
+          ...(({ cutout: "68%" } as any)),
         },
       });
     }
@@ -1864,12 +1981,6 @@ export default function DashboardClient() {
         chartInstances.current.internalCategoryLine.destroy();
       }
       const categories = ["MESIN", "DIES", "FINGER", "OTHER"];
-      const catColors: Record<string, string> = {
-        MESIN: getCssVar("--chart-2") || "#38bdf8",
-        DIES: getCssVar("--chart-5") || "#fb7185",
-        FINGER: getCssVar("--chart-1") || "#34d399",
-        OTHER: getCssVar("--chart-4") || "#fbbf24",
-      };
       destroyChartOnCanvas(internalCategoryLineRef.current);
       chartInstances.current.internalCategoryLine = new Chart(internalCategoryLineRef.current, {
         type: "bar",
@@ -1878,9 +1989,15 @@ export default function DashboardClient() {
           datasets: categories.map((cat) => ({
             label: cat,
             data: MACHINES.map((m) => dtByCategoryMap[m.key]?.[cat] || 0),
-            backgroundColor: catColors[cat],
+            backgroundColor: (context: any) => {
+              const chart = context.chart;
+              const pair = CAT_GRAD_COLORS[cat] || { top: "#38bdf8", bottom: "#0284c7" };
+              return createVerticalGradient(chart.ctx, chart.chartArea, pair.top, pair.bottom);
+            },
             borderRadius: 4,
             borderSkipped: false,
+            borderWidth: 1,
+            borderColor: "rgba(255, 255, 255, 0.12)",
             barPercentage: 0.6,
             categoryPercentage: 0.7,
           })),
@@ -1952,9 +2069,14 @@ export default function DashboardClient() {
           datasets: [{
             label: "DOWNTIME (MENIT)",
             data: downtimeTrendData.exhaustValues,
-            backgroundColor: "#ea580c",
-            borderRadius: 3,
+            backgroundColor: (ctx: any) => {
+              const chart = ctx.chart;
+              return createVerticalGradient(chart.ctx, chart.chartArea, "#fb923c", "#9a3412");
+            },
+            borderRadius: { topLeft: 5, topRight: 5 },
             borderSkipped: false,
+            borderWidth: 1,
+            borderColor: "rgba(255, 255, 255, 0.15)",
             barPercentage: 0.65,
             categoryPercentage: 0.8,
           }],
@@ -2010,16 +2132,19 @@ export default function DashboardClient() {
           datasets: [{
             label: "DOWNTIME HARIAN (MENIT)",
             data: downtimeTrendData.harianValues,
-            borderColor: "#ea580c",
-            backgroundColor: "rgba(234, 88, 12, 0.22)",
+            borderColor: "#f97316",
+            backgroundColor: (ctx: any) => {
+              const chart = ctx.chart;
+              return createAreaGradient(chart.ctx, chart.chartArea, "#f97316", 0.45, 0.15, 0.0);
+            },
             fill: true,
             tension: 0.35,
-            pointRadius: 2.5,
-            pointHoverRadius: 4.5,
-            pointBackgroundColor: "#ea580c",
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            pointBackgroundColor: "#f97316",
             pointBorderColor: "#ffffff",
-            pointBorderWidth: 1,
-            borderWidth: 2,
+            pointBorderWidth: 1.5,
+            borderWidth: 2.5,
           }],
         },
         options: {

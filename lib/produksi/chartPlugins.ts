@@ -31,7 +31,53 @@ const resolveColor = (val: any, fallbackVar: string, defaultHex: string): string
   return color;
 };
 
-// Tulis angka total di tengah doughnut chart (dipakai di "Downtime per Kategori").
+export function hexToRgba(hex: string, alpha: number): string {
+  const cleanHex = hex.replace("#", "").trim();
+  if (cleanHex.length === 3) {
+    const r = parseInt(cleanHex[0] + cleanHex[0], 16);
+    const g = parseInt(cleanHex[1] + cleanHex[1], 16);
+    const b = parseInt(cleanHex[2] + cleanHex[2], 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+  if (cleanHex.length === 6) {
+    const r = parseInt(cleanHex.substring(0, 2), 16);
+    const g = parseInt(cleanHex.substring(2, 4), 16);
+    const b = parseInt(cleanHex.substring(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+  return hex;
+}
+
+export function createVerticalGradient(
+  ctx: CanvasRenderingContext2D,
+  chartArea: { top: number; bottom: number } | undefined,
+  topColor: string,
+  bottomColor: string
+): CanvasGradient | string {
+  if (!chartArea || chartArea.bottom === chartArea.top) return topColor;
+  const grad = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+  grad.addColorStop(0, topColor);
+  grad.addColorStop(1, bottomColor);
+  return grad;
+}
+
+export function createAreaGradient(
+  ctx: CanvasRenderingContext2D,
+  chartArea: { top: number; bottom: number } | undefined,
+  colorHex: string,
+  peakAlpha = 0.38,
+  midAlpha = 0.12,
+  bottomAlpha = 0.0
+): CanvasGradient | string {
+  if (!chartArea || chartArea.bottom === chartArea.top) return colorHex;
+  const grad = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+  grad.addColorStop(0, hexToRgba(colorHex, peakAlpha));
+  grad.addColorStop(0.5, hexToRgba(colorHex, midAlpha));
+  grad.addColorStop(1, hexToRgba(colorHex, bottomAlpha));
+  return grad;
+}
+
+// Tulis angka total di tengah doughnut chart dengan aksen dial 2.5D (dipakai di "Downtime per Kategori").
 const pieCenterText = {
   id: "pieCenterText",
   afterDatasetsDraw(chart: Chart, _args: unknown, opts: any) {
@@ -40,13 +86,33 @@ const pieCenterText = {
     const cx = (chartArea.left + chartArea.right) / 2;
     const cy = (chartArea.top + chartArea.bottom) / 2;
     ctx.save();
+
+    // 2.5D Dial Inner Core (Lempeng dial halus di dalam lubang donat)
+    const size = Math.min(chartArea.right - chartArea.left, chartArea.bottom - chartArea.top);
+    const innerR = size * 0.31;
+    if (innerR > 12) {
+      const radGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, innerR);
+      radGrad.addColorStop(0, "rgba(255, 255, 255, 0.08)");
+      radGrad.addColorStop(0.7, "rgba(255, 255, 255, 0.02)");
+      radGrad.addColorStop(1, "rgba(0, 0, 0, 0.32)");
+      ctx.fillStyle = radGrad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, innerR, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(cx, cy, innerR, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
     const mainColor = resolveColor(opts.color, "--text", "#f1f5f9");
     const labelColor = resolveColor(opts.labelColor, "--muted-foreground", "#94a3b8");
 
-    const size = Math.min(chartArea.right - chartArea.left, chartArea.bottom - chartArea.top);
     const fontSizeVal = Math.max(12, Math.min(18, Math.round(size * 0.16)));
     const fontSizeLbl = Math.max(8, Math.min(10, Math.round(size * 0.08)));
 
@@ -203,12 +269,64 @@ const barValueLabels = {
   },
 };
 
+// Efek 3D Ring Floating Shadow untuk Doughnut & Pie Chart
+const doughnut3DDepth = {
+  id: "doughnut3DDepth",
+  beforeDatasetDraw(chart: Chart) {
+    const chartType = (chart.config as any)?.type;
+    if (chartType === "doughnut" || chartType === "pie") {
+      const { ctx } = chart;
+      ctx.save();
+      ctx.shadowColor = "rgba(0, 0, 0, 0.4)";
+      ctx.shadowBlur = 12;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 6;
+    }
+  },
+  afterDatasetDraw(chart: Chart) {
+    const chartType = (chart.config as any)?.type;
+    if (chartType === "doughnut" || chartType === "pie") {
+      chart.ctx.restore();
+    }
+  },
+};
+
+// Efek Neon Glow untuk Line Chart
+const lineGlow = {
+  id: "lineGlow",
+  beforeDatasetDraw(chart: Chart, args: any) {
+    const meta = chart.getDatasetMeta(args.index);
+    if (meta.type === "line") {
+      const opts = (chart.options.plugins as any)?.lineGlow;
+      if (opts?.enabled !== false) {
+        const ctx = chart.ctx;
+        ctx.save();
+        const borderColor = (meta.dataset?.options as any)?.borderColor;
+        const glowColor = typeof borderColor === "string" ? borderColor : "rgba(56, 189, 248, 0.5)";
+        ctx.shadowColor = glowColor;
+        ctx.shadowBlur = 8;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 2;
+      }
+    }
+  },
+  afterDatasetDraw(chart: Chart, args: any) {
+    const meta = chart.getDatasetMeta(args.index);
+    if (meta.type === "line") {
+      const opts = (chart.options.plugins as any)?.lineGlow;
+      if (opts?.enabled !== false) {
+        chart.ctx.restore();
+      }
+    }
+  },
+};
+
 let registered = false;
 
 // Idempotent — aman dipanggil dari useEffect tiap render.
 export function registerInternalVizPlugins() {
   if (registered) return;
   Chart.defaults.font.family = "'Aptos', 'Aptos Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-  Chart.register(pieCenterText, sliceLabels, varianceArrows, barValueLabels);
+  Chart.register(pieCenterText, sliceLabels, varianceArrows, barValueLabels, doughnut3DDepth, lineGlow);
   registered = true;
 }
