@@ -629,14 +629,31 @@ export default function DashboardClient() {
         rpcApi.call("prod_attendance_summary", { p_start: startDate, p_end: endDate, p_shift: "1" }),
         rpcApi.call("prod_attendance_summary", { p_start: startDate, p_end: endDate, p_shift: "2" }),
       ]);
-      const row1 = (!r1.error && r1.data && r1.data[0]) || {};
-      const row2 = (!r2.error && r2.data && r2.data[0]) || {};
-      return {
-        shift1: { hadir: Number(row1.hadir) || 0, total: Number(row1.total_orang) || 0 },
-        shift2: { hadir: Number(row2.hadir) || 0, total: Number(row2.total_orang) || 0 },
-      };
+      const row1 = (!r1.error && r1.data && r1.data[0]) || null;
+      const row2 = (!r2.error && r2.data && r2.data[0]) || null;
+      if (row1 || row2) {
+        return {
+          shift1: { hadir: Number(row1?.hadir) || 0, total: Number(row1?.total_orang) || 0 },
+          shift2: { hadir: Number(row2?.hadir) || 0, total: Number(row2?.total_orang) || 0 },
+        };
+      }
+      throw new Error("RPC returned empty");
     } catch {
-      return undefined;
+      // Fallback langsung ke attendanceApi jika RPC tidak tersedia atau error
+      try {
+        const [a1, a2] = await Promise.all([
+          attendanceApi.get({ startDate, endDate: startDate, shift: "1", is_active: true }),
+          attendanceApi.get({ startDate, endDate: startDate, shift: "2", is_active: true }),
+        ]);
+        const d1 = (a1.data && a1.data[0]) || {};
+        const d2 = (a2.data && a2.data[0]) || {};
+        return {
+          shift1: { hadir: Number(d1.hadir) || 0, total: Number(d1.total_orang) || 0 },
+          shift2: { hadir: Number(d2.hadir) || 0, total: Number(d2.total_orang) || 0 },
+        };
+      } catch {
+        return undefined;
+      }
     }
   }, []);
 
@@ -867,11 +884,16 @@ export default function DashboardClient() {
           scrapRasioResult = Number(row.rasio) || 0;
           scrapTargetRasioResult = Number(row.target_rasio) || 0;
         } else {
-          const scrapYear = periodMode === "tahunan" ? tahunPilih : new Date(endDate).getFullYear();
-          const scrapMonth = periodMode === "tahunan" ? new Date().getMonth() + 1 : new Date(endDate).getMonth() + 1;
+          const scrapYear = tahunPilih;
+          const scrapMonth = periodMode === "bulanan" ? (bulanPilih + 1) : (new Date(startDate).getMonth() + 1);
           const sr = await scrapApi.get({ tahun: scrapYear, bulan: scrapMonth });
           const scrapRow = (Array.isArray(sr.data) ? sr.data[0] : sr.data) as any;
-          scrapValueRpResult = scrapRow ? (Number(scrapRow.scrap_value_kidr) || 0) * 1000 : 0;
+          if (scrapRow) {
+            scrapValueRpResult = (Number(scrapRow.scrap_value_kidr) || 0) * 1000;
+            const totVal = (Number(scrapRow.total_value_kidr) || 0) * 1000;
+            scrapRasioResult = totVal > 0 ? (scrapValueRpResult / totVal) * 100 : 0;
+            scrapTargetRasioResult = Number(scrapRow.target_rasio) || 0;
+          }
         }
       } catch { /* defaults */ }
 
@@ -943,13 +965,23 @@ export default function DashboardClient() {
             overtime_jam: periodMode === "harian" ? Number(totOT.toFixed(1)) : Math.round(totOT / n * 10) / 10,
             totalHadir: totHadir, totalCuti: totCuti, totalAbsen: totAbsen, totalOvertimeJam: Number(totOT.toFixed(1)),
           };
+          if (periodMode === "harian") {
+            const s1 = attList.find((a: any) => String(a.shift) === "1");
+            const s2 = attList.find((a: any) => String(a.shift) === "2");
+            attendanceByShiftResult = {
+              shift1: { hadir: Number(s1?.hadir) || 0, total: Number(s1?.total_orang) || 0 },
+              shift2: { hadir: Number(s2?.hadir) || 0, total: Number(s2?.total_orang) || 0 },
+            };
+          } else {
+            attendanceByShiftResult = undefined;
+          }
         } else {
           attendanceResult = {
             pctExclCuti: 0, pctExclCutiFromDenom: 0, total_orang: 0, hadir: 0, cuti: 0, absen: 0, overtime_jam: 0,
             totalHadir: 0, totalCuti: 0, totalAbsen: 0, totalOvertimeJam: 0
           };
+          attendanceByShiftResult = undefined;
         }
-        attendanceByShiftResult = undefined;
       }
 
       let hourlyResult: Record<string, { jam: number; gsph: number }[]> = {};
