@@ -273,17 +273,21 @@ const barValueLabels = {
 const doughnut3DDepth = {
   id: "doughnut3DDepth",
   beforeDatasetDraw(chart: Chart) {
+    const opts = (chart.options.plugins as any)?.doughnut3DDepth;
+    if (opts?.enabled === false) return;
     const chartType = (chart.config as any)?.type;
     if (chartType === "doughnut" || chartType === "pie") {
       const { ctx } = chart;
       ctx.save();
-      ctx.shadowColor = "rgba(0, 0, 0, 0.4)";
-      ctx.shadowBlur = 12;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 6;
+      ctx.shadowColor = opts?.shadowColor || "rgba(0, 0, 0, 0.22)";
+      ctx.shadowBlur = opts?.shadowBlur !== undefined ? opts.shadowBlur : 8;
+      ctx.shadowOffsetX = opts?.shadowOffsetX !== undefined ? opts.shadowOffsetX : 0;
+      ctx.shadowOffsetY = opts?.shadowOffsetY !== undefined ? opts.shadowOffsetY : 4;
     }
   },
   afterDatasetDraw(chart: Chart) {
+    const opts = (chart.options.plugins as any)?.doughnut3DDepth;
+    if (opts?.enabled === false) return;
     const chartType = (chart.config as any)?.type;
     if (chartType === "doughnut" || chartType === "pie") {
       chart.ctx.restore();

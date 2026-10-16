@@ -1342,15 +1342,18 @@ export default function DashboardClient() {
               }
               return getCssVar("--panel-2") || "rgba(255, 255, 255, 0.06)";
             },
-            borderRadius: [8, 0],
-            borderWidth: 0,
+            spacing: 3,
+            borderRadius: 4,
+            borderWidth: 1.5,
+            borderColor: "rgba(255, 255, 255, 0.12)",
           }],
         },
         options: {
           responsive: true, maintainAspectRatio: false,
-          cutout: "72%",
+          cutout: "68%",
           plugins: {
             legend: { display: false },
+            doughnut3DDepth: { enabled: false },
             tooltip: {
               enabled: true,
               backgroundColor: getCssVar("--panel") || "#1e293b",
@@ -1368,7 +1371,7 @@ export default function DashboardClient() {
                 },
               },
             },
-          },
+          } as any,
         },
         plugins: [{
           id: "centerText",
@@ -1378,26 +1381,7 @@ export default function DashboardClient() {
             const cy = (chartArea.top + chartArea.bottom) / 2;
             ctx.save();
 
-            // 2.5D Dial Disc
             const size = Math.min(chartArea.right - chartArea.left, chartArea.bottom - chartArea.top);
-            const innerR = size * 0.32;
-            if (innerR > 10) {
-              const radGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, innerR);
-              radGrad.addColorStop(0, "rgba(255, 255, 255, 0.08)");
-              radGrad.addColorStop(0.8, "rgba(255, 255, 255, 0.02)");
-              radGrad.addColorStop(1, "rgba(0, 0, 0, 0.25)");
-              ctx.fillStyle = radGrad;
-              ctx.beginPath();
-              ctx.arc(cx, cy, innerR, 0, Math.PI * 2);
-              ctx.fill();
-
-              ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
-              ctx.lineWidth = 1;
-              ctx.beginPath();
-              ctx.arc(cx, cy, innerR, 0, Math.PI * 2);
-              ctx.stroke();
-            }
-
             const fontSize = Math.max(10, Math.min(13, Math.round(size * 0.22)));
             ctx.font = `700 ${fontSize}px 'Aptos', sans-serif`;
             ctx.fillStyle = getCssVar("--text") || "#f1f5f9";
