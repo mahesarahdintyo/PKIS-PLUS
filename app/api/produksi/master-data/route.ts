@@ -27,6 +27,9 @@ export async function GET(request: Request) {
         where: settingsWhere,
         orderBy: { mesin: "asc" },
       });
+      if (mesin && mesin !== "all") {
+        return NextResponse.json({ data: data[0] || null, error: null });
+      }
       return NextResponse.json({ data, error: null });
     }
 

@@ -70,7 +70,8 @@ export async function getCurrentUserProfile(): Promise<{
   if (!user) return { user: null, role: null, lineId: null };
 
   const profile = user.profile;
-  const role = (profile?.role ?? null) as "admin" | "operator" | "leader" | null;
+  const rawRole = profile?.role ? String(profile.role).trim().toLowerCase() : null;
+  const role = (rawRole as "admin" | "operator" | "leader" | null);
   const lineId = profile?.line_id ?? null;
 
   return { user, role, lineId };

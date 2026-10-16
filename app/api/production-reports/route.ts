@@ -52,7 +52,7 @@ export async function GET(request: Request) {
     if (showTrash) {
       where.is_active = false;
     } else {
-      where.OR = [{ is_active: true }, { is_active: null }];
+      where.is_active = true;
     }
 
     if (lineId && lineId !== "all" && lineId !== "undefined") {

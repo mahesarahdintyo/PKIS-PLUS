@@ -8,7 +8,10 @@ export default async function AdminLaporanProduksiPage() {
   const { user, role } = await getCurrentUserProfile();
 
   if (!user) redirect("/");
-  if (role !== "admin") redirect("/operator");
+  const normalizedRole = (role || "").trim().toLowerCase();
+  if (!["admin", "leader"].includes(normalizedRole)) {
+    redirect("/operator");
+  }
 
   return <LaporanProduksiClient />;
 }

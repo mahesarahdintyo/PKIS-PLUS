@@ -135,16 +135,17 @@ export default function MasterDataClient() {
       // 1. Target settings
       const { data: settingsData } = await masterDataApi.get({ type: "settings", mesin: currentConfig.key });
 
-      if (settingsData) {
+      const item = Array.isArray(settingsData) ? settingsData[0] : settingsData;
+      if (item) {
         setMesinSettingsDraft({
-          gsph_target_mode: (settingsData as any).gsph_target_mode || "fixed",
+          gsph_target_mode: item.gsph_target_mode || "fixed",
           gsph_target_fixed:
-            (settingsData as any).gsph_target_fixed != null
-              ? (settingsData as any).gsph_target_fixed
+            item.gsph_target_fixed != null
+              ? Number(item.gsph_target_fixed)
               : "",
           target_availability:
-            (settingsData as any).target_availability != null
-              ? (settingsData as any).target_availability
+            item.target_availability != null
+              ? Number(item.target_availability)
               : "",
         });
       } else {
