@@ -657,14 +657,25 @@ export default function DashboardClient() {
 
       let startDate = tanggal;
       let endDate = tanggal;
+      // endDateExcl: untuk query yang menggunakan pola "tanggal < p_end" (exclusive upper bound)
+      let endDateExcl = tanggal;
       if (periodMode === "bulanan") {
         const yr = tahunPilih, mo = bulanPilih;
         startDate = `${yr}-${String(mo + 1).padStart(2, "0")}-01`;
         const lastDay = new Date(yr, mo + 1, 0).getDate();
         endDate = `${yr}-${String(mo + 1).padStart(2, "0")}-${lastDay}`;
+        // Hari terakhir bulan + 1 hari (exclusive upper bound untuk fungsi SQL)
+        const nextMonth = new Date(yr, mo + 1, lastDay + 1);
+        endDateExcl = nextMonth.toISOString().slice(0, 10);
       } else if (periodMode === "tahunan") {
         startDate = `${tahunPilih}-01-01`;
         endDate = `${tahunPilih}-12-31`;
+        endDateExcl = `${tahunPilih + 1}-01-01`;
+      } else {
+        // Harian: hari yang dipilih saja, tapi query SQL butuh exclusive end (hari berikutnya)
+        const d = new Date(tanggal + "T00:00:00");
+        const nextDay = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+        endDateExcl = nextDay.toISOString().slice(0, 10);
       }
 
       const { start: rangeStart, end: rangeEnd } = bounds();
@@ -826,12 +837,14 @@ export default function DashboardClient() {
       /* Safety */
       let accidentCount = 0, daysWithoutAccident = 0;
       try {
-        const safetyRpc = await rpcApi.call("prod_safety_summary", { p_start: startDate, p_end: endDate });
+        // Gunakan endDateExcl agar query "tanggal < p_end" mencakup tanggal yang dipilih
+        const safetyRpc = await rpcApi.call("prod_safety_summary", { p_start: startDate, p_end: endDateExcl });
         if (!safetyRpc.error && safetyRpc.data && safetyRpc.data[0]) {
           const row = safetyRpc.data[0];
           accidentCount = Number(row.accident_count) || 0;
           daysWithoutAccident = Number(row.hari_tanpa_accident) || 0;
         } else {
+          // Fallback: query langsung ke tabel, gunakan endDate (inclusive)
           const sr = await safetyApi.get({ startDate, endDate, is_active: true });
           if (sr.data && sr.data.length > 0) {
             accidentCount = sr.data.filter((s: any) => s.kategori === "ACCIDENT").length;
@@ -846,7 +859,8 @@ export default function DashboardClient() {
       /* Scrap */
       let scrapValueRpResult = 0, scrapRasioResult = 0, scrapTargetRasioResult = 0;
       try {
-        const scrapRpc = await rpcApi.call("prod_scrap_top_end_summary", { p_start: startDate, p_end: endDate });
+        // Gunakan endDateExcl agar query "tanggal < p_end" mencakup tanggal yang dipilih
+        const scrapRpc = await rpcApi.call("prod_scrap_top_end_summary", { p_start: startDate, p_end: endDateExcl });
         if (!scrapRpc.error && scrapRpc.data && scrapRpc.data[0]) {
           const row = scrapRpc.data[0];
           scrapValueRpResult = (Number(row.scrap_value_kidr) || 0) * 1000;
@@ -865,7 +879,8 @@ export default function DashboardClient() {
       let attendanceResult: typeof attendance;
       let attendanceByShiftResult: typeof attendanceByShift;
       try {
-        const attRpc = await rpcApi.call("prod_attendance_summary", { p_start: startDate, p_end: endDate });
+        // Gunakan endDateExcl agar query "tanggal < p_end" mencakup tanggal yang dipilih
+        const attRpc = await rpcApi.call("prod_attendance_summary", { p_start: startDate, p_end: endDateExcl });
         if (!attRpc.error && attRpc.data && attRpc.data[0]) {
           const row = attRpc.data[0];
           const totalSlot = Number(row.total_orang) || 0;
@@ -888,7 +903,7 @@ export default function DashboardClient() {
             totalOvertimeJam: Number(row.overtime_jam) || 0,
           };
           attendanceByShiftResult = periodMode === "harian"
-            ? await fetchAttendanceByShift(startDate, endDate)
+            ? await fetchAttendanceByShift(startDate, endDateExcl)
             : undefined;
         } else {
           throw new Error("RPC not available");
@@ -898,7 +913,7 @@ export default function DashboardClient() {
         try {
           const params: Parameters<typeof attendanceApi.get>[0] = {
             startDate,
-            endDate,
+            endDate, // fallback pakai inclusive end (API attendance route pakai lte)
             is_active: true,
           };
           if (shiftFilter !== "all") params.shift = shiftFilter;
@@ -907,11 +922,14 @@ export default function DashboardClient() {
         } catch { attList = []; }
 
         if (attList.length > 0) {
-          const totOrang = attList.reduce((s: number, a: any) => s + (a.total_orang || 0), 0);
-          const totHadir = attList.reduce((s: number, a: any) => s + (a.hadir || 0), 0);
-          const totCuti = attList.reduce((s: number, a: any) => s + (a.cuti || 0), 0);
-          const totAbsen = attList.reduce((s: number, a: any) => s + (a.absen || 0), 0);
-          const totOT = attList.reduce((s: number, a: any) => s + (a.overtime_jam || 0), 0);
+          // PENTING: Prisma mengembalikan Decimal sebagai object, WAJIB Number() sebelum aritmetika
+          // Tanpa ini, JavaScript akan melakukan string concat dan menghasilkan angka astronomis
+          const totOrang = attList.reduce((s: number, a: any) => s + (Number(a.total_orang) || 0), 0);
+          const totHadir = attList.reduce((s: number, a: any) => s + (Number(a.hadir) || 0), 0);
+          const totCuti  = attList.reduce((s: number, a: any) => s + (Number(a.cuti) || 0), 0);
+          const totAbsen = attList.reduce((s: number, a: any) => s + (Number(a.absen) || 0), 0);
+          // overtime_jam adalah Decimal di Prisma — wajib Number() agar tidak overflow
+          const totOT   = attList.reduce((s: number, a: any) => s + (Number(a.overtime_jam) || 0), 0);
           const pctInclCuti = totOrang > 0 ? Math.min(100, Math.round((totHadir / totOrang) * 1000) / 10) : 0;
           const pctExclDenom = (totOrang - totCuti) > 0 ? Math.min(100, Math.round((totHadir / (totOrang - totCuti)) * 1000) / 10) : 0;
           const n = attList.length;
@@ -922,8 +940,8 @@ export default function DashboardClient() {
             hadir: periodMode === "harian" ? totHadir : Math.round(totHadir / n),
             cuti: periodMode === "harian" ? totCuti : Math.round(totCuti / n),
             absen: periodMode === "harian" ? totAbsen : Math.round(totAbsen / n),
-            overtime_jam: periodMode === "harian" ? totOT : Math.round(totOT / n * 10) / 10,
-            totalHadir: totHadir, totalCuti: totCuti, totalAbsen: totAbsen, totalOvertimeJam: totOT,
+            overtime_jam: periodMode === "harian" ? Number(totOT.toFixed(1)) : Math.round(totOT / n * 10) / 10,
+            totalHadir: totHadir, totalCuti: totCuti, totalAbsen: totAbsen, totalOvertimeJam: Number(totOT.toFixed(1)),
           };
         } else {
           attendanceResult = {
