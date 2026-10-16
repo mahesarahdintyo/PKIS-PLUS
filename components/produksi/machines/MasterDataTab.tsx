@@ -308,8 +308,9 @@ export default function MasterDataTab({
             <tbody>
               {masterParts.map((p) => {
                 const isEditing = editingPartId === p.id;
-                const ctVal = p.std_ct ?? (p.ct_detik ? p.ct_detik / 60 : 0);
-                const spmVal = ctVal && ctVal > 0 ? (1 / ctVal).toFixed(2) : "-";
+                const rawCt = p.std_ct != null ? p.std_ct : (p.ct_detik != null ? Number(p.ct_detik) / 60 : 0);
+                const ctNum = rawCt != null && !isNaN(Number(rawCt)) && Number(rawCt) > 0 ? Number(rawCt) : 0;
+                const spmVal = ctNum > 0 ? (1 / ctNum).toFixed(2) : "-";
 
                 if (isEditing) {
                   return (
@@ -397,10 +398,10 @@ export default function MasterDataTab({
                   <tr key={p.id || p.kode_part}>
                     <td><b className="font-mono">{p.kode_part || p.value}</b></td>
                     <td>{p.nama_part || p.kode_part || p.value}</td>
-                    <td className="mono">{ctVal ? ctVal.toFixed(4) : "-"}</td>
+                    <td className="mono">{ctNum > 0 ? ctNum.toFixed(4) : "-"}</td>
                     <td className="mono font-bold text-[var(--amber)]">{spmVal}</td>
                     <td>{p.next_process || "-"}</td>
-                    <td className="mono">{p.harga_rp || p.harga_pcs ? `Rp ${fmtNum(p.harga_rp || p.harga_pcs)}` : "-"}</td>
+                    <td className="mono">{p.harga_rp != null || p.harga_pcs != null ? `Rp ${fmtNum(p.harga_rp ?? p.harga_pcs)}` : "-"}</td>
                     <td className="text-right">
                       <div className="flex justify-end gap-1">
                         <Button

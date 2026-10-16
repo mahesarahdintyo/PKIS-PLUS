@@ -42,7 +42,16 @@ export async function GET(request: Request) {
       orderBy: { value: "asc" },
     });
 
-    return NextResponse.json({ data, error: null });
+    const mapped = data.map((item) => ({
+      ...item,
+      output_ratio: item.output_ratio != null ? Number(item.output_ratio) : 1,
+      stroke_ratio: item.stroke_ratio != null ? Number(item.stroke_ratio) : null,
+      std_mp: item.std_mp != null ? Number(item.std_mp) : null,
+      std_ct: item.std_ct != null ? Number(item.std_ct) : null,
+      harga_pcs: item.harga_pcs != null ? Number(item.harga_pcs) : null,
+    }));
+
+    return NextResponse.json({ data: mapped, error: null });
   } catch (e: any) {
     console.error("[GET /api/produksi/part-numbers]", e);
     return NextResponse.json({ data: null, error: e.message }, { status: 500 });

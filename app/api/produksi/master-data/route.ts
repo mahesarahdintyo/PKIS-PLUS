@@ -27,10 +27,15 @@ export async function GET(request: Request) {
         where: settingsWhere,
         orderBy: { mesin: "asc" },
       });
+      const mapped = data.map((s) => ({
+        ...s,
+        gsph_target_fixed: s.gsph_target_fixed != null ? Number(s.gsph_target_fixed) : 0,
+        target_availability: s.target_availability != null ? Number(s.target_availability) : null,
+      }));
       if (mesin && mesin !== "all") {
-        return NextResponse.json({ data: data[0] || null, error: null });
+        return NextResponse.json({ data: mapped[0] || null, error: null });
       }
-      return NextResponse.json({ data, error: null });
+      return NextResponse.json({ data: mapped, error: null });
     }
 
     if (type === "downtime-problems") {
@@ -52,11 +57,17 @@ export async function GET(request: Request) {
     // Default: return all 3
     const settingsWhere: any = {};
     if (mesin && mesin !== "all") settingsWhere.mesin = mesin;
-    const [settings, downtimeProblems, nonproduksiTypes] = await Promise.all([
+    const [rawSettings, downtimeProblems, nonproduksiTypes] = await Promise.all([
       prisma.prodMesinSettings.findMany({ where: settingsWhere, orderBy: { mesin: "asc" } }),
       prisma.prodDowntimeProblem.findMany({ where: { ...where, is_active: true }, orderBy: { value: "asc" } }),
       prisma.prodNonproduksiType.findMany({ where: { ...where, is_active: true }, orderBy: { nama: "asc" } }),
     ]);
+
+    const settings = rawSettings.map((s) => ({
+      ...s,
+      gsph_target_fixed: s.gsph_target_fixed != null ? Number(s.gsph_target_fixed) : 0,
+      target_availability: s.target_availability != null ? Number(s.target_availability) : null,
+    }));
 
     return NextResponse.json({
       data: { settings, downtimeProblems, nonproduksiTypes },

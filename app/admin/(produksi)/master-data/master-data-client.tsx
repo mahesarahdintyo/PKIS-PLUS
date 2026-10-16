@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { ArrowLeft, RefreshCw } from "lucide-react";
 import { linesApi, masterDataApi, partNumbersApi, subscribeToSocketEvent } from "@/lib/api-client";
-import { MACHINE_CONFIGS, getMachineConfig } from "@/components/produksi/machines/MachineDetailClient";
+import { MACHINE_CONFIGS, getMachineConfig } from "@/lib/produksi/machineConfigs";
 import MasterDataTab from "@/components/produksi/machines/MasterDataTab";
 import type {
   ProdMasterPart,
@@ -165,25 +165,32 @@ export default function MasterDataClient() {
       );
 
       if (!pNumErr && pNumData) {
-        const mappedParts: ProdMasterPart[] = pNumData.map((p: any) => ({
-          id: p.id,
-          document_id: p.document_id,
-          kode_part: p.value || p.kode_part || "",
-          nama_part: p.nama_part || p.value || "",
-          mesin: p.mesin,
-          std_ct: p.std_ct ?? (p.ct_detik ? p.ct_detik / 60 : undefined),
-          ct_detik: p.ct_detik ?? (p.std_ct ? p.std_ct * 60 : undefined),
-          std_mp: p.std_mp ?? p.mp_std,
-          mp_std: p.mp_std ?? p.std_mp,
-          next_process:
-            p.next_process ||
-            (Array.isArray(p.next_processes)
-              ? p.next_processes.map((np: any) => `${np.line}:${np.part_number}`).join(", ")
-              : undefined),
-          harga_rp: p.harga_pcs ?? p.harga_rp,
-          harga_pcs: p.harga_pcs ?? p.harga_rp,
-          value: p.value || p.kode_part,
-        }));
+        const mappedParts: ProdMasterPart[] = pNumData.map((p: any) => {
+          const stdCt = p.std_ct != null ? Number(p.std_ct) : (p.ct_detik != null ? Number(p.ct_detik) / 60 : undefined);
+          const ctDetik = p.ct_detik != null ? Number(p.ct_detik) : (p.std_ct != null ? Number(p.std_ct) * 60 : undefined);
+          const stdMp = p.std_mp != null ? Number(p.std_mp) : (p.mp_std != null ? Number(p.mp_std) : undefined);
+          const harga = p.harga_pcs != null ? Number(p.harga_pcs) : (p.harga_rp != null ? Number(p.harga_rp) : undefined);
+
+          return {
+            id: p.id,
+            document_id: p.document_id,
+            kode_part: p.value || p.kode_part || "",
+            nama_part: p.nama_part || p.value || "",
+            mesin: p.mesin,
+            std_ct: stdCt != null && !isNaN(stdCt) ? stdCt : undefined,
+            ct_detik: ctDetik != null && !isNaN(ctDetik) ? ctDetik : undefined,
+            std_mp: stdMp != null && !isNaN(stdMp) ? stdMp : undefined,
+            mp_std: stdMp != null && !isNaN(stdMp) ? stdMp : undefined,
+            next_process:
+              p.next_process ||
+              (Array.isArray(p.next_processes)
+                ? p.next_processes.map((np: any) => `${np.line}:${np.part_number}`).join(", ")
+                : undefined),
+            harga_rp: harga != null && !isNaN(harga) ? harga : undefined,
+            harga_pcs: harga != null && !isNaN(harga) ? harga : undefined,
+            value: p.value || p.kode_part,
+          };
+        });
         setMasterParts(mappedParts);
       } else {
         setMasterParts([]);
