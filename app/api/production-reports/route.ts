@@ -65,12 +65,17 @@ export async function GET(request: Request) {
       if (endDate) where.waktu_awal.lte = new Date(`${endDate}T23:59:59.999Z`);
     }
 
+    const limitParam = searchParams.get("limit");
+    const parsedLimit = limitParam ? parseInt(limitParam, 10) : NaN;
+    const take = !isNaN(parsedLimit) && parsedLimit > 0 ? parsedLimit : (startDate || endDate ? undefined : 1000);
+
     const rows = await prisma.prodProductionLog.findMany({
       where,
       orderBy: [
         { waktu_awal: "desc" },
         { created_at: "desc" },
       ],
+      ...(take ? { take } : {}),
     });
 
     const userIds = Array.from(

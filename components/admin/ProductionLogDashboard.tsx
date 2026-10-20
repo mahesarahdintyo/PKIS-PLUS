@@ -6,6 +6,10 @@ import {
   AlertTriangle,
   Calendar,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Clock,
   Coffee,
   Download,
@@ -26,7 +30,7 @@ import { Button } from "@/components/ui/button";
 import { productionLogsApi, partNumbersApi, subscribeToSocketEvent } from "@/lib/api-client";
 import { toast } from "sonner";
 
-const LOG_REFRESH_INTERVAL_MS = 5000;
+const LOG_REFRESH_INTERVAL_MS = 60000;
 
 export interface CombinedLogItem {
   id: string;
@@ -135,6 +139,10 @@ export default function ProductionLogDashboard() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   // Part number options
   const [partOptions, setPartOptions] = useState<string[]>([]);
@@ -317,21 +325,56 @@ export default function ProductionLogDashboard() {
     });
   }, [logs, selectedJenis, searchQuery]);
 
-  // Bulk Selection Helpers
-  const isAllSelected = useMemo(() => {
+  // Pagination calculation
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, filtered.length);
+
+  const paginatedLogs = useMemo(() => {
+    return filtered.slice(startIndex, startIndex + pageSize);
+  }, [filtered, startIndex, pageSize]);
+
+  // Reset pagination when any filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedLineId, selectedJenis, startDate, endDate, searchQuery, pageSize]);
+
+  // Bulk Selection Helpers (Page-Aware)
+  const isAllPageSelected = useMemo(() => {
+    return paginatedLogs.length > 0 && paginatedLogs.every((r) => selectedIds.has(r.id));
+  }, [paginatedLogs, selectedIds]);
+
+  const isSomePageSelected = useMemo(() => {
+    return paginatedLogs.some((r) => selectedIds.has(r.id)) && !isAllPageSelected;
+  }, [paginatedLogs, selectedIds, isAllPageSelected]);
+
+  const isAllTotalSelected = useMemo(() => {
     return filtered.length > 0 && filtered.every((r) => selectedIds.has(r.id));
   }, [filtered, selectedIds]);
 
-  const isSomeSelected = useMemo(() => {
-    return filtered.some((r) => selectedIds.has(r.id)) && !isAllSelected;
-  }, [filtered, selectedIds, isAllSelected]);
-
-  const toggleSelectAll = () => {
-    if (isAllSelected) {
-      setSelectedIds(new Set());
+  const toggleSelectPage = () => {
+    if (isAllPageSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        paginatedLogs.forEach((r) => next.delete(r.id));
+        return next;
+      });
     } else {
-      setSelectedIds(new Set(filtered.map((r) => r.id)));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        paginatedLogs.forEach((r) => next.add(r.id));
+        return next;
+      });
     }
+  };
+
+  const selectAllAcrossAllPages = () => {
+    setSelectedIds(new Set(filtered.map((r) => r.id)));
+  };
+
+  const clearAllSelection = () => {
+    setSelectedIds(new Set());
   };
 
   const toggleSelectRow = (id: string, e?: React.MouseEvent | React.ChangeEvent) => {
@@ -435,6 +478,7 @@ export default function ProductionLogDashboard() {
     setStartDate("");
     setEndDate("");
     setSearchQuery("");
+    setCurrentPage(1);
   };
 
   // ----- CSV Export -----
@@ -998,170 +1042,282 @@ export default function ProductionLogDashboard() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm border-collapse">
-              <thead>
-                <tr className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200 select-none">
-                  <th className="py-4 pl-3 pr-1 w-10 text-center">
-                    <input
-                      type="checkbox"
-                      checked={isAllSelected}
-                      ref={(el) => {
-                        if (el) el.indeterminate = isSomeSelected;
-                      }}
-                      onChange={toggleSelectAll}
-                      aria-label="Pilih semua baris riwayat"
-                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
-                    />
-                  </th>
-                  <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider">Kode</th>
-                  <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider">Line</th>
-                  <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider">Stasiun</th>
-                  <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider">Waktu Awal</th>
-                  <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider">Waktu Akhir</th>
-                  <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider">Part Number</th>
-                  <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider text-right">Qty</th>
-                  <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider text-center">MP</th>
-                  <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider text-right">Dandori</th>
-                  <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider text-right">DT</th>
-                  <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider text-right">Break</th>
-                  <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider text-center">Routing</th>
-                  <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider text-center">Aksi</th>
-                </tr>
-              </thead>
-              <tbody
-                key={`${selectedLineId}-${selectedJenis}-${startDate}-${endDate}`}
-                className="divide-y divide-slate-100 animate-in fade-in slide-in-from-bottom-2 duration-500"
-              >
-                {filtered.map((row, index) => {
-                  const isSelected = selectedIds.has(row.id);
-                  const data = row.data;
-                  const isProd = row.jenis === "produksi";
-                  const routing = isProd && data.extra?.routing_type
-                    ? `${data.extra.routing_type}${data.extra.routing_numbers ? ` ${data.extra.routing_numbers.join(",")}` : ""}`
-                    : "-";
-                  const hasDt = isProd && (data.downtime_menit ?? 0) > 0;
+          <div>
+            {/* Banner Seleksi Semua Halaman jika Halaman Aktif Terpilih Penuh */}
+            {isAllPageSelected && filtered.length > paginatedLogs.length && (
+              <div className="bg-blue-50 px-4 py-2.5 text-xs text-blue-900 border-b border-blue-100 flex items-center justify-between gap-2 flex-wrap">
+                <span>
+                  {isAllTotalSelected ? (
+                    <>
+                      Semua <strong>{filtered.length}</strong> baris riwayat di seluruh halaman telah terpilih.
+                    </>
+                  ) : (
+                    <>
+                      Semua <strong>{paginatedLogs.length}</strong> baris riwayat di halaman ini telah terpilih.
+                    </>
+                  )}
+                </span>
+                {!isAllTotalSelected ? (
+                  <button
+                    type="button"
+                    onClick={selectAllAcrossAllPages}
+                    className="font-bold text-blue-700 hover:text-blue-900 underline cursor-pointer bg-transparent border-0"
+                  >
+                    Pilih semua {filtered.length} baris di seluruh halaman
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={clearAllSelection}
+                    className="font-bold text-blue-700 hover:text-blue-900 underline cursor-pointer bg-transparent border-0"
+                  >
+                    Batalkan pilihan
+                  </button>
+                )}
+              </div>
+            )}
 
-                  return (
-                    <tr
-                      key={`${row.jenis}-${data.id || index}`}
-                      onClick={() => toggleSelectRow(row.id)}
-                      className={`transition-colors duration-200 cursor-pointer animate-in fade-in slide-in-from-bottom-1 duration-300 fill-mode-backwards ${
-                        isSelected ? "bg-blue-50/70 hover:bg-blue-50" : "hover:bg-slate-50"
-                      }`}
-                      style={{ animationDelay: `${Math.min(index * 20, 300)}ms` }}
-                    >
-                      {/* Checkbox Column */}
-                      <td className="py-3 pl-3 pr-1 text-center" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={(e) => toggleSelectRow(row.id, e)}
-                          aria-label={`Pilih baris ${row.part_number || row.id}`}
-                          className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
-                        />
-                      </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200 select-none">
+                    <th className="py-4 pl-3 pr-1 w-10 text-center">
+                      <input
+                        type="checkbox"
+                        checked={isAllPageSelected}
+                        ref={(el) => {
+                          if (el) el.indeterminate = isSomePageSelected;
+                        }}
+                        onChange={toggleSelectPage}
+                        aria-label="Pilih semua baris riwayat di halaman ini"
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                      />
+                    </th>
+                    <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider">Kode</th>
+                    <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider">Line</th>
+                    <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider">Stasiun</th>
+                    <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider">Waktu Awal</th>
+                    <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider">Waktu Akhir</th>
+                    <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider">Part Number</th>
+                    <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider text-right">Qty</th>
+                    <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider text-center">MP</th>
+                    <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider text-right">Dandori</th>
+                    <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider text-right">DT</th>
+                    <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider text-right">Break</th>
+                    <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider text-center">Routing</th>
+                    <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider text-center">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody
+                  key={`${selectedLineId}-${selectedJenis}-${startDate}-${endDate}-${safeCurrentPage}`}
+                  className="divide-y divide-slate-100"
+                >
+                  {paginatedLogs.map((row, index) => {
+                    const isSelected = selectedIds.has(row.id);
+                    const data = row.data;
+                    const isProd = row.jenis === "produksi";
+                    const routing = isProd && data.extra?.routing_type
+                      ? `${data.extra.routing_type}${data.extra.routing_numbers ? ` ${data.extra.routing_numbers.join(",")}` : ""}`
+                      : "-";
+                    const hasDt = isProd && (data.downtime_menit ?? 0) > 0;
 
-                      {/* Kode */}
-                      <td className="py-3 px-3 font-mono text-xs text-slate-700 whitespace-nowrap">
-                        {isProd ? data.kode || "-" : (
-                          <span className="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
-                            Non-Prod
-                          </span>
-                        )}
-                      </td>
+                    return (
+                      <tr
+                        key={`${row.jenis}-${data.id || index}`}
+                        onClick={() => toggleSelectRow(row.id)}
+                        className={`transition-colors duration-150 cursor-pointer ${
+                          isSelected ? "bg-blue-50/70 hover:bg-blue-50" : "hover:bg-slate-50"
+                        }`}
+                      >
+                        {/* Checkbox Column */}
+                        <td className="py-3 pl-3 pr-1 text-center" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => toggleSelectRow(row.id, e)}
+                            aria-label={`Pilih baris ${row.part_number || row.id}`}
+                            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                          />
+                        </td>
 
-                      {/* Line */}
-                      <td className="py-3 px-3 font-semibold text-xs text-slate-700 whitespace-nowrap">
-                        {row.line_name ?? row.mesin}
-                      </td>
-
-                      {/* Stasiun */}
-                      <td className="py-3 px-3 font-mono text-xs text-slate-500 whitespace-nowrap">
-                        {data.stasiun || "-"}
-                      </td>
-
-                      {/* Waktu Awal */}
-                      <td className="py-3 px-3 font-mono text-xs text-slate-700 whitespace-nowrap">
-                        {fmt(row.waktu_awal)}
-                      </td>
-
-                      {/* Waktu Akhir */}
-                      <td className="py-3 px-3 font-mono text-xs text-slate-700 whitespace-nowrap">
-                        {fmt(row.waktu_akhir)}
-                      </td>
-
-                      {/* Part Number */}
-                      <td className="py-3 px-3 font-semibold text-xs text-slate-900 whitespace-nowrap font-mono">
-                        {row.part_number || "-"}
-                      </td>
-
-                      {/* Qty */}
-                      <td className="py-3 px-3 text-right font-mono text-xs font-bold text-slate-800 whitespace-nowrap">
-                        {isProd ? fmtNum(data.qty) : "-"}
-                      </td>
-
-                      {/* MP */}
-                      <td className="py-3 px-3 text-center font-mono text-xs text-slate-700 whitespace-nowrap">
-                        {isProd ? fmtNum(data.manpower) : "-"}
-                      </td>
-
-                      {/* Dandori */}
-                      <td className="py-3 px-3 text-right font-mono text-xs text-slate-600 whitespace-nowrap">
-                        {isProd ? (data.dandori_menit ? `${fmtNum(data.dandori_menit)} mnt` : "-") : "-"}
-                      </td>
-
-                      {/* DT */}
-                      <td className="py-3 px-3 text-right font-mono text-xs whitespace-nowrap">
-                        {isProd ? (
-                          hasDt ? (
-                            <span className="text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                              {fmtNum(data.downtime_menit)} mnt
+                        {/* Kode */}
+                        <td className="py-3 px-3 font-mono text-xs text-slate-700 whitespace-nowrap">
+                          {isProd ? data.kode || "-" : (
+                            <span className="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                              Non-Prod
                             </span>
+                          )}
+                        </td>
+
+                        {/* Line */}
+                        <td className="py-3 px-3 font-semibold text-xs text-slate-700 whitespace-nowrap">
+                          {row.line_name ?? row.mesin}
+                        </td>
+
+                        {/* Stasiun */}
+                        <td className="py-3 px-3 font-mono text-xs text-slate-500 whitespace-nowrap">
+                          {data.stasiun || "-"}
+                        </td>
+
+                        {/* Waktu Awal */}
+                        <td className="py-3 px-3 font-mono text-xs text-slate-700 whitespace-nowrap">
+                          {fmt(row.waktu_awal)}
+                        </td>
+
+                        {/* Waktu Akhir */}
+                        <td className="py-3 px-3 font-mono text-xs text-slate-700 whitespace-nowrap">
+                          {fmt(row.waktu_akhir)}
+                        </td>
+
+                        {/* Part Number */}
+                        <td className="py-3 px-3 font-semibold text-xs text-slate-900 whitespace-nowrap font-mono">
+                          {row.part_number || "-"}
+                        </td>
+
+                        {/* Qty */}
+                        <td className="py-3 px-3 text-right font-mono text-xs font-bold text-slate-800 whitespace-nowrap">
+                          {isProd ? fmtNum(data.qty) : "-"}
+                        </td>
+
+                        {/* MP */}
+                        <td className="py-3 px-3 text-center font-mono text-xs text-slate-700 whitespace-nowrap">
+                          {isProd ? fmtNum(data.manpower) : "-"}
+                        </td>
+
+                        {/* Dandori */}
+                        <td className="py-3 px-3 text-right font-mono text-xs text-slate-600 whitespace-nowrap">
+                          {isProd ? (data.dandori_menit ? `${fmtNum(data.dandori_menit)} mnt` : "-") : "-"}
+                        </td>
+
+                        {/* DT */}
+                        <td className="py-3 px-3 text-right font-mono text-xs whitespace-nowrap">
+                          {isProd ? (
+                            hasDt ? (
+                              <span className="text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                                {fmtNum(data.downtime_menit)} mnt
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">-</span>
+                            )
                           ) : (
-                            <span className="text-slate-400">-</span>
-                          )
-                        ) : (
-                          "-"
-                        )}
-                      </td>
+                            "-"
+                          )}
+                        </td>
 
-                      {/* Break */}
-                      <td className="py-3 px-3 text-right font-mono text-xs text-slate-600 whitespace-nowrap">
-                        {data.break_menit ? `${fmtNum(data.break_menit)} mnt` : "-"}
-                      </td>
+                        {/* Break */}
+                        <td className="py-3 px-3 text-right font-mono text-xs text-slate-600 whitespace-nowrap">
+                          {data.break_menit ? `${fmtNum(data.break_menit)} mnt` : "-"}
+                        </td>
 
-                      {/* Routing */}
-                      <td className="py-3 px-3 text-center text-xs text-slate-600 whitespace-nowrap font-mono">
-                        {routing}
-                      </td>
+                        {/* Routing */}
+                        <td className="py-3 px-3 text-center text-xs text-slate-600 whitespace-nowrap font-mono">
+                          {routing}
+                        </td>
 
-                      {/* Aksi */}
-                      <td className="py-3 px-3 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => openEdit(row)}
-                            className="inline-flex items-center justify-center h-7 w-7 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors duration-200 cursor-pointer"
-                            title="Edit"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => openDelete(row)}
-                            className="inline-flex items-center justify-center h-7 w-7 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors duration-200 cursor-pointer"
-                            title="Hapus"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        {/* Aksi */}
+                        <td className="py-3 px-3 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => openEdit(row)}
+                              className="inline-flex items-center justify-center h-7 w-7 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors duration-200 cursor-pointer"
+                              title="Edit"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openDelete(row)}
+                              className="inline-flex items-center justify-center h-7 w-7 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors duration-200 cursor-pointer"
+                              title="Hapus"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination Controls */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-slate-200 bg-slate-50/50">
+              <div className="flex items-center gap-3 text-xs text-slate-600">
+                <span>
+                  Menampilkan <strong>{filtered.length > 0 ? startIndex + 1 : 0}</strong> -{" "}
+                  <strong>{endIndex}</strong> dari <strong>{filtered.length}</strong> entri
+                </span>
+                <div className="hidden sm:flex items-center gap-1.5 ml-2 border-l border-slate-200 pl-3">
+                  <span className="text-slate-500">Baris per hal:</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="h-7 px-2 py-0 border border-slate-300 rounded bg-white text-xs text-slate-700 outline-none focus:border-blue-500 cursor-pointer"
+                  >
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={safeCurrentPage <= 1}
+                  className="h-8 w-8 p-0 border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40"
+                  title="Halaman Pertama"
+                >
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safeCurrentPage <= 1}
+                  className="h-8 w-8 p-0 border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40"
+                  title="Halaman Sebelumnya"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+
+                <span className="px-3 text-xs font-semibold text-slate-700 whitespace-nowrap">
+                  Hal {safeCurrentPage} dari {totalPages}
+                </span>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safeCurrentPage >= totalPages}
+                  className="h-8 w-8 p-0 border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40"
+                  title="Halaman Berikutnya"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={safeCurrentPage >= totalPages}
+                  className="h-8 w-8 p-0 border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40"
+                  title="Halaman Terakhir"
+                >
+                  <ChevronsRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </div>
         )}
       </div>

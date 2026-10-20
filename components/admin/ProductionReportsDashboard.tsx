@@ -18,6 +18,10 @@ import {
   Eye,
   Copy,
   Check,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 import { getLines, type Line } from "@/lib/services/line";
 import {
@@ -29,7 +33,7 @@ import { Button } from "@/components/ui/button";
 import { subscribeToSocketEvent } from "@/lib/api-client";
 import { toast } from "sonner";
 
-const PRODUCTION_REPORT_REFRESH_INTERVAL_MS = 3000;
+const PRODUCTION_REPORT_REFRESH_INTERVAL_MS = 60000;
 
 export default function ProductionReportsDashboard() {
   const [reports, setReports] = useState<ProductionReport[]>([]);
@@ -42,6 +46,10 @@ export default function ProductionReportsDashboard() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   // Modal Delete state
   const [deleteTarget, setDeleteTarget] = useState<ProductionReport | null>(null);
@@ -168,7 +176,13 @@ export default function ProductionReportsDashboard() {
     setStartDate("");
     setEndDate("");
     setSearchQuery("");
+    setCurrentPage(1);
   };
+
+  // Reset pagination when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedLineId, startDate, endDate, searchQuery, pageSize]);
 
   // Client-side filtering for search query
   const filteredReports = useMemo(() => {
@@ -188,21 +202,51 @@ export default function ProductionReportsDashboard() {
     });
   }, [reports, searchQuery]);
 
-  // Bulk Selection Helpers
-  const isAllSelected = useMemo(() => {
+  // Pagination calculation
+  const totalPages = Math.max(1, Math.ceil(filteredReports.length / pageSize));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, filteredReports.length);
+
+  const paginatedReports = useMemo(() => {
+    return filteredReports.slice(startIndex, startIndex + pageSize);
+  }, [filteredReports, startIndex, pageSize]);
+
+  // Bulk Selection Helpers (Page-Aware)
+  const isAllPageSelected = useMemo(() => {
+    return paginatedReports.length > 0 && paginatedReports.every((r) => selectedIds.has(r.id));
+  }, [paginatedReports, selectedIds]);
+
+  const isSomePageSelected = useMemo(() => {
+    return paginatedReports.some((r) => selectedIds.has(r.id)) && !isAllPageSelected;
+  }, [paginatedReports, selectedIds, isAllPageSelected]);
+
+  const isAllTotalSelected = useMemo(() => {
     return filteredReports.length > 0 && filteredReports.every((r) => selectedIds.has(r.id));
   }, [filteredReports, selectedIds]);
 
-  const isSomeSelected = useMemo(() => {
-    return filteredReports.some((r) => selectedIds.has(r.id)) && !isAllSelected;
-  }, [filteredReports, selectedIds, isAllSelected]);
-
-  const toggleSelectAll = () => {
-    if (isAllSelected) {
-      setSelectedIds(new Set());
+  const toggleSelectPage = () => {
+    if (isAllPageSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        paginatedReports.forEach((r) => next.delete(r.id));
+        return next;
+      });
     } else {
-      setSelectedIds(new Set(filteredReports.map((r) => r.id)));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        paginatedReports.forEach((r) => next.add(r.id));
+        return next;
+      });
     }
+  };
+
+  const selectAllAcrossAllPages = () => {
+    setSelectedIds(new Set(filteredReports.map((r) => r.id)));
+  };
+
+  const clearAllSelection = () => {
+    setSelectedIds(new Set());
   };
 
   const toggleSelectRow = (id: string, e?: React.MouseEvent | React.ChangeEvent) => {
@@ -745,148 +789,260 @@ Istirahat: ${breakMin}
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm border-collapse">
-              <thead>
-                <tr className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200 select-none">
-                  <th className="py-4 pl-4 pr-2 w-10 text-center">
-                    <input
-                      type="checkbox"
-                      checked={isAllSelected}
-                      ref={(el) => {
-                        if (el) el.indeterminate = isSomeSelected;
-                      }}
-                      onChange={toggleSelectAll}
-                      aria-label="Pilih semua laporan"
-                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
-                    />
-                  </th>
-                  <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Tanggal</th>
-                  <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Line/Card</th>
-                  <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Operator</th>
-                  <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Part Number</th>
-                  <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-center">Mulai - Selesai</th>
-                  <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-center">Istirahat</th>
-                  <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-right">QTY OK</th>
-                  <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-right">QTY NG</th>
-                  <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-right">NG Rate</th>
-                  <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-center">Aksi</th>
-                </tr>
-              </thead>
-              <tbody
-                key={`${selectedLineId}-${startDate}-${endDate}`}
-                className="divide-y divide-slate-100 animate-in fade-in slide-in-from-bottom-2 duration-500"
-              >
-                {filteredReports.map((report, index) => {
-                  const isSelected = selectedIds.has(report.id);
-                  const okQty = report.qty - report.ng_qty;
-                  const ngRate = report.qty > 0 ? (report.ng_qty / report.qty) * 100 : 0;
-                  const isNgHigh = report.ng_qty > 0;
+          <div>
+            {/* Banner Seleksi Semua Halaman jika Halaman Aktif Terpilih Penuh */}
+            {isAllPageSelected && filteredReports.length > paginatedReports.length && (
+              <div className="bg-blue-50 px-4 py-2.5 text-xs text-blue-900 border-b border-blue-100 flex items-center justify-between gap-2 flex-wrap">
+                <span>
+                  {isAllTotalSelected ? (
+                    <>
+                      Semua <strong>{filteredReports.length}</strong> laporan di seluruh halaman telah terpilih.
+                    </>
+                  ) : (
+                    <>
+                      Semua <strong>{paginatedReports.length}</strong> laporan di halaman ini telah terpilih.
+                    </>
+                  )}
+                </span>
+                {!isAllTotalSelected ? (
+                  <button
+                    type="button"
+                    onClick={selectAllAcrossAllPages}
+                    className="font-bold text-blue-700 hover:text-blue-900 underline cursor-pointer bg-transparent border-0"
+                  >
+                    Pilih semua {filteredReports.length} laporan di seluruh halaman
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={clearAllSelection}
+                    className="font-bold text-blue-700 hover:text-blue-900 underline cursor-pointer bg-transparent border-0"
+                  >
+                    Batalkan pilihan
+                  </button>
+                )}
+              </div>
+            )}
 
-                  return (
-                    <tr
-                      key={report.id}
-                      onClick={() => toggleSelectRow(report.id)}
-                      className={`transition-colors duration-200 group cursor-pointer animate-in fade-in slide-in-from-bottom-1 duration-300 fill-mode-backwards ${
-                        isSelected ? "bg-blue-50/70 hover:bg-blue-50" : "hover:bg-slate-50"
-                      }`}
-                      style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}
-                    >
-                      {/* Checkbox Column */}
-                      <td className="py-3.5 pl-4 pr-2 text-center" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={(e) => toggleSelectRow(report.id, e)}
-                          aria-label={`Pilih laporan ${report.part_number}`}
-                          className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
-                        />
-                      </td>
-                      {/* Tanggal */}
-                      <td className="py-3.5 px-4 font-medium text-slate-900 whitespace-nowrap">
-                        {formatDate(report.report_date)}
-                      </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200 select-none">
+                    <th className="py-4 pl-4 pr-2 w-10 text-center">
+                      <input
+                        type="checkbox"
+                        checked={isAllPageSelected}
+                        ref={(el) => {
+                          if (el) el.indeterminate = isSomePageSelected;
+                        }}
+                        onChange={toggleSelectPage}
+                        aria-label="Pilih laporan di halaman ini"
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                      />
+                    </th>
+                    <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Tanggal</th>
+                    <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Line/Card</th>
+                    <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Operator</th>
+                    <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Part Number</th>
+                    <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-center">Mulai - Selesai</th>
+                    <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-center">Istirahat</th>
+                    <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-right">QTY OK</th>
+                    <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-right">QTY NG</th>
+                    <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-right">NG Rate</th>
+                    <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-center">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody
+                  key={`${selectedLineId}-${startDate}-${endDate}-${safeCurrentPage}`}
+                  className="divide-y divide-slate-100"
+                >
+                  {paginatedReports.map((report) => {
+                    const isSelected = selectedIds.has(report.id);
+                    const okQty = report.qty - report.ng_qty;
+                    const ngRate = report.qty > 0 ? (report.ng_qty / report.qty) * 100 : 0;
+                    const isNgHigh = report.ng_qty > 0;
 
-                      {/* Line Name */}
-                      <td className="py-3.5 px-4 font-semibold text-slate-700 whitespace-nowrap">
-                        {report.line?.name ?? "Unknown Line"}
-                      </td>
+                    return (
+                      <tr
+                        key={report.id}
+                        onClick={() => toggleSelectRow(report.id)}
+                        className={`transition-colors duration-150 group cursor-pointer ${
+                          isSelected ? "bg-blue-50/70 hover:bg-blue-50" : "hover:bg-slate-50"
+                        }`}
+                      >
+                        {/* Checkbox Column */}
+                        <td className="py-3.5 pl-4 pr-2 text-center" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => toggleSelectRow(report.id, e)}
+                            aria-label={`Pilih laporan ${report.part_number}`}
+                            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                          />
+                        </td>
+                        {/* Tanggal */}
+                        <td className="py-3.5 px-4 font-medium text-slate-900 whitespace-nowrap">
+                          {formatDate(report.report_date)}
+                        </td>
 
-                      {/* Operator Name */}
-                      <td className="py-3.5 px-4 text-slate-600 whitespace-nowrap">
-                        {report.operator_name}
-                      </td>
+                        {/* Line Name */}
+                        <td className="py-3.5 px-4 font-semibold text-slate-700 whitespace-nowrap">
+                          {report.line?.name ?? "Unknown Line"}
+                        </td>
 
-                      {/* Part Number */}
-                      <td className="py-3.5 px-4 font-semibold text-slate-800 whitespace-nowrap font-mono">
-                        {report.part_number}
-                      </td>
+                        {/* Operator Name */}
+                        <td className="py-3.5 px-4 text-slate-600 whitespace-nowrap">
+                          {report.operator_name}
+                        </td>
 
-                      {/* Mulai - Selesai */}
-                      <td className="py-3.5 px-4 text-center text-slate-600 whitespace-nowrap font-medium">
-                        {formatTime(report.start_time)} - {formatTime(report.end_time)}
-                      </td>
+                        {/* Part Number */}
+                        <td className="py-3.5 px-4 font-semibold text-slate-800 whitespace-nowrap font-mono">
+                          {report.part_number}
+                        </td>
 
-                      {/* Istirahat */}
-                      <td className="py-3.5 px-4 text-center text-slate-600 whitespace-nowrap font-medium">
-                        {report.break_minutes > 0 ? `${report.break_minutes} m` : "-"}
-                      </td>
+                        {/* Mulai - Selesai */}
+                        <td className="py-3.5 px-4 text-center text-slate-600 whitespace-nowrap font-medium">
+                          {formatTime(report.start_time)} - {formatTime(report.end_time)}
+                        </td>
 
-                      {/* QTY OK */}
-                      <td className="py-3.5 px-4 text-right text-slate-800 font-bold whitespace-nowrap">
-                        {okQty}
-                      </td>
+                        {/* Istirahat */}
+                        <td className="py-3.5 px-4 text-center text-slate-600 whitespace-nowrap font-medium">
+                          {report.break_minutes > 0 ? `${report.break_minutes} m` : "-"}
+                        </td>
 
-                      {/* QTY NG */}
-                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                        <span
-                          className={`font-bold ${isNgHigh ? "text-red-600 bg-red-50 border border-red-100 rounded px-1.5 py-0.5" : "text-slate-500"
-                            }`}
-                        >
-                          {report.ng_qty}
-                        </span>
-                      </td>
+                        {/* QTY OK */}
+                        <td className="py-3.5 px-4 text-right text-slate-800 font-bold whitespace-nowrap">
+                          {okQty}
+                        </td>
 
-                      {/* NG Rate */}
-                      <td className="py-3.5 px-4 text-right font-semibold whitespace-nowrap">
-                        <span
-                          className={`${isNgHigh
-                            ? ngRate > 5
-                              ? "text-red-700"
-                              : "text-amber-700"
-                            : "text-slate-400 font-normal"
-                            }`}
-                        >
-                          {ngRate.toFixed(1)}%
-                        </span>
-                      </td>
-
-                      {/* Aksi Detail & Hapus */}
-                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setDetailReport(report)}
-                            className="inline-flex items-center justify-center h-8 w-8 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors duration-200 cursor-pointer"
-                            title="Lihat Detail"
+                        {/* QTY NG */}
+                        <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                          <span
+                            className={`font-bold ${isNgHigh ? "text-red-600 bg-red-50 border border-red-100 rounded px-1.5 py-0.5" : "text-slate-500"
+                              }`}
                           >
-                            <Eye className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setDeleteTarget(report)}
-                            className="inline-flex items-center justify-center h-8 w-8 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors duration-200 cursor-pointer"
-                            title="Hapus Laporan"
+                            {report.ng_qty}
+                          </span>
+                        </td>
+
+                        {/* NG Rate */}
+                        <td className="py-3.5 px-4 text-right font-semibold whitespace-nowrap">
+                          <span
+                            className={`${isNgHigh
+                              ? ngRate > 5
+                                ? "text-red-700"
+                                : "text-amber-700"
+                              : "text-slate-400 font-normal"
+                              }`}
                           >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                            {ngRate.toFixed(1)}%
+                          </span>
+                        </td>
+
+                        {/* Aksi Detail & Hapus */}
+                        <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setDetailReport(report)}
+                              className="inline-flex items-center justify-center h-8 w-8 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors duration-200 cursor-pointer"
+                              title="Lihat Detail"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeleteTarget(report)}
+                              className="inline-flex items-center justify-center h-8 w-8 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors duration-200 cursor-pointer"
+                              title="Hapus Laporan"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination Controls */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-slate-200 bg-slate-50/50">
+              <div className="flex items-center gap-3 text-xs text-slate-600">
+                <span>
+                  Menampilkan <strong>{filteredReports.length > 0 ? startIndex + 1 : 0}</strong> -{" "}
+                  <strong>{endIndex}</strong> dari <strong>{filteredReports.length}</strong> laporan
+                </span>
+                <div className="hidden sm:flex items-center gap-1.5 ml-2 border-l border-slate-200 pl-3">
+                  <span className="text-slate-500">Baris per hal:</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="h-7 px-2 py-0 border border-slate-300 rounded bg-white text-xs text-slate-700 outline-none focus:border-blue-500 cursor-pointer"
+                  >
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={safeCurrentPage <= 1}
+                  className="h-8 w-8 p-0 border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40"
+                  title="Halaman Pertama"
+                >
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safeCurrentPage <= 1}
+                  className="h-8 w-8 p-0 border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40"
+                  title="Halaman Sebelumnya"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+
+                <span className="px-3 text-xs font-semibold text-slate-700 whitespace-nowrap">
+                  Hal {safeCurrentPage} dari {totalPages}
+                </span>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safeCurrentPage >= totalPages}
+                  className="h-8 w-8 p-0 border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40"
+                  title="Halaman Berikutnya"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={safeCurrentPage >= totalPages}
+                  className="h-8 w-8 p-0 border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40"
+                  title="Halaman Terakhir"
+                >
+                  <ChevronsRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </div>
         )}
       </div>
