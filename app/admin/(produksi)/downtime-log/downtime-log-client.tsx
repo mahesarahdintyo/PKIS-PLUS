@@ -63,7 +63,9 @@ const FORM_CATEGORIES = [
 
 function formatDate(iso?: string | null): string {
   if (!iso) return "-";
-  return new Date(iso).toLocaleDateString("id-ID", {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "-";
+  return d.toLocaleDateString("id-ID", {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -72,7 +74,9 @@ function formatDate(iso?: string | null): string {
 
 function formatTime(iso?: string | null): string {
   if (!iso) return "--:--";
-  return new Date(iso).toLocaleTimeString("id-ID", {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "--:--";
+  return d.toLocaleTimeString("id-ID", {
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -218,8 +222,8 @@ export default function DowntimeLogClient() {
 
         if (filterMesin !== "all") params.mesin = filterMesin;
         if (filterKategori !== "all") params.kategori = filterKategori;
-        if (filterTanggalDari) params.startDate = `${filterTanggalDari}T00:00:00`;
-        if (filterTanggalSampai) params.endDate = `${filterTanggalSampai}T23:59:59.999`;
+        if (filterTanggalDari) params.startDate = filterTanggalDari;
+        if (filterTanggalSampai) params.endDate = filterTanggalSampai;
 
         const { data, error } = await downtimeApi.get(params);
         if (error) throw new Error(error);

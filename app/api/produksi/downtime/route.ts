@@ -2,6 +2,26 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+function parseDateParam(val: string | null | undefined, isEnd = false): Date | null {
+  if (!val || val === "undefined" || val === "null") return null;
+  const trimmed = val.trim();
+  if (!trimmed) return null;
+
+  // Jika string sudah mengandung 'T' atau spasi (ISO atau datetime)
+  if (trimmed.includes("T") || trimmed.includes(" ")) {
+    const d = new Date(trimmed);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  // Jika format hanya YYYY-MM-DD
+  const suffix = isEnd ? "T23:59:59.999Z" : "T00:00:00.000Z";
+  const d = new Date(`${trimmed}${suffix}`);
+  if (!isNaN(d.getTime())) return d;
+
+  const fallback = new Date(trimmed);
+  return isNaN(fallback.getTime()) ? null : fallback;
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -24,13 +44,21 @@ export async function GET(request: Request) {
     if (lineId && lineId !== "all") where.line_id = lineId;
 
     if (pStart || pEnd) {
-      where.waktu_awal = {};
-      if (pStart) where.waktu_awal.gte = new Date(pStart);
-      if (pEnd) where.waktu_awal.lt = new Date(pEnd);
+      const gte = parseDateParam(pStart, false);
+      const lt = parseDateParam(pEnd, true);
+      if (gte || lt) {
+        where.waktu_awal = {};
+        if (gte) where.waktu_awal.gte = gte;
+        if (lt) where.waktu_awal.lt = lt;
+      }
     } else if (startDate || endDate) {
-      where.waktu_awal = {};
-      if (startDate) where.waktu_awal.gte = new Date(`${startDate}T00:00:00`);
-      if (endDate) where.waktu_awal.lte = new Date(`${endDate}T23:59:59`);
+      const gte = parseDateParam(startDate, false);
+      const lte = parseDateParam(endDate, true);
+      if (gte || lte) {
+        where.waktu_awal = {};
+        if (gte) where.waktu_awal.gte = gte;
+        if (lte) where.waktu_awal.lte = lte;
+      }
     }
 
     const data = await prisma.prodDowntimeLog.findMany({
