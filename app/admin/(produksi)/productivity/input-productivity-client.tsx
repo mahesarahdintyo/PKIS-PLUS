@@ -22,9 +22,26 @@ function fmtNum(n: number | string | null | undefined): string {
   return Number(n).toLocaleString("en-US", { maximumFractionDigits: 2 });
 }
 
-function fmtTgl(iso: string): string {
-  if (!iso) return "-";
-  const d = new Date(iso + "T00:00:00");
+function toYYYYMMDD(val: string | Date | null | undefined): string {
+  if (!val) return "";
+  if (typeof val === "string") {
+    const match = val.match(/^\d{4}-\d{2}-\d{2}/);
+    if (match) return match[0];
+  }
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function fmtTgl(val: string | Date | null | undefined): string {
+  if (!val) return "-";
+  const dateStr = toYYYYMMDD(val);
+  if (!dateStr) return "-";
+  const d = new Date(`${dateStr}T00:00:00`);
+  if (isNaN(d.getTime())) return dateStr;
   return d.toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
 }
 
@@ -120,7 +137,7 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
   const handleOpenEdit = (r: ProdProductivityRecord) => {
     setEditTarget(r);
     setEditForm({
-      tanggal: r.tanggal,
+      tanggal: toYYYYMMDD(r.tanggal),
       eh_jam: r.eh_jam,
     });
   };
@@ -163,7 +180,7 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
       flash("Gagal menghapus: " + error, true);
       return;
     }
-    flash("Data Earned Hours " + deleteTarget.tanggal + " berhasil dihapus.");
+    flash("Data Earned Hours " + (toYYYYMMDD(deleteTarget.tanggal) || deleteTarget.tanggal) + " berhasil dihapus.");
     setDeleteTarget(null);
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -179,9 +196,10 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
     if (!searchQuery.trim()) return rows;
     const q = searchQuery.toLowerCase();
     return rows.filter((r) => {
-      const tgl = (r.tanggal || "").toLowerCase();
+      const tglIso = (r.tanggal || "").toLowerCase();
       const formatted = fmtTgl(r.tanggal).toLowerCase();
-      return tgl.includes(q) || formatted.includes(q);
+      const ymd = toYYYYMMDD(r.tanggal).toLowerCase();
+      return tglIso.includes(q) || formatted.includes(q) || ymd.includes(q);
     });
   }, [rows, searchQuery]);
 
@@ -389,7 +407,7 @@ export default function InputProductivityClient({ embedded }: { embedded?: boole
                         />
                       </td>
                       <td className="p-3 font-mono font-medium text-foreground">
-                        {fmtTgl(r.tanggal)} <span className="text-xs text-muted-foreground ml-1">({r.tanggal})</span>
+                        {fmtTgl(r.tanggal)} <span className="text-xs text-muted-foreground ml-1">({toYYYYMMDD(r.tanggal)})</span>
                       </td>
                       <td className="p-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
                         {fmtNum(r.eh_jam)} jam
