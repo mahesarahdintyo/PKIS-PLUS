@@ -1648,21 +1648,59 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       );
 
       let dataSummary: any = null;
+      let dayMappedRows: any[] = [];
+
       if (activePerfSection === "tahunan") {
-        dataSummary = trendResults[2] || trendResults[0] || null;
+        // Ambil data 12 bulan (Jan - Des) di tahun perfYear (index 4..15)
+        const monthTrends = trendResults.slice(4).filter((t) => !t.separator);
+        const sumYear = monthTrends.reduce(
+          (a, t) => ({
+            stroke: a.stroke + (t.stroke || 0),
+            ng: a.ng + (t.ng || 0),
+            downtimeMenit: a.downtimeMenit + (t.downtimeMenit || 0),
+            dandoriMenit: a.dandoriMenit + (t.dandoriMenit || 0),
+            breakMenit: a.breakMenit + (t.breakMenit || 0),
+            whJam: a.whJam + (t.whJam || 0),
+          }),
+          { stroke: 0, ng: 0, downtimeMenit: 0, dandoriMenit: 0, breakMenit: 0, whJam: 0 }
+        );
+
+        const gsph = sumYear.whJam > 0 ? sumYear.stroke / sumYear.whJam : 0;
+        const tg = (monthTrends.find((t) => (t.targetGsph || 0) > 0) || {}).targetGsph || targetFixed || 0;
+        const availability = sumYear.whJam > 0 ? Math.max(0, (sumYear.whJam * 60 - sumYear.downtimeMenit) / (sumYear.whJam * 60)) * 100 : 0;
+        const performanceFactor = tg > 0 ? Math.min(100, (gsph / tg) * 100) : 0;
+        const quality = sumYear.stroke > 0 ? Math.max(0, ((sumYear.stroke - sumYear.ng) / sumYear.stroke) * 100) : 100;
+        const calcOee = (availability / 100) * (performanceFactor / 100) * (quality / 100) * 100;
+
+        dataSummary = {
+          ...sumYear,
+          gsph,
+          targetGsph: tg,
+          availability,
+          performanceFactor,
+          quality,
+          oee: calcOee,
+        };
+
+        if (trendResults[2]) {
+          trendResults[2] = { ...trendResults[2], ...dataSummary };
+        }
       } else if (activePerfSection === "bulanan") {
         const valid = trendResults.filter((t) => !t.separator);
-        const sum = valid.reduce((a, t) => ({
-          stroke: a.stroke + (t.stroke || 0),
-          ng: a.ng + (t.ng || 0),
-          downtimeMenit: a.downtimeMenit + (t.downtimeMenit || 0),
-          dandoriMenit: a.dandoriMenit + (t.dandoriMenit || 0),
-          breakMenit: a.breakMenit + (t.breakMenit || 0),
-          whJam: a.whJam + (t.whJam || 0),
-        }), { stroke: 0, ng: 0, downtimeMenit: 0, dandoriMenit: 0, breakMenit: 0, whJam: 0 });
+        const sum = valid.reduce(
+          (a, t) => ({
+            stroke: a.stroke + (t.stroke || 0),
+            ng: a.ng + (t.ng || 0),
+            downtimeMenit: a.downtimeMenit + (t.downtimeMenit || 0),
+            dandoriMenit: a.dandoriMenit + (t.dandoriMenit || 0),
+            breakMenit: a.breakMenit + (t.breakMenit || 0),
+            whJam: a.whJam + (t.whJam || 0),
+          }),
+          { stroke: 0, ng: 0, downtimeMenit: 0, dandoriMenit: 0, breakMenit: 0, whJam: 0 }
+        );
 
         const gsph = sum.whJam > 0 ? sum.stroke / sum.whJam : 0;
-        const tg = (valid.find((t) => (t.targetGsph || 0) > 0) || {}).targetGsph || 0;
+        const tg = (valid.find((t) => (t.targetGsph || 0) > 0) || {}).targetGsph || targetFixed || 0;
         const availability = sum.whJam > 0 ? Math.max(0, (sum.whJam * 60 - sum.downtimeMenit) / (sum.whJam * 60)) * 100 : 0;
         const performanceFactor = tg > 0 ? Math.min(100, (gsph / tg) * 100) : 0;
         const quality = sum.stroke > 0 ? Math.max(0, ((sum.stroke - sum.ng) / sum.stroke) * 100) : 100;
@@ -1678,14 +1716,122 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
           oee: calcOee,
         };
       } else {
-        dataSummary = trendResults[trendResults.length - 1] || null;
-        if (dataSummary && rpcDowntimeTotal > 0) {
-          dataSummary.downtimeMenit = Math.max(dataSummary.downtimeMenit || 0, Math.round(rpcDowntimeTotal));
-          if (dataSummary.whJam > 0) {
-            dataSummary.availability = Math.max(0, (dataSummary.whJam * 60 - dataSummary.downtimeMenit) / (dataSummary.whJam * 60)) * 100;
-            dataSummary.oee = (dataSummary.availability / 100) * ((dataSummary.performanceFactor || 0) / 100) * ((dataSummary.quality || 100) / 100) * 100;
+        // activePerfSection === "harian" -> Sinkronkan kartu langsung dengan data produksi & downtime hari itu
+        const [dayProdRes, dayDandoriRes] = await Promise.all([
+          productionLogsApi.get({
+            table: "production",
+            ...lineOrMesinParam,
+            startDate: stIso,
+            endDate: endIso,
+            is_active: true,
+            limit: 1000,
+          }),
+          productionLogsApi.get({
+            table: "dandori",
+            ...lineOrMesinParam,
+            startDate: stIso,
+            endDate: endIso,
+            is_active: true,
+            limit: 1000,
+          }),
+        ]);
+
+        let dayRows = dayProdRes.data || [];
+        if (stasiunList && stasiunList.length > 0) dayRows = dayRows.filter((p: any) => stasiunList.includes(p.stasiun));
+        let dayDandoris = dayDandoriRes.data || [];
+        if (stasiunList && stasiunList.length > 0) dayDandoris = dayDandoris.filter((d: any) => stasiunList.includes(d.stasiun));
+
+        let dayStroke = 0, dayNg = 0, dayDandori = 0, dayBreak = 0, dayWhMenit = 0;
+        dayRows.forEach((r: any) => {
+          const okQty = Number(r.qty || r.ok_qty || 0);
+          const ngQty = Number(r.ng || r.ng_qty || 0);
+          dayStroke += okQty + ngQty;
+          dayNg += ngQty;
+          dayDandori += Number(r.dandori_menit || 0);
+          dayBreak += Number(r.break_menit || 0);
+          if (r.waktu_awal && r.waktu_akhir) {
+            const diff = (new Date(r.waktu_akhir).getTime() - new Date(r.waktu_awal).getTime()) / 60000;
+            if (diff > 0) dayWhMenit += diff;
           }
+        });
+        dayDandoris.forEach((d: any) => {
+          dayBreak += Number(d.break_menit || 0);
+          dayDandori += Number(d.dandori_menit || 0);
+          if (d.waktu_awal && d.waktu_akhir) {
+            const diff = (new Date(d.waktu_akhir).getTime() - new Date(d.waktu_awal).getTime()) / 60000;
+            if (diff > 0) dayWhMenit += diff;
+          }
+        });
+
+        let dayDowntime = 0;
+        rangeDowntimes.forEach((dl: any) => {
+          let m = Number(dl.durasi_menit ?? dl.durasi ?? 0);
+          if (!m && dl.waktu_awal && dl.waktu_akhir) {
+            m = Math.round((new Date(dl.waktu_akhir).getTime() - new Date(dl.waktu_awal).getTime()) / 60000);
+          }
+          dayDowntime += Math.max(0, m);
+        });
+        if (rpcDowntimeTotal > 0) {
+          dayDowntime = Math.max(dayDowntime, Math.round(rpcDowntimeTotal));
         }
+
+        let dayWhJam = dayWhMenit > 0 ? dayWhMenit / 60 : 0;
+        if (dayWhJam === 0 && (dayStroke > 0 || dayDowntime > 0 || dayDandori > 0)) {
+          dayWhJam = Math.max(0, 480 - dayDowntime) / 60;
+        }
+
+        const rawTg = targetFixed > 0 ? targetFixed : ((trendResults[0]?.targetGsph || 0) > 0 ? (trendResults[0]?.targetGsph || 0) : 0);
+        const tg: number = Number(rawTg) || 0;
+        const dayGsph = dayWhJam > 0 ? dayStroke / dayWhJam : 0;
+        const dayAvail = dayWhJam > 0 ? Math.max(0, (dayWhJam * 60 - dayDowntime) / (dayWhJam * 60)) * 100 : 0;
+        const dayPerfFact = tg > 0 ? Math.min(100, (dayGsph / tg) * 100) : 0;
+        const dayQual = dayStroke > 0 ? Math.max(0, ((dayStroke - dayNg) / dayStroke) * 100) : 100;
+        const dayOee = (dayAvail / 100) * (dayPerfFact / 100) * (dayQual / 100) * 100;
+
+        dataSummary = {
+          stroke: dayStroke,
+          ng: dayNg,
+          downtimeMenit: dayDowntime,
+          dandoriMenit: dayDandori,
+          breakMenit: dayBreak,
+          whJam: dayWhJam,
+          gsph: dayGsph,
+          targetGsph: tg,
+          availability: dayAvail,
+          performanceFactor: dayPerfFact,
+          quality: dayQual,
+          oee: dayOee,
+        };
+
+        if (trendResults[0]) {
+          trendResults[0] = { ...trendResults[0], ...dataSummary };
+        }
+
+        const allPerfEvents = [
+          ...dayRows.map((p: any) => ({ ...p, _kind: "produksi" })),
+          ...(nonProduksiRows || []).map((np: any) => ({ ...np, _kind: "non_produksi" })),
+        ].sort((a: any, b: any) => {
+          const ta = a.waktu_awal ? new Date(a.waktu_awal).getTime() : 0;
+          const tb = b.waktu_awal ? new Date(b.waktu_awal).getTime() : 0;
+          return ta - tb;
+        });
+
+        dayMappedRows = dayRows.map((row: any) => {
+          const matchingDts = rangeDowntimes.filter((dl: any) =>
+            isDowntimeMatchingProduction(dl, row, allPerfEvents)
+          );
+          const dtSum = matchingDts.reduce((sum: number, dl: any) => {
+            let m = Number(dl.durasi_menit ?? dl.durasi ?? 0);
+            if (!m && dl.waktu_awal && dl.waktu_akhir) {
+              m = Math.round((new Date(dl.waktu_akhir).getTime() - new Date(dl.waktu_awal).getTime()) / 60000);
+            }
+            return sum + m;
+          }, 0);
+          return {
+            ...row,
+            downtime_menit: Math.max(Number(row.downtime_menit) || 0, dtSum),
+          };
+        });
       }
 
       let top5: any[] = [];
@@ -1735,47 +1881,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
         rawDowntimes: rangeDowntimes,
       });
 
-      if (activePerfSection === "harian") {
-        // [FIX_PERF_DAY_ROWS] Query menggunakan range waktu_awal (stIso/endIso) karena
-        // tabel prod_production_log tidak memiliki field "tanggal".
-        // stIso = awal hari WIB, endIso = awal hari berikutnya (sudah dihitung di atas).
-        const { data: rows } = await productionLogsApi.get({
-          table: "production",
-          ...lineOrMesinParam,
-          startDate: stIso,
-          endDate: endIso,
-          is_active: true,
-          limit: 1000,
-        });
-        const allPerfEvents = [
-          ...(rows || []).map((p: any) => ({ ...p, _kind: "produksi" })),
-          ...(nonProduksiRows || []).map((np: any) => ({ ...np, _kind: "non_produksi" })),
-        ].sort((a: any, b: any) => {
-          const ta = a.waktu_awal ? new Date(a.waktu_awal).getTime() : 0;
-          const tb = b.waktu_awal ? new Date(b.waktu_awal).getTime() : 0;
-          return ta - tb;
-        });
-
-        const mappedRows = (rows || []).map((row: any) => {
-          const matchingDts = rangeDowntimes.filter((dl: any) =>
-            isDowntimeMatchingProduction(dl, row, allPerfEvents)
-          );
-          const dtSum = matchingDts.reduce((sum: number, dl: any) => {
-            let m = Number(dl.durasi_menit ?? dl.durasi ?? 0);
-            if (!m && dl.waktu_awal && dl.waktu_akhir) {
-              m = Math.round((new Date(dl.waktu_akhir).getTime() - new Date(dl.waktu_awal).getTime()) / 60000);
-            }
-            return sum + m;
-          }, 0);
-          return {
-            ...row,
-            downtime_menit: Math.max(Number(row.downtime_menit) || 0, dtSum),
-          };
-        });
-        setPerfDayRows(mappedRows);
-      } else {
-        setPerfDayRows([]);
-      }
+      setPerfDayRows(dayMappedRows);
     } catch (err) {
       console.warn("fetchPerformanceData error:", err);
     } finally {
