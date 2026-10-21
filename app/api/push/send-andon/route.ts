@@ -65,6 +65,60 @@ export async function POST(request: Request) {
     let failed = 0;
 
     const lineDisplayName = call.line_name || call.mesin;
+    const lineName = call.line_name || call.mesin || "";
+    const title =
+      tier === 2
+        ? `🚨 ESKALASI Andon - ${lineDisplayName}`
+        : `🔔 Panggilan Andon - ${lineDisplayName}`;
+    const body = call.alasan ? `Alasan: ${call.alasan}` : "Operator memanggil leader";
+    const category = (call as any).category || call.alasan || "ANDON";
+    const creator = (call as any).triggered_by || "Operator";
+    const targetLeader = userIds.join(", ");
+
+    const validTokens = fcmSubs
+      .map((s) => s.fcm_token)
+      .filter((t): t is string => Boolean(t && t.trim().length > 0));
+
+    // Ubah bagian message di app/api/push/send-andon/route.ts menjadi Data-Priority:
+    const message = {
+      // Hapus objek 'notification' di level root agar Android tidak memblokir onMessageReceived saat layar mati,
+      // dan pindahkan semuanya ke dalam 'data':
+      data: {
+        title: title,
+        body: body,
+        url: "/operator",
+        lineName: String(lineName || ""),
+        category: String(category || ""),
+        creator: String(creator || "Operator"),
+        targetLeader: String(targetLeader || ""),
+        timestamp: new Date().toISOString(),
+        action: "andon_alert",
+        call_id: String(call.id || ""),
+        mesin: String(call.mesin || ""),
+        line_id: String(call.line_id || ""),
+        line_name: String(lineName || ""),
+        alasan: String(call.alasan || ""),
+        tier: String(tier),
+      },
+      android: {
+        priority: "high" as const,
+      },
+      webpush: {
+        headers: {
+          Urgency: "high",
+        },
+        notification: {
+          title,
+          body,
+          icon: "/icons/icon-192.png",
+          badge: "/icons/icon-192.png",
+          vibrate: [300, 100, 300, 100, 400],
+          requireInteraction: true,
+          tag: "andon-alert-" + Date.now(),
+        },
+      },
+      tokens: validTokens,
+    };
 
     // ─── Blok 1: Web Push (Browser) ─────────────────────────────────────────
     if (vapidPublic && vapidPrivate && webSubs.length > 0) {
@@ -78,11 +132,8 @@ export async function POST(request: Request) {
         );
 
         const payload = JSON.stringify({
-          title:
-            tier === 2
-              ? `🚨 ESKALASI Andon - ${lineDisplayName}`
-              : `🔔 Panggilan Andon - ${lineDisplayName}`,
-          body: call.alasan ? `Alasan: ${call.alasan}` : "Operator memanggil leader",
+          title,
+          body,
           call_id: call.id,
           mesin: call.mesin,
           line_id: call.line_id || null,
@@ -118,63 +169,47 @@ export async function POST(request: Request) {
     }
 
     // ─── Blok 2: FCM Push (Android Native) ──────────────────────────────────
-    if (fcmSubs.length > 0) {
+    if (validTokens.length > 0) {
       const messaging = getFirebaseMessaging();
 
       if (!messaging) {
         console.warn(
           "[FCM] FIREBASE_SERVICE_ACCOUNT_JSON belum dikonfigurasi di .env — " +
-          `${fcmSubs.length} perangkat Android dilewati.`
+          `${validTokens.length} perangkat Android dilewati.`
         );
       } else {
-        const andonTitle =
-          tier === 2
-            ? `🚨 ESKALASI Andon - ${lineDisplayName}`
-            : `🔔 Panggilan Andon - ${lineDisplayName}`;
+        try {
+          const response = await messaging.sendEachForMulticast(message);
+          sent += response.successCount;
+          failed += response.failureCount;
 
-        for (const sub of fcmSubs) {
-          if (!sub.fcm_token) continue;
-
-          try {
-            await messaging.send({
-              token: sub.fcm_token,
-              // Gunakan 'data' (bukan 'notification') agar Android bisa handle
-              // notifikasi sendiri di background/foreground secara konsisten.
-              data: {
-                action: "andon_alert",
-                call_id: call.id,
-                mesin: call.mesin,
-                line_id: call.line_id ?? "",
-                line_name: call.line_name ?? call.mesin,
-                alasan: call.alasan ?? "",
-                title: andonTitle,
-                body: call.alasan
-                  ? `Alasan: ${call.alasan}`
-                  : "Operator memanggil leader",
-                tier: String(tier),
-              },
-              android: {
-                priority: "high",
-                ttl: 120 * 1000, // 2 menit dalam milliseconds
-              },
+          // Hapus token yang sudah kadaluarsa / unregistered
+          if (response.failureCount > 0) {
+            response.responses.forEach(async (resp, idx) => {
+              if (!resp.success) {
+                const errCode = resp.error?.code ?? "";
+                if (
+                  errCode === "messaging/invalid-registration-token" ||
+                  errCode === "messaging/registration-token-not-registered"
+                ) {
+                  const badToken = validTokens[idx];
+                  await prisma.pushSubscription
+                    .deleteMany({ where: { fcm_token: badToken } })
+                    .catch(() => {});
+                  console.log(`[FCM] Token kadaluarsa dihapus: ${badToken}`);
+                } else {
+                  console.error(
+                    `[FCM] Gagal kirim token index ${idx}:`,
+                    errCode,
+                    resp.error?.message
+                  );
+                }
+              }
             });
-            sent++;
-          } catch (err: any) {
-            failed++;
-            const errCode = err?.errorInfo?.code ?? "";
-            // Token expired / unregistered → hapus dari database
-            if (
-              errCode === "messaging/invalid-registration-token" ||
-              errCode === "messaging/registration-token-not-registered"
-            ) {
-              await prisma.pushSubscription
-                .delete({ where: { id: sub.id } })
-                .catch(() => {});
-              console.log(`[FCM] Token kadaluarsa dihapus: ${sub.id}`);
-            } else {
-              console.error(`[FCM] Gagal kirim ke ${sub.id}:`, errCode, err?.message);
-            }
           }
+        } catch (fcmErr: any) {
+          console.error("[FCM multicast error]:", fcmErr);
+          failed += validTokens.length;
         }
       }
     }
