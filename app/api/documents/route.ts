@@ -8,7 +8,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
 
     const folderIdStr = searchParams.get("folderId");
-    const folderId = folderIdStr ? parseInt(folderIdStr) : null;
+    const folderId = folderIdStr ? BigInt(folderIdStr) : null;
 
     const reqLineId = searchParams.get("lineId");
     const searchQuery = searchParams.get("search")?.trim();
@@ -87,7 +87,7 @@ export async function GET(request: Request) {
       file: {
         name: doc.file_name,
         path: doc.file_path,
-        size: doc.file_size,
+        size: doc.file_size !== null && doc.file_size !== undefined ? Number(doc.file_size) : 0,
       },
       targetTime: doc.target_time,
       hiddenFromOperator: doc.hidden_from_operator,
@@ -137,12 +137,12 @@ export async function POST(request: Request) {
       data: {
         title,
         description: description || null,
-        category_id: category_id ? parseInt(category_id) : null,
-        folder_id: folder_id ? parseInt(folder_id) : null,
+        category_id: category_id ? BigInt(category_id) : null,
+        folder_id: folder_id ? BigInt(folder_id) : null,
         line_id: line_id || null,
         file_name,
         file_path,
-        file_size: file_size ? parseInt(file_size) : null,
+        file_size: file_size ? BigInt(file_size) : null,
         file_type: file_type || "pdf",
         target_time: target_time || null,
         is_active: true,

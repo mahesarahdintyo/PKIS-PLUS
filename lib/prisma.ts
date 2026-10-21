@@ -4,6 +4,14 @@
 
 import { PrismaClient } from "@prisma/client";
 
+// Global BigInt JSON serialization polyfill agar NextResponse.json / JSON.stringify tidak throw error saat model Prisma memiliki field BigInt
+if (typeof BigInt !== "undefined" && !(BigInt.prototype as any).toJSON) {
+  (BigInt.prototype as any).toJSON = function () {
+    const num = Number(this);
+    return Number.isSafeInteger(num) ? num : this.toString();
+  };
+}
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };

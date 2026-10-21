@@ -97,6 +97,8 @@ export async function GET(request: Request) {
 
     const foldersWithCounts = folders.map((folder) => ({
       ...folder,
+      id: Number(folder.id),
+      parent_id: folder.parent_id !== null && folder.parent_id !== undefined ? Number(folder.parent_id) : null,
       item_count: contentCountByFolderId.get(folder.id) ?? 0,
     }))
 
@@ -179,7 +181,13 @@ export async function POST(request: Request) {
     })
 
     return NextResponse.json(
-      { ...newFolder, originalName: baseName, finalName },
+      {
+        ...newFolder,
+        id: Number(newFolder.id),
+        parent_id: newFolder.parent_id ? Number(newFolder.parent_id) : null,
+        originalName: baseName,
+        finalName,
+      },
       { status: 201 }
     )
   } catch (error: any) {
@@ -256,7 +264,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({
       success: true,
       message: 'Folder dan seluruh isinya berhasil di-soft delete',
-      deletedFolderIds: allFolderIds,
+      deletedFolderIds: allFolderIds.map((id) => Number(id)),
     })
   } catch (error: any) {
     console.error('Folders DELETE error:', error)

@@ -200,7 +200,12 @@ export async function GET(
       return NextResponse.json({ error: 'Document not found' }, { status: 404 })
     }
 
-    return NextResponse.json(doc)
+    return NextResponse.json({
+      ...doc,
+      category_id: doc.category_id ? Number(doc.category_id) : null,
+      folder_id: doc.folder_id ? Number(doc.folder_id) : null,
+      file_size: doc.file_size ? Number(doc.file_size) : 0,
+    })
   } catch (error: any) {
     console.error('Documents GET error:', error)
     return NextResponse.json(
