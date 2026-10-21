@@ -1568,7 +1568,10 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
             ng = Number(row.ng) || 0;
             ngValue = Number(row.ng_value) || 0;
             downtimeMenit = Math.max(Math.round(Number(row.downtime_menit) || 0), periodDtMenit);
-            dandoriMenit = Math.round(Number(row.dandori_menit) || 0);
+            // Clamp dandori agar nilai absurd dari Prisma Decimal/BigInt tidak muncul
+            // Batas atas: 525.600 mnt = 365 hari × 1440 mnt/hari (1 tahun penuh)
+            const rawDandori = parseFloat(String(row.dandori_menit ?? 0));
+            dandoriMenit = Math.round(isFinite(rawDandori) && rawDandori < 525600 ? rawDandori : 0);
             breakMenit = Math.round(Number(row.break_menit) || 0);
             whJam = (Number(row.wh_menit) || 0) / 60;
             targetStdMenit = Number(row.target_std_menit) || 0;

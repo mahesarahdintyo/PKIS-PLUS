@@ -5,6 +5,35 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+/**
+ * Prisma $queryRawUnsafe mengembalikan kolom PostgreSQL `numeric` sebagai Prisma Decimal,
+ * dan kolom `bigint` sebagai JS BigInt. Keduanya tidak bisa JSON.stringify secara langsung
+ * dan menyebabkan Number() menghasilkan nilai aneh (e.g. 777,777,777,...).
+ * Fungsi ini mengkonversi semua nilai ke tipe JS primitive yang aman.
+ */
+function serializeRpcResult(rows: any[]): any[] {
+  return rows.map((row) => {
+    const out: Record<string, any> = {};
+    for (const key of Object.keys(row)) {
+      const val = row[key];
+      if (val === null || val === undefined) {
+        out[key] = null;
+      } else if (typeof val === "bigint") {
+        out[key] = Number(val);
+      } else if (
+        typeof val === "object" &&
+        typeof (val as any).toFixed === "function"
+      ) {
+        // Prisma Decimal → konversi ke number via string untuk presisi aman
+        out[key] = parseFloat((val as any).toString());
+      } else {
+        out[key] = val;
+      }
+    }
+    return out;
+  });
+}
+
 // Whitelist fungsi yang boleh dipanggil
 const ALLOWED_FUNCTIONS = new Set([
   "prod_performance_aggregate",
@@ -38,7 +67,8 @@ export async function POST(request: Request) {
     const argKeys = args ? Object.keys(args) : [];
 
     if (argKeys.length === 0) {
-      const result = await prisma.$queryRawUnsafe(`SELECT * FROM "${fn}"()`);
+      const rawResult = await prisma.$queryRawUnsafe(`SELECT * FROM "${fn}"()`);
+      const result = Array.isArray(rawResult) ? serializeRpcResult(rawResult) : rawResult;
       return NextResponse.json({ data: result, error: null });
     }
 
@@ -61,7 +91,8 @@ export async function POST(request: Request) {
     const query = `SELECT * FROM "${fn}"(${paramAssignments.join(", ")})`;
 
     try {
-      const result = await prisma.$queryRawUnsafe(query);
+      const rawResult = await prisma.$queryRawUnsafe(query);
+      const result = Array.isArray(rawResult) ? serializeRpcResult(rawResult) : rawResult;
       return NextResponse.json({ data: result, error: null });
     } catch (sqlError: any) {
       console.error(`[RPC Error: ${fn}]:`, sqlError?.message || sqlError);
