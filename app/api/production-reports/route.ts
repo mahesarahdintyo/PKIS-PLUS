@@ -59,15 +59,24 @@ export async function GET(request: Request) {
       where.line_id = lineId;
     }
 
-    if (startDate || endDate) {
+    const isValidDateStr = (s: string | null) =>
+      !!s && s !== "undefined" && s !== "null" && s.trim() !== "";
+
+    if (isValidDateStr(startDate) || isValidDateStr(endDate)) {
       where.waktu_awal = {};
-      if (startDate) where.waktu_awal.gte = new Date(`${startDate}T00:00:00.000Z`);
-      if (endDate) where.waktu_awal.lte = new Date(`${endDate}T23:59:59.999Z`);
+      if (isValidDateStr(startDate)) {
+        const d = new Date(`${startDate}T00:00:00.000Z`);
+        if (!isNaN(d.getTime())) where.waktu_awal.gte = d;
+      }
+      if (isValidDateStr(endDate)) {
+        const d = new Date(`${endDate}T23:59:59.999Z`);
+        if (!isNaN(d.getTime())) where.waktu_awal.lte = d;
+      }
     }
 
     const limitParam = searchParams.get("limit");
     const parsedLimit = limitParam ? parseInt(limitParam, 10) : NaN;
-    const take = !isNaN(parsedLimit) && parsedLimit > 0 ? parsedLimit : (startDate || endDate ? undefined : 1000);
+    const take = !isNaN(parsedLimit) && parsedLimit > 0 ? parsedLimit : (isValidDateStr(startDate) || isValidDateStr(endDate) ? undefined : 1000);
 
     const rows = await prisma.prodProductionLog.findMany({
       where,
