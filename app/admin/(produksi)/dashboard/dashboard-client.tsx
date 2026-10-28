@@ -1080,6 +1080,7 @@ export default function DashboardClient() {
   }, [fetchDashboardData]);
 
   const ngRatePct = totals.stroke > 0 ? (totals.ng / totals.stroke) * 100 : 0;
+  const qualityRate = totals.stroke > 0 ? Math.max(0, 100 - ngRatePct) : 100;
 
   /* ── Charts ──────────────────────────────────────────── */
   useEffect(() => {
@@ -2317,6 +2318,7 @@ export default function DashboardClient() {
               <SQCDMPPanel
                 safety={safety}
                 ngRatePct={ngRatePct}
+                qualityRate={qualityRate}
                 totalNG={totals.ng}
                 oee={totals.oee}
                 performanceFactor={totals.performanceFactor}

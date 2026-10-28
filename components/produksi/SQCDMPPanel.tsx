@@ -21,6 +21,7 @@ interface SQCPMProps {
   };
   ngRatePct: number;
   totalNG: number;
+  qualityRate?: number;
   oee: number;
   performanceFactor: number;
   gsph: number;
@@ -82,6 +83,7 @@ export default function SQCDMPPanel({
   safety,
   ngRatePct,
   totalNG,
+  qualityRate,
   oee,
   performanceFactor,
   gsph,
@@ -95,6 +97,12 @@ export default function SQCDMPPanel({
   periodMode = "harian",
   miniTrend,
 }: SQCPMProps) {
+  // Quality Rate = 100 - NG Rate. If qualityRate is explicitly passed use it;
+  // otherwise derive it from ngRatePct so the card always shows a meaningful value.
+  const displayQuality =
+    typeof qualityRate === "number"
+      ? qualityRate
+      : Math.max(0, 100 - (Number(ngRatePct) || 0));
   const chartRefs = {
     miniSafety:       useRef<HTMLCanvasElement | null>(null),
     miniQuality:      useRef<HTMLCanvasElement | null>(null),
@@ -253,12 +261,12 @@ export default function SQCDMPPanel({
             <div className="sqcpm-col-sub">KUALITAS</div>
           </div>
         </div>
-        <div className="sqcpm-metric-label">NG Rate (Target ≤ 0,5%)</div>
-        <div className="sqcpm-metric-value">{fmtNum(ngRatePct)}%</div>
+        <div className="sqcpm-metric-label">Quality Rate (Target ≥ 99,5%)</div>
+        <div className="sqcpm-metric-value">{fmtNum(displayQuality)}%</div>
         <div className="sqcpm-bar">
-          <div className="sqcpm-bar-fill" style={{ width: `${Math.max(0, Math.min(100, 100 - ngRatePct * 20))}%` }} />
+          <div className="sqcpm-bar-fill" style={{ width: `${Math.max(0, Math.min(100, displayQuality))}%` }} />
         </div>
-        <div className="sqcpm-mini-label">{fmtNum(totalNG)} pcs NG</div>
+        <div className="sqcpm-mini-label">NG Rate {fmtNum(ngRatePct)}% · {fmtNum(totalNG)} pcs NG</div>
         <div className="sqcpm-chart">
           <canvas ref={chartRefs.miniQuality} />
         </div>
