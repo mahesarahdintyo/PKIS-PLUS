@@ -517,7 +517,7 @@ export const downtimeApi = {
     endDate?: string;
     pStart?: string;
     pEnd?: string;
-    limit?: number;
+    limit?: number | string;
     page?: number;
     is_active?: boolean | string;
   } = {}) {

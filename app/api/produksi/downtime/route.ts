@@ -13,8 +13,8 @@ function parseDateParam(val: string | null | undefined, isEnd = false): Date | n
     return isNaN(d.getTime()) ? null : d;
   }
 
-  // Jika format hanya YYYY-MM-DD
-  const suffix = isEnd ? "T23:59:59.999Z" : "T00:00:00.000Z";
+  // Jika format hanya YYYY-MM-DD (gunakan timezone WIB +07:00 agar mencakup 1 hari penuh)
+  const suffix = isEnd ? "T23:59:59.999+07:00" : "T00:00:00.000+07:00";
   const d = new Date(`${trimmed}${suffix}`);
   if (!isNaN(d.getTime())) return d;
 
@@ -32,8 +32,21 @@ export async function GET(request: Request) {
     const endDate = searchParams.get("endDate") || searchParams.get("sampai");
     const pStart = searchParams.get("pStart");
     const pEnd = searchParams.get("pEnd");
-    const limit = parseInt(searchParams.get("limit") || "1000", 10);
-    const page = parseInt(searchParams.get("page") || "0", 10);
+    const limitParam = searchParams.get("limit");
+    const pageParam = searchParams.get("page");
+    let take: number | undefined = undefined;
+    let skip: number | undefined = undefined;
+
+    if (limitParam && limitParam !== "all" && limitParam !== "none") {
+      const parsed = parseInt(limitParam, 10);
+      if (!isNaN(parsed) && parsed > 0) {
+        take = parsed;
+        const page = parseInt(pageParam || "0", 10);
+        if (!isNaN(page) && page > 0) {
+          skip = page * parsed;
+        }
+      }
+    }
     const isActiveStr = searchParams.get("is_active");
     const isActive = isActiveStr !== null ? isActiveStr === "true" : true;
 
@@ -63,9 +76,12 @@ export async function GET(request: Request) {
 
     const data = await prisma.prodDowntimeLog.findMany({
       where,
-      orderBy: { waktu_awal: "desc" },
-      take: limit,
-      skip: page * limit,
+      orderBy: [
+        { waktu_awal: "desc" },
+        { created_at: "desc" },
+      ],
+      ...(take ? { take } : {}),
+      ...(skip ? { skip } : {}),
     });
 
     return NextResponse.json({ data, error: null });

@@ -16,6 +16,10 @@ import {
   X,
   Check,
   Layers,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 import { downtimeApi, masterDataApi, linesApi, subscribeToSocketEvent } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
@@ -124,18 +128,19 @@ export default function DowntimeLogClient() {
     return d.toISOString().slice(0, 10);
   }, []);
 
-  // Filter States
+  // Filter States (default kosong agar menampilkan seluruh data historis di database)
   const [filterMesin, setFilterMesin] = useState<string>("all");
-  const [filterTanggalDari, setFilterTanggalDari] = useState<string>(sevenDaysAgo);
-  const [filterTanggalSampai, setFilterTanggalSampai] = useState<string>(today);
+  const [filterTanggalDari, setFilterTanggalDari] = useState<string>("");
+  const [filterTanggalSampai, setFilterTanggalSampai] = useState<string>("");
   const [filterKategori, setFilterKategori] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
+  // Pagination States (sama seperti laporan-produksi)
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(25);
+
   // Data States
   const [loading, setLoading] = useState<boolean>(true);
-  const [loadingMore, setLoadingMore] = useState<boolean>(false);
-  const [page, setPage] = useState<number>(0);
-  const [hasMore, setHasMore] = useState<boolean>(true);
   const [downtimeRows, setDowntimeRows] = useState<any[]>([]);
   const [problemSuggestions, setProblemSuggestions] = useState<string[]>([]);
   const [lines, setLines] = useState<any[]>([]);
@@ -204,19 +209,14 @@ export default function DowntimeLogClient() {
     loadAuxData();
   }, []);
 
-  // Fetch Downtime
+  // Fetch Downtime (ambil seluruh data tanpa limit kaku)
   const fetchDowntime = useCallback(
-    async (targetPage = 0) => {
-      if (targetPage > 0) {
-        setLoadingMore(true);
-      } else {
-        setLoading(true);
-      }
+    async () => {
+      setLoading(true);
 
       try {
         const params: Parameters<typeof downtimeApi.get>[0] = {
-          page: targetPage,
-          limit: PAGE_SIZE,
+          limit: "all",
           is_active: true,
         };
 
@@ -241,77 +241,119 @@ export default function DowntimeLogClient() {
           };
         });
 
-        if (targetPage === 0) {
-          setDowntimeRows(rows);
-        } else {
-          setDowntimeRows((prev) => [...prev, ...rows]);
-        }
-        setHasMore((data?.length ?? 0) === PAGE_SIZE);
-        setPage(targetPage);
+        setDowntimeRows(rows);
       } catch (err: any) {
         console.error("Downtime fetch error:", err?.message || err);
         toast.error("Gagal memuat log downtime: " + (err?.message || ""));
       } finally {
-        if (targetPage > 0) {
-          setLoadingMore(false);
-        } else {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     },
     [filterMesin, filterKategori, filterTanggalDari, filterTanggalSampai]
   );
 
   useEffect(() => {
-    fetchDowntime(0);
+    fetchDowntime();
   }, [fetchDowntime]);
 
   // Socket.io subscription for realtime updates
   useEffect(() => {
     const unsub = subscribeToSocketEvent("prod_downtime_log", "*", () => {
-      fetchDowntime(0);
+      fetchDowntime();
     });
     return () => unsub();
   }, [fetchDowntime]);
 
   const resetFilters = () => {
     setFilterMesin("all");
-    setFilterTanggalDari(sevenDaysAgo);
-    setFilterTanggalSampai(today);
+    setFilterTanggalDari("");
+    setFilterTanggalSampai("");
     setFilterKategori("all");
     setSearchQuery("");
+    setCurrentPage(1);
   };
 
-  // Client-side search filtering
+  // Client-side search filtering and sorting (terbaru ke terlama, persis seperti laporan-produksi)
   const filteredRows = useMemo(() => {
-    if (!searchQuery.trim()) return downtimeRows;
-    const q = searchQuery.toLowerCase();
-    return downtimeRows.filter((r) => {
-      const problem = (r.problem || "").toLowerCase();
-      const penyebab = (r.penyebab || "").toLowerCase();
-      const countermeasure = (r.countermeasure || "").toLowerCase();
-      const stasiun = (r.stasiun || "").toLowerCase();
-      const mesin = (getMachineLabel(r.mesin) || "").toLowerCase();
-      const kategori = (r.kategori || "").toLowerCase();
-      return (
-        problem.includes(q) ||
-        penyebab.includes(q) ||
-        countermeasure.includes(q) ||
-        stasiun.includes(q) ||
-        mesin.includes(q) ||
-        kategori.includes(q)
-      );
+    let result = downtimeRows;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((r) => {
+        const problem = (r.problem || "").toLowerCase();
+        const penyebab = (r.penyebab || "").toLowerCase();
+        const countermeasure = (r.countermeasure || "").toLowerCase();
+        const stasiun = (r.stasiun || "").toLowerCase();
+        const mesin = (getMachineLabel(r.mesin) || "").toLowerCase();
+        const kategori = (r.kategori || "").toLowerCase();
+        return (
+          problem.includes(q) ||
+          penyebab.includes(q) ||
+          countermeasure.includes(q) ||
+          stasiun.includes(q) ||
+          mesin.includes(q) ||
+          kategori.includes(q)
+        );
+      });
+    }
+
+    // Sort: waktu_awal desc, created_at desc (persis seperti laporan-produksi)
+    return [...result].sort((a, b) => {
+      const timeA = new Date(a.waktu_awal).getTime();
+      const timeB = new Date(b.waktu_awal).getTime();
+      if (timeB !== timeA) return timeB - timeA;
+      const createdA = new Date(a.created_at || 0).getTime();
+      const createdB = new Date(b.created_at || 0).getTime();
+      return createdB - createdA;
     });
   }, [downtimeRows, searchQuery, getMachineLabel]);
 
-  // Bulk selection computed values
-  const isAllSelected = useMemo(() => {
+  // Pagination calculation (persis seperti laporan-produksi)
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, filteredRows.length);
+
+  const paginatedRows = useMemo(() => {
+    return filteredRows.slice(startIndex, startIndex + pageSize);
+  }, [filteredRows, startIndex, pageSize]);
+
+  // Reset pagination when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterMesin, filterTanggalDari, filterTanggalSampai, filterKategori, searchQuery, pageSize]);
+
+  // Page-aware bulk selection computed values
+  const isAllPageSelected = useMemo(() => {
+    return paginatedRows.length > 0 && paginatedRows.every((r) => selectedIds.has(r.id));
+  }, [paginatedRows, selectedIds]);
+
+  const isSomePageSelected = useMemo(() => {
+    return paginatedRows.some((r) => selectedIds.has(r.id)) && !isAllPageSelected;
+  }, [paginatedRows, selectedIds, isAllPageSelected]);
+
+  const isAllTotalSelected = useMemo(() => {
     return filteredRows.length > 0 && filteredRows.every((r) => selectedIds.has(r.id));
   }, [filteredRows, selectedIds]);
 
-  const isIndeterminate = useMemo(() => {
-    return filteredRows.some((r) => selectedIds.has(r.id)) && !isAllSelected;
-  }, [filteredRows, selectedIds, isAllSelected]);
+  const toggleSelectPage = () => {
+    if (isAllPageSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        paginatedRows.forEach((r) => next.delete(r.id));
+        return next;
+      });
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        paginatedRows.forEach((r) => next.add(r.id));
+        return next;
+      });
+    }
+  };
+
+  const selectAllAcrossAllPages = () => {
+    setSelectedIds(new Set(filteredRows.map((r) => r.id)));
+  };
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -320,14 +362,6 @@ export default function DowntimeLogClient() {
       else next.add(id);
       return next;
     });
-  };
-
-  const toggleSelectAll = () => {
-    if (isAllSelected) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(filteredRows.map((r) => r.id)));
-    }
   };
 
   // ─── Create Handler ──────────────────────────────────────────────────────────
@@ -371,7 +405,7 @@ export default function DowntimeLogClient() {
 
       toast.success("Data downtime berhasil ditambahkan.");
       setShowCreateModal(false);
-      await fetchDowntime(0);
+      await fetchDowntime();
     } catch (err: any) {
       setCreateError(err?.message || "Gagal menyimpan data downtime.");
     } finally {
@@ -425,7 +459,7 @@ export default function DowntimeLogClient() {
 
       toast.success("Data downtime berhasil diperbarui.");
       setEditTarget(null);
-      await fetchDowntime(0);
+      await fetchDowntime();
     } catch (err: any) {
       setEditError(err?.message || "Gagal memperbarui data downtime.");
     } finally {
@@ -451,7 +485,7 @@ export default function DowntimeLogClient() {
         next.delete(deleteTarget.id);
         return next;
       });
-      await fetchDowntime(0);
+      await fetchDowntime();
     } catch (err: any) {
       setDeleteError(err?.message || "Gagal menghapus data downtime.");
     } finally {
@@ -475,7 +509,7 @@ export default function DowntimeLogClient() {
       toast.success(`${count} data downtime berhasil dipindahkan ke Tempat Sampah.`);
       setSelectedIds(new Set());
       setShowBulkDeleteModal(false);
-      await fetchDowntime(0);
+      await fetchDowntime();
     } catch (err: any) {
       setBulkDeleteError(err?.message || "Gagal menghapus data terpilih.");
     } finally {
@@ -521,7 +555,7 @@ export default function DowntimeLogClient() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => fetchDowntime(0)}
+              onClick={() => fetchDowntime()}
               disabled={loading}
               className="inline-flex items-center gap-2 min-h-[40px] px-3.5 py-2 text-xs font-bold rounded-xl border border-border bg-card text-foreground hover:bg-muted active:scale-95 transition-all cursor-pointer touch-manipulation shadow-xs"
             >
@@ -547,7 +581,7 @@ export default function DowntimeLogClient() {
               <Filter className="h-4 w-4 text-primary" />
               <span>Filter &amp; Pencarian</span>
             </div>
-            {(filterMesin !== "all" || filterKategori !== "all" || searchQuery || filterTanggalDari !== sevenDaysAgo || filterTanggalSampai !== today) && (
+            {(filterMesin !== "all" || filterKategori !== "all" || searchQuery || filterTanggalDari || filterTanggalSampai) && (
               <button
                 type="button"
                 onClick={resetFilters}
@@ -640,7 +674,7 @@ export default function DowntimeLogClient() {
                 Total Kejadian
               </span>
               <span className="text-xl sm:text-2xl font-bold font-display">
-                {totalKejadian}{" "}
+                {totalKejadian.toLocaleString("id-ID")}{" "}
                 <span className="text-xs font-normal text-muted-foreground font-sans">kali</span>
               </span>
             </div>
@@ -655,7 +689,7 @@ export default function DowntimeLogClient() {
                 Total Durasi Downtime
               </span>
               <span className="text-xl sm:text-2xl font-bold font-display">
-                {totalDurasiMenit}{" "}
+                {totalDurasiMenit.toLocaleString("id-ID")}{" "}
                 <span className="text-xs font-normal text-muted-foreground font-sans">
                   menit ({(totalDurasiMenit / 60).toFixed(1)} jam)
                 </span>
@@ -672,7 +706,7 @@ export default function DowntimeLogClient() {
                 Rata-rata Durasi
               </span>
               <span className="text-xl sm:text-2xl font-bold font-display">
-                {avgDurasiMenit}{" "}
+                {avgDurasiMenit.toLocaleString("id-ID")}{" "}
                 <span className="text-xs font-normal text-muted-foreground font-sans">
                   menit / kejadian
                 </span>
@@ -729,6 +763,36 @@ export default function DowntimeLogClient() {
             </h3>
           </div>
 
+          {/* Banner Seleksi Semua Halaman jika Halaman Aktif Terpilih Penuh */}
+          {isAllPageSelected && filteredRows.length > paginatedRows.length && (
+            <div className="bg-blue-50 dark:bg-blue-950/50 px-4 py-2.5 text-xs text-blue-900 dark:text-blue-200 border-b border-blue-100 dark:border-blue-900 flex items-center justify-between gap-2 flex-wrap">
+              <span>
+                {isAllTotalSelected ? (
+                  <>Seluruh <strong>{filteredRows.length}</strong> baris data downtime terpilih.</>
+                ) : (
+                  <>Semua <strong>{paginatedRows.length}</strong> baris pada halaman ini terpilih.</>
+                )}
+              </span>
+              {!isAllTotalSelected ? (
+                <button
+                  type="button"
+                  onClick={selectAllAcrossAllPages}
+                  className="font-bold underline hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer bg-transparent border-0 p-0"
+                >
+                  Pilih seluruh {filteredRows.length} baris riwayat downtime
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="font-bold underline hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer bg-transparent border-0 p-0"
+                >
+                  Batalkan pilihan
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="table-wrap overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs sm:text-sm">
               <thead>
@@ -736,12 +800,12 @@ export default function DowntimeLogClient() {
                   <th className="p-3 w-10 text-center">
                     <input
                       type="checkbox"
-                      checked={isAllSelected}
+                      checked={isAllPageSelected}
                       ref={(el) => {
-                        if (el) el.indeterminate = isIndeterminate;
+                        if (el) el.indeterminate = isSomePageSelected;
                       }}
-                      onChange={toggleSelectAll}
-                      aria-label="Pilih semua baris downtime"
+                      onChange={toggleSelectPage}
+                      aria-label="Pilih semua baris downtime pada halaman ini"
                       className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
                     />
                   </th>
@@ -758,19 +822,19 @@ export default function DowntimeLogClient() {
                 </tr>
               </thead>
               <tbody
-                key={`${filterMesin}-${filterTanggalDari}-${filterTanggalSampai}-${filterKategori}-${searchQuery}-${page}`}
+                key={`${filterMesin}-${filterTanggalDari}-${filterTanggalSampai}-${filterKategori}-${searchQuery}-${safeCurrentPage}`}
                 className="divide-y divide-border animate-in fade-in slide-in-from-bottom-2 duration-500"
               >
                 {loading ? (
                   <DowntimeTableSkeleton />
-                ) : filteredRows.length === 0 ? (
+                ) : paginatedRows.length === 0 ? (
                   <tr>
                     <td colSpan={11} className="p-8 text-center text-muted-foreground">
                       Tidak ada data downtime yang sesuai dengan kriteria filter saat ini.
                     </td>
                   </tr>
                 ) : (
-                  filteredRows.map((row, idx) => {
+                  paginatedRows.map((row, idx) => {
                     const isSelected = selectedIds.has(row.id);
                     return (
                       <tr
@@ -893,19 +957,82 @@ export default function DowntimeLogClient() {
             </table>
           </div>
 
-          {hasMore && (
-            <div className="p-3 border-t border-border text-center">
+          {/* Pagination Controls (persis seperti laporan-produksi) */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-border bg-muted/20">
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span>
+                Menampilkan <strong>{filteredRows.length > 0 ? startIndex + 1 : 0}</strong> -{" "}
+                <strong>{endIndex}</strong> dari <strong>{filteredRows.length.toLocaleString("id-ID")}</strong> entri
+              </span>
+              <div className="hidden sm:flex items-center gap-1.5 ml-2 border-l border-border pl-3">
+                <span>Baris per hal:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="h-7 px-2 py-0 border border-input rounded bg-background text-xs text-foreground outline-none focus:border-primary cursor-pointer"
+                >
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5">
               <Button
                 type="button"
-                variant="secondary"
+                variant="outline"
                 size="sm"
-                disabled={loadingMore}
-                onClick={() => fetchDowntime(page + 1)}
+                onClick={() => setCurrentPage(1)}
+                disabled={safeCurrentPage <= 1}
+                className="h-8 w-8 p-0"
+                title="Halaman Pertama"
               >
-                {loadingMore ? "Memuat..." : "Muat Lebih Banyak"}
+                <ChevronsLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={safeCurrentPage <= 1}
+                className="h-8 w-8 p-0"
+                title="Halaman Sebelumnya"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+
+              <span className="px-3 text-xs font-semibold text-foreground whitespace-nowrap">
+                Hal {safeCurrentPage} dari {totalPages}
+              </span>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safeCurrentPage >= totalPages}
+                className="h-8 w-8 p-0"
+                title="Halaman Berikutnya"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={safeCurrentPage >= totalPages}
+                className="h-8 w-8 p-0"
+                title="Halaman Terakhir"
+              >
+                <ChevronsRight className="h-4 w-4" />
               </Button>
             </div>
-          )}
+          </div>
         </Card>
       </main>
 
