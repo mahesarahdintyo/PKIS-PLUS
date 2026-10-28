@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { getLines, type Line } from "@/lib/services/line";
 import { Button } from "@/components/ui/button";
-import { productionLogsApi, partNumbersApi, subscribeToSocketEvent } from "@/lib/api-client";
+import { productionLogsApi, partNumbersApi, downtimeApi, subscribeToSocketEvent } from "@/lib/api-client";
 import { toast } from "sonner";
 
 const LOG_REFRESH_INTERVAL_MS = 60000;
@@ -133,6 +133,7 @@ export default function ProductionLogDashboard() {
   const [lines, setLines] = useState<Line[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [downtimeList, setDowntimeList] = useState<any[]>([]);
   const requestIdRef = useRef(0);
 
   // Filters
@@ -197,7 +198,7 @@ export default function ProductionLogDashboard() {
         if (showLoading) setIsLoading(true);
         setError("");
 
-        // Fetch Production & Non-Production Logs
+        // Fetch Production, Non-Production (Dandori), & Downtime Logs
         const params: Parameters<typeof productionLogsApi.get>[0] = {
           table: "both",
           limit: "all",
@@ -207,7 +208,18 @@ export default function ProductionLogDashboard() {
         if (startDate) params.startDate = startDate;
         if (endDate) params.endDate = endDate;
 
-        const { data, error: logsErr } = await productionLogsApi.get(params);
+        const dtParams: Parameters<typeof downtimeApi.get>[0] = {
+          limit: "all",
+          is_active: true,
+        };
+        if (selectedLineId !== "all") dtParams.line_id = selectedLineId;
+        if (startDate) dtParams.startDate = startDate;
+        if (endDate) dtParams.endDate = endDate;
+
+        const [{ data, error: logsErr }, { data: dtLogs }] = await Promise.all([
+          productionLogsApi.get(params),
+          downtimeApi.get(dtParams).catch(() => ({ data: [], error: null })),
+        ]);
 
         if (requestIdRef.current !== reqId) return;
         if (logsErr) throw new Error(logsErr);
@@ -215,8 +227,68 @@ export default function ProductionLogDashboard() {
         const prodData = data?.production || [];
         const nonProdData = data?.dandori || [];
 
+        // Hitung durasi per downtime log
+        const validDtLogs = dtLogs || [];
+        const dtWithDuration = validDtLogs.map((dl: any) => ({
+          ...dl,
+          durasi_menit: Number(dl.durasi_menit ?? dl.durasi ?? 0) || (dl.waktu_awal && dl.waktu_akhir
+            ? Math.max(0, Math.round((new Date(dl.waktu_akhir).getTime() - new Date(dl.waktu_awal).getTime()) / 60000))
+            : 0),
+        }));
+        setDowntimeList(dtWithDuration);
+
+        // Pasangkan downtime ke baris produksi yang sesuai & deteksi part number DANDORI
+        const augmentedProdData = (prodData || []).map((row: any) => {
+          const matchingDts = dtWithDuration.filter((dl: any) => {
+            if (dl.production_log_id && dl.production_log_id === row.id) return true;
+            if (dl.mesin && row.mesin && dl.mesin !== row.mesin) return false;
+            if (dl.line_id && row.line_id && dl.line_id !== row.line_id) return false;
+            if (dl.waktu_awal && dl.waktu_akhir && row.waktu_awal && row.waktu_akhir) {
+              const dlStart = new Date(dl.waktu_awal).getTime();
+              const dlEnd = new Date(dl.waktu_akhir).getTime();
+              const rStart = new Date(row.waktu_awal).getTime();
+              const rEnd = new Date(row.waktu_akhir).getTime();
+              return dlStart >= rStart && dlEnd <= rEnd;
+            }
+            return false;
+          });
+          const dtSum = matchingDts.reduce((sum: number, dl: any) => sum + (Number(dl.durasi_menit) || 0), 0);
+
+          // Cek apakah part_number mengandung kata 'dandori' (case-insensitive)
+          const isDandoriPart = String(row.part_number || "").toLowerCase().includes("dandori");
+          let calculatedDandori = row.dandori_menit !== null && row.dandori_menit !== undefined && row.dandori_menit !== ""
+            ? Number(row.dandori_menit)
+            : 0;
+
+          if (isDandoriPart && !calculatedDandori && row.waktu_awal && row.waktu_akhir) {
+            calculatedDandori = Math.max(
+              0,
+              Math.round((new Date(row.waktu_akhir).getTime() - new Date(row.waktu_awal).getTime()) / 60000) - (Number(row.break_menit) || 0)
+            );
+          }
+
+          return {
+            ...row,
+            downtime_menit: Math.max(Number(row.downtime_menit) || 0, dtSum),
+            dandori_menit: calculatedDandori,
+          };
+        });
+
+        // Hitung durasi dandori untuk baris non_produksi (dari waktu_awal, waktu_akhir, & break)
+        const augmentedNonProdData = (nonProdData || []).map((row: any) => {
+          const durasiDandori = row.dandori_menit !== undefined && row.dandori_menit !== null && row.dandori_menit !== ""
+            ? Number(row.dandori_menit)
+            : (row.waktu_awal && row.waktu_akhir
+                ? Math.max(0, Math.round((new Date(row.waktu_akhir).getTime() - new Date(row.waktu_awal).getTime()) / 60000) - (Number(row.break_menit) || 0))
+                : 0);
+          return {
+            ...row,
+            dandori_menit: durasiDandori,
+          };
+        });
+
         const combined: CombinedLogItem[] = [
-          ...(prodData || []).map((row: any) => ({
+          ...(augmentedProdData || []).map((row: any) => ({
             id: row.id,
             jenis: "produksi" as const,
             line_id: row.line_id,
@@ -228,7 +300,7 @@ export default function ProductionLogDashboard() {
             line_name: row.line?.name ?? null,
             data: row,
           })),
-          ...(nonProdData || []).map((row: any) => ({
+          ...(augmentedNonProdData || []).map((row: any) => ({
             id: row.id,
             jenis: "non_produksi" as const,
             line_id: row.line_id,
@@ -296,6 +368,7 @@ export default function ProductionLogDashboard() {
     const refresh = () => void loadLogs({ showLoading: false });
     const unsubProd = subscribeToSocketEvent("prod_production_log", "*", refresh);
     const unsubDandori = subscribeToSocketEvent("prod_dandori_log", "*", refresh);
+    const unsubDt = subscribeToSocketEvent("prod_downtime_log", "*", refresh);
     const interval = window.setInterval(refresh, LOG_REFRESH_INTERVAL_MS);
     window.addEventListener("focus", refresh);
     return () => {
@@ -303,6 +376,7 @@ export default function ProductionLogDashboard() {
       window.removeEventListener("focus", refresh);
       unsubProd();
       unsubDandori();
+      unsubDt();
     };
   }, [loadLogs]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -461,10 +535,16 @@ export default function ProductionLogDashboard() {
         totalBreak += Number(l.data.break_menit) || 0;
       } else {
         nonProdCount++;
-        // Break pada non-produksi (prod_dandori_log) juga dijumlahkan ke total break
+        totalDandori += Number(l.data.dandori_menit) || 0;
         totalBreak += Number(l.data.break_menit) || 0;
       }
     });
+
+    // Pastikan totalDT mencakup seluruh downtime tercatat di database untuk filter aktif
+    if (selectedJenis !== "non_produksi" && !searchQuery.trim()) {
+      const totalDtFromLogs = downtimeList.reduce((sum, dl) => sum + (Number(dl.durasi_menit) || 0), 0);
+      totalDT = Math.max(totalDT, totalDtFromLogs);
+    }
 
     return {
       totalQty,
@@ -476,7 +556,7 @@ export default function ProductionLogDashboard() {
       totalRows: filtered.length,
       activeLinesCount: uniqueLines.size,
     };
-  }, [filtered]);
+  }, [filtered, downtimeList, selectedJenis, searchQuery]);
 
   const handleResetFilters = () => {
     setSelectedLineId("all");
@@ -523,7 +603,7 @@ export default function ProductionLogDashboard() {
         row.part_number ?? "-",
         isProd ? (data.qty ?? 0) : "-",
         isProd ? (data.manpower ?? "-") : "-",
-        isProd ? (data.dandori_menit ?? 0) : "-",
+        isProd ? (data.dandori_menit ?? 0) : (data.dandori_menit ?? 0),
         isProd ? (data.downtime_menit ?? 0) : "-",
         isProd ? (data.break_menit ?? 0) : (data.break_menit ?? "-"),
         routing,
@@ -1191,15 +1271,21 @@ export default function ProductionLogDashboard() {
                         </td>
 
                         {/* Dandori */}
-                        <td className="py-3 px-3 text-right font-mono text-xs text-slate-600 whitespace-nowrap">
-                          {isProd ? (data.dandori_menit ? `${fmtNum(data.dandori_menit)} mnt` : "-") : "-"}
+                        <td className="py-3 px-3 text-right font-mono text-xs whitespace-nowrap">
+                          {data.dandori_menit ? (
+                            <span className="text-amber-700 font-semibold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                              {fmtNum(data.dandori_menit)} mnt
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">-</span>
+                          )}
                         </td>
 
                         {/* DT */}
                         <td className="py-3 px-3 text-right font-mono text-xs whitespace-nowrap">
                           {isProd ? (
                             hasDt ? (
-                              <span className="text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                              <span className="text-rose-600 font-bold bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
                                 {fmtNum(data.downtime_menit)} mnt
                               </span>
                             ) : (
