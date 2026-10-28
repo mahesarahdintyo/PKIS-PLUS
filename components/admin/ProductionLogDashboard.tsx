@@ -109,9 +109,11 @@ function fmt(iso?: string | null): string {
   });
 }
 
-function fmtNum(n: number | null | undefined): string {
-  if (n === null || n === undefined || isNaN(n)) return "-";
-  return n.toLocaleString("id-ID");
+function fmtNum(n: number | string | null | undefined): string {
+  if (n === null || n === undefined || n === "") return "-";
+  const num = typeof n === "number" ? n : Number(n);
+  if (isNaN(num)) return "-";
+  return num.toLocaleString("id-ID");
 }
 
 const inputCls =
@@ -198,7 +200,7 @@ export default function ProductionLogDashboard() {
         // Fetch Production & Non-Production Logs
         const params: Parameters<typeof productionLogsApi.get>[0] = {
           table: "both",
-          limit: 500,
+          limit: "all",
           is_active: true,
         };
         if (selectedLineId !== "all") params.line_id = selectedLineId;
@@ -448,23 +450,27 @@ export default function ProductionLogDashboard() {
     const uniqueLines = new Set<string>();
 
     filtered.forEach((l) => {
-      if (l.line_id) uniqueLines.add(l.line_id);
+      const lineKey = l.line_id || l.line_name || l.mesin;
+      if (lineKey) uniqueLines.add(lineKey);
+
       if (l.jenis === "produksi") {
         prodCount++;
-        totalQty += l.data.qty ?? 0;
-        totalDandori += l.data.dandori_menit ?? 0;
-        totalDT += l.data.downtime_menit ?? 0;
-        totalBreak += l.data.break_menit ?? 0;
+        totalQty += Number(l.data.qty) || 0;
+        totalDandori += Number(l.data.dandori_menit) || 0;
+        totalDT += Number(l.data.downtime_menit) || 0;
+        totalBreak += Number(l.data.break_menit) || 0;
       } else {
         nonProdCount++;
+        // Break pada non-produksi (prod_dandori_log) juga dijumlahkan ke total break
+        totalBreak += Number(l.data.break_menit) || 0;
       }
     });
 
     return {
       totalQty,
-      totalDandori,
-      totalDT,
-      totalBreak,
+      totalDandori: Math.round(totalDandori * 100) / 100,
+      totalDT: Math.round(totalDT * 100) / 100,
+      totalBreak: Math.round(totalBreak * 100) / 100,
       prodCount,
       nonProdCount,
       totalRows: filtered.length,
@@ -1119,7 +1125,7 @@ export default function ProductionLogDashboard() {
                     const routing = isProd && data.extra?.routing_type
                       ? `${data.extra.routing_type}${data.extra.routing_numbers ? ` ${data.extra.routing_numbers.join(",")}` : ""}`
                       : "-";
-                    const hasDt = isProd && (data.downtime_menit ?? 0) > 0;
+                    const hasDt = isProd && (Number(data.downtime_menit) || 0) > 0;
 
                     return (
                       <tr

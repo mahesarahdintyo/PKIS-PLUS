@@ -7,10 +7,7 @@ function formatDatePart(dateVal?: Date | string | null): string {
   try {
     const d = new Date(dateVal);
     if (isNaN(d.getTime())) return "-";
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
+    return d.toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
   } catch {
     return "-";
   }
@@ -21,9 +18,7 @@ function formatTimePart(dateVal?: Date | string | null): string {
   try {
     const d = new Date(dateVal);
     if (isNaN(d.getTime())) return "-";
-    const hours = String(d.getHours()).padStart(2, "0");
-    const minutes = String(d.getMinutes()).padStart(2, "0");
-    return `${hours}:${minutes}`;
+    return d.toLocaleTimeString("en-GB", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit" });
   } catch {
     return "-";
   }
@@ -65,18 +60,23 @@ export async function GET(request: Request) {
     if (isValidDateStr(startDate) || isValidDateStr(endDate)) {
       where.waktu_awal = {};
       if (isValidDateStr(startDate)) {
-        const d = new Date(`${startDate}T00:00:00.000Z`);
+        const d = new Date(`${startDate}T00:00:00.000+07:00`);
         if (!isNaN(d.getTime())) where.waktu_awal.gte = d;
       }
       if (isValidDateStr(endDate)) {
-        const d = new Date(`${endDate}T23:59:59.999Z`);
+        const d = new Date(`${endDate}T23:59:59.999+07:00`);
         if (!isNaN(d.getTime())) where.waktu_awal.lte = d;
       }
     }
 
     const limitParam = searchParams.get("limit");
-    const parsedLimit = limitParam ? parseInt(limitParam, 10) : NaN;
-    const take = !isNaN(parsedLimit) && parsedLimit > 0 ? parsedLimit : (isValidDateStr(startDate) || isValidDateStr(endDate) ? undefined : 1000);
+    let take: number | undefined = undefined;
+    if (limitParam && limitParam !== "all" && limitParam !== "none") {
+      const parsedLimit = parseInt(limitParam, 10);
+      if (!isNaN(parsedLimit) && parsedLimit > 0) {
+        take = parsedLimit;
+      }
+    }
 
     const rows = await prisma.prodProductionLog.findMany({
       where,

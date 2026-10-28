@@ -312,10 +312,11 @@ export default function ProductionReportsDashboard() {
     const uniqueLines = new Set<string>();
 
     filteredReports.forEach((report) => {
-      totalQty += report.qty;
-      totalNgQty += report.ng_qty;
-      totalBreak += report.break_minutes;
-      uniqueLines.add(report.line_id);
+      totalQty += Number(report.qty) || 0;
+      totalNgQty += Number(report.ng_qty) || 0;
+      totalBreak += Number(report.break_minutes) || 0;
+      const lineKey = report.line_id || report.line?.name;
+      if (lineKey) uniqueLines.add(lineKey);
     });
 
     const totalOkQty = totalQty - totalNgQty;
@@ -556,7 +557,7 @@ Istirahat: ${breakMin}
             </div>
           </div>
           <div className="mt-4">
-            <h3 className="text-3xl font-bold text-slate-900">{stats.totalQty}</h3>
+            <h3 className="text-3xl font-bold text-slate-900">{stats.totalQty.toLocaleString("id-ID")}</h3>
             <p className="mt-1 text-xs text-slate-500 font-medium">QTY Total terhitung</p>
           </div>
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-500" />
@@ -573,7 +574,7 @@ Istirahat: ${breakMin}
             </div>
           </div>
           <div className="mt-4">
-            <h3 className="text-3xl font-bold text-slate-900">{stats.totalOkQty}</h3>
+            <h3 className="text-3xl font-bold text-slate-900">{stats.totalOkQty.toLocaleString("id-ID")}</h3>
             <p className="mt-1 text-xs text-emerald-600 font-semibold">
               {stats.totalQty > 0
                 ? `${((stats.totalOkQty / stats.totalQty) * 100).toFixed(1)}% dari total`
@@ -594,7 +595,7 @@ Istirahat: ${breakMin}
             </div>
           </div>
           <div className="mt-4">
-            <h3 className="text-3xl font-bold text-slate-900">{stats.totalNgQty}</h3>
+            <h3 className="text-3xl font-bold text-slate-900">{stats.totalNgQty.toLocaleString("id-ID")}</h3>
             <p className="mt-1 text-xs text-rose-600 font-semibold">
               Rata-rata Rate: {stats.avgNgRate.toFixed(1)}%
             </p>
@@ -613,7 +614,7 @@ Istirahat: ${breakMin}
             </div>
           </div>
           <div className="mt-4">
-            <h3 className="text-3xl font-bold text-slate-900">{stats.totalBreak} m</h3>
+            <h3 className="text-3xl font-bold text-slate-900">{stats.totalBreak.toLocaleString("id-ID")} m</h3>
             <p className="mt-1 text-xs text-slate-500 font-medium">Dalam satuan menit</p>
           </div>
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-amber-500" />
@@ -630,7 +631,7 @@ Istirahat: ${breakMin}
             </div>
           </div>
           <div className="mt-4">
-            <h3 className="text-3xl font-bold text-slate-900">{stats.activeLinesCount}</h3>
+            <h3 className="text-3xl font-bold text-slate-900">{stats.activeLinesCount.toLocaleString("id-ID")}</h3>
             <p className="mt-1 text-xs text-slate-500 font-medium">Card/Line beraktivitas</p>
           </div>
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-purple-500" />

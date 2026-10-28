@@ -458,7 +458,7 @@ export const productionLogsApi = {
     endDate?: string;
     pStart?: string;
     pEnd?: string;
-    limit?: number;
+    limit?: number | string;
     is_active?: boolean | string;
   } = {}) {
     const url = new URL("/api/produksi/logs", window.location.origin);

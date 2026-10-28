@@ -13,8 +13,8 @@ function parseDateParam(val: string | null | undefined, isEnd = false): Date | n
     return isNaN(d.getTime()) ? null : d;
   }
 
-  // Jika format hanya YYYY-MM-DD
-  const suffix = isEnd ? "T23:59:59.999Z" : "T00:00:00.000Z";
+  // Jika format hanya YYYY-MM-DD (gunakan timezone WIB +07:00 agar mencakup 1 hari penuh)
+  const suffix = isEnd ? "T23:59:59.999+07:00" : "T00:00:00.000+07:00";
   const d = new Date(`${trimmed}${suffix}`);
   if (!isNaN(d.getTime())) return d;
 
@@ -32,7 +32,14 @@ export async function GET(request: Request) {
     const endDate = searchParams.get("endDate");
     const pStart = searchParams.get("pStart");
     const pEnd = searchParams.get("pEnd");
-    const limit = parseInt(searchParams.get("limit") || "500", 10);
+    const limitParam = searchParams.get("limit");
+    let take: number | undefined = undefined;
+    if (limitParam && limitParam !== "all" && limitParam !== "none") {
+      const parsed = parseInt(limitParam, 10);
+      if (!isNaN(parsed) && parsed > 0) {
+        take = parsed;
+      }
+    }
     const isActiveStr = searchParams.get("is_active");
     const isActive = isActiveStr !== null ? isActiveStr === "true" : true;
 
@@ -80,7 +87,7 @@ export async function GET(request: Request) {
       const raw = await prisma.prodProductionLog.findMany({
         where: buildWhere(),
         orderBy: [{ waktu_awal: "desc" }, { created_at: "desc" }],
-        take: limit,
+        ...(take ? { take } : {}),
       });
       const data = await attachLineNames(raw);
       return NextResponse.json({ data, error: null });
@@ -90,7 +97,7 @@ export async function GET(request: Request) {
       const raw = await prisma.prodDandoriLog.findMany({
         where: buildWhere(),
         orderBy: [{ waktu_awal: "desc" }, { created_at: "desc" }],
-        take: limit,
+        ...(take ? { take } : {}),
       });
       const data = await attachLineNames(raw);
       return NextResponse.json({ data, error: null });
@@ -101,12 +108,12 @@ export async function GET(request: Request) {
       prisma.prodProductionLog.findMany({
         where: buildWhere(),
         orderBy: [{ waktu_awal: "desc" }, { created_at: "desc" }],
-        take: limit,
+        ...(take ? { take } : {}),
       }),
       prisma.prodDandoriLog.findMany({
         where: buildWhere(),
         orderBy: [{ waktu_awal: "desc" }, { created_at: "desc" }],
-        take: limit,
+        ...(take ? { take } : {}),
       }),
     ]);
 
