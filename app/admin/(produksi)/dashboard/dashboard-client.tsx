@@ -14,6 +14,8 @@ import {
   safetyApi,
   scrapApi,
   attendanceApi,
+  productionLogsApi,
+  partNumbersApi,
   auth,
   subscribeToSocketEvent,
 } from "@/lib/api-client";
@@ -520,32 +522,83 @@ export default function DashboardClient() {
 
   const fetchProductivityToday = useCallback(async () => {
     try {
-      const now = new Date();
-      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      const base = new Date(tanggal + "T00:00:00");
+      const start = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+      const end = new Date(base.getFullYear(), base.getMonth(), base.getDate() + 1);
       const { data } = await rpcApi.call("prod_productivity_trend_bucketed", {
         p_start: start.toISOString(),
         p_end: end.toISOString(),
         p_bucket: "day",
       });
       const dayRow = (data && data[0]) || null;
-      setProductivityToday(
-        dayRow
-          ? {
-            ehJam: (Number(dayRow.eh_menit) || 0) / 60,
-            whJam: (Number(dayRow.wh_menit) || 0) / 60,
-            totalManHoursJam: (Number(dayRow.total_man_hours_menit) || 0) / 60,
-            gapJam: (Number(dayRow.gap_menit) || 0) / 60,
-            peff: Number(dayRow.peff) || 0,
-            productivity: KIJUN_PEFF > 0 ? ((Number(dayRow.peff) || 0) / KIJUN_PEFF) * 100 : 0,
-            sumber: dayRow.sumber,
+      if (dayRow && (Number(dayRow.wh_menit) > 0 || Number(dayRow.eh_menit) > 0)) {
+        let ehMenit = Number(dayRow.eh_menit) || 0;
+        let sumber: "historis" | "live" = (dayRow.sumber as any) || "historis";
+
+        // Fallback: Jika EH manual di tabel referensi belum diisi (ehMenit === 0),
+        // coba hitung EH otomatis dari akumulasi produksi part number pada tanggal tersebut
+        if (ehMenit === 0) {
+          try {
+            const [prodLogsRes, partsRes] = await Promise.all([
+              productionLogsApi.get({
+                table: "production",
+                startDate: tanggal,
+                endDate: tanggal,
+                limit: "all",
+                is_active: true,
+              }),
+              partNumbersApi.get({ is_active: true }),
+            ]);
+
+            const pLogs = prodLogsRes.data || [];
+            const parts = partsRes.data || [];
+            const partsMap = new Map<string, number>();
+            parts.forEach((p: any) => {
+              const ct = Number(p.std_ct) || (p.ct_detik ? Number(p.ct_detik) / 60 : 0);
+              if (ct > 0 && p.value) partsMap.set(p.value, ct);
+            });
+
+            let autoEhMenit = 0;
+            pLogs.forEach((pl: any) => {
+              const qty = Number(pl.qty) || 0;
+              const ct = pl.part_number ? (partsMap.get(pl.part_number) || 0) : 0;
+              if (qty > 0 && ct > 0) {
+                autoEhMenit += qty * ct;
+              }
+            });
+
+            if (autoEhMenit > 0) {
+              ehMenit = autoEhMenit;
+              sumber = "live";
+            }
+          } catch {
+            // Abaikan fallback jika gagal
           }
-          : null
-      );
+        }
+
+        const whJam = (Number(dayRow.wh_menit) || 0) / 60;
+        const ehJam = ehMenit / 60;
+        const totalManHoursJam = (Number(dayRow.total_man_hours_menit) || 0) / 60;
+        const gapJam = totalManHoursJam - whJam;
+        const peff = whJam > 0 ? ehJam / whJam : 0;
+        const productivity = KIJUN_PEFF > 0 ? (peff / KIJUN_PEFF) * 100 : 0;
+
+        setProductivityToday({
+          ehJam,
+          whJam,
+          totalManHoursJam,
+          gapJam,
+          peff,
+          productivity,
+          sumber,
+        });
+      } else {
+        setProductivityToday(null);
+      }
     } catch (e) {
       console.warn("fetchProductivityToday failed:", e);
     }
-  }, []);
+  }, [tanggal]);
 
   /* ── fetchMiniTrend ─────────────── */
   const fetchMiniTrend = useCallback(async () => {
@@ -2343,7 +2396,9 @@ export default function DashboardClient() {
                   <div className="internal-col-left">
                     {periodMode === "harian" && (
                       <Card className="dash-panel dash-panel-fit card-glow-info">
-                        <p className="dash-panel-title">Productivity — Capaian Hari Ini</p>
+                        <p className="dash-panel-title">
+                          Productivity — {tanggal === localDateStr(new Date()) ? "Capaian Hari Ini" : "Capaian Harian"}
+                        </p>
                         <p className="hint">
                           Productivity = PEFF ÷ Kijun PEFF <b>{fmtNum(KIJUN_PEFF * 100)}%</b> · PEFF = Earned Hours ÷ Working Hours
                         </p>
@@ -2378,7 +2433,9 @@ export default function DashboardClient() {
                               </div>
                             </div>
                           ) : (
-                            <p className="empty-state">Belum ada data hari ini.</p>
+                            <p className="empty-state">
+                              Belum ada data {tanggal === localDateStr(new Date()) ? "hari ini" : "pada tanggal ini"}.
+                            </p>
                           )}
                         </div>
                       </Card>
