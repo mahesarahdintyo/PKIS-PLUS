@@ -449,23 +449,23 @@ export default function DashboardClient() {
   /* ── fetchProductivityTrend & fetchProductivityToday ── */
   const fetchProductivityTrend = useCallback(async () => {
     let start: Date, end: Date, bucket: string, labels: string[], keyOf: (d: Date) => number;
-    if (periodMode === "harian") {
-      const base = new Date(tanggal + "T00:00:00");
-      start = new Date(base.getFullYear(), base.getMonth(), base.getDate());
-      end = new Date(base.getFullYear(), base.getMonth(), base.getDate() + 1);
-      bucket = "hour";
-      labels = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0") + ":00");
-      keyOf = (d) => d.getHours();
-    } else if (periodMode === "bulanan") {
-      const y = tahunPilih, m = bulanPilih;
+    if (periodMode === "harian" || periodMode === "bulanan") {
+      let y = tahunPilih, m = bulanPilih;
+      if (periodMode === "harian") {
+        const base = new Date(tanggal + "T00:00:00");
+        y = base.getFullYear();
+        m = base.getMonth();
+      }
       const n = new Date(y, m + 1, 0).getDate();
-      start = new Date(y, m, 1); end = new Date(y, m + 1, 1);
+      start = new Date(y, m, 1);
+      end = new Date(y, m + 1, 1);
       bucket = "day";
       labels = Array.from({ length: n }, (_, i) => String(i + 1));
       keyOf = (d) => d.getDate() - 1;
     } else {
       const y = tahunPilih;
-      start = new Date(y, 0, 1); end = new Date(y + 1, 0, 1);
+      start = new Date(y, 0, 1);
+      end = new Date(y + 1, 0, 1);
       bucket = "month";
       labels = ["JAN", "FEB", "MAR", "APR", "MEI", "JUN", "JUL", "AGU", "SEP", "OKT", "NOV", "DES"];
       keyOf = (d) => d.getMonth();
@@ -478,22 +478,72 @@ export default function DashboardClient() {
         p_bucket: bucket,
       });
 
+      let sorted = [...(data || [])].sort((a: any, b: any) => new Date(a.bucket_start).getTime() - new Date(b.bucket_start).getTime());
+
+      // Cek apakah ada data eh_menit yang 0 / kosong
+      const hasMissingEh = sorted.length === 0 || sorted.some((r: any) => (Number(r.eh_menit) || 0) === 0);
+      const liveEhMap = new Map<string, number>();
+
+      if (hasMissingEh) {
+        try {
+          const startDateStr = localDateStr(start);
+          const endDateStr = localDateStr(new Date(end.getTime() - 1));
+          const [prodLogsRes, partsRes] = await Promise.all([
+            productionLogsApi.get({
+              table: "production",
+              startDate: startDateStr,
+              endDate: endDateStr,
+              limit: "all",
+              is_active: true,
+            }),
+            partNumbersApi.get({ is_active: true }),
+          ]);
+
+          const pLogs = prodLogsRes.data || [];
+          const parts = partsRes.data || [];
+          const partsMap = new Map<string, number>();
+          parts.forEach((p: any) => {
+            const ct = Number(p.std_ct) || (p.ct_detik ? Number(p.ct_detik) / 60 : 0);
+            if (ct > 0 && p.value) partsMap.set(p.value, ct);
+          });
+
+          pLogs.forEach((pl: any) => {
+            const qty = Number(pl.qty) || 0;
+            const ct = pl.part_number ? (partsMap.get(pl.part_number) || 0) : 0;
+            if (qty > 0 && ct > 0) {
+              const dtStr = pl.tanggal || (pl.waktu_awal ? pl.waktu_awal.slice(0, 10) : "");
+              if (dtStr) {
+                const key = periodMode === "tahunan" ? dtStr.slice(0, 7) : dtStr;
+                liveEhMap.set(key, (liveEhMap.get(key) || 0) + (qty * ct));
+              }
+            }
+          });
+        } catch (liveErr) {
+          console.warn("fetchProductivityTrend live EH fallback error:", liveErr);
+        }
+      }
+
       const values = new Array(labels.length).fill(null);
       const cumValues = new Array(labels.length).fill(null);
       let totalEh = 0, totalWh = 0, totalManHours = 0;
       let runningEh = 0, runningWh = 0;
 
-      const sorted = [...(data || [])].sort((a: any, b: any) => new Date(a.bucket_start).getTime() - new Date(b.bucket_start).getTime());
       sorted.forEach((r: any) => {
         const d = new Date(r.bucket_start);
         const i = keyOf(d);
-        const eh = Number(r.eh_menit) || 0;
+        const manualEh = Number(r.eh_menit) || 0;
+        const dtKey = periodMode === "tahunan"
+          ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+          : localDateStr(d);
+        const eh = manualEh > 0 ? manualEh : (liveEhMap.get(dtKey) || 0);
         const wh = Number(r.wh_menit) || 0;
-        totalEh += eh; totalWh += wh;
+        totalEh += eh;
+        totalWh += wh;
         totalManHours += Number(r.total_man_hours_menit) || 0;
-        runningEh += eh; runningWh += wh;
+        runningEh += eh;
+        runningWh += wh;
         if (i >= 0 && i < values.length) {
-          const peff = Number(r.peff) || 0;
+          const peff = wh > 0 ? (eh / wh) : 0;
           const productivity = KIJUN_PEFF > 0 ? (peff / KIJUN_PEFF) * 100 : 0;
           values[i] = wh > 0 ? Number(productivity.toFixed(1)) : null;
           if (runningWh > 0) {
