@@ -393,6 +393,13 @@ td.mono,
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 14px;
+  /* Saran #3 — header gradient accent di light mode */
+  padding: 14px 18px;
+  border-radius: var(--radius);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease;
 }
 
 .dash-title-block h1 {
@@ -488,11 +495,30 @@ td.mono,
   flex-direction: column;
   overflow-y: auto;
   scrollbar-width: thin;
-  transition: box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+  transition: box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, transform 0.18s ease;
 }
 
 .dash-panel:hover {
   box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+/* Saran #5 — Top accent border warna status untuk dash-panel di light mode */
+:root:not(.dark) .dash-panel.card-glow-good,
+[data-theme="light"] .dash-panel.card-glow-good {
+  border-top: 3px solid var(--status-good);
+}
+:root:not(.dark) .dash-panel.card-glow-warn,
+[data-theme="light"] .dash-panel.card-glow-warn {
+  border-top: 3px solid var(--status-warn);
+}
+:root:not(.dark) .dash-panel.card-glow-bad,
+[data-theme="light"] .dash-panel.card-glow-bad {
+  border-top: 3px solid var(--status-bad);
+}
+:root:not(.dark) .dash-panel.card-glow-info,
+[data-theme="light"] .dash-panel.card-glow-info {
+  border-top: 3px solid var(--status-info);
 }
 
 .dash-panel-fit {
@@ -577,6 +603,34 @@ td.mono,
   display: flex;
   flex-direction: column;
   gap: 4px;
+  transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+.kpi-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+/* Saran #4 — Tinted KPI card background by status in light mode */
+:root:not(.dark) .kpi-card.kpi-good,
+[data-theme="light"] .kpi-card.kpi-good {
+  background: linear-gradient(145deg, rgba(22, 163, 74, 0.06) 0%, #ffffff 60%);
+  border-color: rgba(22, 163, 74, 0.35);
+}
+:root:not(.dark) .kpi-card.kpi-warn,
+[data-theme="light"] .kpi-card.kpi-warn {
+  background: linear-gradient(145deg, rgba(217, 119, 6, 0.07) 0%, #ffffff 60%);
+  border-color: rgba(217, 119, 6, 0.35);
+}
+:root:not(.dark) .kpi-card.kpi-bad,
+[data-theme="light"] .kpi-card.kpi-bad {
+  background: linear-gradient(145deg, rgba(220, 38, 38, 0.07) 0%, #ffffff 60%);
+  border-color: rgba(220, 38, 38, 0.35);
+}
+:root:not(.dark) .kpi-card.kpi-info,
+[data-theme="light"] .kpi-card.kpi-info {
+  background: linear-gradient(145deg, rgba(2, 132, 199, 0.06) 0%, #ffffff 60%);
+  border-color: rgba(2, 132, 199, 0.30);
 }
 
 .kpi-head {
@@ -614,25 +668,41 @@ td.mono,
 :root:not(.dark) .card-glow-good,
 [data-theme="light"] .card-glow-good {
   border-color: var(--status-good) !important;
-  box-shadow: 0 0 0 1px var(--status-good), 0 0 10px -2px var(--status-good);
+  box-shadow: 0 0 0 1.5px var(--status-good), 0 4px 18px -4px rgba(22, 163, 74, 0.35), var(--shadow-sm);
+}
+:root:not(.dark) .card-glow-good:hover,
+[data-theme="light"] .card-glow-good:hover {
+  box-shadow: 0 0 0 2px var(--status-good), 0 6px 24px -4px rgba(22, 163, 74, 0.50), var(--shadow-md);
 }
 
 :root:not(.dark) .card-glow-warn,
 [data-theme="light"] .card-glow-warn {
   border-color: var(--status-warn) !important;
-  box-shadow: 0 0 0 1px var(--status-warn), 0 0 10px -2px var(--status-warn);
+  box-shadow: 0 0 0 1.5px var(--status-warn), 0 4px 18px -4px rgba(217, 119, 6, 0.35), var(--shadow-sm);
+}
+:root:not(.dark) .card-glow-warn:hover,
+[data-theme="light"] .card-glow-warn:hover {
+  box-shadow: 0 0 0 2px var(--status-warn), 0 6px 24px -4px rgba(217, 119, 6, 0.50), var(--shadow-md);
 }
 
 :root:not(.dark) .card-glow-bad,
 [data-theme="light"] .card-glow-bad {
   border-color: var(--status-bad) !important;
-  box-shadow: 0 0 0 1px var(--status-bad), 0 0 10px -2px var(--status-bad);
+  box-shadow: 0 0 0 1.5px var(--status-bad), 0 4px 18px -4px rgba(220, 38, 38, 0.35), var(--shadow-sm);
+}
+:root:not(.dark) .card-glow-bad:hover,
+[data-theme="light"] .card-glow-bad:hover {
+  box-shadow: 0 0 0 2px var(--status-bad), 0 6px 24px -4px rgba(220, 38, 38, 0.50), var(--shadow-md);
 }
 
 :root:not(.dark) .card-glow-info,
 [data-theme="light"] .card-glow-info {
   border-color: var(--status-info) !important;
-  box-shadow: 0 0 0 1px var(--status-info), 0 0 8px -3px var(--status-info);
+  box-shadow: 0 0 0 1.5px var(--status-info), 0 4px 16px -4px rgba(2, 132, 199, 0.30), var(--shadow-sm);
+}
+:root:not(.dark) .card-glow-info:hover,
+[data-theme="light"] .card-glow-info:hover {
+  box-shadow: 0 0 0 2px var(--status-info), 0 6px 22px -4px rgba(2, 132, 199, 0.45), var(--shadow-md);
 }
 
 /* Neon Glow Card Border - Dark Mode (seperti visualisasi umum) */
@@ -886,12 +956,31 @@ td.mono,
   box-shadow: var(--shadow-md);
 }
 
-.sqcpm-col.col-good { border-top-color: var(--status-good); }
+.sqcpm-col.col-good {
+  border-top-color: var(--status-good);
+  background: var(--panel);
+}
+/* Saran #4 — Tinted background SQCDMP di light mode */
+:root:not(.dark) .sqcpm-col.col-good,
+[data-theme="light"] .sqcpm-col.col-good {
+  background: linear-gradient(165deg, rgba(22, 163, 74, 0.07) 0%, #ffffff 50%);
+}
 .sqcpm-col.col-warn {
   border-top-color: var(--amber);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--amber) 8%, transparent), transparent);
+  background: var(--panel);
 }
-.sqcpm-col.col-bad { border-top-color: var(--status-bad); }
+:root:not(.dark) .sqcpm-col.col-warn,
+[data-theme="light"] .sqcpm-col.col-warn {
+  background: linear-gradient(165deg, rgba(217, 119, 6, 0.08) 0%, #ffffff 50%);
+}
+.sqcpm-col.col-bad {
+  border-top-color: var(--status-bad);
+  background: var(--panel);
+}
+:root:not(.dark) .sqcpm-col.col-bad,
+[data-theme="light"] .sqcpm-col.col-bad {
+  background: linear-gradient(165deg, rgba(220, 38, 38, 0.07) 0%, #ffffff 50%);
+}
 
 .sqcpm-col-head {
   display: flex;
