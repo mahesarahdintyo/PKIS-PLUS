@@ -371,36 +371,8 @@ export default function DashboardClient() {
     const harianKeyOf = (d: Date) => d.getDate() - 1;
 
     try {
-      if (periodMode === "bulanan") {
-        // Pada mode bulanan, query exhaust dan harian identik (1 RPC call cukup)
-        const { data, error } = await rpcApi.call("prod_downtime_trend_bucketed", {
-          p_start: exhaustStart.toISOString(),
-          p_end: exhaustEnd.toISOString(),
-          p_bucket: "day",
-        });
-
-        if (error) {
-          console.warn("fetchDowntimeTrend error:", error);
-          return;
-        }
-
-        const values = new Array(exhaustLabels.length).fill(0);
-        (data || []).forEach((r: any) => {
-          const d = new Date(r.bucket_start);
-          const i = exhaustKeyOf(d);
-          if (i >= 0 && i < values.length) {
-            values[i] = Math.round(Number(r.total_menit) || 0);
-          }
-        });
-
-        setDowntimeTrendData({
-          exhaustLabels,
-          exhaustValues: values,
-          harianLabels,
-          harianValues: values,
-        });
-      } else {
-        // Mode harian / tahunan: query exhaust dan harian secara paralel
+      {
+        // Query exhaust (sesuai periodMode) dan harian (selalu per hari dalam 1 bulan) secara paralel
         const [resExhaust, resHarian] = await Promise.all([
           rpcApi.call("prod_downtime_trend_bucketed", {
             p_start: exhaustStart.toISOString(),
@@ -2538,7 +2510,11 @@ export default function DashboardClient() {
                     <div className="internal-right-top-row">
                       <Card className="dash-panel dash-panel-fit card-glow-warn">
                         <p className="dash-panel-title">
-                          <span>Downtime Press Production</span>
+                          <span>
+                            Downtime Press Production
+                            {periodMode === "harian" ? " — Per Jam" : periodMode === "bulanan" ? " — Per Hari" : " — Per Bulan"}
+                          </span>
+                          <span className="count">Total {fmtNum(downtimeTrendData.exhaustValues.reduce((a, b) => (a || 0) + (b || 0), 0))} menit</span>
                         </p>
                         <div className="dash-chart-trend">
                           <canvas ref={internalDowntimeExhaustRef} />
@@ -2546,7 +2522,7 @@ export default function DashboardClient() {
                       </Card>
                       <Card className="dash-panel dash-panel-fit card-glow-warn">
                         <p className="dash-panel-title">
-                          <span>Downtime Harian</span>
+                          <span>Downtime Harian — Per Hari (Bulan Ini)</span>
                           <span className="count">Total {fmtNum(downtimeTrendData.harianValues.reduce((a, b) => (a || 0) + (b || 0), 0))} menit</span>
                         </p>
                         <div className="dash-chart-trend">
