@@ -329,6 +329,9 @@ export default function DashboardClient() {
   /* ── fetchDowntimeTrend (Exhaust & Harian) ── */
   const fetchDowntimeTrend = useCallback(async () => {
     // 1. Parameter Downtime Exhaust (dinamis sesuai periodMode)
+    // - harian  : per jam (00:00–23:00) pada tanggal terpilih
+    // - bulanan : tren 12 bulan terakhir s.d. bulan terpilih (per bulan)
+    // - tahunan : per bulan dalam tahun terpilih
     let exhaustStart: Date, exhaustEnd: Date, exhaustBucket: string, exhaustLabels: string[];
     let exhaustKeyOf: (d: Date) => number;
 
@@ -340,13 +343,22 @@ export default function DashboardClient() {
       exhaustLabels = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0") + ":00");
       exhaustKeyOf = (d) => d.getHours();
     } else if (periodMode === "bulanan") {
-      const y = tahunPilih, m = bulanPilih;
-      const n = new Date(y, m + 1, 0).getDate();
-      exhaustStart = new Date(y, m, 1);
-      exhaustEnd = new Date(y, m + 1, 1);
-      exhaustBucket = "day";
-      exhaustLabels = Array.from({ length: n }, (_, i) => String(i + 1));
-      exhaustKeyOf = (d) => d.getDate() - 1;
+      // Tren 12 bulan terakhir s.d. bulan terpilih
+      const endMonth = new Date(tahunPilih, bulanPilih + 1, 1); // exclusive end = awal bulan berikutnya
+      const startMonth = new Date(tahunPilih, bulanPilih - 11, 1); // 12 bulan ke belakang
+      exhaustStart = startMonth;
+      exhaustEnd = endMonth;
+      exhaustBucket = "month";
+      // Buat 12 label bulan dari startMonth
+      exhaustLabels = Array.from({ length: 12 }, (_, i) => {
+        const d = new Date(tahunPilih, bulanPilih - 11 + i, 1);
+        return d.toLocaleDateString("id-ID", { month: "short", year: "2-digit" });
+      });
+      exhaustKeyOf = (d) => {
+        // Hitung indeks berdasarkan selisih bulan dari startMonth
+        const diff = (d.getFullYear() - startMonth.getFullYear()) * 12 + (d.getMonth() - startMonth.getMonth());
+        return diff;
+      };
     } else {
       const y = tahunPilih;
       exhaustStart = new Date(y, 0, 1);
@@ -356,7 +368,7 @@ export default function DashboardClient() {
       exhaustKeyOf = (d) => d.getMonth();
     }
 
-    // 2. Parameter Downtime Harian (SELALU tanggal 1 - 30/31 pada bulan terpilih)
+    // 2. Parameter Downtime Harian (SELALU per hari dalam 1 bulan terpilih)
     let harianYear = tahunPilih;
     let harianMonth = bulanPilih;
     if (periodMode === "harian") {
@@ -2512,7 +2524,7 @@ export default function DashboardClient() {
                         <p className="dash-panel-title">
                           <span>
                             Downtime Press Production
-                            {periodMode === "harian" ? " — Per Jam" : periodMode === "bulanan" ? " — Per Hari" : " — Per Bulan"}
+                            {periodMode === "harian" ? " — Per Jam" : periodMode === "bulanan" ? " — 12 Bulan Terakhir" : " — Per Bulan"}
                           </span>
                           <span className="count">Total {fmtNum(downtimeTrendData.exhaustValues.reduce((a, b) => (a || 0) + (b || 0), 0))} menit</span>
                         </p>
