@@ -172,9 +172,12 @@ const varianceArrows = {
   afterDatasetsDraw(chart: Chart, _args: unknown, opts: any) {
     if (!opts || !opts.enabled) return;
     const { ctx, scales } = chart;
-    const actualData = chart.data.datasets[0].data as number[];
-    const targetData = (chart.data.datasets[1] ? chart.data.datasets[1].data : []) as number[];
-    const meta = chart.getDatasetMeta(0);
+    const actualIdx = opts.actualIndex !== undefined ? opts.actualIndex : 0;
+    const targetIdx = opts.targetIndex !== undefined ? opts.targetIndex : 1;
+    const actualData = (chart.data.datasets[actualIdx]?.data || []) as number[];
+    const targetData = (chart.data.datasets[targetIdx]?.data || []) as number[];
+    const meta = chart.getDatasetMeta(actualIdx);
+    if (!meta) return;
     const upColor = resolveColor(opts.upColor, "--status-good", "#16a34a");
     const downColor = resolveColor(opts.downColor, "--status-bad", "#dc2626");
     meta.data.forEach((bar: any, i: number) => {
@@ -227,13 +230,14 @@ const barValueLabels = {
 
     const scales = chart.options.scales as any;
     const isStacked = scales?.x?.stacked || scales?.y?.stacked;
-    const labelColor = resolveColor(opts.color, "--text", "#f1f5f9");
+    const defaultLabelColor = resolveColor(opts.color, "--text", "#f1f5f9");
 
     chart.data.datasets.forEach((dataset: any, di: number) => {
       if (dataset.skipLabel) return;
       const meta = chart.getDatasetMeta(di);
       if (meta.hidden) return;
       const isLine = dataset.type === "line";
+      const labelColor = dataset.valueLabelColor ? resolveColor(dataset.valueLabelColor, "--text", "#f1f5f9") : defaultLabelColor;
 
       meta.data.forEach((el: any, i: number) => {
         const val = dataset.data[i];

@@ -797,7 +797,34 @@ export default function DashboardClient() {
       const rangeStartIso = rangeStart.toISOString();
       const rangeEndIso = rangeEnd.toISOString();
 
-      const [aggResults, topProbResults, byCatResults, settingsRes] = await Promise.all([
+      // Bounds tahun sebelumnya (YoY comparison)
+      let prevStart: Date, prevEnd: Date;
+      if (periodMode === "tahunan") {
+        prevStart = new Date(tahunPilih - 1, 0, 1);
+        prevEnd = new Date(tahunPilih, 0, 1);
+      } else if (periodMode === "bulanan") {
+        prevStart = new Date(tahunPilih - 1, bulanPilih, 1);
+        prevEnd = new Date(tahunPilih - 1, bulanPilih + 1, 1);
+      } else {
+        const d = new Date(tanggal + "T00:00:00");
+        const y = d.getFullYear() - 1;
+        const m = d.getMonth();
+        const dt = d.getDate();
+        if (shiftFilter === "1") {
+          prevStart = new Date(y, m, dt, 7, 0);
+          prevEnd = new Date(y, m, dt, 19, 30);
+        } else if (shiftFilter === "2") {
+          prevStart = new Date(y, m, dt, 19, 30);
+          prevEnd = new Date(y, m, dt + 1, 7, 0);
+        } else {
+          prevStart = new Date(y, m, dt);
+          prevEnd = new Date(y, m, dt + 1);
+        }
+      }
+      const prevStartIso = prevStart.toISOString();
+      const prevEndIso = prevEnd.toISOString();
+
+      const [aggResults, topProbResults, byCatResults, settingsRes, prevAggResults] = await Promise.all([
         Promise.all(MACHINES.map((m) =>
           rpcApi.call("prod_performance_aggregate", { p_mesin: m.key, p_stasiun_list: null, p_start: rangeStartIso, p_end: rangeEndIso })
         )),
@@ -808,6 +835,9 @@ export default function DashboardClient() {
           rpcApi.call("prod_downtime_by_category", { p_mesin: m.key, p_stasiun_list: null, p_start: rangeStartIso, p_end: rangeEndIso })
         )),
         masterDataApi.get({ type: "settings" }),
+        Promise.all(MACHINES.map((m) =>
+          rpcApi.call("prod_performance_aggregate", { p_mesin: m.key, p_stasiun_list: null, p_start: prevStartIso, p_end: prevEndIso })
+        )).catch(() => MACHINES.map(() => ({ data: [] }))),
       ]);
 
       const settingsMap: Record<string, { mode: string; fixed: number; targetAvailability: number }> = {};
@@ -836,6 +866,14 @@ export default function DashboardClient() {
         const whJam = (Number(row.wh_menit) || 0) / 60;
         const targetStdMenit = Number(row.target_std_menit) || 0;
 
+        // Data tahun sebelumnya (YoY)
+        const prevRow = (prevAggResults[idx]?.data && prevAggResults[idx]?.data[0]) || {};
+        const prevStroke = Number(prevRow.stroke) || 0;
+        const prevDowntime = Math.round(Number(prevRow.downtime_menit) || 0);
+        const prevWhJam = (Number(prevRow.wh_menit) || 0) / 60;
+        const prevAvailability = prevWhJam > 0 ? Math.max(0, (prevWhJam * 60 - prevDowntime) / (prevWhJam * 60)) * 100 : 0;
+        const prevGsph = prevWhJam > 0 ? prevStroke / prevWhJam : 0;
+
         const settings = settingsMap[m.key];
         const explicitTargetSet = !!settings && (
           settings.fixed > 0 || (settings.mode === "per_part" && targetStdMenit > 0)
@@ -858,6 +896,7 @@ export default function DashboardClient() {
         perMachineMap[m.key] = {
           stroke, ok: stroke - ng, ng, downtime: downtimeMenit,
           gsph, targetGsph,
+          prevAvailability, prevGsph,
           performanceFactor, availability,
           quality, oee,
           targetAvailability: settings?.targetAvailability || 0,
@@ -1700,6 +1739,7 @@ export default function DashboardClient() {
         chartInstances.current.internalAvailability.destroy();
       }
       const labels = MACHINES.map((m) => m.label);
+      const prevActual = MACHINES.map((m) => Number((machineDataMap[m.key]?.prevAvailability || 0).toFixed(1)));
       const actual = MACHINES.map((m) => Number((machineDataMap[m.key]?.availability || 0).toFixed(1)));
       const target = MACHINES.map((m) => machineDataMap[m.key]?.targetAvailability || null);
       destroyChartOnCanvas(internalAvailRef.current);
@@ -1709,18 +1749,35 @@ export default function DashboardClient() {
           datasets: [
             {
               type: "bar",
+              label: "THN LALU",
+              data: prevActual,
+              backgroundColor: (ctx: any) => {
+                const chart = ctx.chart;
+                return createVerticalGradient(chart.ctx, chart.chartArea, "#64748b", "#334155");
+              },
+              borderRadius: { topLeft: 4, topRight: 4 },
+              borderSkipped: false,
+              borderWidth: 1,
+              borderColor: "rgba(255, 255, 255, 0.1)",
+              barPercentage: 0.82,
+              categoryPercentage: 0.74,
+              order: 3,
+              valueLabelColor: getCssVar("--muted-foreground") || "#94a3b8",
+            } as any,
+            {
+              type: "bar",
               label: "ACTUAL",
               data: actual,
               backgroundColor: (ctx: any) => {
                 const chart = ctx.chart;
                 return createVerticalGradient(chart.ctx, chart.chartArea, "#38bdf8", "#0284c7");
               },
-              borderRadius: { topLeft: 6, topRight: 6 },
+              borderRadius: { topLeft: 4, topRight: 4 },
               borderSkipped: false,
               borderWidth: 1,
-              borderColor: "rgba(255, 255, 255, 0.15)",
-              barPercentage: 0.52,
-              categoryPercentage: 0.72,
+              borderColor: "rgba(255, 255, 255, 0.2)",
+              barPercentage: 0.82,
+              categoryPercentage: 0.74,
               order: 2,
             },
             {
@@ -1765,7 +1822,7 @@ export default function DashboardClient() {
                 label: (ctx: any) => `${ctx.dataset.label}: ${fmtNum(ctx.parsed.y)}%`,
               },
             },
-            varianceArrows: { enabled: true, fmt: (v: any) => fmtNum(v) + "%" },
+            varianceArrows: { enabled: true, actualIndex: 1, targetIndex: 2, fmt: (v: any) => fmtNum(v) + "%" },
             barValueLabels: { enabled: true, fmt: (v: any) => fmtNum(v) + "%" },
           } as any,
           scales: {
@@ -1779,7 +1836,7 @@ export default function DashboardClient() {
               grid: { color: getCssVar("--chart-grid") || "#334155", drawTicks: false },
               border: { display: false },
               beginAtZero: true,
-              suggestedMax: (() => { const mx = Math.max(...actual.filter(Boolean), ...target.filter(Boolean) as number[]); return mx > 0 ? Math.ceil(mx * 1.15) : 110; })(),
+              suggestedMax: (() => { const mx = Math.max(...actual.filter(Boolean), ...prevActual.filter(Boolean), ...target.filter(Boolean) as number[]); return mx > 0 ? Math.ceil(mx * 1.15) : 110; })(),
             },
           },
         },
@@ -1791,6 +1848,7 @@ export default function DashboardClient() {
         chartInstances.current.internalGsph.destroy();
       }
       const labels = MACHINES.map((m) => m.label);
+      const prevActual = MACHINES.map((m) => Number((machineDataMap[m.key]?.prevGsph || 0).toFixed(0)));
       const actual = MACHINES.map((m) => Number((machineDataMap[m.key]?.gsph || 0).toFixed(0)));
       const target = MACHINES.map((m) => machineDataMap[m.key]?.targetGsph || null);
       destroyChartOnCanvas(internalGsphRef.current);
@@ -1800,18 +1858,35 @@ export default function DashboardClient() {
           datasets: [
             {
               type: "bar",
+              label: "THN LALU",
+              data: prevActual,
+              backgroundColor: (ctx: any) => {
+                const chart = ctx.chart;
+                return createVerticalGradient(chart.ctx, chart.chartArea, "#64748b", "#334155");
+              },
+              borderRadius: { topLeft: 4, topRight: 4 },
+              borderSkipped: false,
+              borderWidth: 1,
+              borderColor: "rgba(255, 255, 255, 0.1)",
+              barPercentage: 0.82,
+              categoryPercentage: 0.74,
+              order: 3,
+              valueLabelColor: getCssVar("--muted-foreground") || "#94a3b8",
+            } as any,
+            {
+              type: "bar",
               label: "ACTUAL",
               data: actual,
               backgroundColor: (ctx: any) => {
                 const chart = ctx.chart;
                 return createVerticalGradient(chart.ctx, chart.chartArea, "#34d399", "#059669");
               },
-              borderRadius: { topLeft: 6, topRight: 6 },
+              borderRadius: { topLeft: 4, topRight: 4 },
               borderSkipped: false,
               borderWidth: 1,
-              borderColor: "rgba(255, 255, 255, 0.15)",
-              barPercentage: 0.52,
-              categoryPercentage: 0.72,
+              borderColor: "rgba(255, 255, 255, 0.2)",
+              barPercentage: 0.82,
+              categoryPercentage: 0.74,
               order: 2,
             },
             {
@@ -1856,7 +1931,7 @@ export default function DashboardClient() {
                 label: (ctx: any) => `${ctx.dataset.label}: ${fmtNum(ctx.parsed.y)}`,
               },
             },
-            varianceArrows: { enabled: true, fmt: (v: any) => fmtNum(v) },
+            varianceArrows: { enabled: true, actualIndex: 1, targetIndex: 2, fmt: (v: any) => fmtNum(v) },
             barValueLabels: { enabled: true, fmt: (v: any) => fmtNum(v) },
           } as any,
           scales: {
@@ -1870,7 +1945,7 @@ export default function DashboardClient() {
               grid: { color: getCssVar("--chart-grid") || "#334155", drawTicks: false },
               border: { display: false },
               beginAtZero: true,
-              suggestedMax: (() => { const mx = Math.max(...actual.filter(Boolean), ...target.filter(Boolean) as number[]); return mx > 0 ? Math.ceil(mx * 1.15) : 10; })(),
+              suggestedMax: (() => { const mx = Math.max(...actual.filter(Boolean), ...prevActual.filter(Boolean), ...target.filter(Boolean) as number[]); return mx > 0 ? Math.ceil(mx * 1.15) : 10; })(),
             },
           },
         },
