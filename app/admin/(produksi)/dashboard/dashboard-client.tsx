@@ -842,11 +842,16 @@ export default function DashboardClient() {
 
       const settingsMap: Record<string, { mode: string; fixed: number; targetAvailability: number }> = {};
       (settingsRes.data || []).forEach((r: any) => {
-        settingsMap[r.mesin] = {
+        const item = {
           mode: r.gsph_target_mode || "fixed",
           fixed: Number(r.gsph_target_fixed) || 0,
           targetAvailability: Number(r.target_availability) || 0,
         };
+        settingsMap[r.mesin] = item;
+        if (typeof r.mesin === "string") {
+          settingsMap[r.mesin.replace(/-/g, "_")] = item;
+          settingsMap[r.mesin.replace(/_/g, "-")] = item;
+        }
       });
 
       let totalStroke = 0, totalNG = 0, totalNgValue = 0, totalDowntime = 0, totalDandori = 0, totalWhJam = 0;
@@ -856,6 +861,13 @@ export default function DashboardClient() {
       let lineAktifCount = 0;
       const tanpaTargetLabels: string[] = [];
 
+      let defaultShiftMenit = 480;
+      if (periodMode === "bulanan") {
+        defaultShiftMenit = 22 * 480;
+      } else if (periodMode === "tahunan") {
+        defaultShiftMenit = 250 * 480;
+      }
+
       MACHINES.forEach((m, idx) => {
         const row = (aggResults[idx].data && aggResults[idx].data[0]) || {};
         const stroke = Number(row.stroke) || 0;
@@ -863,18 +875,29 @@ export default function DashboardClient() {
         const ngValue = Number(row.ng_value) || 0;
         const downtimeMenit = Math.round(Number(row.downtime_menit) || 0);
         const dandoriMenit = Math.round(Number(row.dandori_menit) || 0);
-        const whJam = (Number(row.wh_menit) || 0) / 60;
+        let whJam = (Number(row.wh_menit) || 0) / 60;
         const targetStdMenit = Number(row.target_std_menit) || 0;
+
+        // Fallback: jika wh_menit = 0 tapi ada aktivitas (stroke/downtime/dandori),
+        // gunakan estimasi shift default agar availability bar dan OEE terhitung dengan benar
+        if (whJam === 0 && (stroke > 0 || downtimeMenit > 0 || dandoriMenit > 0)) {
+          const baseShift = Math.max(defaultShiftMenit, downtimeMenit + dandoriMenit);
+          whJam = baseShift / 60;
+        }
 
         // Data tahun sebelumnya (YoY)
         const prevRow = (prevAggResults[idx]?.data && prevAggResults[idx]?.data[0]) || {};
         const prevStroke = Number(prevRow.stroke) || 0;
         const prevDowntime = Math.round(Number(prevRow.downtime_menit) || 0);
-        const prevWhJam = (Number(prevRow.wh_menit) || 0) / 60;
+        let prevWhJam = (Number(prevRow.wh_menit) || 0) / 60;
+        if (prevWhJam === 0 && (prevStroke > 0 || prevDowntime > 0)) {
+          const prevBaseShift = Math.max(defaultShiftMenit, prevDowntime);
+          prevWhJam = prevBaseShift / 60;
+        }
         const prevAvailability = prevWhJam > 0 ? Math.max(0, (prevWhJam * 60 - prevDowntime) / (prevWhJam * 60)) * 100 : 0;
         const prevGsph = prevWhJam > 0 ? prevStroke / prevWhJam : 0;
 
-        const settings = settingsMap[m.key];
+        const settings = settingsMap[m.key] || settingsMap[m.slug];
         const explicitTargetSet = !!settings && (
           settings.fixed > 0 || (settings.mode === "per_part" && targetStdMenit > 0)
         );

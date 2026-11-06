@@ -53,22 +53,22 @@ LANGUAGE sql STABLE AS $$
       COALESCE(SUM(COALESCE(qty, 0) + COALESCE(ng, 0)), 0) AS stroke,
       COALESCE(SUM(COALESCE(ng, 0)), 0) AS ng,
       0::numeric AS ng_value,
-      COALESCE(SUM(CASE WHEN waktu_akhir IS NOT NULL THEN EXTRACT(EPOCH FROM (waktu_akhir - waktu_awal))/60 ELSE 0 END), 0) AS wh_menit,
+      COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(waktu_akhir, NOW()) - waktu_awal))/60), 0) AS wh_menit,
       0::numeric AS target_std_menit
     FROM prod_production_log 
-    WHERE is_active = true AND mesin = p_mesin
+    WHERE is_active = true AND (mesin::text = p_mesin OR REPLACE(mesin::text, '-', '_') = REPLACE(p_mesin, '-', '_'))
       AND (p_stasiun_list IS NULL OR stasiun = ANY(p_stasiun_list))
       AND waktu_awal >= p_start AND waktu_awal < p_end
   ), dt AS (
     SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (waktu_akhir - waktu_awal))/60), 0) AS downtime_menit
     FROM prod_downtime_log 
-    WHERE is_active = true AND mesin = p_mesin
+    WHERE is_active = true AND (mesin::text = p_mesin OR REPLACE(mesin::text, '-', '_') = REPLACE(p_mesin, '-', '_'))
       AND (p_stasiun_list IS NULL OR stasiun = ANY(p_stasiun_list))
       AND waktu_awal >= p_start AND waktu_awal < p_end
   ), dandori AS (
     SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(waktu_akhir, waktu_awal) - waktu_awal))/60) - COALESCE(SUM(break_menit), 0), 0) AS dandori_menit
     FROM prod_dandori_log 
-    WHERE is_active = true AND mesin = p_mesin
+    WHERE is_active = true AND (mesin::text = p_mesin OR REPLACE(mesin::text, '-', '_') = REPLACE(p_mesin, '-', '_'))
       AND (p_stasiun_list IS NULL OR stasiun = ANY(p_stasiun_list))
       AND waktu_awal >= p_start AND waktu_awal < p_end
   )
@@ -85,7 +85,7 @@ LANGUAGE sql STABLE AS $$
     COALESCE(problem, '-') AS problem, 
     ROUND(SUM(EXTRACT(EPOCH FROM (waktu_akhir - waktu_awal))/60), 1) AS total_menit
   FROM prod_downtime_log 
-  WHERE is_active = true AND mesin = p_mesin
+  WHERE is_active = true AND (mesin::text = p_mesin OR REPLACE(mesin::text, '-', '_') = REPLACE(p_mesin, '-', '_'))
     AND (p_stasiun_list IS NULL OR stasiun = ANY(p_stasiun_list))
     AND waktu_awal >= p_start AND waktu_awal < p_end
   GROUP BY kategori, problem 
@@ -101,7 +101,7 @@ LANGUAGE sql STABLE AS $$
     COALESCE(kategori, 'OTHER') AS kategori, 
     ROUND(SUM(EXTRACT(EPOCH FROM (waktu_akhir - waktu_awal))/60), 1) AS total_menit
   FROM prod_downtime_log 
-  WHERE is_active = true AND mesin = p_mesin
+  WHERE is_active = true AND (mesin::text = p_mesin OR REPLACE(mesin::text, '-', '_') = REPLACE(p_mesin, '-', '_'))
     AND (p_stasiun_list IS NULL OR stasiun = ANY(p_stasiun_list))
     AND waktu_awal >= p_start AND waktu_awal < p_end
   GROUP BY kategori 
@@ -117,7 +117,7 @@ LANGUAGE sql STABLE AS $$
          THEN ROUND(SUM(COALESCE(qty, 0) + COALESCE(ng, 0)) / SUM(EXTRACT(EPOCH FROM (COALESCE(waktu_akhir, waktu_awal) - waktu_awal))/3600), 1)
          ELSE 0 END AS gsph
   FROM prod_production_log 
-  WHERE is_active = true AND mesin = p_mesin AND waktu_awal >= p_start AND waktu_awal < p_end
+  WHERE is_active = true AND (mesin::text = p_mesin OR REPLACE(mesin::text, '-', '_') = REPLACE(p_mesin, '-', '_')) AND waktu_awal >= p_start AND waktu_awal < p_end
   GROUP BY 1 ORDER BY 1;
 $$;
 
@@ -130,7 +130,7 @@ LANGUAGE sql STABLE AS $$
          THEN ROUND(SUM(COALESCE(qty, 0) + COALESCE(ng, 0)) / SUM(EXTRACT(EPOCH FROM (COALESCE(waktu_akhir, waktu_awal) - waktu_awal))/3600), 1)
          ELSE 0 END AS gsph
   FROM prod_production_log 
-  WHERE is_active = true AND mesin = p_mesin AND waktu_awal >= p_start AND waktu_awal < p_end
+  WHERE is_active = true AND (mesin::text = p_mesin OR REPLACE(mesin::text, '-', '_') = REPLACE(p_mesin, '-', '_')) AND waktu_awal >= p_start AND waktu_awal < p_end
   GROUP BY 1 ORDER BY 1;
 $$;
 
@@ -189,13 +189,13 @@ LANGUAGE sql STABLE AS $$
   WITH plan AS (
     SELECT COALESCE(SUM(qty_rencana), 0) AS rencana
     FROM prod_production_planning
-    WHERE is_active = true AND mesin = p_mesin
+    WHERE is_active = true AND (mesin::text = p_mesin OR REPLACE(mesin::text, '-', '_') = REPLACE(p_mesin, '-', '_'))
       AND jam_rencana_mulai >= p_start AND jam_rencana_mulai < p_end
   ),
   act AS (
     SELECT COALESCE(SUM(qty), 0) AS aktual
     FROM prod_production_log
-    WHERE is_active = true AND mesin = p_mesin
+    WHERE is_active = true AND (mesin::text = p_mesin OR REPLACE(mesin::text, '-', '_') = REPLACE(p_mesin, '-', '_'))
       AND waktu_awal >= p_start AND waktu_awal < p_end
   )
   SELECT plan.rencana, act.aktual FROM plan, act;
