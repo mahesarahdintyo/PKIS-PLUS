@@ -115,6 +115,8 @@ export default function ProductionReportsDashboard() {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
+  const lastBackgroundRefreshRef = useRef(0);
+
   const loadReports = useCallback(
     async ({ showLoading = true }: { showLoading?: boolean } = {}) => {
       const requestId = reportsRequestIdRef.current + 1;
@@ -189,6 +191,9 @@ export default function ProductionReportsDashboard() {
 
   useEffect(() => {
     const refreshReports = () => {
+      const now = Date.now();
+      if (now - lastBackgroundRefreshRef.current < 15000) return;
+      lastBackgroundRefreshRef.current = now;
       void loadReports({ showLoading: false });
     };
 

@@ -146,6 +146,7 @@ export default function ProductionLogDashboard() {
   const [error, setError] = useState("");
   const [downtimeList, setDowntimeList] = useState<any[]>([]);
   const requestIdRef = useRef(0);
+  const lastBgRefreshRef = useRef(0);
 
   // Filters (default to current month)
   const defaultRange = useMemo(() => getDefaultMonthRange(), []);
@@ -242,7 +243,7 @@ export default function ProductionLogDashboard() {
         if (endDate) params.endDate = endDate;
 
         const dtParams: Parameters<typeof downtimeApi.get>[0] = {
-          limit: 1000,
+          limit: 250,
           is_active: true,
         };
         if (selectedLineId !== "all") dtParams.line_id = selectedLineId;
@@ -407,7 +408,12 @@ export default function ProductionLogDashboard() {
   }, [loadLogs]);
 
   useEffect(() => {
-    const refresh = () => void loadLogs({ showLoading: false });
+    const refresh = () => {
+      const now = Date.now();
+      if (now - lastBgRefreshRef.current < 15000) return;
+      lastBgRefreshRef.current = now;
+      void loadLogs({ showLoading: false });
+    };
     const unsubProd = subscribeToSocketEvent("prod_production_log", "*", refresh);
     const unsubDandori = subscribeToSocketEvent("prod_dandori_log", "*", refresh);
     const unsubDt = subscribeToSocketEvent("prod_downtime_log", "*", refresh);

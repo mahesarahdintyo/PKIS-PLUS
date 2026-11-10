@@ -1,6 +1,11 @@
 // app/api/produksi/downtime/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import {
+  getCachedLines,
+  buildLineFilterConditions,
+  resolveLineInfo,
+} from "@/lib/services/line-filter";
 
 function parseDateParam(val: string | null | undefined, isEnd = false): Date | null {
   if (!val || val === "undefined" || val === "null") return null;
@@ -50,11 +55,25 @@ export async function GET(request: Request) {
     const isActiveStr = searchParams.get("is_active");
     const isActive = isActiveStr !== null ? isActiveStr === "true" : true;
 
+    const allLines = await getCachedLines();
+    const lineOrMesin =
+      lineId && lineId !== "all" && lineId !== "undefined"
+        ? lineId
+        : mesin && mesin !== "all" && mesin !== "undefined"
+        ? mesin
+        : null;
+
+    const lineFilterConds = buildLineFilterConditions(lineOrMesin, allLines);
+
     const where: any = {};
+    const andConditions: any[] = [];
+
     if (isActiveStr !== "all") where.is_active = isActive;
-    if (mesin && mesin !== "all") where.mesin = mesin;
     if (kategori && kategori !== "all") where.kategori = kategori;
-    if (lineId && lineId !== "all") where.line_id = lineId;
+
+    if (lineFilterConds && lineFilterConds.length > 0) {
+      andConditions.push({ OR: lineFilterConds });
+    }
 
     if (pStart || pEnd) {
       const gte = parseDateParam(pStart, false);
@@ -74,7 +93,11 @@ export async function GET(request: Request) {
       }
     }
 
-    const data = await prisma.prodDowntimeLog.findMany({
+    if (andConditions.length > 0) {
+      where.AND = andConditions;
+    }
+
+    const raw = await prisma.prodDowntimeLog.findMany({
       where,
       orderBy: [
         { waktu_awal: "desc" },
@@ -82,6 +105,15 @@ export async function GET(request: Request) {
       ],
       ...(take ? { take } : {}),
       ...(skip ? { skip } : {}),
+    });
+
+    const data = raw.map((r) => {
+      const info = resolveLineInfo(r, allLines);
+      return {
+        ...r,
+        line_id: info.line_id || r.line_id || null,
+        line_name: info.line_name,
+      };
     });
 
     return NextResponse.json({ data, error: null });

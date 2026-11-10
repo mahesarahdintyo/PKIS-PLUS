@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserProfile } from "@/lib/services/auth-server";
+import {
+  getCachedLines,
+  buildLineFilterConditions,
+  resolveLineInfo,
+} from "@/lib/services/line-filter";
 import { NextResponse } from "next/server";
 
 function formatDatePart(dateVal?: Date | string | null): string {
@@ -42,7 +47,9 @@ export async function GET(request: Request) {
         ? userProfile.lineId
         : reqLineId;
 
+    const allLines = await getCachedLines();
     const where: any = {};
+    const andConditions: any[] = [];
 
     if (showTrash) {
       where.is_active = false;
@@ -51,7 +58,10 @@ export async function GET(request: Request) {
     }
 
     if (lineId && lineId !== "all" && lineId !== "undefined") {
-      where.line_id = lineId;
+      const lineConds = buildLineFilterConditions(lineId, allLines);
+      if (lineConds && lineConds.length > 0) {
+        andConditions.push({ OR: lineConds });
+      }
     }
 
     const isValidDateStr = (s: string | null) =>
@@ -75,11 +85,9 @@ export async function GET(request: Request) {
 
     if (searchParam && searchParam.trim()) {
       const q = searchParam.trim();
-      const matchingLines = await prisma.line.findMany({
-        where: { name: { contains: q, mode: "insensitive" } },
-        select: { id: true },
-      });
-      const matchingLineIds = matchingLines.map((l) => l.id);
+      const matchingLineIds = allLines
+        .filter((l) => l.name.toLowerCase().includes(q.toLowerCase()))
+        .map((l) => l.id);
 
       const orConditions: any[] = [
         { part_number: { contains: q, mode: "insensitive" } },
@@ -89,7 +97,11 @@ export async function GET(request: Request) {
       if (matchingLineIds.length > 0) {
         orConditions.push({ line_id: { in: matchingLineIds } });
       }
-      where.OR = orConditions;
+      andConditions.push({ OR: orConditions });
+    }
+
+    if (andConditions.length > 0) {
+      where.AND = andConditions;
     }
 
     if (pageParam !== null) {
@@ -97,7 +109,7 @@ export async function GET(request: Request) {
       const pageSize = Math.max(1, parseInt(pageSizeParam || "25", 10) || 25);
       const skip = (page - 1) * pageSize;
 
-      const [total, aggRes, distinctLines, rows] = await Promise.all([
+      const [total, aggRes, distinctMesin, rows] = await Promise.all([
         prisma.prodProductionLog.count({ where }),
         prisma.prodProductionLog.aggregate({
           where,
@@ -108,9 +120,10 @@ export async function GET(request: Request) {
           },
         }),
         prisma.prodProductionLog.findMany({
-          where: { ...where, line_id: { not: null } },
-          distinct: ["line_id"],
-          select: { line_id: true },
+          where,
+          distinct: ["mesin"],
+          select: { mesin: true, line_id: true },
+          take: 50,
         }),
         prisma.prodProductionLog.findMany({
           where,
@@ -127,10 +140,6 @@ export async function GET(request: Request) {
         new Set(rows.map((r: any) => r.created_by).filter(Boolean))
       ) as string[];
 
-      const lineIds = Array.from(
-        new Set(rows.map((r: any) => r.line_id).filter(Boolean))
-      ) as string[];
-
       let profilesMap: Record<string, string> = {};
       if (userIds.length > 0) {
         const profiles = await prisma.profile.findMany({
@@ -142,39 +151,36 @@ export async function GET(request: Request) {
         );
       }
 
-      let linesMap: Record<string, string> = {};
-      if (lineIds.length > 0) {
-        const lines = await prisma.line.findMany({
-          where: { id: { in: lineIds } },
-          select: { id: true, name: true },
-        });
-        linesMap = Object.fromEntries(lines.map((l) => [l.id, l.name]));
-      }
-
-      const mappedReports = rows.map((row: any) => ({
-        id: row.id,
-        line_id: row.line_id || "",
-        report_date: formatDatePart(row.waktu_awal),
-        start_time: formatTimePart(row.waktu_awal),
-        end_time: formatTimePart(row.waktu_akhir),
-        operator_name: (row.created_by ? profilesMap[row.created_by] : null) || "-",
-        part_number: row.part_number || "-",
-        qty: Number(row.qty) || 0,
-        ng_qty: Number(row.ng) || 0,
-        break_minutes: Number(row.break_menit) || 0,
-        ng_category: row.kategori_ng ?? null,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-        line: row.line_id && linesMap[row.line_id] ? { name: linesMap[row.line_id] } : null,
-        is_active: row.is_active,
-      }));
+      const mappedReports = rows.map((row: any) => {
+        const lineInfo = resolveLineInfo(row, allLines);
+        return {
+          id: row.id,
+          line_id: lineInfo.line_id || row.line_id || "",
+          report_date: formatDatePart(row.waktu_awal),
+          start_time: formatTimePart(row.waktu_awal),
+          end_time: formatTimePart(row.waktu_akhir),
+          operator_name: (row.created_by ? profilesMap[row.created_by] : null) || "-",
+          part_number: row.part_number || "-",
+          qty: Number(row.qty) || 0,
+          ng_qty: Number(row.ng) || 0,
+          break_minutes: Number(row.break_menit) || 0,
+          ng_category: row.kategori_ng ?? null,
+          created_at: row.created_at,
+          updated_at: row.updated_at,
+          line: { name: lineInfo.line_name },
+          is_active: row.is_active,
+        };
+      });
 
       const totalQty = Number(aggRes._sum.qty) || 0;
       const totalNgQty = Number(aggRes._sum.ng) || 0;
       const totalOkQty = totalQty - totalNgQty;
       const totalBreak = Number(aggRes._sum.break_menit) || 0;
       const avgNgRate = totalQty > 0 ? (totalNgQty / totalQty) * 100 : 0;
-      const activeLinesCount = distinctLines.length;
+      const activeLineNames = new Set(
+        distinctMesin.map((m) => resolveLineInfo(m, allLines).line_name)
+      );
+      const activeLinesCount = activeLineNames.size;
 
       return NextResponse.json({
         data: mappedReports,
@@ -201,6 +207,7 @@ export async function GET(request: Request) {
         take = parsedLimit;
       }
     }
+    const safeTake = take ? Math.min(take, 10000) : 5000;
 
     const rows = await prisma.prodProductionLog.findMany({
       where,
@@ -208,15 +215,11 @@ export async function GET(request: Request) {
         { waktu_awal: "desc" },
         { created_at: "desc" },
       ],
-      ...(take ? { take } : {}),
+      take: safeTake,
     });
 
     const userIds = Array.from(
       new Set(rows.map((r: any) => r.created_by).filter(Boolean))
-    ) as string[];
-
-    const lineIds = Array.from(
-      new Set(rows.map((r: any) => r.line_id).filter(Boolean))
     ) as string[];
 
     let profilesMap: Record<string, string> = {};
@@ -230,32 +233,26 @@ export async function GET(request: Request) {
       );
     }
 
-    let linesMap: Record<string, string> = {};
-    if (lineIds.length > 0) {
-      const lines = await prisma.line.findMany({
-        where: { id: { in: lineIds } },
-        select: { id: true, name: true },
-      });
-      linesMap = Object.fromEntries(lines.map((l) => [l.id, l.name]));
-    }
-
-    const mappedReports = rows.map((row: any) => ({
-      id: row.id,
-      line_id: row.line_id || "",
-      report_date: formatDatePart(row.waktu_awal),
-      start_time: formatTimePart(row.waktu_awal),
-      end_time: formatTimePart(row.waktu_akhir),
-      operator_name: (row.created_by ? profilesMap[row.created_by] : null) || "-",
-      part_number: row.part_number || "-",
-      qty: Number(row.qty) || 0,
-      ng_qty: Number(row.ng) || 0,
-      break_minutes: Number(row.break_menit) || 0,
-      ng_category: row.kategori_ng ?? null,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-      line: row.line_id && linesMap[row.line_id] ? { name: linesMap[row.line_id] } : null,
-      is_active: row.is_active,
-    }));
+    const mappedReports = rows.map((row: any) => {
+      const lineInfo = resolveLineInfo(row, allLines);
+      return {
+        id: row.id,
+        line_id: lineInfo.line_id || row.line_id || "",
+        report_date: formatDatePart(row.waktu_awal),
+        start_time: formatTimePart(row.waktu_awal),
+        end_time: formatTimePart(row.waktu_akhir),
+        operator_name: (row.created_by ? profilesMap[row.created_by] : null) || "-",
+        part_number: row.part_number || "-",
+        qty: Number(row.qty) || 0,
+        ng_qty: Number(row.ng) || 0,
+        break_minutes: Number(row.break_menit) || 0,
+        ng_category: row.kategori_ng ?? null,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        line: { name: lineInfo.line_name },
+        is_active: row.is_active,
+      };
+    });
 
     return NextResponse.json(mappedReports);
   } catch (error: any) {

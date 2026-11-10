@@ -1,6 +1,11 @@
 // app/api/produksi/logs/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import {
+  getCachedLines,
+  buildLineFilterConditions,
+  resolveLineInfo,
+} from "@/lib/services/line-filter";
 
 function parseDateParam(val: string | null | undefined, isEnd = false): Date | null {
   if (!val || val === "undefined" || val === "null") return null;
@@ -47,11 +52,25 @@ export async function GET(request: Request) {
     const isActiveStr = searchParams.get("is_active");
     const isActive = isActiveStr !== null ? isActiveStr === "true" : true;
 
+    const allLines = await getCachedLines();
+    const lineOrMesin =
+      lineId && lineId !== "all" && lineId !== "undefined"
+        ? lineId
+        : mesin && mesin !== "all" && mesin !== "undefined"
+        ? mesin
+        : null;
+
+    const lineFilterConds = buildLineFilterConditions(lineOrMesin, allLines);
+
     const buildWhere = (forTable: "production" | "dandori" = "production") => {
       const where: any = {};
+      const andConditions: any[] = [];
+
       if (isActiveStr !== "all") where.is_active = isActive;
-      if (mesin && mesin !== "all") where.mesin = mesin;
-      if (lineId && lineId !== "all") where.line_id = lineId;
+
+      if (lineFilterConds && lineFilterConds.length > 0) {
+        andConditions.push({ OR: lineFilterConds });
+      }
 
       if (pStart || pEnd) {
         const gte = parseDateParam(pStart, false);
@@ -74,36 +93,42 @@ export async function GET(request: Request) {
       if (searchParam && searchParam.trim()) {
         const q = searchParam.trim();
         if (forTable === "production") {
-          where.OR = [
-            { part_number: { contains: q, mode: "insensitive" } },
-            { kode: { contains: q, mode: "insensitive" } },
-            { mesin: { contains: q, mode: "insensitive" } },
-            { stasiun: { contains: q, mode: "insensitive" } },
-          ];
+          andConditions.push({
+            OR: [
+              { part_number: { contains: q, mode: "insensitive" } },
+              { kode: { contains: q, mode: "insensitive" } },
+              { mesin: { contains: q, mode: "insensitive" } },
+              { stasiun: { contains: q, mode: "insensitive" } },
+            ],
+          });
         } else {
-          where.OR = [
-            { part_ke: { contains: q, mode: "insensitive" } },
-            { part_dari: { contains: q, mode: "insensitive" } },
-            { keterangan: { contains: q, mode: "insensitive" } },
-            { mesin: { contains: q, mode: "insensitive" } },
-          ];
+          andConditions.push({
+            OR: [
+              { part_ke: { contains: q, mode: "insensitive" } },
+              { part_dari: { contains: q, mode: "insensitive" } },
+              { keterangan: { contains: q, mode: "insensitive" } },
+              { mesin: { contains: q, mode: "insensitive" } },
+            ],
+          });
         }
       }
+
+      if (andConditions.length > 0) {
+        where.AND = andConditions;
+      }
+
       return where;
     };
 
-    const attachLineNames = async (rows: any[]) => {
-      const lineIds = Array.from(new Set(rows.map((r: any) => r.line_id).filter(Boolean))) as string[];
-      if (lineIds.length === 0) return rows;
-      const lines = await prisma.line.findMany({
-        where: { id: { in: lineIds } },
-        select: { id: true, name: true },
+    const attachLineNames = (rows: any[]) => {
+      return rows.map((r) => {
+        const info = resolveLineInfo(r, allLines);
+        return {
+          ...r,
+          line_id: info.line_id || r.line_id || null,
+          line: { name: info.line_name },
+        };
       });
-      const linesMap = Object.fromEntries(lines.map((l) => [l.id, l.name]));
-      return rows.map((r) => ({
-        ...r,
-        line: r.line_id && linesMap[r.line_id] ? { name: linesMap[r.line_id] } : null,
-      }));
     };
 
     if (pageParam !== null) {
@@ -122,7 +147,7 @@ export async function GET(request: Request) {
             take: pageSize,
           }),
         ]);
-        const data = await attachLineNames(raw);
+        const data = attachLineNames(raw);
         return NextResponse.json({
           data,
           total,
@@ -144,7 +169,7 @@ export async function GET(request: Request) {
             take: pageSize,
           }),
         ]);
-        const data = await attachLineNames(raw);
+        const data = attachLineNames(raw);
         return NextResponse.json({
           data,
           total,
@@ -179,10 +204,8 @@ export async function GET(request: Request) {
         }),
       ]);
 
-      const [prodAttached, dandoriAttached] = await Promise.all([
-        attachLineNames(rawProd),
-        attachLineNames(rawDandori),
-      ]);
+      const prodAttached = attachLineNames(rawProd);
+      const dandoriAttached = attachLineNames(rawDandori);
 
       const combined = [
         ...prodAttached.map((p) => ({ ...p, _kind: "production" })),
@@ -203,13 +226,15 @@ export async function GET(request: Request) {
       });
     }
 
+    const safeTake = take ? Math.min(take, 10000) : 5000;
+
     if (table === "production") {
       const raw = await prisma.prodProductionLog.findMany({
         where: buildWhere("production"),
         orderBy: [{ waktu_awal: "desc" }, { created_at: "desc" }],
-        ...(take ? { take } : {}),
+        take: safeTake,
       });
-      const data = await attachLineNames(raw);
+      const data = attachLineNames(raw);
       return NextResponse.json({ data, error: null });
     }
 
@@ -217,9 +242,9 @@ export async function GET(request: Request) {
       const raw = await prisma.prodDandoriLog.findMany({
         where: buildWhere("dandori"),
         orderBy: [{ waktu_awal: "desc" }, { created_at: "desc" }],
-        ...(take ? { take } : {}),
+        take: safeTake,
       });
-      const data = await attachLineNames(raw);
+      const data = attachLineNames(raw);
       return NextResponse.json({ data, error: null });
     }
 
@@ -228,19 +253,17 @@ export async function GET(request: Request) {
       prisma.prodProductionLog.findMany({
         where: buildWhere("production"),
         orderBy: [{ waktu_awal: "desc" }, { created_at: "desc" }],
-        ...(take ? { take } : {}),
+        take: safeTake,
       }),
       prisma.prodDandoriLog.findMany({
         where: buildWhere("dandori"),
         orderBy: [{ waktu_awal: "desc" }, { created_at: "desc" }],
-        ...(take ? { take } : {}),
+        take: safeTake,
       }),
     ]);
 
-    const [production, dandori] = await Promise.all([
-      attachLineNames(rawProd),
-      attachLineNames(rawDandori),
-    ]);
+    const production = attachLineNames(rawProd);
+    const dandori = attachLineNames(rawDandori);
 
     return NextResponse.json({
       data: { production, dandori },
