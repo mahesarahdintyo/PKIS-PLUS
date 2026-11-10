@@ -929,7 +929,7 @@ export default function DashboardClient() {
         const availability = loadingMenit > 0 ? Math.min(100, (operatingMenit / loadingMenit) * 100) : 0;
 
         let whJam = actualOpMenit / 60;
-        if (whJam === 0 && stroke > 0) {
+        if ((whJam === 0 || whJam > (250 * 24)) && stroke > 0) {
           whJam = targetStdMenit > 0 ? targetStdMenit / 60 : (stroke / (settings?.fixed || 500));
         }
 
@@ -945,7 +945,7 @@ export default function DashboardClient() {
         const prevOperatingMenit = Math.max(0, prevLoadingMenit - prevDowntime);
         const prevAvailability = prevLoadingMenit > 0 ? Math.min(100, (prevOperatingMenit / prevLoadingMenit) * 100) : 0;
         let prevWhJam = prevActualOpMenit / 60;
-        if (prevWhJam === 0 && prevStroke > 0) {
+        if ((prevWhJam === 0 || prevWhJam > (250 * 24)) && prevStroke > 0) {
           prevWhJam = prevStroke / (settings?.fixed || 500);
         }
         const prevGsph = prevWhJam > 0 ? prevStroke / prevWhJam : 0;
