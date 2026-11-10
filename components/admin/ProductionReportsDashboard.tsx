@@ -28,6 +28,7 @@ import {
   getProductionReports,
   deleteProductionReport,
   type ProductionReport,
+  type ProductionReportStats,
 } from "@/lib/services/production-report";
 import { Button } from "@/components/ui/button";
 import { subscribeToSocketEvent } from "@/lib/api-client";
@@ -35,21 +36,38 @@ import { toast } from "sonner";
 
 const PRODUCTION_REPORT_REFRESH_INTERVAL_MS = 60000;
 
+function getDefaultMonthRange() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return {
+    startDate: `${year}-${month}-01`,
+    endDate: `${year}-${month}-${day}`,
+  };
+}
+
 export default function ProductionReportsDashboard() {
   const [reports, setReports] = useState<ProductionReport[]>([]);
   const [lines, setLines] = useState<Line[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Filters state
+  // Filters state (default to current month)
+  const defaultRange = useMemo(() => getDefaultMonthRange(), []);
   const [selectedLineId, setSelectedLineId] = useState("all");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState(defaultRange.startDate);
+  const [endDate, setEndDate] = useState(defaultRange.endDate);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
-  // Pagination state
+  // Pagination state (Server-side)
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [totalCount, setTotalCount] = useState(0);
+  const [serverTotalPages, setServerTotalPages] = useState(1);
+  const [serverStats, setServerStats] = useState<ProductionReportStats | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Modal Delete state
   const [deleteTarget, setDeleteTarget] = useState<ProductionReport | null>(null);
@@ -88,6 +106,15 @@ export default function ProductionReportsDashboard() {
     }, 200);
   };
 
+  // Debounce search query
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setCurrentPage(1);
+    }, 350);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
   const loadReports = useCallback(
     async ({ showLoading = true }: { showLoading?: boolean } = {}) => {
       const requestId = reportsRequestIdRef.current + 1;
@@ -103,11 +130,24 @@ export default function ProductionReportsDashboard() {
           lineId: selectedLineId !== "all" ? selectedLineId : undefined,
           startDate: startDate || undefined,
           endDate: endDate || undefined,
+          page: currentPage,
+          pageSize,
+          search: debouncedSearch.trim() || undefined,
         };
-        const reportsData = await getProductionReports(query);
+        const res = await getProductionReports(query);
 
         if (reportsRequestIdRef.current !== requestId) return;
-        setReports(reportsData);
+        if (res && "data" in res) {
+          setReports(res.data);
+          setTotalCount(res.total);
+          setServerTotalPages(res.totalPages);
+          if (res.stats) setServerStats(res.stats);
+        } else if (Array.isArray(res as any)) {
+          const arr = res as unknown as ProductionReport[];
+          setReports(arr);
+          setTotalCount(arr.length);
+          setServerTotalPages(Math.max(1, Math.ceil(arr.length / pageSize)));
+        }
       } catch (err) {
         if (reportsRequestIdRef.current !== requestId) return;
         setError(err instanceof Error ? err.message : "Gagal memperbarui data");
@@ -118,7 +158,7 @@ export default function ProductionReportsDashboard() {
         }
       }
     },
-    [endDate, selectedLineId, startDate]
+    [endDate, selectedLineId, startDate, currentPage, pageSize, debouncedSearch]
   );
 
   // Load lines once for the filter options
@@ -143,7 +183,7 @@ export default function ProductionReportsDashboard() {
   useEffect(() => {
     const delayDebounce = window.setTimeout(() => {
       void loadReports();
-    }, 100);
+    }, 50);
     return () => window.clearTimeout(delayDebounce);
   }, [loadReports]);
 
@@ -173,44 +213,28 @@ export default function ProductionReportsDashboard() {
 
   const handleResetFilters = () => {
     setSelectedLineId("all");
-    setStartDate("");
-    setEndDate("");
+    const def = getDefaultMonthRange();
+    setStartDate(def.startDate);
+    setEndDate(def.endDate);
     setSearchQuery("");
+    setDebouncedSearch("");
     setCurrentPage(1);
   };
 
   // Reset pagination when filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedLineId, startDate, endDate, searchQuery, pageSize]);
+  }, [selectedLineId, startDate, endDate, pageSize]);
 
-  // Client-side filtering for search query
-  const filteredReports = useMemo(() => {
-    return reports.filter((report) => {
-      // Text search (operator_name or part_number or line name)
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        const matchesOperator = (report.operator_name || "").toLowerCase().includes(query);
-        const matchesPartNumber = (report.part_number || "").toLowerCase().includes(query);
-        const matchesLineName = (report.line?.name ?? "").toLowerCase().includes(query);
-        if (!matchesOperator && !matchesPartNumber && !matchesLineName) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [reports, searchQuery]);
-
-  // Pagination calculation
-  const totalPages = Math.max(1, Math.ceil(filteredReports.length / pageSize));
+  // Server-side pagination calculation
+  const totalPages = Math.max(1, serverTotalPages);
   const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
   const startIndex = (safeCurrentPage - 1) * pageSize;
-  const endIndex = Math.min(startIndex + pageSize, filteredReports.length);
+  const endIndex = Math.min(startIndex + pageSize, totalCount);
 
-  const paginatedReports = useMemo(() => {
-    return filteredReports.slice(startIndex, startIndex + pageSize);
-  }, [filteredReports, startIndex, pageSize]);
+  // With server-side pagination, current reports array is already the active page
+  const paginatedReports = reports;
+  const filteredReports = reports;
 
   // Bulk Selection Helpers (Page-Aware)
   const isAllPageSelected = useMemo(() => {
@@ -222,8 +246,8 @@ export default function ProductionReportsDashboard() {
   }, [paginatedReports, selectedIds, isAllPageSelected]);
 
   const isAllTotalSelected = useMemo(() => {
-    return filteredReports.length > 0 && filteredReports.every((r) => selectedIds.has(r.id));
-  }, [filteredReports, selectedIds]);
+    return totalCount > 0 && selectedIds.size >= totalCount;
+  }, [totalCount, selectedIds]);
 
   const toggleSelectPage = () => {
     if (isAllPageSelected) {
@@ -242,7 +266,7 @@ export default function ProductionReportsDashboard() {
   };
 
   const selectAllAcrossAllPages = () => {
-    setSelectedIds(new Set(filteredReports.map((r) => r.id)));
+    setSelectedIds(new Set(reports.map((r) => r.id)));
   };
 
   const clearAllSelection = () => {
@@ -294,9 +318,9 @@ export default function ProductionReportsDashboard() {
       }
 
       toast.success(`${idsToDelete.length} laporan produksi berhasil dihapus.`);
-      setReports((prev) => prev.filter((r) => !selectedIds.has(r.id)));
       setSelectedIds(new Set());
       closeBulkDeleteModal();
+      void loadReports();
     } catch (err) {
       setBulkDeleteError(err instanceof Error ? err.message : "Gagal menghapus laporan terpilih");
     } finally {
@@ -304,14 +328,15 @@ export default function ProductionReportsDashboard() {
     }
   };
 
-  // Aggregate statistics calculation
+  // Aggregate statistics: use server-calculated aggregate when available
   const stats = useMemo(() => {
+    if (serverStats) return serverStats;
     let totalQty = 0;
     let totalNgQty = 0;
     let totalBreak = 0;
     const uniqueLines = new Set<string>();
 
-    filteredReports.forEach((report) => {
+    reports.forEach((report) => {
       totalQty += Number(report.qty) || 0;
       totalNgQty += Number(report.ng_qty) || 0;
       totalBreak += Number(report.break_minutes) || 0;
@@ -330,69 +355,89 @@ export default function ProductionReportsDashboard() {
       totalBreak,
       activeLinesCount: uniqueLines.size,
     };
-  }, [filteredReports]);
+  }, [serverStats, reports]);
 
   // CSV Export utility
-  const handleExportCSV = () => {
-    if (filteredReports.length === 0) return;
+  const handleExportCSV = async () => {
+    if (totalCount === 0 && reports.length === 0) return;
 
-    const headers = [
-      "Tanggal",
-      "Line/Card",
-      "Operator",
-      "Part Number",
-      "Mulai",
-      "Selesai",
-      "Istirahat (Menit)",
-      "QTY Total",
-      "QTY OK",
-      "QTY NG",
-      "Kategori NG",
-      "NG Rate (%)",
-    ];
+    try {
+      setIsExporting(true);
+      let exportData = reports;
+      if (totalCount > reports.length) {
+        toast.info(`Mengunduh ${totalCount} data laporan untuk ekspor CSV...`);
+        const fullRes = await getProductionReports({
+          lineId: selectedLineId !== "all" ? selectedLineId : undefined,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
+          search: debouncedSearch.trim() || undefined,
+        });
+        exportData = Array.isArray(fullRes) ? fullRes : (fullRes as any).data || [];
+      }
+      if (exportData.length === 0) return;
 
-    const csvRows = [headers.join(",")];
+      const headers = [
+        "Tanggal",
+        "Line/Card",
+        "Operator",
+        "Part Number",
+        "Mulai",
+        "Selesai",
+        "Istirahat (Menit)",
+        "QTY Total",
+        "QTY OK",
+        "QTY NG",
+        "Kategori NG",
+        "NG Rate (%)",
+      ];
 
-    filteredReports.forEach((report) => {
-      const okQty = report.qty - report.ng_qty;
-      const ngRate = report.qty > 0 ? ((report.ng_qty / report.qty) * 100).toFixed(1) : "0.0";
-      const lineName = report.line?.name ?? "Unknown Line";
-      const ngCat = report.ng_category ?? "-";
+      const csvRows = [headers.join(",")];
 
-      const values = [
-        report.report_date,
-        lineName,
-        report.operator_name || "-",
-        report.part_number || "-",
-        report.start_time || "-",
-        report.end_time || "-",
-        report.break_minutes ?? 0,
-        report.qty ?? 0,
-        okQty,
-        report.ng_qty ?? 0,
-        ngCat,
-        `${ngRate}%`,
-      ].map((val) => {
-        const escaped = ("" + val).replace(/"/g, '""');
-        return `"${escaped}"`;
+      exportData.forEach((report) => {
+        const okQty = report.qty - report.ng_qty;
+        const ngRate = report.qty > 0 ? ((report.ng_qty / report.qty) * 100).toFixed(1) : "0.0";
+        const lineName = report.line?.name ?? "Unknown Line";
+        const ngCat = report.ng_category ?? "-";
+
+        const values = [
+          report.report_date,
+          lineName,
+          report.operator_name || "-",
+          report.part_number || "-",
+          report.start_time || "-",
+          report.end_time || "-",
+          report.break_minutes ?? 0,
+          report.qty ?? 0,
+          okQty,
+          report.ng_qty ?? 0,
+          ngCat,
+          `${ngRate}%`,
+        ].map((val) => {
+          const stringVal = String(val ?? "");
+          if (stringVal.includes(",") || stringVal.includes('"') || stringVal.includes("\n")) {
+            return `"${stringVal.replace(/"/g, '""')}"`;
+          }
+          return stringVal;
+        });
+
+        csvRows.push(values.join(","));
       });
-      csvRows.push(values.join(","));
-    });
 
-    const csvString = csvRows.join("\n");
-    const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `Laporan_Produksi_Futaba_${new Date().toISOString().split("T")[0]}.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      const csvContent = "data:text/csv;charset=utf-8," + encodeURIComponent(csvRows.join("\n"));
+      const link = document.createElement("a");
+      link.setAttribute("href", csvContent);
+      const filename = `laporan_produksi_${new Date().toISOString().slice(0, 10)}.csv`;
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e: any) {
+      toast.error("Gagal mengekspor data: " + (e.message || "Unknown error"));
+    } finally {
+      setIsExporting(false);
+    }
   };
+
 
   // Delete Action
   const handleDeleteConfirm = async () => {
@@ -402,9 +447,8 @@ export default function ProductionReportsDashboard() {
       setDeleteError("");
       await deleteProductionReport(deleteTarget.id);
 
-      // Update UI state local
-      setReports((prev) => prev.filter((r) => r.id !== deleteTarget.id));
       closeDeleteModal();
+      void loadReports();
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : "Gagal menghapus laporan");
     } finally {
@@ -535,11 +579,11 @@ Istirahat: ${breakMin}
           </Button>
           <Button
             onClick={handleExportCSV}
-            disabled={filteredReports.length === 0}
-            className="h-10 bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2 cursor-pointer"
+            disabled={totalCount === 0 || isExporting}
+            className="h-10 bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2 cursor-pointer disabled:opacity-50"
           >
             <Download className="h-4 w-4" />
-            Ekspor CSV
+            {isExporting ? "Mengekspor..." : "Ekspor CSV"}
           </Button>
         </div>
       </div>
@@ -718,19 +762,49 @@ Istirahat: ${breakMin}
           </div>
         </div>
 
-        {/* Clear filter and status count */}
+        {/* Clear filter, quick preset, and status count */}
         <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3 border-t border-slate-100">
           <p className="text-xs font-medium text-slate-500">
-            Menampilkan <span className="font-semibold text-slate-800">{filteredReports.length}</span> laporan produksi.
+            Menampilkan <span className="font-semibold text-slate-800">{totalCount.toLocaleString("id-ID")}</span> laporan produksi.
           </p>
-          {(selectedLineId !== "all" || startDate || endDate || searchQuery) && (
+          <div className="flex items-center gap-2 flex-wrap">
             <button
-              onClick={handleResetFilters}
-              className="text-xs font-semibold text-red-600 hover:text-red-700 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0 self-start sm:self-center"
+              type="button"
+              onClick={() => {
+                const def = getDefaultMonthRange();
+                setStartDate(def.startDate);
+                setEndDate(def.endDate);
+                setCurrentPage(1);
+              }}
+              className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer bg-transparent border-0"
             >
-              Reset Semua Filter
+              Bulan Ini
             </button>
-          )}
+            <span className="text-slate-300">|</span>
+            <button
+              type="button"
+              onClick={() => {
+                setStartDate("");
+                setEndDate("");
+                setCurrentPage(1);
+              }}
+              className="text-xs font-semibold text-slate-600 hover:text-slate-700 hover:underline cursor-pointer bg-transparent border-0"
+            >
+              Semua Waktu
+            </button>
+            {(selectedLineId !== "all" || startDate || endDate || searchQuery) && (
+              <>
+                <span className="text-slate-300">|</span>
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="text-xs font-semibold text-red-600 hover:text-red-700 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0"
+                >
+                  Reset Filter
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -779,7 +853,7 @@ Istirahat: ${breakMin}
 
         {isLoading ? (
           <ProductionReportsTableSkeleton />
-        ) : filteredReports.length === 0 ? (
+        ) : totalCount === 0 ? (
           <div className="py-20 text-center px-4">
             <div className="mx-auto h-12 w-12 rounded-full bg-slate-50 flex items-center justify-center border border-slate-200">
               <Filter className="h-5 w-5 text-slate-400" />
@@ -792,12 +866,12 @@ Istirahat: ${breakMin}
         ) : (
           <div>
             {/* Banner Seleksi Semua Halaman jika Halaman Aktif Terpilih Penuh */}
-            {isAllPageSelected && filteredReports.length > paginatedReports.length && (
+            {isAllPageSelected && totalCount > paginatedReports.length && (
               <div className="bg-blue-50 px-4 py-2.5 text-xs text-blue-900 border-b border-blue-100 flex items-center justify-between gap-2 flex-wrap">
                 <span>
                   {isAllTotalSelected ? (
                     <>
-                      Semua <strong>{filteredReports.length}</strong> laporan di seluruh halaman telah terpilih.
+                      Semua <strong>{totalCount}</strong> laporan di seluruh halaman telah terpilih.
                     </>
                   ) : (
                     <>
@@ -811,7 +885,7 @@ Istirahat: ${breakMin}
                     onClick={selectAllAcrossAllPages}
                     className="font-bold text-blue-700 hover:text-blue-900 underline cursor-pointer bg-transparent border-0"
                   >
-                    Pilih semua {filteredReports.length} laporan di seluruh halaman
+                    Pilih semua {totalCount} laporan di seluruh halaman
                   </button>
                 ) : (
                   <button
@@ -972,8 +1046,8 @@ Istirahat: ${breakMin}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-slate-200 bg-slate-50/50">
               <div className="flex items-center gap-3 text-xs text-slate-600">
                 <span>
-                  Menampilkan <strong>{filteredReports.length > 0 ? startIndex + 1 : 0}</strong> -{" "}
-                  <strong>{endIndex}</strong> dari <strong>{filteredReports.length}</strong> laporan
+                  Menampilkan <strong>{totalCount > 0 ? startIndex + 1 : 0}</strong> -{" "}
+                  <strong>{endIndex}</strong> dari <strong>{totalCount.toLocaleString("id-ID")}</strong> laporan
                 </span>
                 <div className="hidden sm:flex items-center gap-1.5 ml-2 border-l border-slate-200 pl-3">
                   <span className="text-slate-500">Baris per hal:</span>

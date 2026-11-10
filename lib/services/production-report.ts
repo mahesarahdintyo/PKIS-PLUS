@@ -18,14 +18,37 @@ export interface ProductionReport {
   is_active?: boolean;
 }
 
+export interface ProductionReportStats {
+  totalQty: number;
+  totalOkQty: number;
+  totalNgQty: number;
+  avgNgRate: number;
+  totalBreak: number;
+  activeLinesCount: number;
+}
+
+export interface PaginatedProductionReports {
+  data: ProductionReport[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  stats?: ProductionReportStats;
+}
+
 export interface ProductionReportQuery {
   lineId?: string;
   startDate?: string;
   endDate?: string;
   trash?: boolean;
+  page?: number;
+  pageSize?: number;
+  search?: string;
 }
 
-export async function getProductionReports(query?: ProductionReportQuery): Promise<ProductionReport[]> {
+export async function getProductionReports(query: ProductionReportQuery & { page: number }): Promise<PaginatedProductionReports>;
+export async function getProductionReports(query?: ProductionReportQuery): Promise<ProductionReport[]>;
+export async function getProductionReports(query?: ProductionReportQuery): Promise<any> {
   const params = new URLSearchParams();
   if (query?.lineId) {
     params.set("lineId", query.lineId);
@@ -38,6 +61,15 @@ export async function getProductionReports(query?: ProductionReportQuery): Promi
   }
   if (query?.trash) {
     params.set("trash", "true");
+  }
+  if (query?.page !== undefined) {
+    params.set("page", String(query.page));
+  }
+  if (query?.pageSize !== undefined) {
+    params.set("pageSize", String(query.pageSize));
+  }
+  if (query?.search) {
+    params.set("search", query.search);
   }
 
   const queryString = params.toString();

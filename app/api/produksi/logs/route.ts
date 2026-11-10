@@ -33,6 +33,10 @@ export async function GET(request: Request) {
     const pStart = searchParams.get("pStart");
     const pEnd = searchParams.get("pEnd");
     const limitParam = searchParams.get("limit");
+    const pageParam = searchParams.get("page");
+    const pageSizeParam = searchParams.get("pageSize");
+    const searchParam = searchParams.get("search");
+
     let take: number | undefined = undefined;
     if (limitParam && limitParam !== "all" && limitParam !== "none") {
       const parsed = parseInt(limitParam, 10);
@@ -43,7 +47,7 @@ export async function GET(request: Request) {
     const isActiveStr = searchParams.get("is_active");
     const isActive = isActiveStr !== null ? isActiveStr === "true" : true;
 
-    const buildWhere = () => {
+    const buildWhere = (forTable: "production" | "dandori" = "production") => {
       const where: any = {};
       if (isActiveStr !== "all") where.is_active = isActive;
       if (mesin && mesin !== "all") where.mesin = mesin;
@@ -66,6 +70,25 @@ export async function GET(request: Request) {
           if (lte) where.waktu_awal.lte = lte;
         }
       }
+
+      if (searchParam && searchParam.trim()) {
+        const q = searchParam.trim();
+        if (forTable === "production") {
+          where.OR = [
+            { part_number: { contains: q, mode: "insensitive" } },
+            { kode: { contains: q, mode: "insensitive" } },
+            { mesin: { contains: q, mode: "insensitive" } },
+            { stasiun: { contains: q, mode: "insensitive" } },
+          ];
+        } else {
+          where.OR = [
+            { part_ke: { contains: q, mode: "insensitive" } },
+            { part_dari: { contains: q, mode: "insensitive" } },
+            { keterangan: { contains: q, mode: "insensitive" } },
+            { mesin: { contains: q, mode: "insensitive" } },
+          ];
+        }
+      }
       return where;
     };
 
@@ -83,9 +106,106 @@ export async function GET(request: Request) {
       }));
     };
 
+    if (pageParam !== null) {
+      const page = Math.max(1, parseInt(pageParam, 10) || 1);
+      const pageSize = Math.max(1, parseInt(pageSizeParam || limitParam || "25", 10) || 25);
+      const skip = (page - 1) * pageSize;
+
+      if (table === "production") {
+        const where = buildWhere("production");
+        const [total, raw] = await Promise.all([
+          prisma.prodProductionLog.count({ where }),
+          prisma.prodProductionLog.findMany({
+            where,
+            orderBy: [{ waktu_awal: "desc" }, { created_at: "desc" }],
+            skip,
+            take: pageSize,
+          }),
+        ]);
+        const data = await attachLineNames(raw);
+        return NextResponse.json({
+          data,
+          total,
+          page,
+          pageSize,
+          totalPages: Math.max(1, Math.ceil(total / pageSize)),
+          error: null,
+        });
+      }
+
+      if (table === "dandori") {
+        const where = buildWhere("dandori");
+        const [total, raw] = await Promise.all([
+          prisma.prodDandoriLog.count({ where }),
+          prisma.prodDandoriLog.findMany({
+            where,
+            orderBy: [{ waktu_awal: "desc" }, { created_at: "desc" }],
+            skip,
+            take: pageSize,
+          }),
+        ]);
+        const data = await attachLineNames(raw);
+        return NextResponse.json({
+          data,
+          total,
+          page,
+          pageSize,
+          totalPages: Math.max(1, Math.ceil(total / pageSize)),
+          error: null,
+        });
+      }
+
+      // table === "both"
+      const whereProd = buildWhere("production");
+      const whereDandori = buildWhere("dandori");
+
+      const [prodCount, dandoriCount] = await Promise.all([
+        prisma.prodProductionLog.count({ where: whereProd }),
+        prisma.prodDandoriLog.count({ where: whereDandori }),
+      ]);
+      const total = prodCount + dandoriCount;
+
+      const fetchTake = Math.min(skip + pageSize, 500);
+      const [rawProd, rawDandori] = await Promise.all([
+        prisma.prodProductionLog.findMany({
+          where: whereProd,
+          orderBy: [{ waktu_awal: "desc" }, { created_at: "desc" }],
+          take: fetchTake,
+        }),
+        prisma.prodDandoriLog.findMany({
+          where: whereDandori,
+          orderBy: [{ waktu_awal: "desc" }, { created_at: "desc" }],
+          take: fetchTake,
+        }),
+      ]);
+
+      const [prodAttached, dandoriAttached] = await Promise.all([
+        attachLineNames(rawProd),
+        attachLineNames(rawDandori),
+      ]);
+
+      const combined = [
+        ...prodAttached.map((p) => ({ ...p, _kind: "production" })),
+        ...dandoriAttached.map((d) => ({ ...d, _kind: "dandori" })),
+      ].sort((a, b) => new Date(b.waktu_awal).getTime() - new Date(a.waktu_awal).getTime());
+
+      const sliced = combined.slice(skip, skip + pageSize);
+      const production = sliced.filter((x) => x._kind === "production").map(({ _kind, ...rest }) => rest);
+      const dandori = sliced.filter((x) => x._kind === "dandori").map(({ _kind, ...rest }) => rest);
+
+      return NextResponse.json({
+        data: { production, dandori, items: sliced },
+        total,
+        page,
+        pageSize,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+        error: null,
+      });
+    }
+
     if (table === "production") {
       const raw = await prisma.prodProductionLog.findMany({
-        where: buildWhere(),
+        where: buildWhere("production"),
         orderBy: [{ waktu_awal: "desc" }, { created_at: "desc" }],
         ...(take ? { take } : {}),
       });
@@ -95,7 +215,7 @@ export async function GET(request: Request) {
 
     if (table === "dandori") {
       const raw = await prisma.prodDandoriLog.findMany({
-        where: buildWhere(),
+        where: buildWhere("dandori"),
         orderBy: [{ waktu_awal: "desc" }, { created_at: "desc" }],
         ...(take ? { take } : {}),
       });
@@ -106,12 +226,12 @@ export async function GET(request: Request) {
     // Both
     const [rawProd, rawDandori] = await Promise.all([
       prisma.prodProductionLog.findMany({
-        where: buildWhere(),
+        where: buildWhere("production"),
         orderBy: [{ waktu_awal: "desc" }, { created_at: "desc" }],
         ...(take ? { take } : {}),
       }),
       prisma.prodDandoriLog.findMany({
-        where: buildWhere(),
+        where: buildWhere("dandori"),
         orderBy: [{ waktu_awal: "desc" }, { created_at: "desc" }],
         ...(take ? { take } : {}),
       }),

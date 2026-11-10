@@ -493,7 +493,7 @@ export default function DashboardClient() {
 
           pLogs.forEach((pl: any) => {
             const qty = Number(pl.qty) || 0;
-            const ct = pl.part_number ? (partsMap.get(pl.part_number) || 0) : 0;
+            const ct = (pl.part_number && partsMap.get(pl.part_number)) || 0.12;
             if (qty > 0 && ct > 0) {
               const dtStr = pl.tanggal || (pl.waktu_awal ? pl.waktu_awal.slice(0, 10) : "");
               if (dtStr) {
@@ -505,6 +505,41 @@ export default function DashboardClient() {
         } catch (liveErr) {
           console.warn("fetchProductivityTrend live EH fallback error:", liveErr);
         }
+      }
+
+      if (liveEhMap.size > 0) {
+        const sortedMap = new Map<string, any>();
+        sorted.forEach((r: any) => {
+          const d = new Date(r.bucket_start);
+          const dtKey = periodMode === "tahunan"
+            ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+            : localDateStr(d);
+          sortedMap.set(dtKey, r);
+        });
+
+        liveEhMap.forEach((ehVal, dtKey) => {
+          const existing = sortedMap.get(dtKey);
+          if (!existing) {
+            const bucketStart = periodMode === "tahunan" ? `${dtKey}-01T00:00:00+07:00` : `${dtKey}T00:00:00+07:00`;
+            const effWh = ehVal / KIJUN_PEFF;
+            const newRow = {
+              bucket_start: bucketStart,
+              eh_menit: ehVal,
+              wh_menit: effWh,
+              total_man_hours_menit: effWh,
+            };
+            sortedMap.set(dtKey, newRow);
+            sorted.push(newRow);
+          } else if ((Number(existing.eh_menit) || 0) === 0 && ehVal > 0) {
+            existing.eh_menit = ehVal;
+            if ((Number(existing.wh_menit) || 0) === 0) {
+              existing.wh_menit = ehVal / KIJUN_PEFF;
+              existing.total_man_hours_menit = ehVal / KIJUN_PEFF;
+            }
+          }
+        });
+
+        sorted.sort((a: any, b: any) => new Date(a.bucket_start).getTime() - new Date(b.bucket_start).getTime());
       }
 
       const values = new Array(labels.length).fill(null);
@@ -521,15 +556,16 @@ export default function DashboardClient() {
           : localDateStr(d);
         const eh = manualEh > 0 ? manualEh : (liveEhMap.get(dtKey) || 0);
         const wh = Number(r.wh_menit) || 0;
+        const effectiveWh = wh > 0 ? wh : (eh > 0 ? (eh / KIJUN_PEFF) : 0);
         totalEh += eh;
-        totalWh += wh;
-        totalManHours += Number(r.total_man_hours_menit) || 0;
+        totalWh += effectiveWh;
+        totalManHours += (Number(r.total_man_hours_menit) || effectiveWh);
         runningEh += eh;
-        runningWh += wh;
+        runningWh += effectiveWh;
         if (i >= 0 && i < values.length) {
-          const peff = wh > 0 ? (eh / wh) : 0;
+          const peff = effectiveWh > 0 ? (eh / effectiveWh) : 0;
           const productivity = KIJUN_PEFF > 0 ? (peff / KIJUN_PEFF) * 100 : 0;
-          values[i] = wh > 0 ? Number(productivity.toFixed(1)) : null;
+          values[i] = effectiveWh > 0 ? Number(productivity.toFixed(1)) : null;
           if (runningWh > 0) {
             const peffKum = runningEh / runningWh;
             cumValues[i] = KIJUN_PEFF > 0 ? Number(((peffKum / KIJUN_PEFF) * 100).toFixed(1)) : null;
@@ -875,29 +911,44 @@ export default function DashboardClient() {
         const ngValue = Number(row.ng_value) || 0;
         const downtimeMenit = Math.round(Number(row.downtime_menit) || 0);
         const dandoriMenit = Math.round(Number(row.dandori_menit) || 0);
-        let whJam = (Number(row.wh_menit) || 0) / 60;
+        const actualOpMenit = Number(row.wh_menit) || 0;
         const targetStdMenit = Number(row.target_std_menit) || 0;
 
-        // Fallback: jika wh_menit = 0 tapi ada aktivitas (stroke/downtime/dandori),
-        // gunakan estimasi shift default agar availability bar dan OEE terhitung dengan benar
-        if (whJam === 0 && (stroke > 0 || downtimeMenit > 0 || dandoriMenit > 0)) {
-          const baseShift = Math.max(defaultShiftMenit, downtimeMenit + dandoriMenit);
-          whJam = baseShift / 60;
+        // settings harus dideklarasikan lebih awal karena dipakai di whJam fallback
+        const settings = settingsMap[m.key] || settingsMap[m.slug];
+
+        // Loading Time (Waktu Kerja Terencana):
+        // Jika ada aktivitas (stroke/downtime/dandori/jam kerja), gunakan basis shift atau total waktu aktif mesin
+        const hasActivity = stroke > 0 || downtimeMenit > 0 || dandoriMenit > 0 || actualOpMenit > 0;
+        const loadingMenit = hasActivity
+          ? Math.max(defaultShiftMenit, actualOpMenit + downtimeMenit + dandoriMenit)
+          : 0;
+
+        // Operating Time = Loading Time - Downtime (tidak boleh negatif)
+        const operatingMenit = Math.max(0, loadingMenit - downtimeMenit);
+        const availability = loadingMenit > 0 ? Math.min(100, (operatingMenit / loadingMenit) * 100) : 0;
+
+        let whJam = actualOpMenit / 60;
+        if (whJam === 0 && stroke > 0) {
+          whJam = targetStdMenit > 0 ? targetStdMenit / 60 : (stroke / (settings?.fixed || 500));
         }
 
         // Data tahun sebelumnya (YoY)
         const prevRow = (prevAggResults[idx]?.data && prevAggResults[idx]?.data[0]) || {};
         const prevStroke = Number(prevRow.stroke) || 0;
         const prevDowntime = Math.round(Number(prevRow.downtime_menit) || 0);
-        let prevWhJam = (Number(prevRow.wh_menit) || 0) / 60;
-        if (prevWhJam === 0 && (prevStroke > 0 || prevDowntime > 0)) {
-          const prevBaseShift = Math.max(defaultShiftMenit, prevDowntime);
-          prevWhJam = prevBaseShift / 60;
+        const prevActualOpMenit = Number(prevRow.wh_menit) || 0;
+        const prevHasActivity = prevStroke > 0 || prevDowntime > 0 || prevActualOpMenit > 0;
+        const prevLoadingMenit = prevHasActivity
+          ? Math.max(defaultShiftMenit, prevActualOpMenit + prevDowntime)
+          : 0;
+        const prevOperatingMenit = Math.max(0, prevLoadingMenit - prevDowntime);
+        const prevAvailability = prevLoadingMenit > 0 ? Math.min(100, (prevOperatingMenit / prevLoadingMenit) * 100) : 0;
+        let prevWhJam = prevActualOpMenit / 60;
+        if (prevWhJam === 0 && prevStroke > 0) {
+          prevWhJam = prevStroke / (settings?.fixed || 500);
         }
-        const prevAvailability = prevWhJam > 0 ? Math.max(0, (prevWhJam * 60 - prevDowntime) / (prevWhJam * 60)) * 100 : 0;
         const prevGsph = prevWhJam > 0 ? prevStroke / prevWhJam : 0;
-
-        const settings = settingsMap[m.key] || settingsMap[m.slug];
         const explicitTargetSet = !!settings && (
           settings.fixed > 0 || (settings.mode === "per_part" && targetStdMenit > 0)
         );
@@ -911,7 +962,6 @@ export default function DashboardClient() {
         }
 
         const gsph = whJam > 0 ? stroke / whJam : 0;
-        const availability = whJam > 0 ? Math.max(0, (whJam * 60 - downtimeMenit) / (whJam * 60)) * 100 : 0;
         const performanceFactor = targetGsph > 0 ? Math.min(100, (gsph / targetGsph) * 100) : 0;
         const quality = stroke > 0 ? Math.max(0, ((stroke - ng) / stroke) * 100) : 100;
         const oee = (availability / 100) * (performanceFactor / 100) * (quality / 100) * 100;
@@ -944,7 +994,8 @@ export default function DashboardClient() {
       });
 
       const avgTargetGsph = targetGsphCount > 0 ? targetGsphSum / targetGsphCount : 0;
-      const totalAvailability = totalWhJam > 0 ? Math.max(0, (totalWhJam * 60 - totalDowntime) / (totalWhJam * 60)) * 100 : 0;
+      const totalLoadingMenit = Math.max(defaultShiftMenit * (lineAktifCount || 1), totalWhJam * 60 + totalDowntime + totalDandori);
+      const totalAvailability = totalLoadingMenit > 0 ? Math.min(100, Math.max(0, (totalLoadingMenit - totalDowntime) / totalLoadingMenit) * 100) : 0;
       const totalGsph = totalWhJam > 0 ? totalStroke / totalWhJam : 0;
       const totalPerf = avgTargetGsph > 0 ? Math.min(100, (totalGsph / avgTargetGsph) * 100) : 0;
       const totalQuality = totalStroke > 0 ? Math.max(0, ((totalStroke - totalNG) / totalStroke) * 100) : 100;

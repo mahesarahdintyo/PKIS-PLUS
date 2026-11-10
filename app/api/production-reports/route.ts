@@ -69,6 +69,130 @@ export async function GET(request: Request) {
       }
     }
 
+    const pageParam = searchParams.get("page");
+    const pageSizeParam = searchParams.get("pageSize") || searchParams.get("limit");
+    const searchParam = searchParams.get("search");
+
+    if (searchParam && searchParam.trim()) {
+      const q = searchParam.trim();
+      const matchingLines = await prisma.line.findMany({
+        where: { name: { contains: q, mode: "insensitive" } },
+        select: { id: true },
+      });
+      const matchingLineIds = matchingLines.map((l) => l.id);
+
+      const orConditions: any[] = [
+        { part_number: { contains: q, mode: "insensitive" } },
+        { kode: { contains: q, mode: "insensitive" } },
+        { mesin: { contains: q, mode: "insensitive" } },
+      ];
+      if (matchingLineIds.length > 0) {
+        orConditions.push({ line_id: { in: matchingLineIds } });
+      }
+      where.OR = orConditions;
+    }
+
+    if (pageParam !== null) {
+      const page = Math.max(1, parseInt(pageParam, 10) || 1);
+      const pageSize = Math.max(1, parseInt(pageSizeParam || "25", 10) || 25);
+      const skip = (page - 1) * pageSize;
+
+      const [total, aggRes, distinctLines, rows] = await Promise.all([
+        prisma.prodProductionLog.count({ where }),
+        prisma.prodProductionLog.aggregate({
+          where,
+          _sum: {
+            qty: true,
+            ng: true,
+            break_menit: true,
+          },
+        }),
+        prisma.prodProductionLog.findMany({
+          where: { ...where, line_id: { not: null } },
+          distinct: ["line_id"],
+          select: { line_id: true },
+        }),
+        prisma.prodProductionLog.findMany({
+          where,
+          orderBy: [
+            { waktu_awal: "desc" },
+            { created_at: "desc" },
+          ],
+          skip,
+          take: pageSize,
+        }),
+      ]);
+
+      const userIds = Array.from(
+        new Set(rows.map((r: any) => r.created_by).filter(Boolean))
+      ) as string[];
+
+      const lineIds = Array.from(
+        new Set(rows.map((r: any) => r.line_id).filter(Boolean))
+      ) as string[];
+
+      let profilesMap: Record<string, string> = {};
+      if (userIds.length > 0) {
+        const profiles = await prisma.profile.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, full_name: true },
+        });
+        profilesMap = Object.fromEntries(
+          profiles.map((p) => [p.id, p.full_name || "-"])
+        );
+      }
+
+      let linesMap: Record<string, string> = {};
+      if (lineIds.length > 0) {
+        const lines = await prisma.line.findMany({
+          where: { id: { in: lineIds } },
+          select: { id: true, name: true },
+        });
+        linesMap = Object.fromEntries(lines.map((l) => [l.id, l.name]));
+      }
+
+      const mappedReports = rows.map((row: any) => ({
+        id: row.id,
+        line_id: row.line_id || "",
+        report_date: formatDatePart(row.waktu_awal),
+        start_time: formatTimePart(row.waktu_awal),
+        end_time: formatTimePart(row.waktu_akhir),
+        operator_name: (row.created_by ? profilesMap[row.created_by] : null) || "-",
+        part_number: row.part_number || "-",
+        qty: Number(row.qty) || 0,
+        ng_qty: Number(row.ng) || 0,
+        break_minutes: Number(row.break_menit) || 0,
+        ng_category: row.kategori_ng ?? null,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        line: row.line_id && linesMap[row.line_id] ? { name: linesMap[row.line_id] } : null,
+        is_active: row.is_active,
+      }));
+
+      const totalQty = Number(aggRes._sum.qty) || 0;
+      const totalNgQty = Number(aggRes._sum.ng) || 0;
+      const totalOkQty = totalQty - totalNgQty;
+      const totalBreak = Number(aggRes._sum.break_menit) || 0;
+      const avgNgRate = totalQty > 0 ? (totalNgQty / totalQty) * 100 : 0;
+      const activeLinesCount = distinctLines.length;
+
+      return NextResponse.json({
+        data: mappedReports,
+        total,
+        page,
+        pageSize,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+        stats: {
+          totalQty,
+          totalOkQty,
+          totalNgQty,
+          avgNgRate,
+          totalBreak,
+          activeLinesCount,
+        },
+      });
+    }
+
     const limitParam = searchParams.get("limit");
     let take: number | undefined = undefined;
     if (limitParam && limitParam !== "all" && limitParam !== "none") {

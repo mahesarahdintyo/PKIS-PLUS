@@ -459,6 +459,9 @@ export const productionLogsApi = {
     pStart?: string;
     pEnd?: string;
     limit?: number | string;
+    page?: number;
+    pageSize?: number;
+    search?: string;
     is_active?: boolean | string;
   } = {}) {
     const url = new URL("/api/produksi/logs", window.location.origin);
@@ -470,9 +473,12 @@ export const productionLogsApi = {
     if (params.pStart) url.searchParams.set("pStart", params.pStart);
     if (params.pEnd) url.searchParams.set("pEnd", params.pEnd);
     if (params.limit) url.searchParams.set("limit", String(params.limit));
+    if (params.page !== undefined) url.searchParams.set("page", String(params.page));
+    if (params.pageSize !== undefined) url.searchParams.set("pageSize", String(params.pageSize));
+    if (params.search) url.searchParams.set("search", params.search);
     if (params.is_active !== undefined) url.searchParams.set("is_active", String(params.is_active));
     const res = await fetch(url.toString());
-    return res.json() as Promise<{ data: any; error: any }>;
+    return res.json() as Promise<{ data: any; total?: number; totalPages?: number; page?: number; pageSize?: number; error: any }>;
   },
   async create(table: "production" | "dandori", data: any) {
     const res = await fetch("/api/produksi/logs", {

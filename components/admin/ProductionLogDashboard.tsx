@@ -32,6 +32,17 @@ import { toast } from "sonner";
 
 const LOG_REFRESH_INTERVAL_MS = 60000;
 
+function getDefaultMonthRange() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return {
+    startDate: `${year}-${month}-01`,
+    endDate: `${year}-${month}-${day}`,
+  };
+}
+
 export interface CombinedLogItem {
   id: string;
   jenis: "produksi" | "non_produksi";
@@ -136,16 +147,21 @@ export default function ProductionLogDashboard() {
   const [downtimeList, setDowntimeList] = useState<any[]>([]);
   const requestIdRef = useRef(0);
 
-  // Filters
+  // Filters (default to current month)
+  const defaultRange = useMemo(() => getDefaultMonthRange(), []);
   const [selectedLineId, setSelectedLineId] = useState("all");
   const [selectedJenis, setSelectedJenis] = useState<"all" | "produksi" | "non_produksi">("all");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState(defaultRange.startDate);
+  const [endDate, setEndDate] = useState(defaultRange.endDate);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
-  // Pagination state
+  // Pagination state (Server-side)
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [totalCount, setTotalCount] = useState(0);
+  const [serverTotalPages, setServerTotalPages] = useState(1);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Part number options
   const [partOptions, setPartOptions] = useState<string[]>([]);
@@ -190,7 +206,16 @@ export default function ProductionLogDashboard() {
     nama_non_produksi: "",
   });
 
-  // ----- Data Fetching -----
+  // Debounce search input
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setCurrentPage(1);
+    }, 350);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  // ----- Data Fetching (Server-Side Paginated) -----
   const loadLogs = useCallback(
     async ({ showLoading = true }: { showLoading?: boolean } = {}) => {
       const reqId = ++requestIdRef.current;
@@ -198,25 +223,33 @@ export default function ProductionLogDashboard() {
         if (showLoading) setIsLoading(true);
         setError("");
 
-        // Fetch Production, Non-Production (Dandori), & Downtime Logs
+        const tableParam: "production" | "dandori" | "both" =
+          selectedJenis === "produksi"
+            ? "production"
+            : selectedJenis === "non_produksi"
+            ? "dandori"
+            : "both";
+
         const params: Parameters<typeof productionLogsApi.get>[0] = {
-          table: "both",
-          limit: "all",
+          table: tableParam,
+          page: currentPage,
+          pageSize,
           is_active: true,
+          search: debouncedSearch.trim() || undefined,
         };
         if (selectedLineId !== "all") params.line_id = selectedLineId;
         if (startDate) params.startDate = startDate;
         if (endDate) params.endDate = endDate;
 
         const dtParams: Parameters<typeof downtimeApi.get>[0] = {
-          limit: "all",
+          limit: 1000,
           is_active: true,
         };
         if (selectedLineId !== "all") dtParams.line_id = selectedLineId;
         if (startDate) dtParams.startDate = startDate;
         if (endDate) dtParams.endDate = endDate;
 
-        const [{ data, error: logsErr }, { data: dtLogs }] = await Promise.all([
+        const [{ data, total, totalPages: sTotalPages, error: logsErr }, { data: dtLogs }] = await Promise.all([
           productionLogsApi.get(params),
           downtimeApi.get(dtParams).catch(() => ({ data: [], error: null })),
         ]);
@@ -224,37 +257,44 @@ export default function ProductionLogDashboard() {
         if (requestIdRef.current !== reqId) return;
         if (logsErr) throw new Error(logsErr);
 
-        const prodData = data?.production || [];
-        const nonProdData = data?.dandori || [];
+        const prodData = data?.production || (Array.isArray(data) && selectedJenis === "produksi" ? data : []);
+        const nonProdData = data?.dandori || (Array.isArray(data) && selectedJenis === "non_produksi" ? data : []);
 
-        // Hitung durasi per downtime log
+        // Pre-parse downtime logs into timestamp numbers and index by production_log_id for O(1) matching
         const validDtLogs = dtLogs || [];
-        const dtWithDuration = validDtLogs.map((dl: any) => ({
-          ...dl,
-          durasi_menit: Number(dl.durasi_menit ?? dl.durasi ?? 0) || (dl.waktu_awal && dl.waktu_akhir
+        const dtByProdId = new Map<string, number>();
+        const dtPrepared = validDtLogs.map((dl: any) => {
+          const durasi = Number(dl.durasi_menit ?? dl.durasi ?? 0) || (dl.waktu_awal && dl.waktu_akhir
             ? Math.max(0, Math.round((new Date(dl.waktu_akhir).getTime() - new Date(dl.waktu_awal).getTime()) / 60000))
-            : 0),
-        }));
-        setDowntimeList(dtWithDuration);
+            : 0);
+          if (dl.production_log_id) {
+            dtByProdId.set(dl.production_log_id, (dtByProdId.get(dl.production_log_id) || 0) + durasi);
+          }
+          return {
+            ...dl,
+            durasi_menit: durasi,
+            startMs: dl.waktu_awal ? new Date(dl.waktu_awal).getTime() : 0,
+            endMs: dl.waktu_akhir ? new Date(dl.waktu_akhir).getTime() : 0,
+          };
+        });
+        setDowntimeList(dtPrepared);
 
         // Pasangkan downtime ke baris produksi yang sesuai & deteksi part number DANDORI
         const augmentedProdData = (prodData || []).map((row: any) => {
-          const matchingDts = dtWithDuration.filter((dl: any) => {
-            if (dl.production_log_id && dl.production_log_id === row.id) return true;
-            if (dl.mesin && row.mesin && dl.mesin !== row.mesin) return false;
-            if (dl.line_id && row.line_id && dl.line_id !== row.line_id) return false;
-            if (dl.waktu_awal && dl.waktu_akhir && row.waktu_awal && row.waktu_akhir) {
-              const dlStart = new Date(dl.waktu_awal).getTime();
-              const dlEnd = new Date(dl.waktu_akhir).getTime();
-              const rStart = new Date(row.waktu_awal).getTime();
-              const rEnd = new Date(row.waktu_akhir).getTime();
-              return dlStart >= rStart && dlEnd <= rEnd;
+          let dtSum = dtByProdId.get(row.id) || 0;
+          if (!dtSum && row.waktu_awal && row.waktu_akhir) {
+            const rStart = new Date(row.waktu_awal).getTime();
+            const rEnd = new Date(row.waktu_akhir).getTime();
+            for (const dl of dtPrepared) {
+              if (dl.production_log_id) continue;
+              if (dl.mesin && row.mesin && dl.mesin !== row.mesin) continue;
+              if (dl.line_id && row.line_id && dl.line_id !== row.line_id) continue;
+              if (dl.startMs && dl.endMs && dl.startMs >= rStart && dl.endMs <= rEnd) {
+                dtSum += dl.durasi_menit;
+              }
             }
-            return false;
-          });
-          const dtSum = matchingDts.reduce((sum: number, dl: any) => sum + (Number(dl.durasi_menit) || 0), 0);
+          }
 
-          // Cek apakah part_number mengandung kata 'dandori' (case-insensitive)
           const isDandoriPart = String(row.part_number || "").toLowerCase().includes("dandori");
           let calculatedDandori = row.dandori_menit !== null && row.dandori_menit !== undefined && row.dandori_menit !== ""
             ? Number(row.dandori_menit)
@@ -315,6 +355,8 @@ export default function ProductionLogDashboard() {
         ].sort((a, b) => new Date(b.waktu_awal).getTime() - new Date(a.waktu_awal).getTime());
 
         setLogs(combined);
+        setTotalCount(total !== undefined ? total : combined.length);
+        setServerTotalPages(sTotalPages !== undefined ? sTotalPages : Math.max(1, Math.ceil((total || combined.length) / pageSize)));
       } catch (err) {
         if (requestIdRef.current !== reqId) return;
         const msg = err instanceof Error ? err.message : "Gagal memuat riwayat produksi";
@@ -324,7 +366,7 @@ export default function ProductionLogDashboard() {
         if (requestIdRef.current === reqId && showLoading) setIsLoading(false);
       }
     },
-    [selectedLineId, startDate, endDate] // eslint-disable-line react-hooks/exhaustive-deps
+    [selectedLineId, selectedJenis, startDate, endDate, currentPage, pageSize, debouncedSearch]
   );
 
   const loadPartOptions = useCallback(async (lineId?: string) => {
@@ -380,41 +422,20 @@ export default function ProductionLogDashboard() {
     };
   }, [loadLogs]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ----- Client-side filter -----
-  const filtered = useMemo(() => {
-    return logs.filter((log) => {
-      if (selectedJenis !== "all" && log.jenis !== selectedJenis) return false;
-      if (!searchQuery.trim()) return true;
-      const q = searchQuery.toLowerCase();
-      const code = (log.data.kode ?? "").toLowerCase();
-      const part = (log.part_number ?? "").toLowerCase();
-      const lineName = (log.line_name ?? "").toLowerCase();
-      const machine = (log.mesin ?? "").toLowerCase();
-      const station = (log.stasiun ?? "").toLowerCase();
-      return (
-        code.includes(q) ||
-        part.includes(q) ||
-        lineName.includes(q) ||
-        machine.includes(q) ||
-        station.includes(q)
-      );
-    });
-  }, [logs, selectedJenis, searchQuery]);
+  // With server-side pagination, logs is already the active page
+  const filtered = logs;
+  const paginatedLogs = logs;
 
   // Pagination calculation
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const totalPages = Math.max(1, serverTotalPages);
   const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
   const startIndex = (safeCurrentPage - 1) * pageSize;
-  const endIndex = Math.min(startIndex + pageSize, filtered.length);
-
-  const paginatedLogs = useMemo(() => {
-    return filtered.slice(startIndex, startIndex + pageSize);
-  }, [filtered, startIndex, pageSize]);
+  const endIndex = Math.min(startIndex + pageSize, totalCount);
 
   // Reset pagination when any filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedLineId, selectedJenis, startDate, endDate, searchQuery, pageSize]);
+  }, [selectedLineId, selectedJenis, startDate, endDate, pageSize]);
 
   // Bulk Selection Helpers (Page-Aware)
   const isAllPageSelected = useMemo(() => {
@@ -503,9 +524,9 @@ export default function ProductionLogDashboard() {
       }
 
       toast.success(`${selectedIds.size} baris riwayat berhasil dihapus.`);
-      setLogs((prev) => prev.filter((l) => !selectedIds.has(l.id)));
       setSelectedIds(new Set());
       closeBulkDeleteModal();
+      void loadLogs();
     } catch (err) {
       setBulkDeleteError(err instanceof Error ? err.message : "Gagal menghapus riwayat terpilih");
     } finally {
@@ -553,73 +574,132 @@ export default function ProductionLogDashboard() {
       totalBreak: Math.round(totalBreak * 100) / 100,
       prodCount,
       nonProdCount,
-      totalRows: filtered.length,
+      totalRows: totalCount || filtered.length,
       activeLinesCount: uniqueLines.size,
     };
-  }, [filtered, downtimeList, selectedJenis, searchQuery]);
+  }, [filtered, downtimeList, selectedJenis, searchQuery, totalCount]);
 
   const handleResetFilters = () => {
     setSelectedLineId("all");
     setSelectedJenis("all");
-    setStartDate("");
-    setEndDate("");
+    const def = getDefaultMonthRange();
+    setStartDate(def.startDate);
+    setEndDate(def.endDate);
     setSearchQuery("");
+    setDebouncedSearch("");
     setCurrentPage(1);
   };
 
   // ----- CSV Export -----
-  const handleExportCSV = () => {
-    if (filtered.length === 0) return;
-    const headers = [
-      "Kode",
-      "Jenis",
-      "Line",
-      "Stasiun",
-      "Waktu Awal",
-      "Waktu Akhir",
-      "Part Number / Keterangan",
-      "Qty",
-      "MP",
-      "Dandori (mnt)",
-      "DT (mnt)",
-      "Break (mnt)",
-      "Routing",
-    ];
+  const handleExportCSV = async () => {
+    if (totalCount === 0 && logs.length === 0) return;
+    try {
+      setIsExporting(true);
+      let exportItems = logs;
+      if (totalCount > logs.length) {
+        toast.info(`Mengunduh ${totalCount} data riwayat untuk ekspor CSV...`);
+        const tableParam: "production" | "dandori" | "both" =
+          selectedJenis === "produksi"
+            ? "production"
+            : selectedJenis === "non_produksi"
+            ? "dandori"
+            : "both";
 
-    const rows = filtered.map((row) => {
-      const data = row.data;
-      const isProd = row.jenis === "produksi";
-      const routing = isProd && data.extra?.routing_type
-        ? `${data.extra.routing_type}${data.extra.routing_numbers ? ` ${data.extra.routing_numbers.join(",")}` : ""}`
-        : "-";
+        const { data: fullData } = await productionLogsApi.get({
+          table: tableParam,
+          is_active: true,
+          line_id: selectedLineId !== "all" ? selectedLineId : undefined,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
+          search: debouncedSearch.trim() || undefined,
+          limit: 10000,
+        });
 
-      return [
-        isProd ? (data.kode || "-") : "-",
-        isProd ? "Produksi" : "Non-Produksi",
-        row.line_name ?? row.mesin,
-        data.stasiun ?? "-",
-        fmt(row.waktu_awal),
-        fmt(row.waktu_akhir),
-        row.part_number ?? "-",
-        isProd ? (data.qty ?? 0) : "-",
-        isProd ? (data.manpower ?? "-") : "-",
-        isProd ? (data.dandori_menit ?? 0) : (data.dandori_menit ?? 0),
-        isProd ? (data.downtime_menit ?? 0) : "-",
-        isProd ? (data.break_menit ?? 0) : (data.break_menit ?? "-"),
-        routing,
-      ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
-    });
+        const pData = fullData?.production || (Array.isArray(fullData) && selectedJenis === "produksi" ? fullData : []);
+        const nData = fullData?.dandori || (Array.isArray(fullData) && selectedJenis === "non_produksi" ? fullData : []);
+        exportItems = [
+          ...pData.map((r: any) => ({
+            id: r.id,
+            jenis: "produksi" as const,
+            line_id: r.line_id,
+            mesin: r.mesin,
+            stasiun: r.stasiun,
+            waktu_awal: r.waktu_awal,
+            waktu_akhir: r.waktu_akhir,
+            part_number: r.part_number,
+            line_name: r.line?.name ?? null,
+            data: r,
+          })),
+          ...nData.map((r: any) => ({
+            id: r.id,
+            jenis: "non_produksi" as const,
+            line_id: r.line_id,
+            mesin: r.mesin,
+            stasiun: null,
+            waktu_awal: r.waktu_awal,
+            waktu_akhir: r.waktu_akhir,
+            part_number: r.part_ke || r.part_dari || r.keterangan || null,
+            line_name: r.line?.name ?? null,
+            data: r,
+          })),
+        ].sort((a, b) => new Date(b.waktu_awal).getTime() - new Date(a.waktu_awal).getTime());
+      }
 
-    const csv = [headers.join(","), ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Riwayat_Produksi_${new Date().toISOString().split("T")[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+      if (exportItems.length === 0) return;
+      const headers = [
+        "Kode",
+        "Jenis",
+        "Line",
+        "Stasiun",
+        "Waktu Awal",
+        "Waktu Akhir",
+        "Part Number / Keterangan",
+        "Qty",
+        "MP",
+        "Dandori (mnt)",
+        "DT (mnt)",
+        "Break (mnt)",
+        "Routing",
+      ];
+
+      const rows = exportItems.map((row) => {
+        const data = row.data;
+        const isProd = row.jenis === "produksi";
+        const routing = isProd && data.extra?.routing_type
+          ? `${data.extra.routing_type}${data.extra.routing_numbers ? ` ${data.extra.routing_numbers.join(",")}` : ""}`
+          : "-";
+
+        return [
+          isProd ? (data.kode || "-") : "-",
+          isProd ? "Produksi" : "Non-Produksi",
+          row.line_name ?? row.mesin,
+          data.stasiun ?? "-",
+          fmt(row.waktu_awal),
+          fmt(row.waktu_akhir),
+          row.part_number ?? "-",
+          isProd ? (data.qty ?? 0) : "-",
+          isProd ? (data.manpower ?? "-") : "-",
+          isProd ? (data.dandori_menit ?? 0) : (data.dandori_menit ?? 0),
+          isProd ? (data.downtime_menit ?? 0) : "-",
+          isProd ? (data.break_menit ?? 0) : (data.break_menit ?? "-"),
+          routing,
+        ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
+      });
+
+      const csv = [headers.join(","), ...rows].join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Riwayat_Produksi_${new Date().toISOString().split("T")[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (e: any) {
+      toast.error("Gagal mengekspor data: " + (e.message || "Unknown error"));
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   // ----- Edit Handlers -----
@@ -754,8 +834,8 @@ export default function ProductionLogDashboard() {
       if (err) throw new Error(err);
 
       toast.success("Baris riwayat berhasil dihapus (soft-delete).");
-      setLogs((prev) => prev.filter((l) => l.id !== deleteTarget.id));
       closeDelete();
+      void loadLogs();
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : "Gagal menghapus baris riwayat");
     } finally {
@@ -877,11 +957,11 @@ export default function ProductionLogDashboard() {
           </Button>
           <Button
             onClick={handleExportCSV}
-            disabled={filtered.length === 0}
-            className="h-10 bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2 cursor-pointer"
+            disabled={totalCount === 0 || isExporting}
+            className="h-10 bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2 cursor-pointer disabled:opacity-50"
           >
             <Download className="h-4 w-4" />
-            Ekspor CSV
+            {isExporting ? "Mengekspor..." : "Ekspor CSV"}
           </Button>
           <Button
             onClick={openCreate}
@@ -1057,18 +1137,49 @@ export default function ProductionLogDashboard() {
           </div>
         </div>
 
+        {/* Clear filter, quick preset, and status count */}
         <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3 border-t border-slate-100">
           <p className="text-xs font-medium text-slate-500">
-            Menampilkan <span className="font-semibold text-slate-800">{filtered.length}</span> baris riwayat produksi.
+            Menampilkan <span className="font-semibold text-slate-800">{totalCount.toLocaleString("id-ID")}</span> baris riwayat produksi.
           </p>
-          {(selectedLineId !== "all" || selectedJenis !== "all" || startDate || endDate || searchQuery) && (
+          <div className="flex items-center gap-2 flex-wrap">
             <button
-              onClick={handleResetFilters}
-              className="text-xs font-semibold text-red-600 hover:text-red-700 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0 self-start sm:self-center"
+              type="button"
+              onClick={() => {
+                const def = getDefaultMonthRange();
+                setStartDate(def.startDate);
+                setEndDate(def.endDate);
+                setCurrentPage(1);
+              }}
+              className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer bg-transparent border-0"
             >
-              Reset Semua Filter
+              Bulan Ini
             </button>
-          )}
+            <span className="text-slate-300">|</span>
+            <button
+              type="button"
+              onClick={() => {
+                setStartDate("");
+                setEndDate("");
+                setCurrentPage(1);
+              }}
+              className="text-xs font-semibold text-slate-600 hover:text-slate-700 hover:underline cursor-pointer bg-transparent border-0"
+            >
+              Semua Waktu
+            </button>
+            {(selectedLineId !== "all" || selectedJenis !== "all" || startDate || endDate || searchQuery) && (
+              <>
+                <span className="text-slate-300">|</span>
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="text-xs font-semibold text-red-600 hover:text-red-700 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0"
+                >
+                  Reset Filter
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1117,7 +1228,7 @@ export default function ProductionLogDashboard() {
 
         {isLoading ? (
           <ProductionLogTableSkeleton />
-        ) : filtered.length === 0 ? (
+        ) : totalCount === 0 ? (
           <div className="py-20 text-center px-4">
             <div className="mx-auto h-12 w-12 rounded-full bg-slate-50 flex items-center justify-center border border-slate-200">
               <Filter className="h-5 w-5 text-slate-400" />
@@ -1130,12 +1241,12 @@ export default function ProductionLogDashboard() {
         ) : (
           <div>
             {/* Banner Seleksi Semua Halaman jika Halaman Aktif Terpilih Penuh */}
-            {isAllPageSelected && filtered.length > paginatedLogs.length && (
+            {isAllPageSelected && totalCount > paginatedLogs.length && (
               <div className="bg-blue-50 px-4 py-2.5 text-xs text-blue-900 border-b border-blue-100 flex items-center justify-between gap-2 flex-wrap">
                 <span>
                   {isAllTotalSelected ? (
                     <>
-                      Semua <strong>{filtered.length}</strong> baris riwayat di seluruh halaman telah terpilih.
+                      Semua <strong>{totalCount}</strong> baris riwayat di seluruh halaman telah terpilih.
                     </>
                   ) : (
                     <>
@@ -1149,7 +1260,7 @@ export default function ProductionLogDashboard() {
                     onClick={selectAllAcrossAllPages}
                     className="font-bold text-blue-700 hover:text-blue-900 underline cursor-pointer bg-transparent border-0"
                   >
-                    Pilih semua {filtered.length} baris di seluruh halaman
+                    Pilih semua {totalCount} baris di seluruh halaman
                   </button>
                 ) : (
                   <button
@@ -1338,8 +1449,8 @@ export default function ProductionLogDashboard() {
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-slate-200 bg-slate-50/50">
               <div className="flex items-center gap-3 text-xs text-slate-600">
                 <span>
-                  Menampilkan <strong>{filtered.length > 0 ? startIndex + 1 : 0}</strong> -{" "}
-                  <strong>{endIndex}</strong> dari <strong>{filtered.length}</strong> entri
+                  Menampilkan <strong>{totalCount > 0 ? startIndex + 1 : 0}</strong> -{" "}
+                  <strong>{endIndex}</strong> dari <strong>{totalCount.toLocaleString("id-ID")}</strong> entri
                 </span>
                 <div className="hidden sm:flex items-center gap-1.5 ml-2 border-l border-slate-200 pl-3">
                   <span className="text-slate-500">Baris per hal:</span>
