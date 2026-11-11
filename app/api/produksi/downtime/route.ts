@@ -41,19 +41,9 @@ export async function GET(request: Request) {
     const pEnd = searchParams.get("pEnd");
     const limitParam = searchParams.get("limit");
     const pageParam = searchParams.get("page");
-    let take: number | undefined = undefined;
-    let skip: number | undefined = undefined;
+    const pageSizeParam = searchParams.get("pageSize");
+    const searchParam = searchParams.get("search") || searchParams.get("q");
 
-    if (limitParam && limitParam !== "all" && limitParam !== "none") {
-      const parsed = parseInt(limitParam, 10);
-      if (!isNaN(parsed) && parsed > 0) {
-        take = parsed;
-        const page = parseInt(pageParam || "0", 10);
-        if (!isNaN(page) && page > 0) {
-          skip = page * parsed;
-        }
-      }
-    }
     const isActiveStr = searchParams.get("is_active");
     const isActive = isActiveStr !== null ? isActiveStr === "true" : true;
 
@@ -95,9 +85,71 @@ export async function GET(request: Request) {
       }
     }
 
+    if (searchParam && searchParam.trim()) {
+      const q = searchParam.trim();
+      const matchingLineIds = allLines
+        .filter((l) => l.name.toLowerCase().includes(q.toLowerCase()))
+        .map((l) => l.id);
+
+      const orConditions: any[] = [
+        { problem: { contains: q, mode: "insensitive" } },
+        { penyebab: { contains: q, mode: "insensitive" } },
+        { countermeasure: { contains: q, mode: "insensitive" } },
+        { stasiun: { contains: q, mode: "insensitive" } },
+        { mesin: { contains: q, mode: "insensitive" } },
+        { kategori: { contains: q, mode: "insensitive" } },
+      ];
+      if (matchingLineIds.length > 0) {
+        orConditions.push({ line_id: { in: matchingLineIds } });
+      }
+      andConditions.push({ OR: orConditions });
+    }
+
     if (andConditions.length > 0) {
       where.AND = andConditions;
     }
+
+    if (pageParam !== null) {
+      const page = Math.max(1, parseInt(pageParam, 10) || 1);
+      const pageSize = Math.max(1, parseInt(pageSizeParam || limitParam || "25", 10) || 25);
+      const skip = (page - 1) * pageSize;
+
+      const [total, raw] = await Promise.all([
+        prisma.prodDowntimeLog.count({ where }),
+        prisma.prodDowntimeLog.findMany({
+          where,
+          orderBy: [
+            { waktu_awal: "desc" },
+            { created_at: "desc" },
+          ],
+          skip,
+          take: pageSize,
+        }),
+      ]);
+
+      const data = raw.map((r) => {
+        const info = resolveLineInfo(r, allLines);
+        return {
+          ...r,
+          line_id: info.line_id || r.line_id || null,
+          line_name: info.line_name,
+        };
+      });
+
+      return NextResponse.json({
+        data,
+        total,
+        page,
+        pageSize,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+        error: null,
+      });
+    }
+
+    const parsedLimit = limitParam && limitParam !== "all" && limitParam !== "none"
+      ? parseInt(limitParam, 10)
+      : 5000;
+    const safeTake = !isNaN(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 10000) : 5000;
 
     const raw = await prisma.prodDowntimeLog.findMany({
       where,
@@ -105,8 +157,7 @@ export async function GET(request: Request) {
         { waktu_awal: "desc" },
         { created_at: "desc" },
       ],
-      ...(take ? { take } : {}),
-      ...(skip ? { skip } : {}),
+      take: safeTake,
     });
 
     const data = raw.map((r) => {
@@ -118,7 +169,7 @@ export async function GET(request: Request) {
       };
     });
 
-    return NextResponse.json({ data, error: null });
+    return NextResponse.json({ data, total: data.length, error: null });
   } catch (e: any) {
     console.error("[GET /api/produksi/downtime]", e);
     return NextResponse.json({ data: null, error: e.message }, { status: 500 });

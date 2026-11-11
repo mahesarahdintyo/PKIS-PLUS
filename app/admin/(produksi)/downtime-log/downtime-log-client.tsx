@@ -1,50 +1,38 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft,
-  Clock,
-  Filter,
-  RefreshCw,
-  AlertTriangle,
   Activity,
-  Plus,
-  Pencil,
-  Trash2,
-  Search,
-  X,
+  AlertTriangle,
+  ArrowLeft,
+  Calendar,
   Check,
-  Layers,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  Clock,
+  Copy,
+  Download,
+  Eye,
+  Layers,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Search,
+  SlidersHorizontal,
+  Trash2,
+  Wrench,
+  X,
 } from "lucide-react";
-import { downtimeApi, masterDataApi, linesApi, subscribeToSocketEvent } from "@/lib/api-client";
+import { getLines, type Line } from "@/lib/services/line";
+import { downtimeApi, subscribeToSocketEvent } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { toast } from "sonner";
-import "@/app/admin/(produksi)/produksi.css";
 
-const PAGE_SIZE = 1000;
-
-const BASE_MACHINES = [
-  { key: "tandem", label: "Tandem" },
-  { key: "blanking", label: "Blanking" },
-  { key: "transfer_2000t", label: "Transfer 2000t" },
-  { key: "transfer_800t", label: "Transfer 800t" },
-  { key: "pc200t", label: "PC200t" },
-];
+const DOWNTIME_REFRESH_INTERVAL_MS = 60000;
 
 const CATEGORY_OPTIONS = [
   { value: "all", label: "Semua Kategori" },
@@ -65,297 +53,377 @@ const FORM_CATEGORIES = [
   "OTHER",
 ];
 
+function getDefaultMonthRange() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return {
+    startDate: `${year}-${month}-01`,
+    endDate: `${year}-${month}-${day}`,
+  };
+}
+
+// Format date directly from string/UTC without timezone shift
 function formatDate(iso?: string | null): string {
   if (!iso) return "-";
+  if (typeof iso === "string") {
+    const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) {
+      const [, y, mo, d] = m;
+      return `${d}/${mo}/${y}`;
+    }
+  }
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "-";
-  return d.toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getUTCDate())}/${p(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`;
 }
 
+// Format time directly from string/UTC without timezone shift (15:45 stays 15:45)
 function formatTime(iso?: string | null): string {
   if (!iso) return "--:--";
+  if (typeof iso === "string") {
+    const m = iso.match(/(?:[T ]|^)(\d{2}):(\d{2})/);
+    if (m) return `${m[1]}:${m[2]}`;
+  }
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "--:--";
-  return d.toLocaleTimeString("id-ID", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
 }
 
+// Convert DB ISO string to datetime-local value (YYYY-MM-DDTHH:mm)
 function toLocalInput(iso?: string | null): string {
   if (!iso) return "";
+  if (typeof iso === "string") {
+    const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+    if (m) {
+      const [, y, mo, d, h, mi] = m;
+      return `${y}-${mo}-${d}T${h}:${mi}`;
+    }
+  }
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "";
   const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}T${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
 }
 
-interface DowntimeFormState {
+// Convert datetime-local value to DB ISO without timezone shift
+function toDbIso(localInputStr: string | null | undefined): string | null {
+  if (!localInputStr) return null;
+  const trimmed = localInputStr.trim();
+  if (!trimmed) return null;
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?/.test(trimmed)) {
+    if (trimmed.length === 16) return `${trimmed}:00.000Z`;
+    return trimmed.endsWith("Z") ? trimmed : `${trimmed}.000Z`;
+  }
+  const d = new Date(trimmed);
+  return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+function getDurationMinutes(startIso?: string | null, endIso?: string | null): number {
+  if (!startIso || !endIso) return 0;
+  const startMs = new Date(startIso).getTime();
+  const endMs = new Date(endIso).getTime();
+  if (isNaN(startMs) || isNaN(endMs)) return 0;
+  return Math.max(0, Math.round((endMs - startMs) / 60000));
+}
+
+export interface DowntimeItem {
+  id: string;
   mesin: string;
-  stasiun: string;
+  line_id: string | null;
+  line_name?: string | null;
   waktu_awal: string;
   waktu_akhir: string;
+  kategori: string | null;
+  problem: string | null;
+  penyebab: string | null;
+  countermeasure: string | null;
+  stasiun: string | null;
+  is_active: boolean;
+  created_by?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface DowntimeFormData {
+  id?: string;
+  line_id: string;
+  mesin: string;
+  stasiun: string;
   kategori: string;
   problem: string;
   penyebab: string;
   countermeasure: string;
+  waktu_awal: string;
+  waktu_akhir: string;
 }
 
-const emptyForm = (): DowntimeFormState => {
+const emptyFormData = (): DowntimeFormData => {
   const now = new Date();
-  const past = new Date(now.getTime() - 15 * 60000); // 15 mins ago
+  const past = new Date(now.getTime() - 15 * 60000);
   return {
+    line_id: "",
     mesin: "tandem",
     stasiun: "",
-    waktu_awal: toLocalInput(past.toISOString()),
-    waktu_akhir: toLocalInput(now.toISOString()),
     kategori: "MESIN",
     problem: "",
     penyebab: "",
     countermeasure: "",
+    waktu_awal: toLocalInput(past.toISOString()),
+    waktu_akhir: toLocalInput(now.toISOString()),
   };
 };
 
 export default function DowntimeLogClient() {
-  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
-  const sevenDaysAgo = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 7);
-    return d.toISOString().slice(0, 10);
-  }, []);
+  const [downtimeList, setDowntimeList] = useState<DowntimeItem[]>([]);
+  const [lines, setLines] = useState<Line[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // Filter States (default kosong agar menampilkan seluruh data historis di database)
-  const [filterMesin, setFilterMesin] = useState<string>("all");
-  const [filterTanggalDari, setFilterTanggalDari] = useState<string>("");
-  const [filterTanggalSampai, setFilterTanggalSampai] = useState<string>("");
-  const [filterKategori, setFilterKategori] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState<string>("");
+  // Filters (default to current month)
+  const defaultRange = useMemo(() => getDefaultMonthRange(), []);
+  const [selectedLineId, setSelectedLineId] = useState("all");
+  const [selectedKategori, setSelectedKategori] = useState("all");
+  const [startDate, setStartDate] = useState(defaultRange.startDate);
+  const [endDate, setEndDate] = useState(defaultRange.endDate);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
-  // Pagination States (sama seperti laporan-produksi)
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(25);
-
-  // Data States
-  const [loading, setLoading] = useState<boolean>(true);
-  const [downtimeRows, setDowntimeRows] = useState<any[]>([]);
-  const [problemSuggestions, setProblemSuggestions] = useState<string[]>([]);
-  const [lines, setLines] = useState<any[]>([]);
+  // Pagination state (Server-side)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [totalCount, setTotalCount] = useState(0);
+  const [serverTotalPages, setServerTotalPages] = useState(1);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Bulk Selection States
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState<boolean>(false);
-  const [isBulkDeleting, setIsBulkDeleting] = useState<boolean>(false);
-  const [bulkDeleteError, setBulkDeleteError] = useState<string>("");
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
-  // Create Modal States
-  const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
-  const [createForm, setCreateForm] = useState<DowntimeFormState>(emptyForm());
-  const [isSavingCreate, setIsSavingCreate] = useState<boolean>(false);
-  const [createError, setCreateError] = useState<string>("");
+  // Detail Modal State
+  const [detailItem, setDetailItem] = useState<DowntimeItem | null>(null);
+  const [isDetailClosing, setIsDetailClosing] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
 
-  // Edit Modal States
-  const [editTarget, setEditTarget] = useState<any | null>(null);
-  const [editForm, setEditForm] = useState<DowntimeFormState>(emptyForm());
-  const [isSavingEdit, setIsSavingEdit] = useState<boolean>(false);
-  const [editError, setEditError] = useState<string>("");
+  // Form (Create / Edit) Modal State
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [isFormClosing, setIsFormClosing] = useState(false);
+  const [isSavingForm, setIsSavingForm] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [formData, setFormData] = useState<DowntimeFormData>(emptyFormData());
+  const isEditing = Boolean(formData.id);
 
-  // Delete Single Modal States
-  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
-  const [isDeleting, setIsDeleting] = useState<boolean>(false);
-  const [deleteError, setDeleteError] = useState<string>("");
+  // Single Delete Modal State
+  const [deleteTarget, setDeleteTarget] = useState<DowntimeItem | null>(null);
+  const [isDeletingSingle, setIsDeletingSingle] = useState(false);
+  const [isDeleteClosing, setIsDeleteClosing] = useState(false);
 
+  const requestIdRef = useRef(0);
+  const lastBackgroundRefreshRef = useRef(0);
 
-  // Machine lookup list
-  const machineOptions = useMemo(() => {
-    const list = [...BASE_MACHINES];
-    lines.forEach((l) => {
-      if (l.id && !list.some((m) => m.key === l.id || m.key === l.name)) {
-        list.push({ key: l.id, label: l.name });
-      }
+  // Common Problem suggestions
+  const problemSuggestions = useMemo(() => {
+    const set = new Set<string>();
+    downtimeList.forEach((d) => {
+      if (d.problem && d.problem.trim()) set.add(d.problem.trim());
     });
-    return list;
-  }, [lines]);
+    return Array.from(set).slice(0, 30);
+  }, [downtimeList]);
 
-  const getMachineLabel = useCallback(
-    (key: string): string => {
-      const m = machineOptions.find((item) => item.key === key);
-      return m ? m.label : key;
-    },
-    [machineOptions]
-  );
-
-  // Load problem suggestions & lines
+  // Debounce search input
   useEffect(() => {
-    async function loadAuxData() {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setCurrentPage(1);
+    }, 350);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  // Load lines on mount
+  useEffect(() => {
+    async function loadLines() {
       try {
-        const [{ data: probs }, { data: lineData }] = await Promise.all([
-          masterDataApi.get({ type: "problems", mesin: "all" }),
-          linesApi.get(),
-        ]);
-        if (probs && Array.isArray(probs)) {
-          setProblemSuggestions(probs.map((p: any) => p.value).filter(Boolean));
-        }
-        if (lineData) {
-          setLines(lineData);
-        }
+        const linesData = await getLines({ includeHidden: true });
+        setLines(linesData);
       } catch (err) {
-        console.error("Auxiliary data load error:", err);
+        console.error("Gagal memuat line produksi:", err);
       }
     }
-    loadAuxData();
+    void loadLines();
   }, []);
 
-  // Fetch Downtime (ambil seluruh data tanpa limit kaku)
-  const fetchDowntime = useCallback(
-    async () => {
-      setLoading(true);
-
+  // Fetch Downtime Data with Server-Side Pagination
+  const loadDowntime = useCallback(
+    async ({ showLoading = true }: { showLoading?: boolean } = {}) => {
+      const requestId = ++requestIdRef.current;
       try {
+        if (showLoading) setIsLoading(true);
+        setError("");
+
         const params: Parameters<typeof downtimeApi.get>[0] = {
-          limit: "all",
+          page: currentPage,
+          pageSize,
           is_active: true,
+          search: debouncedSearch.trim() || undefined,
         };
 
-        if (filterMesin !== "all") params.mesin = filterMesin;
-        if (filterKategori !== "all") params.kategori = filterKategori;
-        if (filterTanggalDari) params.startDate = filterTanggalDari;
-        if (filterTanggalSampai) params.endDate = filterTanggalSampai;
+        if (selectedLineId !== "all") params.line_id = selectedLineId;
+        if (selectedKategori !== "all") params.kategori = selectedKategori;
+        if (startDate) params.startDate = startDate;
+        if (endDate) params.endDate = endDate;
 
-        const { data, error } = await downtimeApi.get(params);
-        if (error) throw new Error(error);
+        const res = await downtimeApi.get(params);
+        if (requestIdRef.current !== requestId) return;
 
-        const rows = (data || []).map((r: any) => {
-          let durasi = r.durasi_menit || r.durasi;
-          if (!durasi && r.waktu_awal && r.waktu_akhir) {
-            durasi = Math.round(
-              (new Date(r.waktu_akhir).getTime() - new Date(r.waktu_awal).getTime()) / 60000
-            );
-          }
-          return {
-            ...r,
-            durasi_menit: durasi || 0,
-          };
-        });
+        if (res.error) throw new Error(res.error);
 
-        setDowntimeRows(rows);
+        const items: DowntimeItem[] = res.data || [];
+        setDowntimeList(items);
+
+        if (typeof res.total === "number") {
+          setTotalCount(res.total);
+          setServerTotalPages(res.totalPages || Math.max(1, Math.ceil(res.total / pageSize)));
+        } else {
+          setTotalCount(items.length);
+          setServerTotalPages(Math.max(1, Math.ceil(items.length / pageSize)));
+        }
       } catch (err: any) {
-        console.error("Downtime fetch error:", err?.message || err);
-        toast.error("Gagal memuat log downtime: " + (err?.message || ""));
+        if (requestIdRef.current !== requestId) return;
+        setError(err.message || "Gagal memuat data downtime.");
+        console.error(err);
       } finally {
-        setLoading(false);
+        if (requestIdRef.current === requestId && showLoading) {
+          setIsLoading(false);
+        }
       }
     },
-    [filterMesin, filterKategori, filterTanggalDari, filterTanggalSampai]
+    [currentPage, pageSize, debouncedSearch, selectedLineId, selectedKategori, startDate, endDate]
   );
 
+  // Trigger load on filter changes
   useEffect(() => {
-    fetchDowntime();
-  }, [fetchDowntime]);
+    const timer = setTimeout(() => {
+      void loadDowntime();
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [loadDowntime]);
 
-  // Socket.io subscription for realtime updates
+  // Real-time WebSocket + Background Polling
   useEffect(() => {
-    const unsub = subscribeToSocketEvent("prod_downtime_log", "*", () => {
-      fetchDowntime();
-    });
-    return () => unsub();
-  }, [fetchDowntime]);
+    const handleBackgroundRefresh = () => {
+      const now = Date.now();
+      if (now - lastBackgroundRefreshRef.current < 15000) return;
+      lastBackgroundRefreshRef.current = now;
+      void loadDowntime({ showLoading: false });
+    };
 
-  const resetFilters = () => {
-    setFilterMesin("all");
-    setFilterTanggalDari("");
-    setFilterTanggalSampai("");
-    setFilterKategori("all");
+    const unsubscribe = subscribeToSocketEvent(
+      "prod_downtime_log",
+      "*",
+      handleBackgroundRefresh
+    );
+
+    const intervalId = window.setInterval(() => {
+      void loadDowntime({ showLoading: false });
+    }, DOWNTIME_REFRESH_INTERVAL_MS);
+
+    window.addEventListener("focus", handleBackgroundRefresh);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleBackgroundRefresh);
+      unsubscribe();
+    };
+  }, [loadDowntime]);
+
+  const handleRefresh = () => {
+    void loadDowntime({ showLoading: true });
+  };
+
+  const handleResetFilters = () => {
+    setSelectedLineId("all");
+    setSelectedKategori("all");
+    const def = getDefaultMonthRange();
+    setStartDate(def.startDate);
+    setEndDate(def.endDate);
     setSearchQuery("");
+    setDebouncedSearch("");
     setCurrentPage(1);
   };
 
-  // Client-side search filtering and sorting (terbaru ke terlama, persis seperti laporan-produksi)
-  const filteredRows = useMemo(() => {
-    let result = downtimeRows;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter((r) => {
-        const problem = (r.problem || "").toLowerCase();
-        const penyebab = (r.penyebab || "").toLowerCase();
-        const countermeasure = (r.countermeasure || "").toLowerCase();
-        const stasiun = (r.stasiun || "").toLowerCase();
-        const mesin = (getMachineLabel(r.mesin) || "").toLowerCase();
-        const kategori = (r.kategori || "").toLowerCase();
-        return (
-          problem.includes(q) ||
-          penyebab.includes(q) ||
-          countermeasure.includes(q) ||
-          stasiun.includes(q) ||
-          mesin.includes(q) ||
-          kategori.includes(q)
-        );
-      });
-    }
-
-    // Sort: waktu_awal desc, created_at desc (persis seperti laporan-produksi)
-    return [...result].sort((a, b) => {
-      const timeA = new Date(a.waktu_awal).getTime();
-      const timeB = new Date(b.waktu_awal).getTime();
-      if (timeB !== timeA) return timeB - timeA;
-      const createdA = new Date(a.created_at || 0).getTime();
-      const createdB = new Date(b.created_at || 0).getTime();
-      return createdB - createdA;
-    });
-  }, [downtimeRows, searchQuery, getMachineLabel]);
-
-  // Pagination calculation (persis seperti laporan-produksi)
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
-  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
-  const startIndex = (safeCurrentPage - 1) * pageSize;
-  const endIndex = Math.min(startIndex + pageSize, filteredRows.length);
-
-  const paginatedRows = useMemo(() => {
-    return filteredRows.slice(startIndex, startIndex + pageSize);
-  }, [filteredRows, startIndex, pageSize]);
-
-  // Reset pagination when filter changes
+  // Reset page when filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterMesin, filterTanggalDari, filterTanggalSampai, filterKategori, searchQuery, pageSize]);
+  }, [selectedLineId, selectedKategori, startDate, endDate, pageSize]);
 
-  // Page-aware bulk selection computed values
+  // KPI Statistics Calculation
+  const stats = useMemo(() => {
+    let totalMinutes = 0;
+    const categoryCounts: Record<string, number> = {};
+    const lineMinutes: Record<string, number> = {};
+
+    downtimeList.forEach((d) => {
+      const dur = getDurationMinutes(d.waktu_awal, d.waktu_akhir);
+      totalMinutes += dur;
+
+      const cat = d.kategori || "OTHER";
+      categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+
+      const lineName = d.line_name || d.mesin || "Unknown";
+      lineMinutes[lineName] = (lineMinutes[lineName] || 0) + dur;
+    });
+
+    const totalIncidents = totalCount > 0 ? totalCount : downtimeList.length;
+    const avgDuration = downtimeList.length > 0 ? totalMinutes / downtimeList.length : 0;
+
+    let topLineName = "-";
+    let topLineMinutes = 0;
+    Object.entries(lineMinutes).forEach(([name, mins]) => {
+      if (mins > topLineMinutes) {
+        topLineMinutes = mins;
+        topLineName = name;
+      }
+    });
+
+    let topCategoryName = "-";
+    let topCategoryCount = 0;
+    Object.entries(categoryCounts).forEach(([cat, cnt]) => {
+      if (cnt > topCategoryCount) {
+        topCategoryCount = cnt;
+        topCategoryName = cat;
+      }
+    });
+    const topCategoryPercent = downtimeList.length > 0
+      ? Math.round((topCategoryCount / downtimeList.length) * 100)
+      : 0;
+
+    return {
+      totalMinutes,
+      totalIncidents,
+      avgDuration,
+      topLineName,
+      topLineMinutes,
+      topCategoryName,
+      topCategoryCount,
+      topCategoryPercent,
+    };
+  }, [downtimeList, totalCount]);
+
+  // Bulk Selection Handlers
   const isAllPageSelected = useMemo(() => {
-    return paginatedRows.length > 0 && paginatedRows.every((r) => selectedIds.has(r.id));
-  }, [paginatedRows, selectedIds]);
+    return downtimeList.length > 0 && downtimeList.every((d) => selectedIds.has(d.id));
+  }, [downtimeList, selectedIds]);
 
   const isSomePageSelected = useMemo(() => {
-    return paginatedRows.some((r) => selectedIds.has(r.id)) && !isAllPageSelected;
-  }, [paginatedRows, selectedIds, isAllPageSelected]);
+    return downtimeList.some((d) => selectedIds.has(d.id)) && !isAllPageSelected;
+  }, [downtimeList, selectedIds, isAllPageSelected]);
 
-  const isAllTotalSelected = useMemo(() => {
-    return filteredRows.length > 0 && filteredRows.every((r) => selectedIds.has(r.id));
-  }, [filteredRows, selectedIds]);
-
-  const toggleSelectPage = () => {
-    if (isAllPageSelected) {
-      setSelectedIds((prev) => {
-        const next = new Set(prev);
-        paginatedRows.forEach((r) => next.delete(r.id));
-        return next;
-      });
-    } else {
-      setSelectedIds((prev) => {
-        const next = new Set(prev);
-        paginatedRows.forEach((r) => next.add(r.id));
-        return next;
-      });
-    }
-  };
-
-  const selectAllAcrossAllPages = () => {
-    setSelectedIds(new Set(filteredRows.map((r) => r.id)));
-  };
-
-  const toggleSelect = (id: string) => {
+  const toggleSelectRow = (id: string, e?: React.MouseEvent | React.ChangeEvent) => {
+    if (e) e.stopPropagation();
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -364,1083 +432,1384 @@ export default function DowntimeLogClient() {
     });
   };
 
-  // ─── Create Handler ──────────────────────────────────────────────────────────
-  const handleOpenCreate = () => {
-    setCreateForm(emptyForm());
-    setCreateError("");
-    setShowCreateModal(true);
+  const toggleSelectPage = () => {
+    if (isAllPageSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        downtimeList.forEach((d) => next.delete(d.id));
+        return next;
+      });
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        downtimeList.forEach((d) => next.add(d.id));
+        return next;
+      });
+    }
   };
 
-  const handleSaveCreate = async (e: React.FormEvent) => {
+  const handleClearSelection = () => {
+    setSelectedIds(new Set());
+  };
+
+  // CSV Export Utility
+  const handleExportCSV = async () => {
+    if (totalCount === 0 && downtimeList.length === 0) return;
+    try {
+      setIsExporting(true);
+      let exportData = downtimeList;
+
+      if (totalCount > downtimeList.length) {
+        toast.info(`Mengunduh ${totalCount} data downtime untuk ekspor CSV...`);
+        const fullRes = await downtimeApi.get({
+          limit: 10000,
+          is_active: true,
+          line_id: selectedLineId !== "all" ? selectedLineId : undefined,
+          kategori: selectedKategori !== "all" ? selectedKategori : undefined,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
+          search: debouncedSearch.trim() || undefined,
+        });
+        exportData = fullRes.data || [];
+      }
+
+      if (exportData.length === 0) {
+        toast.error("Tidak ada data yang dapat diekspor.");
+        return;
+      }
+
+      const headers = [
+        "Tanggal",
+        "Line / Mesin",
+        "Stasiun",
+        "Kategori",
+        "Problem",
+        "Penyebab",
+        "Countermeasure",
+        "Jam Mulai",
+        "Jam Selesai",
+        "Durasi (Menit)",
+      ];
+
+      const csvRows = [headers.join(",")];
+      exportData.forEach((row) => {
+        const dur = getDurationMinutes(row.waktu_awal, row.waktu_akhir);
+        const lineName = row.line_name || row.mesin || "-";
+
+        const values = [
+          formatDate(row.waktu_awal),
+          lineName,
+          row.stasiun || "-",
+          row.kategori || "-",
+          row.problem || "-",
+          row.penyebab || "-",
+          row.countermeasure || "-",
+          formatTime(row.waktu_awal),
+          formatTime(row.waktu_akhir),
+          dur,
+        ].map((val) => {
+          const str = String(val ?? "");
+          if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+            return `"${str.replace(/"/g, '""')}"`;
+          }
+          return str;
+        });
+
+        csvRows.push(values.join(","));
+      });
+
+      const csvContent = "data:text/csv;charset=utf-8," + encodeURIComponent(csvRows.join("\n"));
+      const link = document.createElement("a");
+      link.setAttribute("href", csvContent);
+      const filename = `downtime_log_${new Date().toISOString().slice(0, 10)}.csv`;
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success("Data downtime berhasil diekspor ke CSV!");
+    } catch (e: any) {
+      toast.error("Gagal mengekspor data: " + (e.message || "Unknown error"));
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // Detail Modal Handlers
+  const openDetail = (item: DowntimeItem) => {
+    setDetailItem(item);
+    setIsCopied(false);
+  };
+
+  const closeDetail = () => {
+    if (isDetailClosing) return;
+    setIsDetailClosing(true);
+    setTimeout(() => {
+      setDetailItem(null);
+      setIsDetailClosing(false);
+      setIsCopied(false);
+    }, 200);
+  };
+
+  const handleCopyDetail = () => {
+    if (!detailItem) return;
+    const dur = getDurationMinutes(detailItem.waktu_awal, detailItem.waktu_akhir);
+    const lineName = detailItem.line_name || detailItem.mesin || "-";
+    const text = `=== DETAIL CATATAN DOWNTIME ===
+Tanggal: ${formatDate(detailItem.waktu_awal)}
+Line: ${lineName}
+Stasiun: ${detailItem.stasiun || "-"}
+Kategori: ${detailItem.kategori || "-"}
+Problem: ${detailItem.problem || "-"}
+Penyebab: ${detailItem.penyebab || "-"}
+Countermeasure: ${detailItem.countermeasure || "-"}
+Waktu Mulai: ${formatTime(detailItem.waktu_awal)}
+Waktu Selesai: ${formatTime(detailItem.waktu_akhir)}
+Durasi: ${dur} menit (${(dur / 60).toFixed(1)} jam)
+===============================`;
+
+    try {
+      navigator.clipboard.writeText(text);
+      setIsCopied(true);
+      toast.success("Detail downtime berhasil disalin!");
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch {
+      toast.error("Gagal menyalin detail downtime.");
+    }
+  };
+
+  // Form (Create / Edit) Modal Handlers
+  const openCreateModal = () => {
+    const init = emptyFormData();
+    if (selectedLineId !== "all") {
+      init.line_id = selectedLineId;
+      const matched = lines.find((l) => l.id === selectedLineId);
+      if (matched) init.mesin = matched.machine_type || "tandem";
+    }
+    setFormData(init);
+    setFormError("");
+    setShowFormModal(true);
+  };
+
+  const openEditModal = (item: DowntimeItem) => {
+    setFormData({
+      id: item.id,
+      line_id: item.line_id || "",
+      mesin: item.mesin || "tandem",
+      stasiun: item.stasiun || "",
+      kategori: item.kategori || "MESIN",
+      problem: item.problem || "",
+      penyebab: item.penyebab || "",
+      countermeasure: item.countermeasure || "",
+      waktu_awal: toLocalInput(item.waktu_awal),
+      waktu_akhir: toLocalInput(item.waktu_akhir),
+    });
+    setFormError("");
+    setShowFormModal(true);
+  };
+
+  const closeFormModal = () => {
+    if (isFormClosing) return;
+    setIsFormClosing(true);
+    setTimeout(() => {
+      setShowFormModal(false);
+      setIsFormClosing(false);
+      setFormData(emptyFormData());
+      setFormError("");
+    }, 200);
+  };
+
+  const handleSaveForm = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!createForm.mesin || !createForm.waktu_awal || !createForm.kategori) {
-      setCreateError("Mesin, waktu awal, dan kategori wajib diisi.");
+    if (!formData.waktu_awal) {
+      setFormError("Waktu Mulai wajib diisi.");
+      return;
+    }
+    if (!formData.waktu_akhir) {
+      setFormError("Waktu Selesai wajib diisi.");
+      return;
+    }
+    if (!formData.problem.trim()) {
+      setFormError("Deskripsi Problem wajib diisi.");
+      return;
+    }
+
+    const startIso = toDbIso(formData.waktu_awal);
+    const endIso = toDbIso(formData.waktu_akhir);
+    if (!startIso || !endIso) {
+      setFormError("Format tanggal dan waktu tidak valid.");
+      return;
+    }
+    if (new Date(endIso).getTime() < new Date(startIso).getTime()) {
+      setFormError("Waktu Selesai tidak boleh lebih awal dari Waktu Mulai.");
       return;
     }
 
     try {
-      setIsSavingCreate(true);
-      setCreateError("");
+      setIsSavingForm(true);
+      setFormError("");
 
-      const startMs = new Date(createForm.waktu_awal).getTime();
-      const endMs = createForm.waktu_akhir ? new Date(createForm.waktu_akhir).getTime() : startMs;
-      const durasi = Math.max(0, Math.round((endMs - startMs) / 60000));
+      const selectedLine = lines.find((l) => l.id === formData.line_id);
+      const machineType = selectedLine?.machine_type || formData.mesin || "tandem";
 
       const payload = {
-        mesin: createForm.mesin,
-        stasiun: createForm.stasiun.trim() || null,
-        waktu_awal: new Date(createForm.waktu_awal).toISOString(),
-        waktu_akhir: createForm.waktu_akhir ? new Date(createForm.waktu_akhir).toISOString() : null,
-        durasi_menit: durasi,
-        durasi: durasi,
-        kategori: createForm.kategori,
-        problem: createForm.problem.trim() || null,
-        penyebab: createForm.penyebab.trim() || null,
-        countermeasure: createForm.countermeasure.trim() || null,
+        line_id: formData.line_id || null,
+        mesin: machineType,
+        stasiun: formData.stasiun.trim() || null,
+        kategori: formData.kategori || null,
+        problem: formData.problem.trim(),
+        penyebab: formData.penyebab.trim() || null,
+        countermeasure: formData.countermeasure.trim() || null,
+        waktu_awal: startIso,
+        waktu_akhir: endIso,
         is_active: true,
       };
 
-      const { error } = await downtimeApi.create(payload);
-      if (error) throw new Error(error);
+      if (isEditing && formData.id) {
+        const res = await downtimeApi.update(formData.id, payload);
+        if (res.error) throw new Error(res.error);
+        toast.success("Catatan downtime berhasil diperbarui!");
+      } else {
+        const res = await downtimeApi.create(payload);
+        if (res.error) throw new Error(res.error);
+        toast.success("Catatan downtime baru berhasil ditambahkan!");
+      }
 
-      toast.success("Data downtime berhasil ditambahkan.");
-      setShowCreateModal(false);
-      await fetchDowntime();
+      closeFormModal();
+      void loadDowntime({ showLoading: false });
     } catch (err: any) {
-      setCreateError(err?.message || "Gagal menyimpan data downtime.");
+      setFormError(err.message || "Gagal menyimpan data downtime.");
     } finally {
-      setIsSavingCreate(false);
+      setIsSavingForm(false);
     }
   };
 
-  // ─── Edit Handler ────────────────────────────────────────────────────────────
-  const handleOpenEdit = (row: any) => {
-    setEditTarget(row);
-    setEditForm({
-      mesin: row.mesin || "tandem",
-      stasiun: row.stasiun || "",
-      waktu_awal: toLocalInput(row.waktu_awal),
-      waktu_akhir: toLocalInput(row.waktu_akhir),
-      kategori: row.kategori || "MESIN",
-      problem: row.problem || "",
-      penyebab: row.penyebab || "",
-      countermeasure: row.countermeasure || "",
-    });
-    setEditError("");
+  // Single Delete Handlers
+  const openDeleteModal = (item: DowntimeItem) => {
+    setDeleteTarget(item);
   };
 
-  const handleSaveEdit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editTarget) return;
-
-    try {
-      setIsSavingEdit(true);
-      setEditError("");
-
-      const startMs = new Date(editForm.waktu_awal).getTime();
-      const endMs = editForm.waktu_akhir ? new Date(editForm.waktu_akhir).getTime() : startMs;
-      const durasi = Math.max(0, Math.round((endMs - startMs) / 60000));
-
-      const payload = {
-        mesin: editForm.mesin,
-        stasiun: editForm.stasiun.trim() || null,
-        waktu_awal: new Date(editForm.waktu_awal).toISOString(),
-        waktu_akhir: editForm.waktu_akhir ? new Date(editForm.waktu_akhir).toISOString() : null,
-        durasi_menit: durasi,
-        durasi: durasi,
-        kategori: editForm.kategori,
-        problem: editForm.problem.trim() || null,
-        penyebab: editForm.penyebab.trim() || null,
-        countermeasure: editForm.countermeasure.trim() || null,
-      };
-
-      const { error } = await downtimeApi.update(editTarget.id, payload);
-      if (error) throw new Error(error);
-
-      toast.success("Data downtime berhasil diperbarui.");
-      setEditTarget(null);
-      await fetchDowntime();
-    } catch (err: any) {
-      setEditError(err?.message || "Gagal memperbarui data downtime.");
-    } finally {
-      setIsSavingEdit(false);
-    }
-  };
-
-  // ─── Single Delete Handler ───────────────────────────────────────────────────
-  const handleDeleteConfirm = async () => {
-    if (!deleteTarget) return;
-
-    try {
-      setIsDeleting(true);
-      setDeleteError("");
-
-      const { error } = await downtimeApi.deleteMany([deleteTarget.id]);
-      if (error) throw new Error(error);
-
-      toast.success("Data downtime berhasil dipindahkan ke Tempat Sampah.");
+  const closeDeleteModal = () => {
+    if (isDeleteClosing) return;
+    setIsDeleteClosing(true);
+    setTimeout(() => {
       setDeleteTarget(null);
+      setIsDeleteClosing(false);
+    }, 200);
+  };
+
+  const handleConfirmSingleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      setIsDeletingSingle(true);
+      const res = await downtimeApi.deleteMany([deleteTarget.id]);
+      if (res.error) throw new Error(res.error);
+
+      toast.success("Catatan downtime berhasil dihapus.");
+      closeDeleteModal();
       setSelectedIds((prev) => {
         const next = new Set(prev);
         next.delete(deleteTarget.id);
         return next;
       });
-      await fetchDowntime();
+      void loadDowntime({ showLoading: false });
     } catch (err: any) {
-      setDeleteError(err?.message || "Gagal menghapus data downtime.");
+      toast.error(err.message || "Gagal menghapus data downtime.");
     } finally {
-      setIsDeleting(false);
+      setIsDeletingSingle(false);
     }
   };
 
-  // ─── Bulk Delete Handler ─────────────────────────────────────────────────────
-  const handleBulkDeleteConfirm = async () => {
+  // Bulk Delete Handlers
+  const handleConfirmBulkDelete = async () => {
     if (selectedIds.size === 0) return;
-
     try {
       setIsBulkDeleting(true);
-      setBulkDeleteError("");
+      const idsArray = Array.from(selectedIds);
+      const res = await downtimeApi.deleteMany(idsArray);
+      if (res.error) throw new Error(res.error);
 
-      const ids = Array.from(selectedIds);
-      const { error } = await downtimeApi.deleteMany(ids);
-      if (error) throw new Error(error);
-
-      const count = ids.length;
-      toast.success(`${count} data downtime berhasil dipindahkan ke Tempat Sampah.`);
-      setSelectedIds(new Set());
+      toast.success(`${idsArray.length} catatan downtime berhasil dihapus.`);
       setShowBulkDeleteModal(false);
-      await fetchDowntime();
+      setSelectedIds(new Set());
+      void loadDowntime({ showLoading: false });
     } catch (err: any) {
-      setBulkDeleteError(err?.message || "Gagal menghapus data terpilih.");
+      toast.error(err.message || "Gagal menghapus data downtime terpilih.");
     } finally {
       setIsBulkDeleting(false);
     }
   };
 
-  // Metrics calculation
-  const totalKejadian = filteredRows.length;
-  const totalDurasiMenit = useMemo(() => {
-    return filteredRows.reduce((acc, row) => acc + (Number(row.durasi_menit) || 0), 0);
-  }, [filteredRows]);
-  const avgDurasiMenit = totalKejadian > 0 ? Math.round(totalDurasiMenit / totalKejadian) : 0;
+  // Category Color Badges
+  const getCategoryBadgeClass = (kategori: string | null) => {
+    switch (kategori?.toUpperCase()) {
+      case "MESIN":
+        return "bg-blue-50 text-blue-700 border-blue-200";
+      case "DIES":
+        return "bg-amber-50 text-amber-700 border-amber-200";
+      case "FINGER":
+        return "bg-purple-50 text-purple-700 border-purple-200";
+      case "LINE STOP":
+        return "bg-rose-50 text-rose-700 border-rose-200";
+      case "SMALL STOP":
+        return "bg-orange-50 text-orange-700 border-orange-200";
+      default:
+        return "bg-slate-100 text-slate-700 border-slate-200";
+    }
+  };
+
+  const totalPages = Math.max(1, serverTotalPages);
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = totalCount > 0 ? (safeCurrentPage - 1) * pageSize + 1 : 0;
+  const endIndex = Math.min(safeCurrentPage * pageSize, totalCount);
 
   return (
-    <div className="app-shell machine-hub-container">
-      <main className="main max-w-6xl mx-auto p-4 sm:p-6 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500 pb-16">
-        {/* Top Navigation */}
-        <div className="flex items-center justify-between">
-          <Link
-            href="/admin"
-            className="inline-flex items-center gap-1.5 min-h-[40px] px-3 py-2 text-xs font-semibold rounded-lg border border-border bg-card text-foreground hover:bg-muted transition-colors touch-manipulation shadow-xs"
-          >
-            <ArrowLeft className="h-4 w-4 shrink-0" />
-            Kembali ke Admin
-          </Link>
-        </div>
-
-        {/* Page Header & Actions */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="page-header mb-0">
-            <h1 className="page-title text-2xl font-bold font-display">
-              <span className="eyebrow block text-xs font-semibold text-blue-500 uppercase tracking-wider mb-0.5">
-                Monitoring & Analisis
-              </span>
-              Downtime Log
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+      {/* Top Banner & Action */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
+        <div>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/admin"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+            >
+              <ArrowLeft className="h-3.5 w-3.5 shrink-0" />
+              Kembali
+            </Link>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+              Log Downtime Produksi
             </h1>
-            <p className="text-xs text-muted-foreground mt-1">
-              Catatan riwayat gangguan mesin &amp; line stop untuk seluruh mesin produksi.
+            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              Live Sync
+            </span>
+          </div>
+          <p className="mt-1.5 text-sm text-slate-500">
+            Lihat, filter, kelola, dan analisis catatan downtime seluruh line produksi secara akurat dan real-time.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            onClick={handleRefresh}
+            variant="outline"
+            className="h-10 border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 flex items-center gap-2 cursor-pointer"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+            Perbarui
+          </Button>
+          <Button
+            onClick={handleExportCSV}
+            disabled={totalCount === 0 || isExporting}
+            className="h-10 bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            <Download className="h-4 w-4" />
+            {isExporting ? "Mengekspor..." : "Ekspor CSV"}
+          </Button>
+          <Button
+            onClick={openCreateModal}
+            className="h-10 bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 cursor-pointer shadow-sm"
+          >
+            <Plus className="h-4 w-4" />
+            Tambah Downtime
+          </Button>
+        </div>
+      </div>
+
+      {/* KPI Stats Cards - Rich Aesthetics Matching Laporan Produksi */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* Total Downtime Card */}
+        <div className="relative overflow-hidden rounded-xl border border-amber-100 bg-gradient-to-br from-amber-50 to-white p-5 shadow-sm transition-all duration-200 hover:shadow-md">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-amber-700">
+              Total Downtime
+            </span>
+            <div className="rounded-lg bg-amber-100 p-2 text-amber-700">
+              <Clock className="h-5 w-5" />
+            </div>
+          </div>
+          <div className="mt-4">
+            <h3 className="text-3xl font-bold text-slate-900">
+              {stats.totalMinutes.toLocaleString("id-ID")} m
+            </h3>
+            <p className="mt-1 text-xs text-slate-500 font-medium">
+              ≈ {(stats.totalMinutes / 60).toFixed(1)} jam operasional
             </p>
           </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => fetchDowntime()}
-              disabled={loading}
-              className="inline-flex items-center gap-2 min-h-[40px] px-3.5 py-2 text-xs font-bold rounded-xl border border-border bg-card text-foreground hover:bg-muted active:scale-95 transition-all cursor-pointer touch-manipulation shadow-xs"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-              <span>Refresh</span>
-            </button>
-
-            <Button
-              type="button"
-              onClick={handleOpenCreate}
-              className="inline-flex items-center gap-1.5 min-h-[40px] px-4 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white active:scale-95 transition-all cursor-pointer shadow-sm"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Tambah Downtime</span>
-            </Button>
-          </div>
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-amber-500" />
         </div>
 
-        {/* Filter & Search Panel */}
-        <Card className="dash-panel p-4 sm:p-5">
-          <div className="flex items-center justify-between gap-2 mb-3 text-sm font-bold text-foreground">
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-primary" />
-              <span>Filter &amp; Pencarian</span>
+        {/* Total Kasus Card */}
+        <div className="relative overflow-hidden rounded-xl border border-rose-100 bg-gradient-to-br from-rose-50 to-white p-5 shadow-sm transition-all duration-200 hover:shadow-md">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-rose-700">
+              Total Insiden
+            </span>
+            <div className="rounded-lg bg-rose-100 p-2 text-rose-700">
+              <AlertTriangle className="h-5 w-5" />
             </div>
-            {(filterMesin !== "all" || filterKategori !== "all" || searchQuery || filterTanggalDari || filterTanggalSampai) && (
-              <button
-                type="button"
-                onClick={resetFilters}
-                className="text-xs font-semibold text-rose-500 hover:underline cursor-pointer bg-transparent border-0"
-              >
-                Reset Filter
-              </button>
-            )}
           </div>
+          <div className="mt-4">
+            <h3 className="text-3xl font-bold text-slate-900">
+              {stats.totalIncidents.toLocaleString("id-ID")}
+            </h3>
+            <p className="mt-1 text-xs text-slate-500 font-medium">Insiden tercatat</p>
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-rose-500" />
+        </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-            <div className="field">
-              <label className="text-xs font-semibold block mb-1 text-muted-foreground">Mesin / Line</label>
-              <Select
-                value={filterMesin}
-                onChange={(e) => setFilterMesin(e.target.value)}
-                className="w-full min-h-[40px] text-xs"
+        {/* Rata-rata Durasi Card */}
+        <div className="relative overflow-hidden rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white p-5 shadow-sm transition-all duration-200 hover:shadow-md">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-blue-700">
+              Rata-rata Durasi
+            </span>
+            <div className="rounded-lg bg-blue-100 p-2 text-blue-700">
+              <Activity className="h-5 w-5" />
+            </div>
+          </div>
+          <div className="mt-4">
+            <h3 className="text-3xl font-bold text-slate-900">
+              {stats.avgDuration.toFixed(1)} m
+            </h3>
+            <p className="mt-1 text-xs text-slate-500 font-medium">Rata-rata per insiden</p>
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-500" />
+        </div>
+
+        {/* Line Terbanyak Downtime Card */}
+        <div className="relative overflow-hidden rounded-xl border border-purple-100 bg-gradient-to-br from-purple-50 to-white p-5 shadow-sm transition-all duration-200 hover:shadow-md">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-purple-700">
+              Line Terbanyak DT
+            </span>
+            <div className="rounded-lg bg-purple-100 p-2 text-purple-700">
+              <Layers className="h-5 w-5" />
+            </div>
+          </div>
+          <div className="mt-4">
+            <h3 className="text-2xl font-bold text-slate-900 truncate" title={stats.topLineName}>
+              {stats.topLineName}
+            </h3>
+            <p className="mt-1 text-xs text-slate-500 font-medium">
+              {stats.topLineMinutes.toLocaleString("id-ID")} menit downtime
+            </p>
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-purple-500" />
+        </div>
+
+        {/* Kategori Dominan Card */}
+        <div className="relative overflow-hidden rounded-xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-5 shadow-sm transition-all duration-200 hover:shadow-md">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
+              Kategori Dominan
+            </span>
+            <div className="rounded-lg bg-emerald-100 p-2 text-emerald-700">
+              <Wrench className="h-5 w-5" />
+            </div>
+          </div>
+          <div className="mt-4">
+            <h3 className="text-2xl font-bold text-slate-900 truncate">
+              {stats.topCategoryName}
+            </h3>
+            <p className="mt-1 text-xs text-slate-500 font-medium">
+              {stats.topCategoryCount} kasus ({stats.topCategoryPercent}%)
+            </p>
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500" />
+        </div>
+      </div>
+
+      {/* Filter and Search Panel */}
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-4 text-slate-700">
+          <SlidersHorizontal className="h-5 w-5 text-slate-500" />
+          <h2 className="font-semibold text-base">Panel Filter & Pencarian</h2>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {/* Line Selection */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+              Line Produksi
+            </label>
+            <div className="relative">
+              <select
+                value={selectedLineId}
+                onChange={(e) => setSelectedLineId(e.target.value)}
+                className="w-full pl-3 pr-8 py-2 text-sm border border-slate-200 bg-slate-50/50 rounded-xl text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 appearance-none font-medium transition cursor-pointer"
               >
-                <option value="all">Semua Mesin</option>
-                {machineOptions.map((m) => (
-                  <option key={m.key} value={m.key}>
-                    {m.label}
+                <option value="all">Semua Line</option>
+                {lines.map((line) => (
+                  <option key={line.id} value={line.id}>
+                    {line.name}
                   </option>
                 ))}
-              </Select>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             </div>
+          </div>
 
-            <div className="field">
-              <label className="text-xs font-semibold block mb-1 text-muted-foreground">Dari Tanggal</label>
-              <Input
-                type="date"
-                value={filterTanggalDari}
-                onChange={(e) => setFilterTanggalDari(e.target.value)}
-                className="w-full min-h-[40px] text-xs"
-              />
-            </div>
-
-            <div className="field">
-              <label className="text-xs font-semibold block mb-1 text-muted-foreground">Sampai Tanggal</label>
-              <Input
-                type="date"
-                value={filterTanggalSampai}
-                onChange={(e) => setFilterTanggalSampai(e.target.value)}
-                className="w-full min-h-[40px] text-xs"
-              />
-            </div>
-
-            <div className="field">
-              <label className="text-xs font-semibold block mb-1 text-muted-foreground">Kategori</label>
-              <Select
-                value={filterKategori}
-                onChange={(e) => setFilterKategori(e.target.value)}
-                className="w-full min-h-[40px] text-xs"
+          {/* Kategori Selection */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+              Kategori
+            </label>
+            <div className="relative">
+              <select
+                value={selectedKategori}
+                onChange={(e) => setSelectedKategori(e.target.value)}
+                className="w-full pl-3 pr-8 py-2 text-sm border border-slate-200 bg-slate-50/50 rounded-xl text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 appearance-none font-medium transition cursor-pointer"
               >
                 {CATEGORY_OPTIONS.map((c) => (
                   <option key={c.value} value={c.value}>
                     {c.label}
                   </option>
                 ))}
-              </Select>
-            </div>
-
-            <div className="field">
-              <label className="text-xs font-semibold block mb-1 text-muted-foreground">Cari Cepat</label>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder="Problem, penyebab, stasiun..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full !pl-9 pr-3 text-xs min-h-[40px]"
-                />
-              </div>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             </div>
           </div>
-        </Card>
 
-        {/* Summary Metric Cards */}
-        <div
-          key={`metrics-${filterMesin}-${filterTanggalDari}-${filterTanggalSampai}-${filterKategori}-${searchQuery}`}
-          className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500"
-        >
-          <Card className="dash-panel p-4 flex items-center gap-3.5 border-l-4 border-l-rose-500">
-            <div className="h-11 w-11 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500 shrink-0">
-              <AlertTriangle className="h-5 w-5" />
+          {/* Date Picker Start */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
+              Tanggal Mulai
+            </label>
+            <div className="relative flex items-center rounded-xl border border-slate-200 bg-slate-50/50 hover:border-slate-300 transition-colors px-3">
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="h-9 w-full bg-transparent text-sm text-slate-700 outline-none pr-6 cursor-pointer"
+              />
+              <Calendar className="pointer-events-none absolute right-3 h-4 w-4 text-slate-400" />
             </div>
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground block">
-                Total Kejadian
-              </span>
-              <span className="text-xl sm:text-2xl font-bold font-display">
-                {totalKejadian.toLocaleString("id-ID")}{" "}
-                <span className="text-xs font-normal text-muted-foreground font-sans">kali</span>
-              </span>
-            </div>
-          </Card>
+          </div>
 
-          <Card className="dash-panel p-4 flex items-center gap-3.5 border-l-4 border-l-amber-500">
-            <div className="h-11 w-11 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0">
-              <Clock className="h-5 w-5" />
+          {/* Date Picker End */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
+              Tanggal Akhir
+            </label>
+            <div className="relative flex items-center rounded-xl border border-slate-200 bg-slate-50/50 hover:border-slate-300 transition-colors px-3">
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="h-9 w-full bg-transparent text-sm text-slate-700 outline-none pr-6 cursor-pointer"
+              />
+              <Calendar className="pointer-events-none absolute right-3 h-4 w-4 text-slate-400" />
             </div>
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground block">
-                Total Durasi Downtime
-              </span>
-              <span className="text-xl sm:text-2xl font-bold font-display">
-                {totalDurasiMenit.toLocaleString("id-ID")}{" "}
-                <span className="text-xs font-normal text-muted-foreground font-sans">
-                  menit ({(totalDurasiMenit / 60).toFixed(1)} jam)
-                </span>
-              </span>
-            </div>
-          </Card>
+          </div>
 
-          <Card className="dash-panel p-4 flex items-center gap-3.5 border-l-4 border-l-blue-500">
-            <div className="h-11 w-11 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
-              <Activity className="h-5 w-5" />
+          {/* Search Query */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
+              Pencarian
+            </label>
+            <div className="relative flex items-center rounded-xl border border-slate-200 bg-slate-50/50 hover:border-slate-300 transition-colors px-3">
+              <input
+                type="text"
+                placeholder="Problem / Penyebab / Stasiun..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-9 w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 pr-6"
+              />
+              {searchQuery ? (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : (
+                <Search className="pointer-events-none absolute right-3 h-4 w-4 text-slate-400" />
+              )}
             </div>
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground block">
-                Rata-rata Durasi
-              </span>
-              <span className="text-xl sm:text-2xl font-bold font-display">
-                {avgDurasiMenit.toLocaleString("id-ID")}{" "}
-                <span className="text-xs font-normal text-muted-foreground font-sans">
-                  menit / kejadian
-                </span>
-              </span>
-            </div>
-          </Card>
+          </div>
         </div>
 
-        {/* Floating Bulk Action Bar */}
+        {/* Filter tags & Reset */}
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 text-xs text-slate-500">
+          <div className="flex flex-wrap items-center gap-2">
+            <span>Filter Aktif:</span>
+            {selectedLineId !== "all" && (
+              <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-1 font-semibold text-blue-700 border border-blue-100">
+                Line: {lines.find((l) => l.id === selectedLineId)?.name || selectedLineId}
+              </span>
+            )}
+            {selectedKategori !== "all" && (
+              <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-1 font-semibold text-amber-700 border border-amber-100">
+                Kategori: {selectedKategori}
+              </span>
+            )}
+            {startDate && endDate && (
+              <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 font-semibold text-slate-700">
+                Periode: {formatDate(startDate)} s/d {formatDate(endDate)}
+              </span>
+            )}
+            {debouncedSearch && (
+              <span className="inline-flex items-center gap-1 rounded-md bg-purple-50 px-2 py-1 font-semibold text-purple-700 border border-purple-100">
+                Pencarian: &quot;{debouncedSearch}&quot;
+              </span>
+            )}
+            {selectedLineId === "all" && selectedKategori === "all" && !debouncedSearch && (
+              <span className="text-slate-400 italic">Hanya rentang tanggal aktif</span>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={handleResetFilters}
+            className="text-blue-600 hover:text-blue-800 font-semibold cursor-pointer transition"
+          >
+            Reset Filter
+          </button>
+        </div>
+      </div>
+
+      {/* Main Table Area */}
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        {/* Bulk Action Header Toolbar */}
         {selectedIds.size > 0 && (
-          <div className="sticky top-4 z-30 flex items-center justify-between gap-3 p-3.5 bg-slate-900 text-white rounded-xl shadow-xl border border-slate-700 animate-in fade-in slide-in-from-top-3 duration-200">
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs font-bold">
+          <div className="bg-blue-50 border-b border-blue-200 px-5 py-3 flex flex-wrap items-center justify-between gap-3 animate-in fade-in duration-200">
+            <div className="flex items-center gap-3">
+              <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-bold bg-blue-600 text-white">
                 {selectedIds.size}
               </span>
-              <span className="text-xs sm:text-sm font-semibold">Data Downtime Dipilih</span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button
+              <span className="text-sm font-semibold text-slate-800">
+                Data downtime terpilih
+              </span>
+              <button
                 type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedIds(new Set())}
-                className="h-8 px-3 text-xs text-slate-300 hover:text-white hover:bg-slate-800"
+                onClick={handleClearSelection}
+                className="text-xs text-blue-600 hover:text-blue-800 font-medium underline cursor-pointer ml-1"
               >
-                Batal
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={() => {
-                  setBulkDeleteError("");
-                  setShowBulkDeleteModal(true);
-                }}
-                className="h-8 px-3 text-xs font-bold bg-red-600 hover:bg-red-700 text-white flex items-center gap-1.5 shadow-sm cursor-pointer"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                <span>Hapus ({selectedIds.size})</span>
-              </Button>
+                Batalkan pilihan
+              </button>
             </div>
+            <Button
+              onClick={() => setShowBulkDeleteModal(true)}
+              className="h-8 bg-red-600 hover:bg-red-700 text-white text-xs flex items-center gap-1.5 cursor-pointer"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Hapus {selectedIds.size} Terpilih
+            </Button>
           </div>
         )}
 
-        {/* Data Table */}
-        <Card className="dash-panel card-glow-info overflow-hidden">
-          <div className="p-4 border-b border-border flex items-center justify-between">
-            <h3 className="font-bold text-base flex items-center gap-2">
-              <span>Data Riwayat Downtime</span>
-              <span className="text-xs font-mono font-normal px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                {filteredRows.length} baris
-              </span>
-            </h3>
-          </div>
-
-          {/* Banner Seleksi Semua Halaman jika Halaman Aktif Terpilih Penuh */}
-          {isAllPageSelected && filteredRows.length > paginatedRows.length && (
-            <div className="bg-blue-50 dark:bg-blue-950/50 px-4 py-2.5 text-xs text-blue-900 dark:text-blue-200 border-b border-blue-100 dark:border-blue-900 flex items-center justify-between gap-2 flex-wrap">
-              <span>
-                {isAllTotalSelected ? (
-                  <>Seluruh <strong>{filteredRows.length}</strong> baris data downtime terpilih.</>
-                ) : (
-                  <>Semua <strong>{paginatedRows.length}</strong> baris pada halaman ini terpilih.</>
-                )}
-              </span>
-              {!isAllTotalSelected ? (
-                <button
-                  type="button"
-                  onClick={selectAllAcrossAllPages}
-                  className="font-bold underline hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer bg-transparent border-0 p-0"
-                >
-                  Pilih seluruh {filteredRows.length} baris riwayat downtime
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setSelectedIds(new Set())}
-                  className="font-bold underline hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer bg-transparent border-0 p-0"
-                >
-                  Batalkan pilihan
-                </button>
-              )}
-            </div>
-          )}
-
-          <div className="table-wrap overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs sm:text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/50 font-semibold text-muted-foreground select-none">
-                  <th className="p-3 w-10 text-center">
-                    <input
-                      type="checkbox"
-                      checked={isAllPageSelected}
-                      ref={(el) => {
-                        if (el) el.indeterminate = isSomePageSelected;
-                      }}
-                      onChange={toggleSelectPage}
-                      aria-label="Pilih semua baris downtime pada halaman ini"
-                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
-                    />
-                  </th>
-                  <th className="p-3 font-bold text-xs uppercase tracking-wider">Mesin</th>
-                  <th className="p-3 font-bold text-xs uppercase tracking-wider">Tanggal</th>
-                  <th className="p-3 font-bold text-xs uppercase tracking-wider">Waktu</th>
-                  <th className="p-3 font-bold text-xs uppercase tracking-wider text-right">Durasi</th>
-                  <th className="p-3 font-bold text-xs uppercase tracking-wider">Kategori</th>
-                  <th className="p-3 font-bold text-xs uppercase tracking-wider">Problem</th>
-                  <th className="p-3 font-bold text-xs uppercase tracking-wider">Penyebab</th>
-                  <th className="p-3 font-bold text-xs uppercase tracking-wider">Countermeasure</th>
-                  <th className="p-3 font-bold text-xs uppercase tracking-wider">Stasiun</th>
-                  <th className="p-3 font-bold text-xs uppercase tracking-wider text-center">Aksi</th>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm border-collapse">
+            <thead>
+              <tr className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200 select-none">
+                <th className="py-4 pl-4 pr-2 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    checked={isAllPageSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = isSomePageSelected;
+                    }}
+                    onChange={toggleSelectPage}
+                    aria-label="Pilih semua baris di halaman ini"
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                  />
+                </th>
+                <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider whitespace-nowrap">Tanggal</th>
+                <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider whitespace-nowrap">Line Produksi</th>
+                <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider whitespace-nowrap text-center">Stasiun</th>
+                <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider whitespace-nowrap">Kategori</th>
+                <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Problem & Penyebab</th>
+                <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider">Countermeasure</th>
+                <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-center whitespace-nowrap">Mulai - Selesai</th>
+                <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-right whitespace-nowrap">Durasi</th>
+                <th className="py-4 px-4 font-bold text-xs uppercase tracking-wider text-center whitespace-nowrap">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {isLoading ? (
+                <tr>
+                  <td colSpan={10} className="py-12 text-center text-slate-500">
+                    <div className="flex flex-col items-center justify-center gap-3">
+                      <RefreshCw className="h-6 w-6 animate-spin text-blue-600" />
+                      <p className="text-sm font-medium">Memuat data log downtime...</p>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody
-                key={`${filterMesin}-${filterTanggalDari}-${filterTanggalSampai}-${filterKategori}-${searchQuery}-${safeCurrentPage}`}
-                className="divide-y divide-border animate-in fade-in slide-in-from-bottom-2 duration-500"
-              >
-                {loading ? (
-                  <DowntimeTableSkeleton />
-                ) : paginatedRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={11} className="p-8 text-center text-muted-foreground">
-                      Tidak ada data downtime yang sesuai dengan kriteria filter saat ini.
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedRows.map((row, idx) => {
-                    const isSelected = selectedIds.has(row.id);
-                    return (
-                      <tr
-                        key={row.id || idx}
-                        onClick={() => toggleSelect(row.id)}
-                        className={`transition-colors cursor-pointer animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards ${
-                          isSelected ? "bg-blue-50/70 dark:bg-blue-950/40" : "hover:bg-muted/30"
-                        }`}
-                        style={{ animationDelay: `${Math.min(idx * 20, 300)}ms` }}
-                      >
-                        {/* Checkbox */}
-                        <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleSelect(row.id)}
-                            aria-label={`Pilih downtime ${row.problem || row.id}`}
-                            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
-                          />
-                        </td>
+              ) : error ? (
+                <tr>
+                  <td colSpan={10} className="py-12 text-center text-red-600">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <AlertTriangle className="h-6 w-6 text-red-500" />
+                      <p className="text-sm font-semibold">{error}</p>
+                      <Button onClick={handleRefresh} variant="outline" className="mt-2 text-xs">
+                        Coba Lagi
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ) : downtimeList.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="py-12 text-center text-slate-400">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <Clock className="h-8 w-8 text-slate-300" />
+                      <p className="text-base font-semibold text-slate-700">Tidak ada data downtime ditemukan</p>
+                      <p className="text-xs text-slate-400 max-w-sm">
+                        Coba ubah rentang tanggal, filter line, kategori, atau bersihkan kata kunci pencarian.
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                downtimeList.map((item) => {
+                  const isSelected = selectedIds.has(item.id);
+                  const durMinutes = getDurationMinutes(item.waktu_awal, item.waktu_akhir);
+                  const lineName = item.line_name || item.mesin || "-";
 
-                        {/* Mesin */}
-                        <td className="p-3 font-bold whitespace-nowrap">
-                          <span className="px-2 py-1 rounded-md bg-card border border-border text-foreground font-mono text-xs">
-                            {getMachineLabel(row.mesin)}
+                  return (
+                    <tr
+                      key={item.id}
+                      onClick={() => toggleSelectRow(item.id)}
+                      className={`transition-colors duration-150 group cursor-pointer ${
+                        isSelected ? "bg-blue-50/70 hover:bg-blue-50" : "hover:bg-slate-50"
+                      }`}
+                    >
+                      {/* Checkbox */}
+                      <td className="py-3.5 pl-4 pr-2 text-center" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => toggleSelectRow(item.id, e)}
+                          aria-label={`Pilih downtime ${item.problem}`}
+                          className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                        />
+                      </td>
+
+                      {/* Tanggal */}
+                      <td className="py-3.5 px-4 font-medium text-slate-900 whitespace-nowrap">
+                        {formatDate(item.waktu_awal)}
+                      </td>
+
+                      {/* Line Name */}
+                      <td className="py-3.5 px-4 font-semibold text-slate-800 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                          {lineName}
+                        </span>
+                      </td>
+
+                      {/* Stasiun */}
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap font-mono text-xs text-slate-600 font-semibold">
+                        {item.stasiun ? (
+                          <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                            {item.stasiun}
                           </span>
-                        </td>
+                        ) : (
+                          <span className="text-slate-400">-</span>
+                        )}
+                      </td>
 
-                        {/* Tanggal */}
-                        <td className="p-3 whitespace-nowrap font-medium text-foreground">
-                          {formatDate(row.waktu_awal)}
-                        </td>
+                      {/* Kategori Badge */}
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <span
+                          className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold border uppercase tracking-wide ${getCategoryBadgeClass(
+                            item.kategori
+                          )}`}
+                        >
+                          {item.kategori || "OTHER"}
+                        </span>
+                      </td>
 
-                        {/* Waktu */}
-                        <td className="p-3 whitespace-nowrap font-mono text-xs text-muted-foreground">
-                          {formatTime(row.waktu_awal)} - {formatTime(row.waktu_akhir)}
-                        </td>
-
-                        {/* Durasi */}
-                        <td className="p-3 text-right whitespace-nowrap font-mono font-bold text-rose-500">
-                          {row.durasi_menit} m
-                        </td>
-
-                        {/* Kategori */}
-                        <td className="p-3 whitespace-nowrap">
-                          <span
-                            className={`px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider ${
-                              row.kategori === "MESIN"
-                                ? "bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30"
-                                : row.kategori === "DIES"
-                                ? "bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30"
-                                : row.kategori === "FINGER"
-                                ? "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30"
-                                : "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
-                            }`}
-                          >
-                            {row.kategori || "-"}
-                          </span>
-                        </td>
-
-                        {/* Problem */}
-                        <td className="p-3 font-semibold text-foreground max-w-[200px] truncate" title={row.problem}>
-                          {row.problem || "-"}
-                        </td>
-
-                        {/* Penyebab */}
-                        <td className="p-3 text-muted-foreground max-w-[180px] truncate" title={row.penyebab}>
-                          {row.penyebab || "-"}
-                        </td>
-
-                        {/* Countermeasure */}
-                        <td className="p-3 text-muted-foreground max-w-[180px] truncate" title={row.countermeasure}>
-                          {row.countermeasure || "-"}
-                        </td>
-
-                        {/* Stasiun */}
-                        <td className="p-3 whitespace-nowrap font-mono text-xs">
-                          {row.stasiun ? (
-                            <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-                              {row.stasiun}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground/50">-</span>
-                          )}
-                        </td>
-
-                        {/* Aksi */}
-                        <td className="p-3 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center justify-center gap-1.5">
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              size="sm"
-                              title="Edit data downtime"
-                              onClick={() => handleOpenEdit(row)}
-                              className="h-8 w-8 p-0"
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="sm"
-                              title="Hapus data downtime"
-                              onClick={() => {
-                                setDeleteError("");
-                                setDeleteTarget(row);
-                              }}
-                              className="h-8 w-8 p-0"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
+                      {/* Problem & Penyebab */}
+                      <td className="py-3.5 px-4 max-w-xs">
+                        <div className="font-semibold text-slate-900 line-clamp-1" title={item.problem || ""}>
+                          {item.problem || "-"}
+                        </div>
+                        {item.penyebab && (
+                          <div className="text-xs text-slate-500 line-clamp-1 mt-0.5" title={item.penyebab}>
+                            Penyebab: {item.penyebab}
                           </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                        )}
+                      </td>
+
+                      {/* Countermeasure */}
+                      <td className="py-3.5 px-4 max-w-xs text-xs text-slate-600">
+                        {item.countermeasure ? (
+                          <span className="line-clamp-2" title={item.countermeasure}>
+                            {item.countermeasure}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 italic">-</span>
+                        )}
+                      </td>
+
+                      {/* Mulai - Selesai */}
+                      <td className="py-3.5 px-4 text-center text-slate-600 whitespace-nowrap font-medium text-xs font-mono">
+                        {formatTime(item.waktu_awal)} - {formatTime(item.waktu_akhir)}
+                      </td>
+
+                      {/* Durasi */}
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                        <span
+                          className={`font-bold text-xs px-2 py-1 rounded ${
+                            durMinutes >= 60
+                              ? "bg-rose-50 text-rose-700 border border-rose-200"
+                              : durMinutes >= 15
+                              ? "bg-amber-50 text-amber-700 border border-amber-200"
+                              : "bg-slate-100 text-slate-700 border border-slate-200"
+                          }`}
+                        >
+                          {durMinutes} m
+                        </span>
+                      </td>
+
+                      {/* Aksi */}
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => openDetail(item)}
+                            className="inline-flex items-center justify-center h-8 w-8 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition cursor-pointer"
+                            title="Lihat Detail"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(item)}
+                            className="inline-flex items-center justify-center h-8 w-8 rounded text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition cursor-pointer"
+                            title="Edit Downtime"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openDeleteModal(item)}
+                            className="inline-flex items-center justify-center h-8 w-8 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition cursor-pointer"
+                            title="Hapus Downtime"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination Controls */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-slate-200 bg-slate-50 text-slate-600 text-xs">
+          <div className="flex items-center gap-2">
+            <span>Baris per halaman:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="bg-white border border-slate-200 rounded px-2 py-1 outline-none font-medium cursor-pointer"
+            >
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+            <span className="ml-2 text-slate-500">
+              Menampilkan {startIndex} - {endIndex} dari {totalCount} data downtime
+            </span>
           </div>
 
-          {/* Pagination Controls (persis seperti laporan-produksi) */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-border bg-muted/20">
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span>
-                Menampilkan <strong>{filteredRows.length > 0 ? startIndex + 1 : 0}</strong> -{" "}
-                <strong>{endIndex}</strong> dari <strong>{filteredRows.length.toLocaleString("id-ID")}</strong> entri
-              </span>
-              <div className="hidden sm:flex items-center gap-1.5 ml-2 border-l border-border pl-3">
-                <span>Baris per hal:</span>
-                <select
-                  value={pageSize}
-                  onChange={(e) => {
-                    setPageSize(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="h-7 px-2 py-0 border border-input rounded bg-background text-xs text-foreground outline-none focus:border-primary cursor-pointer"
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 bg-white border-slate-200 disabled:opacity-40"
+              onClick={() => setCurrentPage(1)}
+              disabled={safeCurrentPage <= 1}
+              title="Halaman Pertama"
+            >
+              <ChevronsLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 bg-white border-slate-200 disabled:opacity-40"
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+              disabled={safeCurrentPage <= 1}
+              title="Sebelumnya"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+
+            <span className="px-3 py-1 font-semibold text-slate-700">
+              {safeCurrentPage} / {totalPages}
+            </span>
+
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 bg-white border-slate-200 disabled:opacity-40"
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+              disabled={safeCurrentPage >= totalPages}
+              title="Berikutnya"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 bg-white border-slate-200 disabled:opacity-40"
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={safeCurrentPage >= totalPages}
+              title="Halaman Terakhir"
+            >
+              <ChevronsRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal Detail Downtime */}
+      {detailItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <span
+                  className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold border uppercase tracking-wide mb-2 ${getCategoryBadgeClass(
+                    detailItem.kategori
+                  )}`}
                 >
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
+                  {detailItem.kategori || "OTHER"}
+                </span>
+                <h3 className="text-lg font-bold text-slate-900">
+                  Detail Catatan Downtime
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={closeDetail}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4 text-sm max-h-[75vh] overflow-y-auto">
+              {/* Duration Banner */}
+              <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">
+                    Total Durasi Downtime
+                  </p>
+                  <p className="text-2xl font-black text-amber-900 mt-0.5">
+                    {getDurationMinutes(detailItem.waktu_awal, detailItem.waktu_akhir)} Menit
+                  </p>
+                </div>
+                <div className="text-right text-xs text-amber-800 font-medium">
+                  ≈ {(getDurationMinutes(detailItem.waktu_awal, detailItem.waktu_akhir) / 60).toFixed(1)} Jam
+                </div>
+              </div>
+
+              {/* Grid Info */}
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="p-3 bg-slate-50 rounded-lg">
+                  <span className="text-slate-400 block font-bold uppercase">Tanggal</span>
+                  <span className="font-semibold text-slate-800 text-sm mt-0.5 block">
+                    {formatDate(detailItem.waktu_awal)}
+                  </span>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-lg">
+                  <span className="text-slate-400 block font-bold uppercase">Line / Mesin</span>
+                  <span className="font-semibold text-slate-800 text-sm mt-0.5 block">
+                    {detailItem.line_name || detailItem.mesin || "-"}
+                  </span>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-lg">
+                  <span className="text-slate-400 block font-bold uppercase">Waktu Mulai</span>
+                  <span className="font-semibold text-slate-800 text-sm mt-0.5 block font-mono">
+                    {formatTime(detailItem.waktu_awal)}
+                  </span>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-lg">
+                  <span className="text-slate-400 block font-bold uppercase">Waktu Selesai</span>
+                  <span className="font-semibold text-slate-800 text-sm mt-0.5 block font-mono">
+                    {formatTime(detailItem.waktu_akhir)}
+                  </span>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-lg col-span-2">
+                  <span className="text-slate-400 block font-bold uppercase">Stasiun / Mesin</span>
+                  <span className="font-semibold text-slate-800 text-sm mt-0.5 block font-mono">
+                    {detailItem.stasiun || "-"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Problem Description */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+                  Problem / Gejala
+                </label>
+                <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-slate-800 font-medium">
+                  {detailItem.problem || "-"}
+                </div>
+              </div>
+
+              {/* Penyebab */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+                  Penyebab (Root Cause)
+                </label>
+                <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-slate-800 font-medium">
+                  {detailItem.penyebab || "-"}
+                </div>
+              </div>
+
+              {/* Countermeasure */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+                  Tindakan Perbaikan (Countermeasure)
+                </label>
+                <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-slate-800 font-medium">
+                  {detailItem.countermeasure || "-"}
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5">
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(1)}
-                disabled={safeCurrentPage <= 1}
-                className="h-8 w-8 p-0"
-                title="Halaman Pertama"
+                onClick={handleCopyDetail}
+                className="gap-1.5 text-xs font-semibold cursor-pointer"
               >
-                <ChevronsLeft className="h-4 w-4" />
+                {isCopied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+                {isCopied ? "Tersalin!" : "Salin Detail"}
               </Button>
               <Button
                 type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={safeCurrentPage <= 1}
-                className="h-8 w-8 p-0"
-                title="Halaman Sebelumnya"
+                onClick={closeDetail}
+                className="bg-slate-800 hover:bg-slate-900 text-white text-xs px-5 cursor-pointer"
               >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-
-              <span className="px-3 text-xs font-semibold text-foreground whitespace-nowrap">
-                Hal {safeCurrentPage} dari {totalPages}
-              </span>
-
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={safeCurrentPage >= totalPages}
-                className="h-8 w-8 p-0"
-                title="Halaman Berikutnya"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={safeCurrentPage >= totalPages}
-                className="h-8 w-8 p-0"
-                title="Halaman Terakhir"
-              >
-                <ChevronsRight className="h-4 w-4" />
+                Tutup
               </Button>
             </div>
           </div>
-        </Card>
-      </main>
+        </div>
+      )}
 
-      {/* ── Modal: Tambah Downtime Baru ── */}
-      {showCreateModal && (
-        <Dialog open={showCreateModal} onOpenChange={(open) => { if (!open && !isSavingCreate) setShowCreateModal(false); }}>
-          <DialogContent onClose={() => { if (!isSavingCreate) setShowCreateModal(false); }} maxWidth="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Tambah Catatan Downtime</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSaveCreate} className="space-y-3.5 mt-2">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="field">
-                  <label className="text-xs font-semibold block mb-1">Mesin / Line *</label>
-                  <Select
-                    value={createForm.mesin}
-                    onChange={(e) => setCreateForm((prev) => ({ ...prev, mesin: e.target.value }))}
-                    className="w-full"
-                    required
-                  >
-                    {machineOptions.map((m) => (
-                      <option key={m.key} value={m.key}>
-                        {m.label}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-
-                <div className="field">
-                  <label className="text-xs font-semibold block mb-1">Stasiun (Opsional)</label>
-                  <Input
-                    type="text"
-                    placeholder="misal PA-1, PC-1"
-                    value={createForm.stasiun}
-                    onChange={(e) => setCreateForm((prev) => ({ ...prev, stasiun: e.target.value }))}
-                  />
-                </div>
+      {/* Modal Form (Create / Edit) */}
+      {showFormModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Form Header */}
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">
+                  {isEditing ? "Edit Catatan Downtime" : "Tambah Catatan Downtime Baru"}
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Pastikan waktu mulai dan waktu selesai diinput sesuai kejadian aktual di mesin.
+                </p>
               </div>
+              <button
+                type="button"
+                onClick={closeFormModal}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="field">
-                  <label className="text-xs font-semibold block mb-1">Waktu Awal *</label>
-                  <Input
-                    type="datetime-local"
-                    value={createForm.waktu_awal}
-                    onChange={(e) => setCreateForm((prev) => ({ ...prev, waktu_awal: e.target.value }))}
-                    required
-                  />
-                </div>
-
-                <div className="field">
-                  <label className="text-xs font-semibold block mb-1">Waktu Akhir</label>
-                  <Input
-                    type="datetime-local"
-                    value={createForm.waktu_akhir}
-                    onChange={(e) => setCreateForm((prev) => ({ ...prev, waktu_akhir: e.target.value }))}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="field">
-                  <label className="text-xs font-semibold block mb-1">Kategori *</label>
-                  <Select
-                    value={createForm.kategori}
-                    onChange={(e) => setCreateForm((prev) => ({ ...prev, kategori: e.target.value }))}
-                    className="w-full"
-                    required
-                  >
-                    {FORM_CATEGORIES.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-
-                <div className="field">
-                  <label className="text-xs font-semibold block mb-1">Problem</label>
-                  <Input
-                    type="text"
-                    list="problemListCreate"
-                    placeholder="Nama problem downtime..."
-                    value={createForm.problem}
-                    onChange={(e) => setCreateForm((prev) => ({ ...prev, problem: e.target.value }))}
-                  />
-                  <datalist id="problemListCreate">
-                    {problemSuggestions.map((p) => (
-                      <option key={p} value={p} />
-                    ))}
-                  </datalist>
-                </div>
-              </div>
-
-              <div className="field">
-                <label className="text-xs font-semibold block mb-1">Penyebab</label>
-                <Input
-                  type="text"
-                  placeholder="Penyebab terjadinya downtime..."
-                  value={createForm.penyebab}
-                  onChange={(e) => setCreateForm((prev) => ({ ...prev, penyebab: e.target.value }))}
-                />
-              </div>
-
-              <div className="field">
-                <label className="text-xs font-semibold block mb-1">Countermeasure</label>
-                <Input
-                  type="text"
-                  placeholder="Tindakan penanganan yang dilakukan..."
-                  value={createForm.countermeasure}
-                  onChange={(e) => setCreateForm((prev) => ({ ...prev, countermeasure: e.target.value }))}
-                />
-              </div>
-
-              {createError && (
-                <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg text-xs text-red-600 dark:text-red-400">
-                  {createError}
+            {/* Form Content */}
+            <form onSubmit={handleSaveForm} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+              {formError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs font-semibold text-red-700 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" />
+                  <span>{formError}</span>
                 </div>
               )}
 
-              <DialogFooter className="mt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Line Selection */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                    Line Produksi <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={formData.line_id}
+                      onChange={(e) => {
+                        const lId = e.target.value;
+                        const matched = lines.find((l) => l.id === lId);
+                        setFormData((prev) => ({
+                          ...prev,
+                          line_id: lId,
+                          mesin: matched?.machine_type || prev.mesin,
+                        }));
+                      }}
+                      className="w-full pl-3 pr-8 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium transition cursor-pointer"
+                    >
+                      <option value="">Pilih Line Produksi</option>
+                      {lines.map((line) => (
+                        <option key={line.id} value={line.id}>
+                          {line.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  </div>
+                </div>
+
+                {/* Stasiun */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                    Stasiun / Mesin
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: OP10, Mesin 1, dll"
+                    value={formData.stasiun}
+                    onChange={(e) => setFormData((p) => ({ ...p, stasiun: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium transition"
+                  />
+                </div>
+
+                {/* Kategori */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                    Kategori Downtime <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={formData.kategori}
+                      onChange={(e) => setFormData((p) => ({ ...p, kategori: e.target.value }))}
+                      className="w-full pl-3 pr-8 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium transition cursor-pointer"
+                    >
+                      {FORM_CATEGORIES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  </div>
+                </div>
+
+                {/* Waktu Mulai */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                    Waktu Mulai <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={formData.waktu_awal}
+                    onChange={(e) => setFormData((p) => ({ ...p, waktu_awal: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium transition cursor-pointer"
+                  />
+                </div>
+
+                {/* Waktu Selesai */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                    Waktu Selesai <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={formData.waktu_akhir}
+                    onChange={(e) => setFormData((p) => ({ ...p, waktu_akhir: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium transition cursor-pointer"
+                  />
+                </div>
+
+                {/* Preview Durasi */}
+                <div className="flex flex-col justify-end">
+                  <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs flex items-center justify-between">
+                    <span className="font-semibold text-slate-500">Estimasi Durasi:</span>
+                    <span className="font-black text-slate-900">
+                      {getDurationMinutes(formData.waktu_awal, formData.waktu_akhir)} Menit
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Problem */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                  Deskripsi Problem <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  list="problem-suggestions"
+                  placeholder="Deskripsikan problem yang terjadi..."
+                  value={formData.problem}
+                  onChange={(e) => setFormData((p) => ({ ...p, problem: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium transition"
+                />
+                <datalist id="problem-suggestions">
+                  {problemSuggestions.map((ps) => (
+                    <option key={ps} value={ps} />
+                  ))}
+                </datalist>
+              </div>
+
+              {/* Penyebab */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                  Penyebab (Root Cause)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Penyebab akar masalah..."
+                  value={formData.penyebab}
+                  onChange={(e) => setFormData((p) => ({ ...p, penyebab: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium transition"
+                />
+              </div>
+
+              {/* Countermeasure */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                  Tindakan Perbaikan (Countermeasure)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Tindakan penanganan yang dilakukan..."
+                  value={formData.countermeasure}
+                  onChange={(e) => setFormData((p) => ({ ...p, countermeasure: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium transition"
+                />
+              </div>
+
+              {/* Form Buttons */}
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
                 <Button
                   type="button"
-                  variant="ghost"
-                  disabled={isSavingCreate}
-                  onClick={() => setShowCreateModal(false)}
+                  variant="outline"
+                  onClick={closeFormModal}
+                  disabled={isSavingForm}
+                  className="cursor-pointer text-xs"
                 >
                   Batal
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isSavingCreate}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold"
+                  disabled={isSavingForm}
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-5 cursor-pointer flex items-center gap-2"
                 >
-                  {isSavingCreate ? "Menyimpan..." : "Simpan Downtime"}
+                  {isSavingForm && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+                  {isSavingForm ? "Menyimpan..." : isEditing ? "Simpan Perubahan" : "Tambah Downtime"}
                 </Button>
-              </DialogFooter>
+              </div>
             </form>
-          </DialogContent>
-        </Dialog>
+          </div>
+        </div>
       )}
 
-      {/* ── Modal: Edit Downtime ── */}
-      {editTarget && (
-        <Dialog open={!!editTarget} onOpenChange={(open) => { if (!open && !isSavingEdit) setEditTarget(null); }}>
-          <DialogContent onClose={() => { if (!isSavingEdit) setEditTarget(null); }} maxWidth="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Edit Catatan Downtime</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSaveEdit} className="space-y-3.5 mt-2">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="field">
-                  <label className="text-xs font-semibold block mb-1">Mesin / Line *</label>
-                  <Select
-                    value={editForm.mesin}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, mesin: e.target.value }))}
-                    className="w-full"
-                    required
-                  >
-                    {machineOptions.map((m) => (
-                      <option key={m.key} value={m.key}>
-                        {m.label}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-
-                <div className="field">
-                  <label className="text-xs font-semibold block mb-1">Stasiun (Opsional)</label>
-                  <Input
-                    type="text"
-                    placeholder="misal PA-1, PC-1"
-                    value={editForm.stasiun}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, stasiun: e.target.value }))}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="field">
-                  <label className="text-xs font-semibold block mb-1">Waktu Awal *</label>
-                  <Input
-                    type="datetime-local"
-                    value={editForm.waktu_awal}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, waktu_awal: e.target.value }))}
-                    required
-                  />
-                </div>
-
-                <div className="field">
-                  <label className="text-xs font-semibold block mb-1">Waktu Akhir</label>
-                  <Input
-                    type="datetime-local"
-                    value={editForm.waktu_akhir}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, waktu_akhir: e.target.value }))}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="field">
-                  <label className="text-xs font-semibold block mb-1">Kategori *</label>
-                  <Select
-                    value={editForm.kategori}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, kategori: e.target.value }))}
-                    className="w-full"
-                    required
-                  >
-                    {FORM_CATEGORIES.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-
-                <div className="field">
-                  <label className="text-xs font-semibold block mb-1">Problem</label>
-                  <Input
-                    type="text"
-                    list="problemListEdit"
-                    placeholder="Nama problem downtime..."
-                    value={editForm.problem}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, problem: e.target.value }))}
-                  />
-                  <datalist id="problemListEdit">
-                    {problemSuggestions.map((p) => (
-                      <option key={p} value={p} />
-                    ))}
-                  </datalist>
-                </div>
-              </div>
-
-              <div className="field">
-                <label className="text-xs font-semibold block mb-1">Penyebab</label>
-                <Input
-                  type="text"
-                  placeholder="Penyebab terjadinya downtime..."
-                  value={editForm.penyebab}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, penyebab: e.target.value }))}
-                />
-              </div>
-
-              <div className="field">
-                <label className="text-xs font-semibold block mb-1">Countermeasure</label>
-                <Input
-                  type="text"
-                  placeholder="Tindakan penanganan yang dilakukan..."
-                  value={editForm.countermeasure}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, countermeasure: e.target.value }))}
-                />
-              </div>
-
-              {editError && (
-                <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg text-xs text-red-600 dark:text-red-400">
-                  {editError}
-                </div>
-              )}
-
-              <DialogFooter className="mt-4">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  disabled={isSavingEdit}
-                  onClick={() => setEditTarget(null)}
-                >
-                  Batal
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={isSavingEdit}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold"
-                >
-                  {isSavingEdit ? "Menyimpan..." : "Simpan Perubahan"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {/* ── Modal: Hapus Satu Downtime ── */}
+      {/* Modal Single Delete Confirmation */}
       {deleteTarget && (
-        <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open && !isDeleting) setDeleteTarget(null); }}>
-          <DialogContent onClose={() => { if (!isDeleting) setDeleteTarget(null); }} maxWidth="max-w-md">
-            <div className="flex items-start gap-4 mb-4">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-50 border border-red-100 text-red-600">
-                <AlertTriangle className="h-5 w-5" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-100 p-6 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 text-red-600 mb-4">
+              <div className="p-3 bg-red-100 rounded-full">
+                <Trash2 className="h-6 w-6" />
               </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-foreground">Hapus Data Downtime?</h3>
-                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                  Yakin ingin menghapus catatan downtime{" "}
-                  <strong className="text-foreground">
-                    &quot;{deleteTarget.problem || deleteTarget.kategori || "Downtime"}&quot;
-                  </strong>{" "}
-                  pada mesin{" "}
-                  <strong className="text-foreground">
-                    {getMachineLabel(deleteTarget.mesin)}
-                  </strong>
-                  ?
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground/70">
-                  Data akan dipindahkan ke Tempat Sampah (soft-delete).
-                </p>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Hapus Catatan Downtime?</h3>
+                <p className="text-xs text-slate-500">Tindakan ini akan menghapus catatan dari daftar aktif.</p>
               </div>
             </div>
 
-            {deleteError && (
-              <div className="mb-4 rounded-md bg-red-50 dark:bg-red-950/40 p-3 text-xs text-red-800 dark:text-red-300 border border-red-100 dark:border-red-900">
-                {deleteError}
-              </div>
-            )}
+            <div className="p-3 bg-slate-50 rounded-lg text-xs space-y-1 mb-5">
+              <p>
+                <span className="font-semibold text-slate-500">Line:</span>{" "}
+                <span className="font-bold text-slate-800">{deleteTarget.line_name || deleteTarget.mesin}</span>
+              </p>
+              <p>
+                <span className="font-semibold text-slate-500">Problem:</span>{" "}
+                <span className="font-bold text-slate-800">{deleteTarget.problem || "-"}</span>
+              </p>
+              <p>
+                <span className="font-semibold text-slate-500">Waktu:</span>{" "}
+                <span className="font-mono text-slate-700">
+                  {formatDate(deleteTarget.waktu_awal)} ({formatTime(deleteTarget.waktu_awal)} -{" "}
+                  {formatTime(deleteTarget.waktu_akhir)})
+                </span>
+              </p>
+            </div>
 
-            <DialogFooter>
+            <div className="flex items-center justify-end gap-3">
               <Button
                 type="button"
-                variant="ghost"
-                disabled={isDeleting}
-                onClick={() => setDeleteTarget(null)}
+                variant="outline"
+                onClick={closeDeleteModal}
+                disabled={isDeletingSingle}
+                className="text-xs cursor-pointer"
               >
                 Batal
               </Button>
               <Button
                 type="button"
-                variant="destructive"
-                disabled={isDeleting}
-                onClick={handleDeleteConfirm}
-                className="bg-red-600 hover:bg-red-700 text-white font-bold"
+                onClick={handleConfirmSingleDelete}
+                disabled={isDeletingSingle}
+                className="bg-red-600 hover:bg-red-700 text-white text-xs cursor-pointer flex items-center gap-1.5"
               >
-                {isDeleting ? "Menghapus..." : "Ya, Hapus"}
+                {isDeletingSingle && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+                {isDeletingSingle ? "Menghapus..." : "Ya, Hapus Sekarang"}
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </div>
+          </div>
+        </div>
       )}
 
-      {/* ── Modal: Bulk Delete Downtime ── */}
+      {/* Modal Bulk Delete Confirmation */}
       {showBulkDeleteModal && (
-        <Dialog open={showBulkDeleteModal} onOpenChange={(open) => { if (!open && !isBulkDeleting) setShowBulkDeleteModal(false); }}>
-          <DialogContent onClose={() => { if (!isBulkDeleting) setShowBulkDeleteModal(false); }} maxWidth="max-w-md">
-            <div className="flex items-start gap-4 mb-4">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-50 border border-red-100 text-red-600">
-                <AlertTriangle className="h-5 w-5" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-100 p-6 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 text-red-600 mb-4">
+              <div className="p-3 bg-red-100 rounded-full">
+                <Trash2 className="h-6 w-6" />
               </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-foreground">Hapus {selectedIds.size} Data Downtime?</h3>
-                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                  Apakah Anda yakin ingin menghapus{" "}
-                  <strong className="text-foreground">{selectedIds.size} data downtime</strong> yang dipilih?
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground/70">
-                  Data akan dipindahkan ke Tempat Sampah (soft-delete).
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">
+                  Hapus {selectedIds.size} Data Downtime Terpilih?
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Semua data downtime yang dipilih akan dihapus secara bersamaan.
                 </p>
               </div>
             </div>
 
-            {bulkDeleteError && (
-              <div className="mb-4 rounded-md bg-red-50 dark:bg-red-950/40 p-3 text-xs text-red-800 dark:text-red-300 border border-red-100 dark:border-red-900">
-                {bulkDeleteError}
-              </div>
-            )}
+            <p className="text-xs text-slate-600 mb-5">
+              Apakah Anda yakin ingin menghapus <b>{selectedIds.size}</b> catatan downtime yang telah Anda pilih?
+            </p>
 
-            <DialogFooter>
+            <div className="flex items-center justify-end gap-3">
               <Button
                 type="button"
-                variant="ghost"
-                disabled={isBulkDeleting}
+                variant="outline"
                 onClick={() => setShowBulkDeleteModal(false)}
+                disabled={isBulkDeleting}
+                className="text-xs cursor-pointer"
               >
                 Batal
               </Button>
               <Button
                 type="button"
-                variant="destructive"
+                onClick={handleConfirmBulkDelete}
                 disabled={isBulkDeleting}
-                onClick={handleBulkDeleteConfirm}
-                className="bg-red-600 hover:bg-red-700 text-white font-bold flex items-center gap-2"
+                className="bg-red-600 hover:bg-red-700 text-white text-xs cursor-pointer flex items-center gap-1.5"
               >
-                <Trash2 className="h-4 w-4" />
-                {isBulkDeleting ? "Menghapus..." : `Ya, Hapus (${selectedIds.size})`}
+                {isBulkDeleting && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+                {isBulkDeleting ? "Menghapus..." : `Ya, Hapus ${selectedIds.size} Data`}
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </div>
+          </div>
+        </div>
       )}
     </div>
-  );
-}
-
-function DowntimeTableSkeleton() {
-  return (
-    <>
-      {Array.from({ length: 8 }).map((_, i) => (
-        <tr key={i} className="animate-pulse select-none">
-          <td className="p-3 text-center"><div className="h-4 w-4 bg-muted rounded mx-auto" /></td>
-          <td className="p-3"><div className="h-6 bg-muted rounded-md w-20" /></td>
-          <td className="p-3"><div className="h-4 bg-muted rounded w-20" /></td>
-          <td className="p-3"><div className="h-4 bg-muted rounded w-24" /></td>
-          <td className="p-3 text-right"><div className="h-4 bg-muted rounded w-12 ml-auto" /></td>
-          <td className="p-3"><div className="h-5 bg-muted rounded w-16" /></td>
-          <td className="p-3"><div className="h-4 bg-muted rounded w-36" /></td>
-          <td className="p-3"><div className="h-4 bg-muted rounded w-32" /></td>
-          <td className="p-3"><div className="h-4 bg-muted rounded w-32" /></td>
-          <td className="p-3"><div className="h-4 bg-muted rounded w-12" /></td>
-          <td className="p-3 text-center"><div className="h-6 w-16 bg-muted rounded mx-auto" /></td>
-        </tr>
-      ))}
-    </>
   );
 }
