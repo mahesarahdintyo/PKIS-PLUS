@@ -2503,6 +2503,32 @@ table.perf-dialog-table th,
   gap: 4.5px;
 }
 
+.dash-chart-legend-btn {
+  background: transparent;
+  border: none;
+  padding: 1px 3px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  text-transform: inherit;
+  transition: opacity 0.15s ease, filter 0.15s ease;
+  user-select: none;
+}
+
+.dash-chart-legend-btn:hover {
+  opacity: 0.8;
+}
+
+.dash-chart-legend-btn.is-hidden {
+  opacity: 0.35;
+  text-decoration: line-through;
+  filter: grayscale(80%);
+}
+
 .legend-marker {
   display: inline-block;
   flex-shrink: 0;

@@ -763,30 +763,31 @@ Durasi: ${dur} menit (${(dur / 60).toFixed(1)} jam)
   const endIndex = Math.min(safeCurrentPage * pageSize, totalCount);
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      {/* Top Banner & Action */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
-        <div>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/admin"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition cursor-pointer"
-            >
-              <ArrowLeft className="h-3.5 w-3.5 shrink-0" />
-              Kembali
-            </Link>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              Log Downtime Produksi
-            </h1>
-            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              Live Sync
-            </span>
+    <div className="min-h-screen bg-background text-foreground">
+      <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+        {/* Top Banner & Action */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
+          <div>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/admin"
+                className="inline-flex items-center gap-1.5 min-h-[40px] px-3 py-2 text-xs font-semibold rounded-lg border border-border bg-card text-foreground hover:bg-muted transition-colors touch-manipulation self-start"
+              >
+                <ArrowLeft className="h-4 w-4 shrink-0" />
+                Kembali ke Admin
+              </Link>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+                Log Downtime Produksi
+              </h1>
+              <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                Live Sync
+              </span>
+            </div>
+            <p className="mt-1.5 text-sm text-slate-500">
+              Lihat, filter, kelola, dan analisis catatan downtime seluruh line produksi secara akurat dan real-time.
+            </p>
           </div>
-          <p className="mt-1.5 text-sm text-slate-500">
-            Lihat, filter, kelola, dan analisis catatan downtime seluruh line produksi secara akurat dan real-time.
-          </p>
-        </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button
             onClick={handleRefresh}
@@ -1029,43 +1030,77 @@ Durasi: ${dur} menit (${(dur / 60).toFixed(1)} jam)
           </div>
         </div>
 
-        {/* Filter tags & Reset */}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 text-xs text-slate-500">
-          <div className="flex flex-wrap items-center gap-2">
-            <span>Filter Aktif:</span>
+        {/* Filter Presets & Status */}
+        <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3 border-t border-slate-100">
+          <p className="text-xs font-medium text-slate-500">
+            Menampilkan <span className="font-semibold text-slate-800">{totalCount.toLocaleString("id-ID")}</span> data downtime.
+          </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => {
+                const def = getDefaultMonthRange();
+                setStartDate(def.startDate);
+                setEndDate(def.endDate);
+                setCurrentPage(1);
+              }}
+              className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer bg-transparent border-0"
+            >
+              Bulan Ini
+            </button>
+            <span className="text-slate-300">|</span>
+            <button
+              type="button"
+              onClick={() => {
+                setStartDate("");
+                setEndDate("");
+                setCurrentPage(1);
+              }}
+              className="text-xs font-semibold text-slate-600 hover:text-slate-700 hover:underline cursor-pointer bg-transparent border-0"
+            >
+              Semua Waktu
+            </button>
+            {(selectedLineId !== "all" || selectedKategori !== "all" || startDate || endDate || debouncedSearch) && (
+              <>
+                <span className="text-slate-300">|</span>
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="text-xs font-semibold text-red-600 hover:text-red-700 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0"
+                >
+                  Reset Filter
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Active Filter Badges */}
+        {(selectedLineId !== "all" || selectedKategori !== "all" || (startDate && endDate) || debouncedSearch) && (
+          <div className="mt-2.5 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+            <span className="font-semibold text-slate-600">Filter Aktif:</span>
             {selectedLineId !== "all" && (
-              <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-1 font-semibold text-blue-700 border border-blue-100">
+              <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 font-semibold text-blue-700 border border-blue-100">
                 Line: {lines.find((l) => l.id === selectedLineId)?.name || selectedLineId}
               </span>
             )}
             {selectedKategori !== "all" && (
-              <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-1 font-semibold text-amber-700 border border-amber-100">
+              <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 font-semibold text-amber-700 border border-amber-100">
                 Kategori: {selectedKategori}
               </span>
             )}
             {startDate && endDate && (
-              <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 font-semibold text-slate-700">
+              <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 font-semibold text-slate-700">
                 Periode: {formatDate(startDate)} s/d {formatDate(endDate)}
               </span>
             )}
             {debouncedSearch && (
-              <span className="inline-flex items-center gap-1 rounded-md bg-purple-50 px-2 py-1 font-semibold text-purple-700 border border-purple-100">
+              <span className="inline-flex items-center gap-1 rounded-md bg-purple-50 px-2 py-0.5 font-semibold text-purple-700 border border-purple-100">
                 Pencarian: &quot;{debouncedSearch}&quot;
               </span>
             )}
-            {selectedLineId === "all" && selectedKategori === "all" && !debouncedSearch && (
-              <span className="text-slate-400 italic">Hanya rentang tanggal aktif</span>
-            )}
           </div>
-
-          <button
-            type="button"
-            onClick={handleResetFilters}
-            className="text-blue-600 hover:text-blue-800 font-semibold cursor-pointer transition"
-          >
-            Reset Filter
-          </button>
-        </div>
+        )}
       </div>
 
       {/* Main Table Area */}
@@ -1368,6 +1403,7 @@ Durasi: ${dur} menit (${(dur / 60).toFixed(1)} jam)
           </div>
         </div>
       </div>
+      </main>
 
       {/* Modal Detail Downtime */}
       {detailItem && (

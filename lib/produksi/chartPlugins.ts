@@ -176,6 +176,9 @@ const varianceArrows = {
     const targetIdx = opts.targetIndex !== undefined ? opts.targetIndex : 1;
     const actualData = (chart.data.datasets[actualIdx]?.data || []) as number[];
     const targetData = (chart.data.datasets[targetIdx]?.data || []) as number[];
+    if (typeof chart.isDatasetVisible === "function") {
+      if (!chart.isDatasetVisible(actualIdx) || !chart.isDatasetVisible(targetIdx)) return;
+    }
     const meta = chart.getDatasetMeta(actualIdx);
     if (!meta) return;
     const upColor = resolveColor(opts.upColor, "--status-good", "#16a34a");
@@ -234,6 +237,7 @@ const barValueLabels = {
 
     chart.data.datasets.forEach((dataset: any, di: number) => {
       if (dataset.skipLabel) return;
+      if (typeof chart.isDatasetVisible === "function" && !chart.isDatasetVisible(di)) return;
       const meta = chart.getDatasetMeta(di);
       if (meta.hidden) return;
       const isLine = dataset.type === "line";

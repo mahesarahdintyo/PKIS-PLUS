@@ -209,6 +209,31 @@ export default function DashboardClient() {
   const internalDowntimeHarianRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstances = useRef<Record<string, any>>({});
 
+  const [availHidden, setAvailHidden] = useState<{ target?: boolean; actual?: boolean; prev?: boolean }>({});
+  const [gsphHidden, setGsphHidden] = useState<{ target?: boolean; actual?: boolean; prev?: boolean }>({});
+  const availHiddenRef = useRef(availHidden);
+  availHiddenRef.current = availHidden;
+  const gsphHiddenRef = useRef(gsphHidden);
+  gsphHiddenRef.current = gsphHidden;
+
+  const toggleAvailDataset = (datasetIndex: number, key: "target" | "actual" | "prev") => {
+    const chart = chartInstances.current.internalAvailability;
+    if (!chart) return;
+    const isVisible = chart.isDatasetVisible(datasetIndex);
+    chart.setDatasetVisibility(datasetIndex, !isVisible);
+    chart.update();
+    setAvailHidden((prev) => ({ ...prev, [key]: isVisible }));
+  };
+
+  const toggleGsphDataset = (datasetIndex: number, key: "target" | "actual" | "prev") => {
+    const chart = chartInstances.current.internalGsph;
+    if (!chart) return;
+    const isVisible = chart.isDatasetVisible(datasetIndex);
+    chart.setDatasetVisibility(datasetIndex, !isVisible);
+    chart.update();
+    setGsphHidden((prev) => ({ ...prev, [key]: isVisible }));
+  };
+
   const destroyChartOnCanvas = (canvas: HTMLCanvasElement | null) => {
     if (!canvas) return;
     Chart.getChart(canvas)?.destroy();
@@ -1712,6 +1737,7 @@ export default function DashboardClient() {
           },
         },
       });
+
     }
 
     if (internalProdCumRef.current) {
@@ -1806,6 +1832,7 @@ export default function DashboardClient() {
           },
         },
       });
+
     }
 
     if (internalAvailRef.current) {
@@ -1907,6 +1934,13 @@ export default function DashboardClient() {
           },
         },
       });
+
+      if (availHiddenRef.current.prev) chartInstances.current.internalAvailability.setDatasetVisibility(0, false);
+      if (availHiddenRef.current.actual) chartInstances.current.internalAvailability.setDatasetVisibility(1, false);
+      if (availHiddenRef.current.target) chartInstances.current.internalAvailability.setDatasetVisibility(2, false);
+      if (availHiddenRef.current.prev || availHiddenRef.current.actual || availHiddenRef.current.target) {
+        chartInstances.current.internalAvailability.update();
+      }
     }
 
     if (internalGsphRef.current) {
@@ -2008,6 +2042,13 @@ export default function DashboardClient() {
           },
         },
       });
+
+      if (gsphHiddenRef.current.prev) chartInstances.current.internalGsph.setDatasetVisibility(0, false);
+      if (gsphHiddenRef.current.actual) chartInstances.current.internalGsph.setDatasetVisibility(1, false);
+      if (gsphHiddenRef.current.target) chartInstances.current.internalGsph.setDatasetVisibility(2, false);
+      if (gsphHiddenRef.current.prev || gsphHiddenRef.current.actual || gsphHiddenRef.current.target) {
+        chartInstances.current.internalGsph.update();
+      }
     }
 
     if (internalDowntimeLineRef.current) {
@@ -2077,6 +2118,7 @@ export default function DashboardClient() {
           },
         },
       });
+
     }
 
     if (internalCategoryPieRef.current) {
@@ -2261,6 +2303,7 @@ export default function DashboardClient() {
           },
         },
       });
+
     }
 
     /* ── Downtime Exhaust (Tren Bar) ── */
@@ -2324,6 +2367,7 @@ export default function DashboardClient() {
           },
         },
       });
+
     }
 
     /* ── Downtime Harian (Area Chart) ── */
@@ -2396,6 +2440,7 @@ export default function DashboardClient() {
           },
         },
       });
+
     }
 
     return () => {
@@ -2637,18 +2682,33 @@ export default function DashboardClient() {
                         <p className="dash-panel-title">
                           <span>Availability per Line — Target vs Actual</span>
                           <span className="dash-chart-legend">
-                            <span className="dash-chart-legend-item">
+                            <button
+                              type="button"
+                              onClick={() => toggleAvailDataset(2, "target")}
+                              className={`dash-chart-legend-item dash-chart-legend-btn ${availHidden.target ? "is-hidden" : ""}`}
+                              title="Klik untuk menyembunyikan / menampilkan Target"
+                            >
                               <span className="legend-marker legend-marker-diamond" />
                               TARGET
-                            </span>
-                            <span className="dash-chart-legend-item">
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => toggleAvailDataset(1, "actual")}
+                              className={`dash-chart-legend-item dash-chart-legend-btn ${availHidden.actual ? "is-hidden" : ""}`}
+                              title="Klik untuk menyembunyikan / menampilkan Actual"
+                            >
                               <span className="legend-marker legend-marker-actual-avail" />
                               ACTUAL
-                            </span>
-                            <span className="dash-chart-legend-item">
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => toggleAvailDataset(0, "prev")}
+                              className={`dash-chart-legend-item dash-chart-legend-btn ${availHidden.prev ? "is-hidden" : ""}`}
+                              title="Klik untuk menyembunyikan / menampilkan Thn Lalu"
+                            >
                               <span className="legend-marker legend-marker-prev" />
                               THN LALU
-                            </span>
+                            </button>
                           </span>
                         </p>
                         <div className="dash-chart-sm dash-chart-bars">
@@ -2660,18 +2720,33 @@ export default function DashboardClient() {
                         <p className="dash-panel-title">
                           <span>GSPH per Line — Target vs Actual</span>
                           <span className="dash-chart-legend">
-                            <span className="dash-chart-legend-item">
+                            <button
+                              type="button"
+                              onClick={() => toggleGsphDataset(2, "target")}
+                              className={`dash-chart-legend-item dash-chart-legend-btn ${gsphHidden.target ? "is-hidden" : ""}`}
+                              title="Klik untuk menyembunyikan / menampilkan Target"
+                            >
                               <span className="legend-marker legend-marker-diamond" />
                               TARGET
-                            </span>
-                            <span className="dash-chart-legend-item">
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => toggleGsphDataset(1, "actual")}
+                              className={`dash-chart-legend-item dash-chart-legend-btn ${gsphHidden.actual ? "is-hidden" : ""}`}
+                              title="Klik untuk menyembunyikan / menampilkan Actual"
+                            >
                               <span className="legend-marker legend-marker-actual-gsph" />
                               ACTUAL
-                            </span>
-                            <span className="dash-chart-legend-item">
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => toggleGsphDataset(0, "prev")}
+                              className={`dash-chart-legend-item dash-chart-legend-btn ${gsphHidden.prev ? "is-hidden" : ""}`}
+                              title="Klik untuk menyembunyikan / menampilkan Thn Lalu"
+                            >
                               <span className="legend-marker legend-marker-prev" />
                               THN LALU
-                            </span>
+                            </button>
                           </span>
                         </p>
                         <div className="dash-chart-sm dash-chart-bars">
