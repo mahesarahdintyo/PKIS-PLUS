@@ -1872,19 +1872,10 @@ export default function DashboardClient() {
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          layout: { padding: { top: 36, right: 8 } },
+          layout: { padding: { top: 22, right: 8 } },
           plugins: {
             legend: {
-              position: "top",
-              align: "end",
-              labels: {
-                color: getCssVar("--muted-foreground") || "#94a3b8",
-                boxWidth: 8,
-                boxHeight: 8,
-                usePointStyle: true,
-                font: { size: 10 },
-                padding: 12,
-              },
+              display: false,
             },
             tooltip: {
               backgroundColor: getCssVar("--panel") || "#1e293b",
@@ -1911,7 +1902,7 @@ export default function DashboardClient() {
               grid: { color: getCssVar("--chart-grid") || "#334155", drawTicks: false },
               border: { display: false },
               beginAtZero: true,
-              suggestedMax: (() => { const mx = Math.max(...actual.filter(Boolean), ...prevActual.filter(Boolean), ...target.filter(Boolean) as number[]); return mx > 0 ? Math.ceil(mx * 1.15) : 110; })(),
+              suggestedMax: (() => { const mx = Math.max(...actual.filter(Boolean), ...prevActual.filter(Boolean), ...target.filter(Boolean) as number[]); return mx > 0 ? Math.ceil(mx * 1.08) : 105; })(),
             },
           },
         },
@@ -1982,19 +1973,10 @@ export default function DashboardClient() {
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          layout: { padding: { top: 36, right: 8 } },
+          layout: { padding: { top: 22, right: 8 } },
           plugins: {
             legend: {
-              position: "top",
-              align: "end",
-              labels: {
-                color: getCssVar("--muted-foreground") || "#94a3b8",
-                boxWidth: 8,
-                boxHeight: 8,
-                usePointStyle: true,
-                font: { size: 10 },
-                padding: 12,
-              },
+              display: false,
             },
             tooltip: {
               backgroundColor: getCssVar("--panel") || "#1e293b",
@@ -2021,7 +2003,7 @@ export default function DashboardClient() {
               grid: { color: getCssVar("--chart-grid") || "#334155", drawTicks: false },
               border: { display: false },
               beginAtZero: true,
-              suggestedMax: (() => { const mx = Math.max(...actual.filter(Boolean), ...prevActual.filter(Boolean), ...target.filter(Boolean) as number[]); return mx > 0 ? Math.ceil(mx * 1.15) : 10; })(),
+              suggestedMax: (() => { const mx = Math.max(...actual.filter(Boolean), ...prevActual.filter(Boolean), ...target.filter(Boolean) as number[]); return mx > 0 ? Math.ceil(mx * 1.08) : 10; })(),
             },
           },
         },
@@ -2651,16 +2633,48 @@ export default function DashboardClient() {
                         </div>
                       </Card>
 
-                      <Card className="dash-panel dash-panel-fit card-glow-info">
-                        <p className="dash-panel-title">Availability per Line — Target vs Actual</p>
-                        <div className="dash-chart-sm">
+                      <Card className="dash-panel dash-panel-fit card-bar-chart card-glow-info">
+                        <p className="dash-panel-title">
+                          <span>Availability per Line — Target vs Actual</span>
+                          <span className="dash-chart-legend">
+                            <span className="dash-chart-legend-item">
+                              <span className="legend-marker legend-marker-diamond" />
+                              TARGET
+                            </span>
+                            <span className="dash-chart-legend-item">
+                              <span className="legend-marker legend-marker-actual-avail" />
+                              ACTUAL
+                            </span>
+                            <span className="dash-chart-legend-item">
+                              <span className="legend-marker legend-marker-prev" />
+                              THN LALU
+                            </span>
+                          </span>
+                        </p>
+                        <div className="dash-chart-sm dash-chart-bars">
                           <canvas ref={internalAvailRef} />
                         </div>
                       </Card>
 
-                      <Card className="dash-panel dash-panel-fit card-glow-info">
-                        <p className="dash-panel-title">GSPH per Line — Target vs Actual</p>
-                        <div className="dash-chart-sm">
+                      <Card className="dash-panel dash-panel-fit card-bar-chart card-glow-info">
+                        <p className="dash-panel-title">
+                          <span>GSPH per Line — Target vs Actual</span>
+                          <span className="dash-chart-legend">
+                            <span className="dash-chart-legend-item">
+                              <span className="legend-marker legend-marker-diamond" />
+                              TARGET
+                            </span>
+                            <span className="dash-chart-legend-item">
+                              <span className="legend-marker legend-marker-actual-gsph" />
+                              ACTUAL
+                            </span>
+                            <span className="dash-chart-legend-item">
+                              <span className="legend-marker legend-marker-prev" />
+                              THN LALU
+                            </span>
+                          </span>
+                        </p>
+                        <div className="dash-chart-sm dash-chart-bars">
                           <canvas ref={internalGsphRef} />
                         </div>
                       </Card>

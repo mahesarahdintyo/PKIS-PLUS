@@ -2475,8 +2475,73 @@ table.perf-dialog-table th,
   height: 220px;
   min-height: 0;
 }
+.internal-viz .dash-chart-bars {
+  flex: none;
+  height: 280px;
+  min-height: 200px;
+}
 .internal-viz .internal-row-productivity .dash-chart-sm { height: 260px; }
 .internal-viz .dash-panel { min-height: 0; }
+
+/* Legend di header card (Availability & GSPH per Line) */
+.dash-chart-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono, monospace);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--muted-foreground, #94a3b8);
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.dash-chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4.5px;
+}
+
+.legend-marker {
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.legend-marker-diamond {
+  width: 6.5px;
+  height: 6.5px;
+  background-color: #f59e0b;
+  transform: rotate(45deg);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 0 4px rgba(245, 158, 11, 0.4);
+}
+
+.legend-marker-actual-avail {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 4px rgba(56, 189, 248, 0.3);
+}
+
+.legend-marker-actual-gsph {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #34d399 0%, #059669 100%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 4px rgba(52, 211, 153, 0.3);
+}
+
+.legend-marker-prev {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #64748b 0%, #334155 100%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
 .internal-viz .internal-row-worst .table-wrap {
   flex: 0 0 auto;
   min-height: 140px;
@@ -2971,10 +3036,14 @@ table.perf-dialog-table th,
     overflow: hidden;
   }
 
-  /* Setiap card di kolom kiri mendapat porsi tinggi yang sama */
+  /* Setiap card di kolom kiri mendapat porsi tinggi yang sesuai */
   .internal-left-grid-cards > * {
     flex: 1;
     min-height: 0;
+  }
+  .internal-left-grid-cards > .card-bar-chart {
+    flex: 1.35;
+    min-height: 180px;
   }
 
   /* Baris atas 2 card: Downtime Exhaust + Downtime Harian (Harian dilebarkan agar seluruh tanggal 1-31 terlihat) */
@@ -3043,6 +3112,10 @@ table.perf-dialog-table th,
     margin: 0 0 3px;
     line-height: 1.2;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
   }
 
   .internal-viz .hint {
