@@ -101,23 +101,44 @@ const emptyProductionEdit = (): EditProductionForm => ({
 
 function toLocalInput(iso: string | null | undefined): string {
   if (!iso) return "";
+  if (typeof iso === "string") {
+    const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+    if (m) {
+      const [, y, mo, d, h, mi] = m;
+      return `${y}-${mo}-${d}T${h}:${mi}`;
+    }
+  }
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "";
   const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}T${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
 }
 
 function fmt(iso?: string | null): string {
   if (!iso) return "-";
+  if (typeof iso === "string") {
+    const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+    if (m) {
+      const [, y, mo, d, h, mi] = m;
+      return `${d}/${mo}/${y}, ${h}.${mi}`;
+    }
+  }
   const d = new Date(iso);
   if (isNaN(d.getTime())) return String(iso);
-  return d.toLocaleString("id-ID", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getUTCDate())}/${p(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}, ${p(d.getUTCHours())}.${p(d.getUTCMinutes())}`;
+}
+
+function toDbIso(localInputStr: string | null | undefined): string | null {
+  if (!localInputStr) return null;
+  const trimmed = localInputStr.trim();
+  if (!trimmed) return null;
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?/.test(trimmed)) {
+    if (trimmed.length === 16) return `${trimmed}:00.000Z`;
+    return trimmed.endsWith("Z") ? trimmed : `${trimmed}.000Z`;
+  }
+  const d = new Date(trimmed);
+  return isNaN(d.getTime()) ? null : d.toISOString();
 }
 
 function fmtNum(n: number | string | null | undefined): string {
@@ -772,14 +793,14 @@ export default function ProductionLogDashboard() {
           qty: editProdForm.qty !== "" ? Number(editProdForm.qty) : null,
           ng: editProdForm.ng !== "" ? Number(editProdForm.ng) : null,
           manpower: editProdForm.manpower !== "" ? Number(editProdForm.manpower) : null,
-          waktu_akhir: editProdForm.waktu_akhir ? new Date(editProdForm.waktu_akhir).toISOString() : null,
+          waktu_akhir: toDbIso(editProdForm.waktu_akhir),
           dandori_menit: editProdForm.dandori_menit !== "" ? Number(editProdForm.dandori_menit) : null,
           downtime_menit: editProdForm.downtime_menit !== "" ? Number(editProdForm.downtime_menit) : null,
           break_menit: editProdForm.break_menit !== "" ? Number(editProdForm.break_menit) : null,
           extra,
         };
         if (editProdForm.waktu_awal) {
-          payload.waktu_awal = new Date(editProdForm.waktu_awal).toISOString();
+          payload.waktu_awal = toDbIso(editProdForm.waktu_awal);
         }
 
         const { error: err } = await productionLogsApi.update(
@@ -790,8 +811,8 @@ export default function ProductionLogDashboard() {
         if (err) throw new Error(err);
       } else {
         const payload: Record<string, any> = {
-          waktu_awal: new Date(editNonProdForm.waktu_awal).toISOString(),
-          waktu_akhir: editNonProdForm.waktu_akhir ? new Date(editNonProdForm.waktu_akhir).toISOString() : null,
+          waktu_awal: toDbIso(editNonProdForm.waktu_awal),
+          waktu_akhir: toDbIso(editNonProdForm.waktu_akhir),
           part_ke: editNonProdForm.nama,
           keterangan: editNonProdForm.nama,
           break_menit: editNonProdForm.break_menit !== "" ? Number(editNonProdForm.break_menit) : null,
@@ -902,8 +923,8 @@ export default function ProductionLogDashboard() {
           line_id: createForm.line_id,
           mesin: machineType,
           stasiun: createForm.stasiun || null,
-          waktu_awal: new Date(createForm.waktu_awal).toISOString(),
-          waktu_akhir: createForm.waktu_akhir ? new Date(createForm.waktu_akhir).toISOString() : null,
+          waktu_awal: toDbIso(createForm.waktu_awal)!,
+          waktu_akhir: toDbIso(createForm.waktu_akhir),
           part_number: createForm.part_number || null,
           qty: createForm.qty !== "" ? Number(createForm.qty) : null,
           ng: createForm.ng !== "" ? Number(createForm.ng) : null,
@@ -921,8 +942,8 @@ export default function ProductionLogDashboard() {
         const payload = {
           line_id: createForm.line_id,
           mesin: machineType,
-          waktu_awal: new Date(createForm.waktu_awal).toISOString(),
-          waktu_akhir: createForm.waktu_akhir ? new Date(createForm.waktu_akhir).toISOString() : null,
+          waktu_awal: toDbIso(createForm.waktu_awal)!,
+          waktu_akhir: toDbIso(createForm.waktu_akhir),
           part_ke: createForm.nama_non_produksi || "Non-Produksi",
           keterangan: createForm.nama_non_produksi || "Non-Produksi",
           break_menit: createForm.break_menit !== "" ? Number(createForm.break_menit) : null,

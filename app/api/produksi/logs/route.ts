@@ -12,16 +12,18 @@ function parseDateParam(val: string | null | undefined, isEnd = false): Date | n
   const trimmed = val.trim();
   if (!trimmed) return null;
 
+  // Jika format hanya YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    const suffix = isEnd ? "T23:59:59.999Z" : "T00:00:00.000Z";
+    const d = new Date(`${trimmed}${suffix}`);
+    if (!isNaN(d.getTime())) return d;
+  }
+
   // Jika string sudah mengandung 'T' atau spasi (ISO atau datetime)
   if (trimmed.includes("T") || trimmed.includes(" ")) {
     const d = new Date(trimmed);
     return isNaN(d.getTime()) ? null : d;
   }
-
-  // Jika format hanya YYYY-MM-DD (gunakan timezone WIB +07:00 agar mencakup 1 hari penuh)
-  const suffix = isEnd ? "T23:59:59.999+07:00" : "T00:00:00.000+07:00";
-  const d = new Date(`${trimmed}${suffix}`);
-  if (!isNaN(d.getTime())) return d;
 
   const fallback = new Date(trimmed);
   return isNaN(fallback.getTime()) ? null : fallback;

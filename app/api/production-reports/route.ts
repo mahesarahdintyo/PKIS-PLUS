@@ -10,9 +10,16 @@ import { NextResponse } from "next/server";
 function formatDatePart(dateVal?: Date | string | null): string {
   if (!dateVal) return "-";
   try {
+    if (typeof dateVal === "string") {
+      const match = dateVal.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (match) return `${match[1]}-${match[2]}-${match[3]}`;
+    }
     const d = new Date(dateVal);
     if (isNaN(d.getTime())) return "-";
-    return d.toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+    const year = d.getUTCFullYear();
+    const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(d.getUTCDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   } catch {
     return "-";
   }
@@ -21,9 +28,15 @@ function formatDatePart(dateVal?: Date | string | null): string {
 function formatTimePart(dateVal?: Date | string | null): string {
   if (!dateVal) return "-";
   try {
+    if (typeof dateVal === "string") {
+      const match = dateVal.match(/(?:[T ]|^)(\d{2}):(\d{2})/);
+      if (match) return `${match[1]}:${match[2]}`;
+    }
     const d = new Date(dateVal);
     if (isNaN(d.getTime())) return "-";
-    return d.toLocaleTimeString("en-GB", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit" });
+    const hour = String(d.getUTCHours()).padStart(2, "0");
+    const minute = String(d.getUTCMinutes()).padStart(2, "0");
+    return `${hour}:${minute}`;
   } catch {
     return "-";
   }
@@ -70,11 +83,11 @@ export async function GET(request: Request) {
     if (isValidDateStr(startDate) || isValidDateStr(endDate)) {
       where.waktu_awal = {};
       if (isValidDateStr(startDate)) {
-        const d = new Date(`${startDate}T00:00:00.000+07:00`);
+        const d = new Date(`${startDate}T00:00:00.000Z`);
         if (!isNaN(d.getTime())) where.waktu_awal.gte = d;
       }
       if (isValidDateStr(endDate)) {
-        const d = new Date(`${endDate}T23:59:59.999+07:00`);
+        const d = new Date(`${endDate}T23:59:59.999Z`);
         if (!isNaN(d.getTime())) where.waktu_awal.lte = d;
       }
     }
