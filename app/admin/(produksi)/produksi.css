@@ -2604,6 +2604,31 @@ table.perf-dialog-table th,
   border: 1px solid rgba(255, 255, 255, 0.25);
   box-shadow: 0 0 4px rgba(251, 191, 36, 0.35);
 }
+
+.legend-marker-target-dashed {
+  width: 14px;
+  height: 2.5px;
+  background: repeating-linear-gradient(to right, #ef4444 0px, #ef4444 4px, transparent 4px, transparent 7px);
+  border-radius: 1px;
+}
+
+.legend-marker-prod {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f59e0b;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 4px rgba(245, 158, 11, 0.5);
+}
+
+.legend-marker-cum {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2dd4bf;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 4px rgba(45, 212, 191, 0.5);
+}
 .internal-viz .internal-row-worst .table-wrap {
   flex: 0 0 auto;
   min-height: 140px;

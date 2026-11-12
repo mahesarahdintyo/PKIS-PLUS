@@ -212,12 +212,18 @@ export default function DashboardClient() {
   const [availHidden, setAvailHidden] = useState<{ target?: boolean; actual?: boolean; prev?: boolean }>({});
   const [gsphHidden, setGsphHidden] = useState<{ target?: boolean; actual?: boolean; prev?: boolean }>({});
   const [dtCatHidden, setDtCatHidden] = useState<Record<string, boolean>>({});
+  const [prodTrendHidden, setProdTrendHidden] = useState<{ target?: boolean; actual?: boolean }>({});
+  const [prodCumHidden, setProdCumHidden] = useState<{ target?: boolean; actual?: boolean }>({});
   const availHiddenRef = useRef(availHidden);
   availHiddenRef.current = availHidden;
   const gsphHiddenRef = useRef(gsphHidden);
   gsphHiddenRef.current = gsphHidden;
   const dtCatHiddenRef = useRef(dtCatHidden);
   dtCatHiddenRef.current = dtCatHidden;
+  const prodTrendHiddenRef = useRef(prodTrendHidden);
+  prodTrendHiddenRef.current = prodTrendHidden;
+  const prodCumHiddenRef = useRef(prodCumHidden);
+  prodCumHiddenRef.current = prodCumHidden;
 
   const toggleAvailDataset = (datasetIndex: number, key: "target" | "actual" | "prev") => {
     const chart = chartInstances.current.internalAvailability;
@@ -253,6 +259,24 @@ export default function DashboardClient() {
       chartFleet.update();
     }
     setDtCatHidden((prev) => ({ ...prev, [cat]: !nextVisible }));
+  };
+
+  const toggleProdTrendDataset = (datasetIndex: number, key: "target" | "actual") => {
+    const chart = chartInstances.current.internalProdTrend;
+    if (!chart) return;
+    const isVisible = chart.isDatasetVisible(datasetIndex);
+    chart.setDatasetVisibility(datasetIndex, !isVisible);
+    chart.update();
+    setProdTrendHidden((prev) => ({ ...prev, [key]: isVisible }));
+  };
+
+  const toggleProdCumDataset = (datasetIndex: number, key: "target" | "actual") => {
+    const chart = chartInstances.current.internalProdCum;
+    if (!chart) return;
+    const isVisible = chart.isDatasetVisible(datasetIndex);
+    chart.setDatasetVisibility(datasetIndex, !isVisible);
+    chart.update();
+    setProdCumHidden((prev) => ({ ...prev, [key]: isVisible }));
   };
 
   const destroyChartOnCanvas = (canvas: HTMLCanvasElement | null) => {
@@ -1731,16 +1755,16 @@ export default function DashboardClient() {
               borderColor: "#f59e0b",
               backgroundColor: (ctx: any) => {
                 const chart = ctx.chart;
-                return createAreaGradient(chart.ctx, chart.chartArea, "#f59e0b", 0.32, 0.08, 0.0);
+                return createAreaGradient(chart.ctx, chart.chartArea, "#f59e0b", 0.35, 0.1, 0.0);
               },
               fill: true,
               borderWidth: 2.5,
               tension: 0.3,
-              pointRadius: 3.5,
-              pointHoverRadius: 6,
+              pointRadius: 4,
+              pointHoverRadius: 6.5,
               pointBackgroundColor: "#f59e0b",
               pointBorderColor: "#ffffff",
-              pointBorderWidth: 1.5,
+              pointBorderWidth: 2,
               spanGaps: true,
               order: 2,
             },
@@ -1760,20 +1784,9 @@ export default function DashboardClient() {
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          layout: { padding: { top: 28, right: 8 } },
+          layout: { padding: { top: 22, right: 8, bottom: 2, left: 0 } },
           plugins: {
-            legend: {
-              position: "top",
-              align: "end",
-              labels: {
-                color: getCssVar("--muted-foreground") || "#94a3b8",
-                boxWidth: 8,
-                boxHeight: 8,
-                usePointStyle: true,
-                font: { size: 10 },
-                padding: 12,
-              },
-            },
+            legend: { display: false },
             tooltip: {
               backgroundColor: getCssVar("--panel") || "#1e293b",
               titleColor: getCssVar("--text") || "#f1f5f9",
@@ -1789,11 +1802,12 @@ export default function DashboardClient() {
             barValueLabels: {
               enabled: true,
               fmt: (v: any) => fmtNum(v) + "%",
+              color: () => getCssVar("--text") || "#f1f5f9",
             },
           } as any,
           scales: {
             x: {
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 16 },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9.5, weight: 600 }, maxRotation: 0, minRotation: 0, autoSkip: true, maxTicksLimit: 16 },
               grid: { display: false },
               border: { display: false },
             },
@@ -1801,12 +1815,17 @@ export default function DashboardClient() {
               ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 10 }, maxTicksLimit: 5, callback: (v: any) => v + "%" },
               grid: { color: getCssVar("--chart-grid") || "#334155", drawTicks: false },
               border: { display: false },
-              suggestedMax: (() => { const vals = (productivityTrend?.values || []).filter((v) => v !== null) as number[]; const mx = vals.length ? Math.max(...vals) : 100; return Math.ceil(mx * 1.15); })(),
+              suggestedMax: (() => { const vals = (productivityTrend?.values || []).filter((v) => v !== null) as number[]; const mx = vals.length ? Math.max(...vals, 100) : 100; return Math.ceil(mx * 1.12); })(),
             },
           },
         },
       });
 
+      if (prodTrendHiddenRef.current.actual) chartInstances.current.internalProdTrend.setDatasetVisibility(0, false);
+      if (prodTrendHiddenRef.current.target) chartInstances.current.internalProdTrend.setDatasetVisibility(1, false);
+      if (prodTrendHiddenRef.current.actual || prodTrendHiddenRef.current.target) {
+        chartInstances.current.internalProdTrend.update();
+      }
     }
 
     if (internalProdCumRef.current) {
@@ -1826,16 +1845,16 @@ export default function DashboardClient() {
               borderColor: "#2dd4bf",
               backgroundColor: (ctx: any) => {
                 const chart = ctx.chart;
-                return createAreaGradient(chart.ctx, chart.chartArea, "#2dd4bf", 0.35, 0.1, 0.0);
+                return createAreaGradient(chart.ctx, chart.chartArea, "#2dd4bf", 0.38, 0.1, 0.0);
               },
               fill: true,
               borderWidth: 2.5,
               tension: 0.3,
-              pointRadius: 3.5,
-              pointHoverRadius: 6,
+              pointRadius: 4,
+              pointHoverRadius: 6.5,
               pointBackgroundColor: "#2dd4bf",
               pointBorderColor: "#ffffff",
-              pointBorderWidth: 1.5,
+              pointBorderWidth: 2,
               spanGaps: true,
               order: 2,
             },
@@ -1855,20 +1874,9 @@ export default function DashboardClient() {
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          layout: { padding: { top: 28, right: 8 } },
+          layout: { padding: { top: 22, right: 8, bottom: 2, left: 0 } },
           plugins: {
-            legend: {
-              position: "top",
-              align: "end",
-              labels: {
-                color: getCssVar("--muted-foreground") || "#94a3b8",
-                boxWidth: 8,
-                boxHeight: 8,
-                usePointStyle: true,
-                font: { size: 10 },
-                padding: 12,
-              },
-            },
+            legend: { display: false },
             tooltip: {
               backgroundColor: getCssVar("--panel") || "#1e293b",
               titleColor: getCssVar("--text") || "#f1f5f9",
@@ -1884,11 +1892,12 @@ export default function DashboardClient() {
             barValueLabels: {
               enabled: true,
               fmt: (v: any) => fmtNum(v) + "%",
+              color: () => getCssVar("--text") || "#f1f5f9",
             },
           } as any,
           scales: {
             x: {
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 16 },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9.5, weight: 600 }, maxRotation: 0, minRotation: 0, autoSkip: true, maxTicksLimit: 16 },
               grid: { display: false },
               border: { display: false },
             },
@@ -1896,12 +1905,17 @@ export default function DashboardClient() {
               ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 10 }, maxTicksLimit: 5, callback: (v: any) => v + "%" },
               grid: { color: getCssVar("--chart-grid") || "#334155", drawTicks: false },
               border: { display: false },
-              suggestedMax: (() => { const vals = (productivityTrend?.cumValues || []).filter((v) => v !== null) as number[]; const mx = vals.length ? Math.max(...vals) : 100; return Math.ceil(mx * 1.15); })(),
+              suggestedMax: (() => { const vals = (productivityTrend?.cumValues || []).filter((v) => v !== null) as number[]; const mx = vals.length ? Math.max(...vals, 100) : 100; return Math.ceil(mx * 1.12); })(),
             },
           },
         },
       });
 
+      if (prodCumHiddenRef.current.actual) chartInstances.current.internalProdCum.setDatasetVisibility(0, false);
+      if (prodCumHiddenRef.current.target) chartInstances.current.internalProdCum.setDatasetVisibility(1, false);
+      if (prodCumHiddenRef.current.actual || prodCumHiddenRef.current.target) {
+        chartInstances.current.internalProdCum.update();
+      }
     }
 
     if (internalAvailRef.current) {
@@ -2743,7 +2757,27 @@ export default function DashboardClient() {
                     <div className="internal-left-grid-cards">
                       <Card className="dash-panel dash-panel-fit card-glow-info">
                         <p className="dash-panel-title">
-                          Productivity — {periodMode === "tahunan" ? "Per Bulan" : "Per Tanggal"}
+                          <span>Productivity — {periodMode === "tahunan" ? "Per Bulan" : "Per Tanggal"}</span>
+                          <span className="dash-chart-legend">
+                            <button
+                              type="button"
+                              onClick={() => toggleProdTrendDataset(1, "target")}
+                              className={`dash-chart-legend-item dash-chart-legend-btn ${prodTrendHidden.target ? "is-hidden" : ""}`}
+                              title="Klik untuk menyembunyikan / menampilkan Target 100%"
+                            >
+                              <span className="legend-marker legend-marker-target-dashed" />
+                              TARGET 100%
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => toggleProdTrendDataset(0, "actual")}
+                              className={`dash-chart-legend-item dash-chart-legend-btn ${prodTrendHidden.actual ? "is-hidden" : ""}`}
+                              title="Klik untuk menyembunyikan / menampilkan Productivity"
+                            >
+                              <span className="legend-marker legend-marker-prod" />
+                              PRODUCTIVITY
+                            </button>
+                          </span>
                         </p>
                         <p className="hint">
                           {periodMode === "tahunan"
@@ -2756,7 +2790,29 @@ export default function DashboardClient() {
                       </Card>
 
                       <Card className="dash-panel dash-panel-fit card-glow-info">
-                        <p className="dash-panel-title">Productivity — Akumulasi</p>
+                        <p className="dash-panel-title">
+                          <span>Productivity — Akumulasi</span>
+                          <span className="dash-chart-legend">
+                            <button
+                              type="button"
+                              onClick={() => toggleProdCumDataset(1, "target")}
+                              className={`dash-chart-legend-item dash-chart-legend-btn ${prodCumHidden.target ? "is-hidden" : ""}`}
+                              title="Klik untuk menyembunyikan / menampilkan Target 100%"
+                            >
+                              <span className="legend-marker legend-marker-target-dashed" />
+                              TARGET 100%
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => toggleProdCumDataset(0, "actual")}
+                              className={`dash-chart-legend-item dash-chart-legend-btn ${prodCumHidden.actual ? "is-hidden" : ""}`}
+                              title="Klik untuk menyembunyikan / menampilkan Akumulasi"
+                            >
+                              <span className="legend-marker legend-marker-cum" />
+                              AKUMULASI
+                            </button>
+                          </span>
+                        </p>
                         <p className="hint">
                           Total periode ini: <b>{fmtNum(totals.productivity)}%</b> (PEFF <b>{fmtNum(totals.peff * 100)}%</b>) · EH &amp; WH dijumlah berjalan sejak awal periode, baru dibagi.
                         </p>
