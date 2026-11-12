@@ -2568,6 +2568,42 @@ table.perf-dialog-table th,
   background: linear-gradient(180deg, #64748b 0%, #334155 100%);
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
+
+.legend-marker-cat-mesin {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 0 4px rgba(56, 189, 248, 0.35);
+}
+
+.legend-marker-cat-dies {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #fb7185 0%, #e11d48 100%);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 0 4px rgba(251, 113, 133, 0.35);
+}
+
+.legend-marker-cat-finger {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #34d399 0%, #059669 100%);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 0 4px rgba(52, 211, 153, 0.35);
+}
+
+.legend-marker-cat-other {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #fbbf24 0%, #d97706 100%);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 0 4px rgba(251, 191, 36, 0.35);
+}
 .internal-viz .internal-row-worst .table-wrap {
   flex: 0 0 auto;
   min-height: 140px;
@@ -2622,7 +2658,7 @@ table.perf-dialog-table th,
 }
 
 .internal-viz .internal-right-downtime-row-compact .dash-chart-sm {
-  height: 120px;
+  height: 180px;
 }
 
 .internal-viz .dash-chart-trend {

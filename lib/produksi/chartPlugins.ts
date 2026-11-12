@@ -274,6 +274,39 @@ const barValueLabels = {
         ctx.restore();
       });
     });
+
+    if (isStacked && opts.showStackedTotal) {
+      const colTotals: number[] = [];
+      const colTopY: number[] = [];
+      const colX: number[] = [];
+
+      chart.data.datasets.forEach((dataset: any, di: number) => {
+        if (dataset.skipLabel) return;
+        if (typeof chart.isDatasetVisible === "function" && !chart.isDatasetVisible(di)) return;
+        const meta = chart.getDatasetMeta(di);
+        if (meta?.hidden) return;
+
+        meta.data.forEach((el: any, i: number) => {
+          const val = Number(dataset.data[i]) || 0;
+          if (val > 0) {
+            colTotals[i] = (colTotals[i] || 0) + val;
+            colX[i] = el.x;
+            colTopY[i] = colTopY[i] !== undefined ? Math.min(colTopY[i], el.y) : el.y;
+          }
+        });
+      });
+
+      colTotals.forEach((tot, i) => {
+        if (tot <= 0 || colTopY[i] === undefined || colX[i] === undefined) return;
+        ctx.save();
+        ctx.font = "700 10px 'Aptos', 'Aptos Display', sans-serif";
+        ctx.fillStyle = defaultLabelColor;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+        ctx.fillText(String(fmt(tot)).toUpperCase(), colX[i], colTopY[i] - 3);
+        ctx.restore();
+      });
+    }
   },
 };
 

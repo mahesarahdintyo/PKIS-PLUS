@@ -211,10 +211,13 @@ export default function DashboardClient() {
 
   const [availHidden, setAvailHidden] = useState<{ target?: boolean; actual?: boolean; prev?: boolean }>({});
   const [gsphHidden, setGsphHidden] = useState<{ target?: boolean; actual?: boolean; prev?: boolean }>({});
+  const [dtCatHidden, setDtCatHidden] = useState<Record<string, boolean>>({});
   const availHiddenRef = useRef(availHidden);
   availHiddenRef.current = availHidden;
   const gsphHiddenRef = useRef(gsphHidden);
   gsphHiddenRef.current = gsphHidden;
+  const dtCatHiddenRef = useRef(dtCatHidden);
+  dtCatHiddenRef.current = dtCatHidden;
 
   const toggleAvailDataset = (datasetIndex: number, key: "target" | "actual" | "prev") => {
     const chart = chartInstances.current.internalAvailability;
@@ -232,6 +235,24 @@ export default function DashboardClient() {
     chart.setDatasetVisibility(datasetIndex, !isVisible);
     chart.update();
     setGsphHidden((prev) => ({ ...prev, [key]: isVisible }));
+  };
+
+  const toggleDtCatDataset = (datasetIndex: number, cat: string) => {
+    const chartInternal = chartInstances.current.internalCategoryLine;
+    const chartFleet = chartInstances.current.fleet;
+    const targetChart = vizMode === "internal" ? chartInternal : chartFleet;
+    if (!targetChart) return;
+    const isVisible = targetChart.isDatasetVisible(datasetIndex);
+    const nextVisible = !isVisible;
+    if (chartInternal) {
+      chartInternal.setDatasetVisibility(datasetIndex, nextVisible);
+      chartInternal.update();
+    }
+    if (chartFleet) {
+      chartFleet.setDatasetVisibility(datasetIndex, nextVisible);
+      chartFleet.update();
+    }
+    setDtCatHidden((prev) => ({ ...prev, [cat]: !nextVisible }));
   };
 
   const destroyChartOnCanvas = (canvas: HTMLCanvasElement | null) => {
@@ -1402,7 +1423,7 @@ export default function DashboardClient() {
       chartInstances.current.fleet = new Chart(fleetCanvasRef.current, {
         type: "bar",
         data: {
-          labels: MACHINES.map((m) => m.label),
+          labels: MACHINES.map((m) => m.shortLabel || m.label),
           datasets: categories.map((cat) => ({
             label: cat,
             data: MACHINES.map((m) => (dtByCategoryMap[m.key]?.[cat] || 0)),
@@ -1411,14 +1432,17 @@ export default function DashboardClient() {
               const pair = CAT_GRAD_COLORS[cat] || { top: "#38bdf8", bottom: "#0284c7" };
               return createVerticalGradient(chart.ctx, chart.chartArea, pair.top, pair.bottom);
             },
-            borderRadius: 4,
-            borderWidth: 1,
-            borderColor: "rgba(255, 255, 255, 0.12)",
+            borderRadius: { topLeft: 4, topRight: 4 },
+            borderSkipped: false,
+            borderWidth: 1.5,
+            borderColor: "rgba(255, 255, 255, 0.22)",
+            barPercentage: 0.82,
+            categoryPercentage: 0.85,
           })),
         },
         options: {
           responsive: true, maintainAspectRatio: false,
-          layout: { padding: { top: 4, right: 6, bottom: 0, left: 0 } },
+          layout: { padding: { top: 22, right: 6, bottom: 2, left: 0 } },
           onClick: (evt: any, elements: any[]) => {
             if (!elements.length) return;
             const el = elements[0];
@@ -1430,16 +1454,61 @@ export default function DashboardClient() {
             if (evt.native?.target) evt.native.target.style.cursor = elements.length ? "pointer" : "default";
           },
           plugins: {
-            legend: { position: "top", align: "end", labels: { color: getCssVar("--muted-foreground") || "#94a3b8", boxWidth: 6, boxHeight: 6, usePointStyle: true, pointStyle: "circle", font: { size: 9 }, padding: 6 } },
-            tooltip: { backgroundColor: getCssVar("--panel") || "#1e293b", titleColor: getCssVar("--text") || "#f1f5f9", bodyColor: getCssVar("--text") || "#f1f5f9", borderColor: getCssVar("--border") || "#334155", borderWidth: 1, padding: 8, displayColors: false },
-            barValueLabels: { enabled: true, fmt: (v: any) => fmtNum(v), color: () => getCssVar("--text") || "#f1f5f9", minHeight: 14 },
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: getCssVar("--panel") || "#1e293b",
+              titleColor: getCssVar("--text") || "#f1f5f9",
+              bodyColor: getCssVar("--text") || "#f1f5f9",
+              borderColor: getCssVar("--border") || "#334155",
+              borderWidth: 1,
+              padding: 8,
+              displayColors: false,
+              callbacks: {
+                label: (ctx: any) => ` ${ctx.dataset.label}: ${fmtNum(ctx.parsed.y)} menit`,
+                footer: (items: any[]) => {
+                  if (!items.length) return "";
+                  const m = MACHINES[items[0].dataIndex];
+                  if (!m) return "";
+                  const tot = categories.reduce((s, c) => s + (dtByCategoryMap[m.key]?.[c] || 0), 0);
+                  return `Total: ${fmtNum(tot)} menit`;
+                },
+              },
+            },
+            barValueLabels: { enabled: true, fmt: (v: any) => fmtNum(v), showStackedTotal: true, color: () => getCssVar("--text") || "#f1f5f9", minHeight: 14 },
           } as any,
           scales: {
-            x: { stacked: true, ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9 } }, grid: { display: false }, border: { display: false } },
-            y: { stacked: true, ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9 }, maxTicksLimit: 4 }, grid: { color: getCssVar("--chart-grid") || "#334155" }, border: { display: false }, beginAtZero: true },
+            x: {
+              stacked: true,
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9.5, weight: 600 }, maxRotation: 0, minRotation: 0, autoSkip: false },
+              grid: { display: false },
+              border: { display: false },
+            },
+            y: {
+              stacked: true,
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9 }, maxTicksLimit: 4 },
+              grid: { color: getCssVar("--chart-grid") || "#334155" },
+              border: { display: false },
+              beginAtZero: true,
+              suggestedMax: (() => {
+                const maxStackTotal = Math.max(
+                  ...MACHINES.map((m) => categories.reduce((sum, cat) => sum + (dtByCategoryMap[m.key]?.[cat] || 0), 0)),
+                  0
+                );
+                return maxStackTotal > 0 ? Math.ceil(maxStackTotal * 1.15) : 100;
+              })(),
+            },
           },
         },
       });
+
+      categories.forEach((cat, idx) => {
+        if (dtCatHiddenRef.current[cat]) {
+          chartInstances.current.fleet.setDatasetVisibility(idx, false);
+        }
+      });
+      if (Object.values(dtCatHiddenRef.current).some(Boolean)) {
+        chartInstances.current.fleet.update();
+      }
     }
 
     /* ── Downtime per Kategori (Pie/Doughnut) ───────────── */
@@ -2059,7 +2128,7 @@ export default function DashboardClient() {
       chartInstances.current.internalDowntimeLine = new Chart(internalDowntimeLineRef.current, {
         type: "bar",
         data: {
-          labels: MACHINES.map((m) => m.label),
+          labels: MACHINES.map((m) => m.shortLabel || m.label),
           datasets: [
             {
               label: "DOWNTIME",
@@ -2072,8 +2141,8 @@ export default function DashboardClient() {
               borderSkipped: false,
               borderWidth: 1,
               borderColor: "rgba(255, 255, 255, 0.15)",
-              barPercentage: 0.58,
-              categoryPercentage: 0.72,
+              barPercentage: 0.75,
+              categoryPercentage: 0.8,
             },
           ],
         },
@@ -2104,7 +2173,7 @@ export default function DashboardClient() {
           } as any,
           scales: {
             x: {
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 10 } },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9.5, weight: 600 }, maxRotation: 0, minRotation: 0, autoSkip: false },
               grid: { display: false },
               border: { display: false },
             },
@@ -2232,7 +2301,7 @@ export default function DashboardClient() {
       chartInstances.current.internalCategoryLine = new Chart(internalCategoryLineRef.current, {
         type: "bar",
         data: {
-          labels: MACHINES.map((m) => m.label),
+          labels: MACHINES.map((m) => m.shortLabel || m.label),
           datasets: categories.map((cat) => ({
             label: cat,
             data: MACHINES.map((m) => dtByCategoryMap[m.key]?.[cat] || 0),
@@ -2241,18 +2310,18 @@ export default function DashboardClient() {
               const pair = CAT_GRAD_COLORS[cat] || { top: "#38bdf8", bottom: "#0284c7" };
               return createVerticalGradient(chart.ctx, chart.chartArea, pair.top, pair.bottom);
             },
-            borderRadius: 4,
+            borderRadius: { topLeft: 4, topRight: 4 },
             borderSkipped: false,
-            borderWidth: 1,
-            borderColor: "rgba(255, 255, 255, 0.12)",
-            barPercentage: 0.6,
-            categoryPercentage: 0.7,
+            borderWidth: 1.5,
+            borderColor: "rgba(255, 255, 255, 0.22)",
+            barPercentage: 0.82,
+            categoryPercentage: 0.85,
           })),
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          layout: { padding: { top: 24, right: 8 } },
+          layout: { padding: { top: 24, right: 8, bottom: 2, left: 0 } },
           onClick: (evt: any, elements: any[]) => {
             if (!elements.length) return;
             const el = elements[0];
@@ -2264,18 +2333,7 @@ export default function DashboardClient() {
             if (evt.native?.target) evt.native.target.style.cursor = elements.length ? "pointer" : "default";
           },
           plugins: {
-            legend: {
-              position: "top",
-              align: "end",
-              labels: {
-                color: getCssVar("--muted-foreground") || "#94a3b8",
-                boxWidth: 8,
-                boxHeight: 8,
-                usePointStyle: true,
-                font: { size: 10 },
-                padding: 12,
-              },
-            },
+            legend: { display: false },
             tooltip: {
               backgroundColor: getCssVar("--panel") || "#1e293b",
               titleColor: getCssVar("--text") || "#f1f5f9",
@@ -2283,13 +2341,23 @@ export default function DashboardClient() {
               borderColor: getCssVar("--border") || "#334155",
               borderWidth: 1,
               padding: 10,
+              callbacks: {
+                label: (ctx: any) => ` ${ctx.dataset.label}: ${fmtNum(ctx.parsed.y)} menit`,
+                footer: (items: any[]) => {
+                  if (!items.length) return "";
+                  const m = MACHINES[items[0].dataIndex];
+                  if (!m) return "";
+                  const tot = categories.reduce((s, c) => s + (dtByCategoryMap[m.key]?.[c] || 0), 0);
+                  return `Total Downtime: ${fmtNum(tot)} menit`;
+                },
+              },
             },
-            barValueLabels: { enabled: true, fmt: (v: any) => fmtNum(v), color: () => getCssVar("--text") || "#f1f5f9" },
+            barValueLabels: { enabled: true, fmt: (v: any) => fmtNum(v), showStackedTotal: true, minHeight: 14, color: () => getCssVar("--text") || "#f1f5f9" },
           } as any,
           scales: {
             x: {
               stacked: true,
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 10 } },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9.5, weight: 600 }, maxRotation: 0, minRotation: 0, autoSkip: false },
               grid: { display: false },
               border: { display: false },
             },
@@ -2299,11 +2367,26 @@ export default function DashboardClient() {
               grid: { color: getCssVar("--chart-grid") || "#334155", drawTicks: false },
               border: { display: false },
               beginAtZero: true,
+              suggestedMax: (() => {
+                const maxStackTotal = Math.max(
+                  ...MACHINES.map((m) => categories.reduce((sum, cat) => sum + (dtByCategoryMap[m.key]?.[cat] || 0), 0)),
+                  0
+                );
+                return maxStackTotal > 0 ? Math.ceil(maxStackTotal * 1.15) : 100;
+              })(),
             },
           },
         },
       });
 
+      categories.forEach((cat, idx) => {
+        if (dtCatHiddenRef.current[cat]) {
+          chartInstances.current.internalCategoryLine.setDatasetVisibility(idx, false);
+        }
+      });
+      if (Object.values(dtCatHiddenRef.current).some(Boolean)) {
+        chartInstances.current.internalCategoryLine.update();
+      }
     }
 
     /* ── Downtime Exhaust (Tren Bar) ── */
@@ -2798,7 +2881,33 @@ export default function DashboardClient() {
                         </div>
                       </Card>
                       <Card className="dash-panel dash-panel-fit card-glow-info">
-                        <p className="dash-panel-title">Downtime per Kategori × Line</p>
+                        <p className="dash-panel-title">
+                          <span>Downtime per Kategori × Line</span>
+                          <span className="dash-chart-legend">
+                            {["MESIN", "DIES", "FINGER", "OTHER"].map((cat, idx) => {
+                              const markerClass =
+                                cat === "MESIN"
+                                  ? "legend-marker-cat-mesin"
+                                  : cat === "DIES"
+                                  ? "legend-marker-cat-dies"
+                                  : cat === "FINGER"
+                                  ? "legend-marker-cat-finger"
+                                  : "legend-marker-cat-other";
+                              return (
+                                <button
+                                  key={cat}
+                                  type="button"
+                                  onClick={() => toggleDtCatDataset(idx, cat)}
+                                  className={`dash-chart-legend-item dash-chart-legend-btn ${dtCatHidden[cat] ? "is-hidden" : ""}`}
+                                  title={`Klik untuk menyembunyikan / menampilkan kategori ${cat}`}
+                                >
+                                  <span className={`legend-marker ${markerClass}`} />
+                                  {cat}
+                                </button>
+                              );
+                            })}
+                          </span>
+                        </p>
                         <div className="dash-chart-sm">
                           <canvas ref={internalCategoryLineRef} />
                         </div>
@@ -3014,7 +3123,33 @@ export default function DashboardClient() {
 
                   {/* Downtime per Kategori × Line (Stacked Bar) */}
                   <Card className="dash-panel dash-panel-fit card-glow-info">
-                    <p className="dash-panel-title">DOWNTIME PER KATEGORI × LINE</p>
+                    <p className="dash-panel-title">
+                      <span>DOWNTIME PER KATEGORI × LINE</span>
+                      <span className="dash-chart-legend">
+                        {["MESIN", "DIES", "FINGER", "OTHER"].map((cat, idx) => {
+                          const markerClass =
+                            cat === "MESIN"
+                              ? "legend-marker-cat-mesin"
+                              : cat === "DIES"
+                              ? "legend-marker-cat-dies"
+                              : cat === "FINGER"
+                              ? "legend-marker-cat-finger"
+                              : "legend-marker-cat-other";
+                          return (
+                            <button
+                              key={cat}
+                              type="button"
+                              onClick={() => toggleDtCatDataset(idx, cat)}
+                              className={`dash-chart-legend-item dash-chart-legend-btn ${dtCatHidden[cat] ? "is-hidden" : ""}`}
+                              title={`Klik untuk menyembunyikan / menampilkan kategori ${cat}`}
+                            >
+                              <span className={`legend-marker ${markerClass}`} />
+                              {cat}
+                            </button>
+                          );
+                        })}
+                      </span>
+                    </p>
                     <div className="dash-chart-sm">
                       <canvas ref={fleetCanvasRef} />
                     </div>
