@@ -2135,21 +2135,21 @@ export default function DashboardClient() {
               data: MACHINES.map((m) => machineDataMap[m.key]?.downtime || 0),
               backgroundColor: (ctx: any) => {
                 const chart = ctx.chart;
-                return createVerticalGradient(chart.ctx, chart.chartArea, "#60a5fa", "#1d4ed8");
+                return createVerticalGradient(chart.ctx, chart.chartArea, "#38bdf8", "#0284c7");
               },
-              borderRadius: { topLeft: 6, topRight: 6 },
+              borderRadius: { topLeft: 5, topRight: 5 },
               borderSkipped: false,
-              borderWidth: 1,
-              borderColor: "rgba(255, 255, 255, 0.15)",
-              barPercentage: 0.75,
-              categoryPercentage: 0.8,
+              borderWidth: 1.5,
+              borderColor: "rgba(255, 255, 255, 0.22)",
+              barPercentage: 0.82,
+              categoryPercentage: 0.85,
             },
           ],
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          layout: { padding: { top: 28, right: 8 } },
+          layout: { padding: { top: 22, right: 8, bottom: 2, left: 0 } },
           onClick: (evt: any, elements: any[]) => {
             if (!elements.length) return;
             const m = MACHINES[elements[0].index];
@@ -2169,7 +2169,7 @@ export default function DashboardClient() {
               padding: 10,
               callbacks: { label: (ctx: any) => fmtNum(ctx.parsed.y) + " menit" },
             },
-            barValueLabels: { enabled: true, fmt: (v: any) => fmtNum(v) },
+            barValueLabels: { enabled: true, fmt: (v: any) => fmtNum(v), color: () => getCssVar("--text") || "#f1f5f9" },
           } as any,
           scales: {
             x: {
@@ -2178,11 +2178,15 @@ export default function DashboardClient() {
               border: { display: false },
             },
             y: {
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 10 }, maxTicksLimit: 5 },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9 }, maxTicksLimit: 5 },
               grid: { color: getCssVar("--chart-grid") || "#334155", drawTicks: false },
               border: { display: false },
               beginAtZero: true,
-              suggestedMax: (() => { const dtVals = MACHINES.map((m) => machineDataMap[m.key]?.downtime || 0); const mx = Math.max(...dtVals, 1); return Math.ceil(mx * 1.15); })(),
+              suggestedMax: (() => {
+                const dtVals = MACHINES.map((m) => machineDataMap[m.key]?.downtime || 0);
+                const mx = Math.max(...dtVals, 1);
+                return Math.ceil(mx * 1.08);
+              })(),
             },
           },
         },
@@ -2869,7 +2873,12 @@ export default function DashboardClient() {
                     {/* Baris 3 Card Downtime (Per Line, Per Kategori, Per Kategori x Line) - diperkecil */}
                     <div className="internal-right-downtime-row internal-right-downtime-row-compact">
                       <Card className="dash-panel dash-panel-fit card-glow-info">
-                        <p className="dash-panel-title">Downtime per Line</p>
+                        <p className="dash-panel-title">
+                          <span>Downtime per Line</span>
+                          <span className="count">
+                            Total {fmtNum(MACHINES.reduce((sum, m) => sum + (machineDataMap[m.key]?.downtime || 0), 0))} menit
+                          </span>
+                        </p>
                         <div className="dash-chart-sm">
                           <canvas ref={internalDowntimeLineRef} />
                         </div>
