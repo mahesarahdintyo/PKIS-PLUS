@@ -170,7 +170,7 @@ function getSlugFromName(name: string): string {
 function isDowntimeMatchingProduction(
   dl: any,
   row: any,
-  allEvents: any[]
+  allEvents?: any[]
 ): boolean {
   // 1. Explicit link
   if (dl.production_log_id) {
@@ -180,10 +180,10 @@ function isDowntimeMatchingProduction(
     return false;
   }
 
-  const dlStart = new Date(dl.waktu_awal).getTime();
-  const dlEnd = new Date(dl.waktu_akhir).getTime();
-  const rowStart = new Date(row.waktu_awal).getTime();
-  const rowEnd = new Date(row.waktu_akhir).getTime();
+  const dlStart = dl.startMs || new Date(dl.waktu_awal).getTime();
+  const dlEnd = dl.endMs || new Date(dl.waktu_akhir).getTime();
+  const rowStart = row.startMs || new Date(row.waktu_awal).getTime();
+  const rowEnd = row.endMs || new Date(row.waktu_akhir).getTime();
 
   // 2. Berada di dalam rentang waktu sesi produksi langsung
   if (dlStart >= rowStart && dlEnd <= rowEnd) {
@@ -192,37 +192,39 @@ function isDowntimeMatchingProduction(
 
   // 3. Smart Pre-Production Gap Attribution:
   // Berlaku jika downtime terjadi sebelum part dimulai dan belum melewati akhir sesi part ini.
-  if (dlEnd > rowEnd) return false;
+  if (dlEnd > rowEnd || dlEnd > rowStart) return false;
+  if (!allEvents || allEvents.length === 0) return false;
 
-  // Cari event sebelumnya (produksi atau non-produksi) sebelum rowStart
-  const prevEvents = (allEvents || []).filter((ev: any) => {
-    if (ev.id === row.id && (ev.jenis === "produksi" || ev._kind === "produksi")) return false;
-    if (row.stasiun && ev.stasiun && ev.stasiun !== row.stasiun) return false;
-    const evStart = ev.waktu_awal ? new Date(ev.waktu_awal).getTime() : 0;
-    return evStart < rowStart;
-  });
-  const prevEvent = prevEvents.length > 0 ? prevEvents[prevEvents.length - 1] : null;
-  const effectiveStart = prevEvent?.waktu_akhir ? new Date(prevEvent.waktu_akhir).getTime() : 0;
+  let effectiveStart = 0;
+  for (let i = 0; i < allEvents.length; i++) {
+    const ev = allEvents[i];
+    if (ev.id === row.id && (ev.jenis === "produksi" || ev._kind === "produksi")) continue;
+    if (row.stasiun && ev.stasiun && ev.stasiun !== row.stasiun) continue;
+    const evStart = ev.startMs || (ev.waktu_awal ? new Date(ev.waktu_awal).getTime() : 0);
+    const evEnd = ev.endMs || (ev.waktu_akhir ? new Date(ev.waktu_akhir).getTime() : 0);
 
-  // Jangan ambil downtime yang terjadi sebelum event sebelumnya selesai
-  if (dlStart < effectiveStart) {
-    return false;
+    // Event di antara dlEnd dan rowStart membatalkan gap attribution
+    if (evStart >= dlEnd && evEnd <= rowStart) {
+      return false;
+    }
+    // Track previous event sebelum rowStart
+    if (evStart < rowStart && evEnd > effectiveStart) {
+      effectiveStart = evEnd;
+    }
   }
 
-  // Pastikan tidak ada event produksi/non-produksi lain di antara dlEnd dan rowStart
-  const intermediateEvents = (allEvents || []).filter((ev: any) => {
-    if (ev.id === row.id && (ev.jenis === "produksi" || ev._kind === "produksi")) return false;
-    if (row.stasiun && ev.stasiun && ev.stasiun !== row.stasiun) return false;
-    const evStart = ev.waktu_awal ? new Date(ev.waktu_awal).getTime() : 0;
-    const evEnd = ev.waktu_akhir ? new Date(ev.waktu_akhir).getTime() : 0;
-    return evStart >= dlEnd && evEnd <= rowStart;
-  });
+  return dlStart >= effectiveStart;
+}
 
-  if (intermediateEvents.length > 0) {
-    return false;
-  }
-
-  return true;
+function getDefaultMonthRange() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return {
+    startDate: `${year}-${month}-01`,
+    endDate: `${year}-${month}-${day}`,
+  };
 }
 
 interface MachineDetailClientProps {
@@ -326,12 +328,28 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
   const [editingProblemId, setEditingProblemId] = useState<string | null>(null);
   const [editProblemValue, setEditProblemValue] = useState("");
 
-  // Riwayat Filter States
-  const [riwayatTanggalDari, setRiwayatTanggalDari] = useState("");
-  const [riwayatTanggalSampai, setRiwayatTanggalSampai] = useState("");
+  // Riwayat Filter & Pagination States (Consistent with /admin/laporan-produksi)
+  const defaultRiwayatMonth = getDefaultMonthRange();
+  const [riwayatTanggalDari, setRiwayatTanggalDari] = useState(defaultRiwayatMonth.startDate);
+  const [riwayatTanggalSampai, setRiwayatTanggalSampai] = useState(defaultRiwayatMonth.endDate);
   const [riwayatPartNumber, setRiwayatPartNumber] = useState("");
+  const [riwayatSearch, setRiwayatSearch] = useState("");
+  const [debouncedRiwayatSearch, setDebouncedRiwayatSearch] = useState("");
+  const [riwayatPage, setRiwayatPage] = useState(1);
+  const [riwayatPageSize, setRiwayatPageSize] = useState(25);
+  const [riwayatTotalCount, setRiwayatTotalCount] = useState(0);
+  const [riwayatTotalPages, setRiwayatTotalPages] = useState(1);
+  const [isRiwayatLoading, setIsRiwayatLoading] = useState(false);
   const [riwayatGabungan, setRiwayatGabungan] = useState<any[]>([]);
   const [riwayatHariIni, setRiwayatHariIni] = useState<any[]>([]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedRiwayatSearch(riwayatSearch);
+      setRiwayatPage(1);
+    }, 350);
+    return () => clearTimeout(handler);
+  }, [riwayatSearch]);
   const [downtimeFilterProductionId, setDowntimeFilterProductionId] = useState<string | null>(null);
   const [downtimeFilterProductionRow, setDowntimeFilterProductionRow] = useState<any | null>(null);
   const [downtimeFilterLabel, setDowntimeFilterLabel] = useState("");
@@ -589,9 +607,25 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
   }, [loadData]);
 
   const resetRiwayatFilter = () => {
+    const def = getDefaultMonthRange();
+    setRiwayatTanggalDari(def.startDate);
+    setRiwayatTanggalSampai(def.endDate);
+    setRiwayatPartNumber("");
+    setRiwayatSearch("");
+    setRiwayatPage(1);
+  };
+
+  const handleRiwayatBulanIni = () => {
+    const def = getDefaultMonthRange();
+    setRiwayatTanggalDari(def.startDate);
+    setRiwayatTanggalSampai(def.endDate);
+    setRiwayatPage(1);
+  };
+
+  const handleRiwayatSemuaWaktu = () => {
     setRiwayatTanggalDari("");
     setRiwayatTanggalSampai("");
-    setRiwayatPartNumber("");
+    setRiwayatPage(1);
   };
 
   const fetchGabunganRange = useCallback(
@@ -643,28 +677,38 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       }
 
       const dtLogs: any[] = downtimes || [];
-
-      const allEvents = [
-        ...(produksi || []).map((p: any) => ({ ...p, _kind: "produksi" })),
-        ...(nonProduksi || []).map((np: any) => ({ ...np, _kind: "non_produksi" })),
-      ].sort((a: any, b: any) => {
-        const ta = a.waktu_awal ? new Date(a.waktu_awal).getTime() : 0;
-        const tb = b.waktu_awal ? new Date(b.waktu_awal).getTime() : 0;
-        return ta - tb;
+      const dtByProdId = new Map<string, number>();
+      const dtPrepared = dtLogs.map((dl: any) => {
+        const durasi =
+          Number(dl.durasi_menit ?? dl.durasi ?? 0) ||
+          (dl.waktu_awal && dl.waktu_akhir
+            ? Math.max(0, Math.round((new Date(dl.waktu_akhir).getTime() - new Date(dl.waktu_awal).getTime()) / 60000))
+            : 0);
+        if (dl.production_log_id) {
+          dtByProdId.set(dl.production_log_id, (dtByProdId.get(dl.production_log_id) || 0) + durasi);
+        }
+        return {
+          ...dl,
+          durasi_menit: durasi,
+          startMs: dl.waktu_awal ? new Date(dl.waktu_awal).getTime() : 0,
+          endMs: dl.waktu_akhir ? new Date(dl.waktu_akhir).getTime() : 0,
+        };
       });
 
       const augmentedProduksi = (produksi || []).map((row: any) => {
-        const matchingDts = dtLogs.filter((dl: any) =>
-          isDowntimeMatchingProduction(dl, row, allEvents)
-        );
-        if (matchingDts.length === 0) return row;
-        const dtSum = matchingDts.reduce((sum: number, dl: any) => {
-          let m = Number(dl.durasi_menit ?? dl.durasi ?? 0);
-          if (!m && dl.waktu_awal && dl.waktu_akhir) {
-            m = Math.round((new Date(dl.waktu_akhir).getTime() - new Date(dl.waktu_awal).getTime()) / 60000);
+        let dtSum = dtByProdId.get(row.id) || 0;
+        if (!dtSum && row.waktu_awal && row.waktu_akhir) {
+          const rStart = new Date(row.waktu_awal).getTime();
+          const rEnd = new Date(row.waktu_akhir).getTime();
+          for (const dl of dtPrepared) {
+            if (dl.production_log_id) continue;
+            if (dl.mesin && row.mesin && dl.mesin !== row.mesin) continue;
+            if (dl.line_id && row.line_id && dl.line_id !== row.line_id) continue;
+            if (dl.startMs && dl.endMs && dl.startMs >= rStart && dl.endMs <= rEnd) {
+              dtSum += dl.durasi_menit;
+            }
           }
-          return sum + m;
-        }, 0);
+        }
         return {
           ...row,
           downtime_menit: Math.max(Number(row.downtime_menit) || 0, dtSum),
@@ -672,25 +716,177 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       });
 
       const gabungan = [
-        ...(augmentedProduksi || []).map((row: any) => ({ jenis: "produksi", waktu_awal: row.waktu_awal, waktu_akhir: row.waktu_akhir, part_number: row.part_number, data: row })),
-        ...(nonProduksi || []).map((row: any) => ({ jenis: "non_produksi", waktu_awal: row.waktu_awal, waktu_akhir: row.waktu_akhir, part_number: row.part_ke || row.part_dari || null, data: row })),
+        ...(augmentedProduksi || []).map((row: any) => ({
+          jenis: "produksi",
+          waktu_awal: row.waktu_awal,
+          waktu_akhir: row.waktu_akhir,
+          part_number: row.part_number,
+          data: row,
+        })),
+        ...(nonProduksi || []).map((row: any) => ({
+          jenis: "non_produksi",
+          waktu_awal: row.waktu_awal,
+          waktu_akhir: row.waktu_akhir,
+          part_number: row.part_ke || row.part_dari || null,
+          data: row,
+        })),
       ].sort((a, b) => {
         const ta = a.waktu_awal ? new Date(a.waktu_awal).getTime() : 0;
         const tb = b.waktu_awal ? new Date(b.waktu_awal).getTime() : 0;
-        return ta - tb;
+        return tb - ta;
       });
 
       return gabungan;
     },
-    [config.key, lineId] // eslint-disable-line react-hooks/exhaustive-deps
+    [config.key, lineId]
   );
 
-  const fetchRiwayatGabungan = useCallback(async () => {
-    const waktuDari = riwayatTanggalDari ? `${riwayatTanggalDari}T00:00:00.000+07:00` : null;
-    const waktuSampai = riwayatTanggalSampai ? `${riwayatTanggalSampai}T23:59:59.999+07:00` : null;
-    const gabungan = await fetchGabunganRange(waktuDari, waktuSampai, riwayatPartNumber);
-    setRiwayatGabungan(gabungan);
-  }, [fetchGabunganRange, riwayatPartNumber, riwayatTanggalDari, riwayatTanggalSampai]);
+  const fetchRiwayatGabungan = useCallback(
+    async ({ showLoading = true }: { showLoading?: boolean } = {}) => {
+      try {
+        if (showLoading) setIsRiwayatLoading(true);
+        const lineOrMesinParam = lineId ? { line_id: lineId } : { mesin: config.key };
+
+        const params: Parameters<typeof productionLogsApi.get>[0] = {
+          table: "both",
+          page: riwayatPage,
+          pageSize: riwayatPageSize,
+          is_active: true,
+        };
+        if (lineId) params.line_id = lineId;
+        else if (config.key) params.mesin = config.key;
+
+        if (riwayatTanggalDari) params.startDate = riwayatTanggalDari;
+        if (riwayatTanggalSampai) params.endDate = riwayatTanggalSampai;
+
+        const effectiveSearch = (riwayatPartNumber || debouncedRiwayatSearch || "").trim();
+        if (effectiveSearch) params.search = effectiveSearch;
+
+        const dtParams: Parameters<typeof downtimeApi.get>[0] = {
+          limit: 250,
+          is_active: true,
+          ...lineOrMesinParam,
+        };
+        if (riwayatTanggalDari) dtParams.startDate = riwayatTanggalDari;
+        if (riwayatTanggalSampai) dtParams.endDate = riwayatTanggalSampai;
+
+        const [logsRes, dtRes] = await Promise.all([
+          productionLogsApi.get(params),
+          downtimeApi.get(dtParams).catch(() => ({ data: [], error: null })),
+        ]);
+
+        if (logsRes.error) throw new Error(logsRes.error);
+
+        const prodData = logsRes.data?.production || (Array.isArray(logsRes.data) ? logsRes.data : []);
+        const nonProdData = logsRes.data?.dandori || [];
+        const total = logsRes.total ?? (prodData.length + nonProdData.length);
+        const sTotalPages = logsRes.totalPages ?? Math.max(1, Math.ceil(total / riwayatPageSize));
+
+        setRiwayatTotalCount(total);
+        setRiwayatTotalPages(sTotalPages);
+
+        // Pre-parse downtime logs into timestamp numbers and index by production_log_id for O(1) matching
+        const validDtLogs = dtRes?.data || [];
+        const dtByProdId = new Map<string, number>();
+        const dtPrepared = validDtLogs.map((dl: any) => {
+          const durasi =
+            Number(dl.durasi_menit ?? dl.durasi ?? 0) ||
+            (dl.waktu_awal && dl.waktu_akhir
+              ? Math.max(0, Math.round((new Date(dl.waktu_akhir).getTime() - new Date(dl.waktu_awal).getTime()) / 60000))
+              : 0);
+          if (dl.production_log_id) {
+            dtByProdId.set(dl.production_log_id, (dtByProdId.get(dl.production_log_id) || 0) + durasi);
+          }
+          return {
+            ...dl,
+            durasi_menit: durasi,
+            startMs: dl.waktu_awal ? new Date(dl.waktu_awal).getTime() : 0,
+            endMs: dl.waktu_akhir ? new Date(dl.waktu_akhir).getTime() : 0,
+          };
+        });
+
+        const augmentedProdData = (prodData || []).map((row: any) => {
+          let dtSum = dtByProdId.get(row.id) || 0;
+          if (!dtSum && row.waktu_awal && row.waktu_akhir) {
+            const rStart = new Date(row.waktu_awal).getTime();
+            const rEnd = new Date(row.waktu_akhir).getTime();
+            for (const dl of dtPrepared) {
+              if (dl.production_log_id) continue;
+              if (dl.mesin && row.mesin && dl.mesin !== row.mesin) continue;
+              if (dl.line_id && row.line_id && dl.line_id !== row.line_id) continue;
+              if (dl.startMs && dl.endMs && dl.startMs >= rStart && dl.endMs <= rEnd) {
+                dtSum += dl.durasi_menit;
+              }
+            }
+          }
+
+          const isDandoriPart = String(row.part_number || "").toLowerCase().includes("dandori");
+          let calculatedDandori =
+            row.dandori_menit !== null && row.dandori_menit !== undefined && row.dandori_menit !== ""
+              ? Number(row.dandori_menit)
+              : 0;
+
+          if (isDandoriPart && !calculatedDandori && row.waktu_awal && row.waktu_akhir) {
+            calculatedDandori = Math.max(
+              0,
+              Math.round((new Date(row.waktu_akhir).getTime() - new Date(row.waktu_awal).getTime()) / 60000) -
+                (Number(row.break_menit) || 0)
+            );
+          }
+
+          return {
+            ...row,
+            downtime_menit: Math.max(Number(row.downtime_menit) || 0, dtSum),
+            dandori_menit: calculatedDandori,
+          };
+        });
+
+        const augmentedNonProdData = (nonProdData || []).map((row: any) => {
+          let durasiMenit = 0;
+          if (row.waktu_awal && row.waktu_akhir) {
+            durasiMenit = Math.max(
+              0,
+              Math.round((new Date(row.waktu_akhir).getTime() - new Date(row.waktu_awal).getTime()) / 60000) -
+                (Number(row.break_menit) || 0)
+            );
+          }
+          return {
+            ...row,
+            dandori_menit: durasiMenit,
+          };
+        });
+
+        const gabungan = [
+          ...augmentedProdData.map((row: any) => ({
+            jenis: "produksi",
+            waktu_awal: row.waktu_awal,
+            waktu_akhir: row.waktu_akhir,
+            part_number: row.part_number,
+            data: row,
+          })),
+          ...augmentedNonProdData.map((row: any) => ({
+            jenis: "non_produksi",
+            waktu_awal: row.waktu_awal,
+            waktu_akhir: row.waktu_akhir,
+            part_number: row.part_ke || row.part_dari || row.keterangan || null,
+            data: row,
+          })),
+        ].sort((a, b) => {
+          const ta = a.waktu_awal ? new Date(a.waktu_awal).getTime() : 0;
+          const tb = b.waktu_awal ? new Date(b.waktu_awal).getTime() : 0;
+          return tb - ta;
+        });
+
+        setRiwayatGabungan(gabungan);
+      } catch (error) {
+        console.error("Gagal memuat riwayat gabungan:", error);
+        setRiwayatGabungan([]);
+      } finally {
+        setIsRiwayatLoading(false);
+      }
+    },
+    [lineId, config.key, riwayatPage, riwayatPageSize, riwayatTanggalDari, riwayatTanggalSampai, riwayatPartNumber, debouncedRiwayatSearch]
+  );
 
   const fetchRiwayatHariIniData = useCallback(async () => {
     // Use WIB (UTC+7) date so early-morning records (00:00–06:59 WIB) are included.
@@ -2846,12 +3042,28 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
                 config={config}
                 masterParts={masterParts}
                 riwayatTanggalDari={riwayatTanggalDari}
-                setRiwayatTanggalDari={setRiwayatTanggalDari}
+                setRiwayatTanggalDari={(v) => {
+                  setRiwayatTanggalDari(v);
+                  setRiwayatPage(1);
+                }}
                 riwayatTanggalSampai={riwayatTanggalSampai}
-                setRiwayatTanggalSampai={setRiwayatTanggalSampai}
+                setRiwayatTanggalSampai={(v) => {
+                  setRiwayatTanggalSampai(v);
+                  setRiwayatPage(1);
+                }}
                 riwayatPartNumber={riwayatPartNumber}
-                setRiwayatPartNumber={setRiwayatPartNumber}
+                setRiwayatPartNumber={(v) => {
+                  setRiwayatPartNumber(v);
+                  setRiwayatPage(1);
+                }}
+                riwayatSearch={riwayatSearch}
+                setRiwayatSearch={(v) => {
+                  setRiwayatSearch(v);
+                  setRiwayatPage(1);
+                }}
                 resetRiwayatFilter={resetRiwayatFilter}
+                handleRiwayatBulanIni={handleRiwayatBulanIni}
+                handleRiwayatSemuaWaktu={handleRiwayatSemuaWaktu}
                 riwayatGabungan={riwayatGabungan}
                 canDeleteRow={canDeleteRow}
                 canEditRow={canEditRow}
@@ -2866,6 +3078,16 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
                 isIndeterminate={isRiwayatIndeterminate}
                 onToggleSelect={toggleRiwayatSelect}
                 onToggleSelectAll={toggleRiwayatSelectAll}
+                currentPage={riwayatPage}
+                totalPages={riwayatTotalPages}
+                pageSize={riwayatPageSize}
+                totalCount={riwayatTotalCount}
+                isLoading={isRiwayatLoading}
+                onPageChange={setRiwayatPage}
+                onPageSizeChange={(size) => {
+                  setRiwayatPageSize(size);
+                  setRiwayatPage(1);
+                }}
               />
             </>
           )}
