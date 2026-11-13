@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import Chart from "chart.js/auto";
-import { registerInternalVizPlugins } from "@/lib/produksi/chartPlugins";
+import { registerInternalVizPlugins, createVerticalGradient } from "@/lib/produksi/chartPlugins";
 import { toast } from "sonner";
 import { useThemeListener } from "@/hooks/produksi/useThemeListener";
 import { Button } from "@/components/ui/button";
@@ -227,6 +227,13 @@ function getDefaultMonthRange() {
   };
 }
 
+const CAT_GRAD_COLORS: Record<string, { top: string; bottom: string }> = {
+  MESIN: { top: "#38bdf8", bottom: "#0284c7" },
+  DIES: { top: "#fb7185", bottom: "#e11d48" },
+  FINGER: { top: "#34d399", bottom: "#059669" },
+  OTHER: { top: "#fbbf24", bottom: "#d97706" },
+};
+
 interface MachineDetailClientProps {
   lineId?: string;
   lineName?: string;
@@ -444,7 +451,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
 
   const perfChartRef = useRef<HTMLCanvasElement | null>(null);
   const perfPieRef = useRef<HTMLCanvasElement | null>(null);
-  const perfChartInstancesRef = useRef<Record<string, Chart>>({});
+  const perfChartInstancesRef = useRef<Record<string, any>>({});
 
   const stationList = useCallback(() => {
     const cfg = config.stationConfig;
@@ -2033,12 +2040,30 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
         });
       }
 
+      // Normalisasi downtime: forklift dimasukkan ke OTHER
+      const normalizedRangeDowntimes = (rangeDowntimes || []).map((d: any) => {
+        const rawKat = (d.kategori || "MESIN").toUpperCase().trim();
+        const k = (rawKat === "FORKLIFT" || rawKat.includes("FORKLIFT")) ? "OTHER" : (d.kategori || "MESIN");
+        return {
+          ...d,
+          kategori: k,
+        };
+      });
+
       let top5: any[] = [];
       if (rpcTop5Total > 0 && Array.isArray(top5Rpc.data)) {
-        top5 = top5Rpc.data.map((r: any) => ({ kategori: r.kategori, problem: r.problem, menit: Math.round(Number(r.total_menit) || 0) }));
+        top5 = top5Rpc.data.map((r: any) => {
+          const rawK = (r.kategori || "MESIN").toUpperCase().trim();
+          const k = (rawK === "FORKLIFT" || rawK.includes("FORKLIFT")) ? "OTHER" : (r.kategori || "MESIN");
+          return {
+            kategori: k,
+            problem: r.problem || "-",
+            menit: Math.round(Number(r.total_menit) || 0),
+          };
+        });
       } else {
         const probMap: Record<string, { kategori: string; problem: string; menit: number }> = {};
-        rangeDowntimes.forEach((d: any) => {
+        normalizedRangeDowntimes.forEach((d: any) => {
           const k = d.kategori || "MESIN";
           const p = d.problem || d.deskripsi || "-";
           const key = `${k}_${p}`;
@@ -2054,13 +2079,28 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
         top5 = Object.values(probMap).sort((a, b) => b.menit - a.menit).slice(0, 5);
       }
 
-      let byCategory: any[] = [];
+      const categories = config.kategoriOptions && config.kategoriOptions.length > 0
+        ? config.kategoriOptions
+        : ["MESIN", "DIES", "OTHER"];
+
+      let byCategory: { kategori: string; menit: number }[] = [];
+      const catMap: Record<string, number> = {};
+      categories.forEach((cat) => { catMap[cat] = 0; });
+
       if (rpcCatTotal > 0 && Array.isArray(catRpc.data)) {
-        byCategory = catRpc.data.map((r: any) => ({ kategori: r.kategori, menit: Math.round(Number(r.total_menit) || 0) }));
+        catRpc.data.forEach((r: any) => {
+          let k = (r.kategori || "OTHER").toUpperCase().trim();
+          if (k === "FORKLIFT" || k.includes("FORKLIFT") || !categories.includes(k)) {
+            k = "OTHER";
+          }
+          catMap[k] = (catMap[k] || 0) + Math.round(Number(r.total_menit) || 0);
+        });
       } else {
-        const catMap: Record<string, number> = {};
-        rangeDowntimes.forEach((d: any) => {
-          const k = d.kategori || "MESIN";
+        normalizedRangeDowntimes.forEach((d: any) => {
+          let k = (d.kategori || "MESIN").toUpperCase().trim();
+          if (!categories.includes(k)) {
+            k = "OTHER";
+          }
           let m = 0;
           if (d.waktu_awal && d.waktu_akhir) {
             m = Math.round((new Date(d.waktu_akhir).getTime() - new Date(d.waktu_awal).getTime()) / 60000);
@@ -2069,15 +2109,19 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
           }
           catMap[k] = (catMap[k] || 0) + m;
         });
-        byCategory = Object.entries(catMap).map(([kategori, menit]) => ({ kategori, menit }));
       }
+
+      byCategory = categories.map((cat) => ({
+        kategori: cat,
+        menit: catMap[cat] || 0,
+      }));
 
       setPerfData({
         data: dataSummary,
         trend: trendResults,
         top5,
         byCategory,
-        rawDowntimes: rangeDowntimes,
+        rawDowntimes: normalizedRangeDowntimes,
       });
 
       setPerfDayRows(dayMappedRows);
@@ -2225,92 +2269,105 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
 
     if (perfPieRef.current) {
       if (perfChartInstancesRef.current.pie) perfChartInstancesRef.current.pie.destroy();
+      const categories = config.kategoriOptions && config.kategoriOptions.length > 0
+        ? config.kategoriOptions
+        : ["MESIN", "DIES", "OTHER"];
+
       const data = perfData.byCategory || [];
-      const catColors: Record<string, string> = {
-        MESIN: getCssVar("--chart-2") || "#38bdf8",
-        DIES: getCssVar("--chart-5") || "#fb7185",
-        FINGER: getCssVar("--chart-1") || "#34d399",
-        OTHER: getCssVar("--chart-4") || "#fbbf24",
-      };
-      if (data.length > 0) {
-        perfChartInstancesRef.current.pie = new Chart(perfPieRef.current, {
-          type: "doughnut",
-          data: {
-            labels: data.map((d) => d.kategori),
-            datasets: [{
-              data: data.map((d) => d.menit),
-              backgroundColor: data.map((d) => catColors[d.kategori] || "#94a3b8"),
-              borderWidth: 0,
-            }],
+      const totalsPerCat = categories.map((cat) => {
+        const found = data.find((d) => d.kategori === cat);
+        return found ? found.menit : 0;
+      });
+      const grandTotal = totalsPerCat.reduce((a, b) => a + b, 0);
+
+      perfChartInstancesRef.current.pie = new Chart(perfPieRef.current, {
+        type: "doughnut",
+        data: {
+          labels: categories,
+          datasets: [{
+            data: totalsPerCat,
+            backgroundColor: (context: any) => {
+              const chart = context.chart;
+              const c = categories[context.dataIndex] || categories[0];
+              const pair = CAT_GRAD_COLORS[c] || { top: "#fbbf24", bottom: "#d97706" };
+              return createVerticalGradient(chart.ctx, chart.chartArea, pair.top, pair.bottom);
+            },
+            spacing: 5,
+            borderRadius: 6,
+            borderWidth: 1.5,
+            borderColor: "rgba(255, 255, 255, 0.12)",
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { top: 4, right: 6, bottom: 4, left: 6 } },
+          onHover: (evt: any, elements: any[]) => {
+            if (evt.native?.target) evt.native.target.style.cursor = elements.length ? "pointer" : "default";
           },
-          options: {
-            responsive: true, maintainAspectRatio: false,
-            ...(({ cutout: "62%" } as any)),
-            plugins: {
-              legend: {
-                position: "right",
-                labels: {
-                  color: getCssVar("--muted-foreground") || "#94a3b8",
-                  boxWidth: 8,
-                  boxHeight: 8,
-                  usePointStyle: true,
-                  font: { size: 10 },
-                  generateLabels: (chart: any) => {
-                    const dataset = chart.data.datasets[0];
-                    const total = (dataset.data as number[]).reduce((a: number, b: number) => a + b, 0);
-                    const legendTextColor = getCssVar("--muted-foreground") || "#94a3b8";
-                    return (chart.data.labels as string[]).map((label: string, i: number) => {
-                      const val = (dataset.data as number[])[i] || 0;
-                      const pct = total > 0 ? Math.round((val / total) * 100) : 0;
-                      return {
-                        text: `${label}  ${pct}%`,
-                        fontColor: legendTextColor,
-                        fillStyle: (dataset.backgroundColor as string[])[i],
-                        strokeStyle: "transparent",
-                        lineWidth: 0,
-                        hidden: false,
-                        index: i,
-                      };
-                    });
-                  },
-                },
-              },
-              pieCenterText: {
-                value: (() => {
-                  const total = data.reduce((a, b) => a + b.menit, 0);
-                  return total >= 1000
-                    ? `${(total / 1000).toFixed(1)}k`
-                    : String(total);
-                })(),
-                label: "Menit DT",
-                color: () => getCssVar("--text") || "#f1f5f9",
-                labelColor: () => getCssVar("--muted-foreground") || "#94a3b8",
-              },
-              sliceLabels: {
-                enabled: true,
-                color: "#ffffff",
-              },
-              tooltip: {
-                backgroundColor: getCssVar("--panel") || "#1e293b",
-                titleColor: getCssVar("--text") || "#f1f5f9",
-                bodyColor: getCssVar("--text") || "#f1f5f9",
-                borderColor: getCssVar("--border") || "#334155",
-                borderWidth: 1,
+          plugins: {
+            legend: {
+              position: "bottom",
+              labels: {
+                color: getCssVar("--muted-foreground") || "#94a3b8",
+                boxWidth: 8,
+                boxHeight: 8,
+                usePointStyle: true,
+                pointStyle: "circle",
+                font: { size: 10 },
                 padding: 10,
-                displayColors: false,
-                callbacks: {
-                  title: () => "",
-                  label: (ctx: any) => {
-                    const total = data.reduce((a, b) => a + b.menit, 0);
-                    const pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : "0";
-                    return `${ctx.label}: ${Number(ctx.parsed).toLocaleString()} mnt (${pct}%)`;
-                  },
+                generateLabels: (chart: any) => {
+                  const dataset = chart.data.datasets[0];
+                  const total = (dataset.data as number[]).reduce((a: number, b: number) => a + b, 0);
+                  const legendTextColor = getCssVar("--muted-foreground") || "#94a3b8";
+                  return (chart.data.labels as string[]).map((label: string, i: number) => {
+                    const val = (dataset.data as number[])[i] || 0;
+                    const pct = total > 0 ? Math.round((val / total) * 100) : 0;
+                    const pair = CAT_GRAD_COLORS[label] || { top: "#fbbf24", bottom: "#d97706" };
+                    return {
+                      text: `${label}  ${pct}%`,
+                      fontColor: legendTextColor,
+                      fillStyle: pair.top,
+                      strokeStyle: "transparent",
+                      lineWidth: 0,
+                      hidden: false,
+                      index: i,
+                    };
+                  });
                 },
               },
             },
-          },
-        });
-      }
+            pieCenterText: {
+              value: fmtNum(grandTotal),
+              label: "Menit DT",
+              color: () => getCssVar("--text") || "#f1f5f9",
+              labelColor: () => getCssVar("--muted-foreground") || "#94a3b8",
+            },
+            sliceLabels: {
+              enabled: true,
+              color: "#ffffff",
+            },
+            tooltip: {
+              backgroundColor: getCssVar("--panel") || "#1e293b",
+              titleColor: getCssVar("--text") || "#f1f5f9",
+              bodyColor: getCssVar("--text") || "#f1f5f9",
+              borderColor: getCssVar("--border") || "#334155",
+              borderWidth: 1,
+              padding: 10,
+              displayColors: false,
+              callbacks: {
+                title: () => "",
+                label: (ctx: any) => {
+                  const total = totalsPerCat.reduce((a, b) => a + b, 0);
+                  const pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : "0";
+                  return `${ctx.label}: ${fmtNum(ctx.parsed)} menit (${pct}%)`;
+                },
+              },
+            },
+          } as any,
+          ...(({ cutout: "68%" } as any)),
+        },
+      });
     }
 
     return () => {

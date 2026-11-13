@@ -1058,8 +1058,11 @@ export default function DashboardClient() {
 
         dtByCat[m.key] = {};
         (byCatResults[idx].data || []).forEach((r: any) => {
-          const kat = (r.kategori || "OTHER").toUpperCase();
-          dtByCat[m.key][kat] = Math.round(Number(r.total_menit) || 0);
+          let kat = (r.kategori || "OTHER").toUpperCase().trim();
+          if (kat === "FORKLIFT" || kat.includes("FORKLIFT")) {
+            kat = "OTHER";
+          }
+          dtByCat[m.key][kat] = (dtByCat[m.key][kat] || 0) + Math.round(Number(r.total_menit) || 0);
         });
       });
 
@@ -1099,11 +1102,15 @@ export default function DashboardClient() {
       }
 
       const fleetTop10Result = MACHINES.flatMap((m, idx) =>
-        (topProbResults[idx].data || []).map((r: any) => ({
-          mesin: m.key, mesinLabel: m.label,
-          kategori: r.kategori || "MESIN", problem: r.problem || "-",
-          menit: Math.round(Number(r.total_menit) || 0),
-        }))
+        (topProbResults[idx].data || []).map((r: any) => {
+          const rawKat = (r.kategori || "MESIN").toUpperCase().trim();
+          const kat = (rawKat === "FORKLIFT" || rawKat.includes("FORKLIFT")) ? "OTHER" : (r.kategori || "MESIN");
+          return {
+            mesin: m.key, mesinLabel: m.label,
+            kategori: kat, problem: r.problem || "-",
+            menit: Math.round(Number(r.total_menit) || 0),
+          };
+        })
       ).sort((a, b) => b.menit - a.menit).slice(0, 10);
 
       const probAgg: Record<string, number> = {};
@@ -1125,11 +1132,15 @@ export default function DashboardClient() {
       MACHINES.forEach((m, idx) => {
         worstPerMachineResult[m.key] = (topProbResults[idx].data || [])
           .slice(0, 5)
-          .map((r: any) => ({
-            kategori: r.kategori || "MESIN",
-            problem: r.problem || "-",
-            menit: Math.round(Number(r.total_menit) || 0),
-          }));
+          .map((r: any) => {
+            const rawKat = (r.kategori || "MESIN").toUpperCase().trim();
+            const kat = (rawKat === "FORKLIFT" || rawKat.includes("FORKLIFT")) ? "OTHER" : (r.kategori || "MESIN");
+            return {
+              kategori: kat,
+              problem: r.problem || "-",
+              menit: Math.round(Number(r.total_menit) || 0),
+            };
+          });
       });
 
       /* Safety */

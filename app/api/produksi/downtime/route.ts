@@ -61,7 +61,13 @@ export async function GET(request: Request) {
     const andConditions: any[] = [];
 
     if (isActiveStr !== "all") where.is_active = isActive;
-    if (kategori && kategori !== "all") where.kategori = kategori;
+    if (kategori && kategori !== "all") {
+      if (kategori.toUpperCase() === "OTHER") {
+        where.kategori = { in: ["OTHER", "other", "FORKLIFT", "forklift", "Forklift"] };
+      } else {
+        where.kategori = kategori;
+      }
+    }
 
     if (lineFilterConds && lineFilterConds.length > 0) {
       andConditions.push({ OR: lineFilterConds });
@@ -162,8 +168,11 @@ export async function GET(request: Request) {
 
     const data = raw.map((r) => {
       const info = resolveLineInfo(r, allLines);
+      const rawKat = (r.kategori || "").toUpperCase().trim();
+      const normalizedKategori = (rawKat === "FORKLIFT" || rawKat.includes("FORKLIFT")) ? "OTHER" : r.kategori;
       return {
         ...r,
+        kategori: normalizedKategori,
         line_id: info.line_id || r.line_id || null,
         line_name: info.line_name,
       };
@@ -181,13 +190,16 @@ export async function POST(request: Request) {
     const body = await request.json();
     const data = body.data || body;
 
+    const rawKat = (data.kategori ?? "").toString().toUpperCase().trim();
+    const normalizedKategori = (rawKat === "FORKLIFT" || rawKat.includes("FORKLIFT")) ? "OTHER" : (data.kategori ?? null);
+
     const res = await prisma.prodDowntimeLog.create({
       data: {
         mesin: data.mesin,
         line_id: data.line_id ?? null,
         waktu_awal: data.waktu_awal ? new Date(data.waktu_awal) : (data.start_time ? new Date(data.start_time) : new Date()),
         waktu_akhir: data.waktu_akhir ? new Date(data.waktu_akhir) : (data.end_time ? new Date(data.end_time) : new Date()),
-        kategori: data.kategori ?? null,
+        kategori: normalizedKategori,
         problem: data.problem ?? null,
         penyebab: data.penyebab ?? null,
         countermeasure: data.countermeasure ?? null,
@@ -216,6 +228,12 @@ export async function PATCH(request: Request) {
     }
 
     const cleanData: any = { ...data };
+    if (cleanData.kategori !== undefined && cleanData.kategori !== null) {
+      const rawKat = cleanData.kategori.toString().toUpperCase().trim();
+      if (rawKat === "FORKLIFT" || rawKat.includes("FORKLIFT")) {
+        cleanData.kategori = "OTHER";
+      }
+    }
     // Normalize field names from client (might send start_time/end_time or waktu_awal/waktu_akhir)
     if (cleanData.start_time) { cleanData.waktu_awal = new Date(cleanData.start_time); delete cleanData.start_time; }
     if (cleanData.end_time) { cleanData.waktu_akhir = new Date(cleanData.end_time); delete cleanData.end_time; }
