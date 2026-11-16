@@ -5,7 +5,19 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { Play, Square, FilterX, Pencil, X } from "lucide-react";
+import {
+  Play,
+  Square,
+  FilterX,
+  Pencil,
+  X,
+  Search,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+} from "lucide-react";
 import type {
   ProdMachineConfig,
   ProdDowntimeLogRow,
@@ -107,6 +119,25 @@ interface DowntimeTabProps {
   durasiMenit: (waktuAwal?: string | null, waktuAkhir?: string | null) => string;
   fmt: (iso?: string | null) => string;
   fmtClock: (iso?: string | null) => string;
+  // Filter & Pagination props
+  dtTanggalDari: string;
+  setDtTanggalDari: (v: string) => void;
+  dtTanggalSampai: string;
+  setDtTanggalSampai: (v: string) => void;
+  dtKategori: string;
+  setDtKategori: (v: string) => void;
+  dtSearch: string;
+  setDtSearch: (v: string) => void;
+  resetDtFilter: () => void;
+  handleDtBulanIni: () => void;
+  handleDtSemuaWaktu: () => void;
+  currentPage: number;
+  totalPages: number;
+  pageSize: number;
+  totalCount: number;
+  isLoading: boolean;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
 }
 
 /** Konversi ISO string ke nilai datetime-local (YYYY-MM-DDTHH:MM) */
@@ -147,6 +178,24 @@ export default function DowntimeTab({
   durasiMenit,
   fmt,
   fmtClock,
+  dtTanggalDari,
+  setDtTanggalDari,
+  dtTanggalSampai,
+  setDtTanggalSampai,
+  dtKategori,
+  setDtKategori,
+  dtSearch,
+  setDtSearch,
+  resetDtFilter,
+  handleDtBulanIni,
+  handleDtSemuaWaktu,
+  currentPage,
+  totalPages,
+  pageSize,
+  totalCount,
+  isLoading,
+  onPageChange,
+  onPageSizeChange,
 }: DowntimeTabProps) {
   const canEditDowntime = Boolean(canEditRow ? canEditRow() : true);
 
@@ -274,20 +323,117 @@ export default function DowntimeTab({
       </Card>
 
       <Card className="dash-panel card-glow-info">
-        <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
-          <h3 className="dash-panel-title font-bold text-base mb-0">
-            Riwayat Downtime <span className="count">{downtimeRowsFiltered().length} baris</span>
-          </h3>
-          {downtimeFilterProductionId && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span>Filter aktif: <b className="text-[var(--text)]">{downtimeFilterLabel}</b></span>
-              <Button type="button" variant="ghost" size="sm" onClick={clearDowntimeFilter}>
-                <FilterX size={13} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} /> Hapus Filter
-              </Button>
+        {/* Header & Quick Date Presets */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <h3 className="dash-panel-title font-bold text-base text-slate-800">Riwayat Downtime</h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Menampilkan <span className="font-semibold text-slate-700">{totalCount.toLocaleString("id-ID")}</span> baris riwayat downtime.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap text-xs">
+            {downtimeFilterProductionId && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-50 border border-blue-200 text-blue-700 font-medium mr-2">
+                <span>Filter baris: <b>{downtimeFilterLabel}</b></span>
+                <button
+                  type="button"
+                  onClick={clearDowntimeFilter}
+                  className="hover:text-blue-900 cursor-pointer ml-1 inline-flex items-center"
+                  title="Hapus filter baris produksi"
+                >
+                  <X size={13} />
+                </button>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={handleDtBulanIni}
+              className="font-semibold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer bg-transparent border-0"
+            >
+              Bulan Ini
+            </button>
+            <span className="text-slate-300">|</span>
+            <button
+              type="button"
+              onClick={handleDtSemuaWaktu}
+              className="font-semibold text-slate-600 hover:text-slate-700 hover:underline cursor-pointer bg-transparent border-0"
+            >
+              Semua Waktu
+            </button>
+            {(dtTanggalDari || dtTanggalSampai || dtKategori || dtSearch || downtimeFilterProductionId) && (
+              <>
+                <span className="text-slate-300">|</span>
+                <button
+                  type="button"
+                  onClick={resetDtFilter}
+                  className="font-semibold text-red-600 hover:text-red-700 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0"
+                >
+                  Reset Filter
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Filter Inputs Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+          <div className="field">
+            <label className="text-xs font-semibold text-slate-600 mb-1 block">Dari Tanggal</label>
+            <Input
+              type="date"
+              value={dtTanggalDari}
+              onChange={(e) => setDtTanggalDari(e.target.value)}
+              className="h-9 text-xs"
+            />
+          </div>
+          <div className="field">
+            <label className="text-xs font-semibold text-slate-600 mb-1 block">Sampai Tanggal</label>
+            <Input
+              type="date"
+              value={dtTanggalSampai}
+              onChange={(e) => setDtTanggalSampai(e.target.value)}
+              className="h-9 text-xs"
+            />
+          </div>
+          <div className="field">
+            <label className="text-xs font-semibold text-slate-600 mb-1 block">Kategori</label>
+            <Select
+              value={dtKategori}
+              onChange={(e) => setDtKategori(e.target.value)}
+              className="h-9 text-xs"
+            >
+              <option value="">Semua Kategori</option>
+              {config.kategoriOptions.map((k) => (
+                <option key={k} value={k}>
+                  {k}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="field">
+            <label className="text-xs font-semibold text-slate-600 mb-1 block">Cari Downtime</label>
+            <div className="relative">
+              <Input
+                type="text"
+                placeholder="Cari problem, penyebab, stasiun..."
+                value={dtSearch}
+                onChange={(e) => setDtSearch(e.target.value)}
+                className="h-9 text-xs pr-8"
+              />
+              <Search className="pointer-events-none absolute right-2.5 top-2.5 h-4 w-4 text-slate-400" />
+            </div>
+          </div>
+        </div>
+
+        {/* Table Container */}
+        <div className="table-wrap relative min-h-[160px]">
+          {isLoading && (
+            <div className="absolute inset-0 bg-white/70 backdrop-blur-[1px] z-10 flex flex-col items-center justify-center gap-2">
+              <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+              <span className="text-xs font-medium text-slate-600">Memuat data downtime...</span>
             </div>
           )}
-        </div>
-        <div className="table-wrap">
+
           <table>
             <thead>
               <tr>
@@ -361,18 +507,100 @@ export default function DowntimeTab({
                   </td>
                 </tr>
               ))}
-              {downtimeRowsFiltered().length === 0 && (
+              {downtimeRowsFiltered().length === 0 && !isLoading && (
                 <tr>
-                  <td colSpan={config.stationConfig.mode !== "none" ? 9 : 8} className="text-center text-muted-foreground py-6">
+                  <td colSpan={config.stationConfig.mode !== "none" ? 9 : 8} className="text-center text-muted-foreground py-8">
                     {downtimeFilterProductionId
                       ? "Tidak ada catatan downtime untuk baris produksi ini."
-                      : "Belum ada catatan downtime."}
+                      : "Belum ada catatan downtime yang cocok dengan filter."}
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+
+        {/* Bottom Pagination Toolbar */}
+        {(() => {
+          const safeCurrentPage = Math.min(Math.max(1, currentPage), Math.max(1, totalPages));
+          const startIndex = (safeCurrentPage - 1) * pageSize;
+          const endIndex = Math.min(startIndex + downtimeRowsFiltered().length, totalCount);
+
+          return (
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200 mt-3 text-xs text-slate-600">
+              <div className="flex items-center gap-2">
+                <span>
+                  Menampilkan {totalCount === 0 ? 0 : startIndex + 1} - {endIndex} dari {totalCount.toLocaleString("id-ID")} entri
+                </span>
+                <span className="text-slate-300">|</span>
+                <div className="flex items-center gap-1.5">
+                  <span>Baris per halaman:</span>
+                  <Select
+                    value={String(pageSize)}
+                    onChange={(e) => onPageSizeChange(Number(e.target.value))}
+                    className="h-8 text-xs w-[75px]"
+                  >
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onPageChange(1)}
+                  disabled={safeCurrentPage <= 1 || isLoading}
+                  className="h-8 w-8 p-0 border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40"
+                  title="Halaman Pertama"
+                >
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onPageChange(Math.max(1, safeCurrentPage - 1))}
+                  disabled={safeCurrentPage <= 1 || isLoading}
+                  className="h-8 w-8 p-0 border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40"
+                  title="Halaman Sebelumnya"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+
+                <span className="px-3 text-xs font-semibold text-slate-700 whitespace-nowrap">
+                  Hal {safeCurrentPage} dari {Math.max(1, totalPages)}
+                </span>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onPageChange(Math.min(totalPages, safeCurrentPage + 1))}
+                  disabled={safeCurrentPage >= totalPages || isLoading}
+                  className="h-8 w-8 p-0 border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40"
+                  title="Halaman Berikutnya"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onPageChange(totalPages)}
+                  disabled={safeCurrentPage >= totalPages || isLoading}
+                  className="h-8 w-8 p-0 border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40"
+                  title="Halaman Terakhir"
+                >
+                  <ChevronsRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          );
+        })()}
       </Card>
     </div>
   );

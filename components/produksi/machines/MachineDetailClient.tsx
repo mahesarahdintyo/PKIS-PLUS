@@ -357,6 +357,28 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
     }, 350);
     return () => clearTimeout(handler);
   }, [riwayatSearch]);
+
+  // Downtime Filter & Pagination States (Consistent with Riwayat Tab)
+  const defaultDtMonth = getDefaultMonthRange();
+  const [dtTanggalDari, setDtTanggalDari] = useState(defaultDtMonth.startDate);
+  const [dtTanggalSampai, setDtTanggalSampai] = useState(defaultDtMonth.endDate);
+  const [dtKategori, setDtKategori] = useState("");
+  const [dtSearch, setDtSearch] = useState("");
+  const [debouncedDtSearch, setDebouncedDtSearch] = useState("");
+  const [dtPage, setDtPage] = useState(1);
+  const [dtPageSize, setDtPageSize] = useState(25);
+  const [dtTotalCount, setDtTotalCount] = useState(0);
+  const [dtTotalPages, setDtTotalPages] = useState(1);
+  const [isDtLoading, setIsDtLoading] = useState(false);
+  const [downtimePaginatedList, setDowntimePaginatedList] = useState<ProdDowntimeLogRow[]>([]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedDtSearch(dtSearch);
+      setDtPage(1);
+    }, 350);
+    return () => clearTimeout(handler);
+  }, [dtSearch]);
   const [downtimeFilterProductionId, setDowntimeFilterProductionId] = useState<string | null>(null);
   const [downtimeFilterProductionRow, setDowntimeFilterProductionRow] = useState<any | null>(null);
   const [downtimeFilterLabel, setDowntimeFilterLabel] = useState("");
@@ -635,6 +657,31 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
     setRiwayatPage(1);
   };
 
+  const resetDtFilter = () => {
+    const def = getDefaultMonthRange();
+    setDtTanggalDari(def.startDate);
+    setDtTanggalSampai(def.endDate);
+    setDtKategori("");
+    setDtSearch("");
+    setDtPage(1);
+    if (downtimeFilterProductionId) {
+      clearDowntimeFilter();
+    }
+  };
+
+  const handleDtBulanIni = () => {
+    const def = getDefaultMonthRange();
+    setDtTanggalDari(def.startDate);
+    setDtTanggalSampai(def.endDate);
+    setDtPage(1);
+  };
+
+  const handleDtSemuaWaktu = () => {
+    setDtTanggalDari("");
+    setDtTanggalSampai("");
+    setDtPage(1);
+  };
+
   const fetchGabunganRange = useCallback(
     async (waktuDari: string | null, waktuSampai: string | null, partNumberFilter: string) => {
       const lineOrMesinParam = lineId ? { line_id: lineId } : { mesin: config.key };
@@ -895,6 +942,47 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
     [lineId, config.key, riwayatPage, riwayatPageSize, riwayatTanggalDari, riwayatTanggalSampai, riwayatPartNumber, debouncedRiwayatSearch]
   );
 
+  const fetchDowntimePaginated = useCallback(
+    async ({ showLoading = true }: { showLoading?: boolean } = {}) => {
+      try {
+        if (showLoading) setIsDtLoading(true);
+        const lineOrMesinParam = lineId ? { line_id: lineId } : { mesin: config.key };
+
+        const params: Parameters<typeof downtimeApi.get>[0] = {
+          page: dtPage,
+          pageSize: dtPageSize,
+          ...lineOrMesinParam,
+        };
+
+        if (dtTanggalDari) params.startDate = dtTanggalDari;
+        if (dtTanggalSampai) params.endDate = dtTanggalSampai;
+        if (dtKategori) params.kategori = dtKategori;
+
+        const effectiveSearch = (debouncedDtSearch || "").trim();
+        if (effectiveSearch) params.search = effectiveSearch;
+
+        const res = await downtimeApi.get(params);
+        if (res.error) throw new Error(res.error);
+
+        const list = Array.isArray(res.data) ? res.data : [];
+        const total = res.total ?? list.length;
+        const totalP = res.totalPages ?? Math.max(1, Math.ceil(total / dtPageSize));
+
+        setDowntimePaginatedList(list as ProdDowntimeLogRow[]);
+        setDtTotalCount(total);
+        setDtTotalPages(totalP);
+      } catch (err) {
+        console.error("Gagal memuat downtime terpaginasi:", err);
+        setDowntimePaginatedList([]);
+        setDtTotalCount(0);
+        setDtTotalPages(1);
+      } finally {
+        setIsDtLoading(false);
+      }
+    },
+    [lineId, config.key, dtPage, dtPageSize, dtTanggalDari, dtTanggalSampai, dtKategori, debouncedDtSearch]
+  );
+
   const fetchRiwayatHariIniData = useCallback(async () => {
     // Use WIB (UTC+7) date so early-morning records (00:00–06:59 WIB) are included.
     // new Date().toISOString() returns UTC date, which can differ from local WIB date.
@@ -1041,6 +1129,12 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
     setDowntimeFilterProductionId(row.id);
     setDowntimeFilterProductionRow(row);
     setDowntimeFilterLabel(`${row.part_number || "-"} (${new Date(row.waktu_awal).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })})`);
+    if (row.waktu_awal) {
+      const rowDate = row.waktu_awal.slice(0, 10);
+      setDtTanggalDari(rowDate);
+      setDtTanggalSampai(rowDate);
+    }
+    setDtPage(1);
     setActiveTab("downtime");
   };
 
@@ -1048,6 +1142,10 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
     setDowntimeFilterProductionId(null);
     setDowntimeFilterProductionRow(null);
     setDowntimeFilterLabel("");
+    const def = getDefaultMonthRange();
+    setDtTanggalDari(def.startDate);
+    setDtTanggalSampai(def.endDate);
+    setDtPage(1);
   };
 
   const handleCancelEditNonProduksi = () => {
@@ -1165,6 +1263,14 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       setRiwayatHariIni([]);
     });
   }, [activeTab, fetchRiwayatHariIniData]);
+
+  useEffect(() => {
+    if (activeTab !== "downtime") return;
+    fetchDowntimePaginated().catch((error) => {
+      console.error("Gagal memuat downtime terpaginasi:", error);
+      setDowntimePaginatedList([]);
+    });
+  }, [activeTab, fetchDowntimePaginated]);
 
   // Realtime subscription for Riwayat data changes (production, downtime, dandori, planning)
   useEffect(() => {
@@ -2435,6 +2541,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
         cancelDowntime();
         await loadData();
         await fetchRiwayatHariIniData();
+        await fetchDowntimePaginated({ showLoading: false });
         setPerfRefreshKey((k) => k + 1);
       } else {
         const { data: { session } } = await auth.getSession();
@@ -2445,12 +2552,17 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
           cancelDowntime();
           await loadData();
           await fetchRiwayatHariIniData();
+          await fetchDowntimePaginated({ showLoading: false });
           setPerfRefreshKey((k) => k + 1);
         } catch (insertErr: any) {
           if (isNetworkError(insertErr)) {
             enqueueOffline("prod_downtime_log", insertPayload);
             refreshPendingCount();
             setDowntimeList((prev) => [
+              { ...insertPayload, id: "pending_" + Date.now(), _pending: true } as ProdDowntimeLogRow,
+              ...prev,
+            ]);
+            setDowntimePaginatedList((prev) => [
               { ...insertPayload, id: "pending_" + Date.now(), _pending: true } as ProdDowntimeLogRow,
               ...prev,
             ]);
@@ -2496,6 +2608,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       flash("Data downtime berhasil dihapus.");
       await loadData();
       await fetchRiwayatHariIniData();
+      await fetchDowntimePaginated({ showLoading: false });
       setPerfRefreshKey((k) => k + 1);
     } catch (err: any) {
       flash("Gagal menghapus downtime: " + (err?.message || JSON.stringify(err)), true);
@@ -2510,7 +2623,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
   };
 
   const downtimeRowsFiltered = () => {
-    if (!downtimeFilterProductionId) return downtimeList;
+    if (!downtimeFilterProductionId) return downtimePaginatedList;
     const allEvents = [
       ...productionRows.map((p) => ({ ...p, _kind: "produksi" })),
       ...nonProduksiRows.map((np) => ({ ...np, _kind: "non_produksi" })),
@@ -2520,7 +2633,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       return ta - tb;
     });
 
-    return downtimeList.filter((d) => {
+    return downtimePaginatedList.filter((d) => {
       if (d.production_log_id === downtimeFilterProductionId) return true;
       if (downtimeFilterProductionRow) {
         return isDowntimeMatchingProduction(d, downtimeFilterProductionRow, allEvents);
@@ -3200,6 +3313,39 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
               durasiMenit={durasiMenit}
               fmt={fmt}
               fmtClock={fmtClock}
+              dtTanggalDari={dtTanggalDari}
+              setDtTanggalDari={(v) => {
+                setDtTanggalDari(v);
+                setDtPage(1);
+              }}
+              dtTanggalSampai={dtTanggalSampai}
+              setDtTanggalSampai={(v) => {
+                setDtTanggalSampai(v);
+                setDtPage(1);
+              }}
+              dtKategori={dtKategori}
+              setDtKategori={(v) => {
+                setDtKategori(v);
+                setDtPage(1);
+              }}
+              dtSearch={dtSearch}
+              setDtSearch={(v) => {
+                setDtSearch(v);
+                setDtPage(1);
+              }}
+              resetDtFilter={resetDtFilter}
+              handleDtBulanIni={handleDtBulanIni}
+              handleDtSemuaWaktu={handleDtSemuaWaktu}
+              currentPage={dtPage}
+              totalPages={dtTotalPages}
+              pageSize={dtPageSize}
+              totalCount={dtTotalCount}
+              isLoading={isDtLoading}
+              onPageChange={setDtPage}
+              onPageSizeChange={(size) => {
+                setDtPageSize(size);
+                setDtPage(1);
+              }}
             />
           )}
 

@@ -135,8 +135,11 @@ export async function GET(request: Request) {
 
       const data = raw.map((r) => {
         const info = resolveLineInfo(r, allLines);
+        const rawKat = (r.kategori || "").toUpperCase().trim();
+        const normalizedKategori = (rawKat === "FORKLIFT" || rawKat.includes("FORKLIFT")) ? "OTHER" : r.kategori;
         return {
           ...r,
+          kategori: normalizedKategori,
           line_id: info.line_id || r.line_id || null,
           line_name: info.line_name,
         };
