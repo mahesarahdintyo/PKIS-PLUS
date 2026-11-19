@@ -82,12 +82,46 @@ export function computeBreakMinutes(waIso: string, wkIso: string): number {
   return Math.round(total);
 }
 
-/** Konversi ISO string ke value input datetime-local ("yyyy-MM-ddTHH:mm"). Port dari toLocalInput(). */
+/** Konversi ISO string ke value input datetime-local ("yyyy-MM-ddTHH:mm") tanpa timezone shift */
 export function toLocalInput(iso: string | null | undefined): string {
   if (!iso) return "";
+  if (typeof iso === "string") {
+    const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+    if (m) {
+      const [, y, mo, d, h, mi] = m;
+      return `${y}-${mo}-${d}T${h}:${mi}`;
+    }
+  }
   const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
   const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}T${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
+}
+
+/** Convert datetime-local value to DB ISO without timezone shift ("YYYY-MM-DDTHH:mm:00.000Z") */
+export function toDbIso(localInputStr: string | null | undefined): string | null {
+  if (!localInputStr) return null;
+  const trimmed = localInputStr.trim();
+  if (!trimmed) return null;
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?/.test(trimmed)) {
+    if (trimmed.length === 16) return `${trimmed}:00.000Z`;
+    return trimmed.endsWith("Z") ? trimmed : `${trimmed}.000Z`;
+  }
+  const d = new Date(trimmed);
+  return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+/** Get current wall-clock time as DB ISO string without timezone shift */
+export function nowToDbIso(): string {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}.000Z`;
+}
+
+/** Convert Date object to DB ISO string using local calendar values */
+export function dateToDbIso(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}.000Z`;
 }
 
 /** Cari waktu_akhir TERAKHIR (produksi ATAU non-produksi) di stasiun ini. */
@@ -316,7 +350,7 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
           onError("Pilih jenis non-produksi dulu sebelum lanjut.");
           return;
         }
-        const now = new Date().toISOString();
+        const now = nowToDbIso();
         const payload: NonProdPayload = {
           mesin: config.key,
           stasiun: dbStasiun(stId),
@@ -348,14 +382,14 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
         // Ada jeda — minta klasifikasi
         mutateLine(stId, {
           phase: "awaiting_gap",
-          gapInfo: { gapStart: clampedStart.toISOString(), gapEnd: now.toISOString() },
+          gapInfo: { gapStart: dateToDbIso(clampedStart), gapEnd: nowToDbIso() },
           gapForm: { nonproduksi_nama: "" },
         });
       } else {
         // Tidak ada jeda — langsung buka part selection
         mutateLine(stId, {
           phase: "awaiting_actual_start",
-          entryStart: now.toISOString(),
+          entryStart: nowToDbIso(),
           form: { ...freshLine().form },
           planningId: null,
           routingType: null,
@@ -411,7 +445,7 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
   const chooseAfterNonProduksi = useCallback(
     (stId: string, mode: "setup" | "direct" | "nonproduksi") => {
       const line = getLine(stId);
-      const startIso = line._pendingStart || new Date().toISOString();
+      const startIso = line._pendingStart || nowToDbIso();
 
       if (mode === "nonproduksi") {
         mutateLine(stId, {
@@ -607,7 +641,7 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
       if (!line.form.part_number) { onError("Pilih Part Number dulu."); return; }
       mutateLine(stId, {
         phase: "running",
-        actualStartConfirmedAt: new Date().toISOString(),
+        actualStartConfirmedAt: nowToDbIso(),
       });
     },
     [lines, onError, mutateLine]
@@ -618,7 +652,7 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
     (stId: string) => {
       mutateLine(stId, {
         phase: "finished",
-        entryEnd: new Date().toISOString(),
+        entryEnd: nowToDbIso(),
         afterFinishChoice: true,
       });
     },
@@ -658,8 +692,8 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
       const payload: CommitPayload = {
         mesin: config.key,
         stasiun: dbStasiun(stId),
-        waktu_awal: line.entryStart || new Date().toISOString(),
-        waktu_akhir: line.entryEnd || new Date().toISOString(),
+        waktu_awal: line.entryStart || nowToDbIso(),
+        waktu_akhir: line.entryEnd || nowToDbIso(),
         part_number: line.form.part_number,
         qty: line.form.qty === "" ? null : Number(line.form.qty),
         ng: line.form.ng === "" ? null : Number(line.form.ng),
@@ -678,7 +712,7 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
   const chooseSetupNext = useCallback(
     (stId: string) => {
       const line = getLine(stId);
-      const endTime = line.entryEnd || new Date().toISOString();
+      const endTime = line.entryEnd || nowToDbIso();
       _commitLine(stId);
       mutateLine(stId, {
         ...freshLine(),
@@ -694,7 +728,7 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
   const chooseNonProduksiNext = useCallback(
     (stId: string) => {
       const line = getLine(stId);
-      const endTime = line.entryEnd || new Date().toISOString();
+      const endTime = line.entryEnd || nowToDbIso();
       _commitLine(stId);
       mutateLine(stId, {
         ...freshLine(),
@@ -712,7 +746,7 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
       const line = getLine(stId);
       const nama = line.nonProdForm.nama;
       if (!nama) { onError("Pilih jenis non-produksi dulu."); return; }
-      const now = new Date().toISOString();
+      const now = nowToDbIso();
       const payload: NonProdPayload = {
         mesin: config.key,
         stasiun: dbStasiun(stId),
@@ -797,8 +831,8 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
       }
 
       const payload: UpdatePayload = {
-        waktu_awal: new Date(f.waktu_awal).toISOString(),
-        waktu_akhir: new Date(f.waktu_akhir).toISOString(),
+        waktu_awal: toDbIso(f.waktu_awal) || f.waktu_awal,
+        waktu_akhir: toDbIso(f.waktu_akhir) || f.waktu_akhir,
         part_number: f.part_number || null,
         qty: f.qty === "" ? null : Number(f.qty),
         manpower: f.manpower === "" ? null : Number(f.manpower),

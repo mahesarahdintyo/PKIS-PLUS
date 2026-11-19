@@ -23,6 +23,7 @@ import type {
   ProdDowntimeLogRow,
   ProdDowntimeProblem,
 } from "@/types/produksi";
+import { toLocalInput, toDbIso } from "@/hooks/produksi/useProductionLines";
 
 function ProblemCombobox({
   options,
@@ -140,15 +141,6 @@ interface DowntimeTabProps {
   onPageSizeChange: (size: number) => void;
 }
 
-/** Konversi ISO string ke nilai datetime-local (YYYY-MM-DDTHH:MM) */
-function toLocalInput(iso: string | null): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
 export default function DowntimeTab({
   config,
   isLeaderOrAdmin,
@@ -245,7 +237,7 @@ export default function DowntimeTab({
                       type="datetime-local"
                       value={toLocalInput(dtStart)}
                       onChange={(e) =>
-                        setDtStart(e.target.value ? new Date(e.target.value).toISOString() : null)
+                        setDtStart(e.target.value ? toDbIso(e.target.value) : null)
                       }
                     />
                   </div>
@@ -255,7 +247,7 @@ export default function DowntimeTab({
                       type="datetime-local"
                       value={toLocalInput(dtEnd)}
                       onChange={(e) =>
-                        setDtEnd(e.target.value ? new Date(e.target.value).toISOString() : null)
+                        setDtEnd(e.target.value ? toDbIso(e.target.value) : null)
                       }
                     />
                   </div>

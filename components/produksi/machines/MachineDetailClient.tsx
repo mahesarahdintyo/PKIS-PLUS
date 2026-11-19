@@ -43,6 +43,8 @@ import {
   NonProdPayload,
   UpdatePayload,
   toLocalInput,
+  toDbIso,
+  nowToDbIso,
   loadFromLocalStorage,
 } from "@/hooks/produksi/useProductionLines";
 import { enqueueOffline, isNetworkError } from "@/lib/produksi/offlineQueue";
@@ -1128,7 +1130,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
   const handleViewDowntimeForProduction = (row: any) => {
     setDowntimeFilterProductionId(row.id);
     setDowntimeFilterProductionRow(row);
-    setDowntimeFilterLabel(`${row.part_number || "-"} (${new Date(row.waktu_awal).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })})`);
+    setDowntimeFilterLabel(`${row.part_number || "-"} (${fmt(row.waktu_awal)})`);
     if (row.waktu_awal) {
       const rowDate = row.waktu_awal.slice(0, 10);
       setDtTanggalDari(rowDate);
@@ -1190,8 +1192,8 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
     }
 
     const payload = {
-      waktu_awal: new Date(f.waktu_awal).toISOString(),
-      waktu_akhir: new Date(f.waktu_akhir).toISOString(),
+      waktu_awal: toDbIso(f.waktu_awal) || f.waktu_awal,
+      waktu_akhir: toDbIso(f.waktu_akhir) || f.waktu_akhir,
       part_ke: f.nama || null,
       keterangan: f.nama || null,
       break_menit: breakMenitVal,
@@ -1489,8 +1491,8 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
     }
 
     const payload: UpdatePayload = {
-      waktu_awal: new Date(f.waktu_awal).toISOString(),
-      waktu_akhir: new Date(f.waktu_akhir).toISOString(),
+      waktu_awal: toDbIso(f.waktu_awal) || f.waktu_awal,
+      waktu_akhir: toDbIso(f.waktu_akhir) || f.waktu_akhir,
       part_number: f.part_number || null,
       qty: f.qty === "" ? null : Number(f.qty),
       manpower: f.manpower === "" ? null : Number(f.manpower),
@@ -2493,7 +2495,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
 
   const startDowntime = () => {
     setDtState("running");
-    setDtStart(new Date().toISOString());
+    setDtStart(nowToDbIso());
   };
 
   const cancelDowntime = () => {
@@ -2506,7 +2508,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
 
   const stopDowntime = () => {
     setDtState("stopped");
-    setDtEnd(new Date().toISOString());
+    setDtEnd(nowToDbIso());
     setDtForm({ kategori: "", problem: "", penyebab: "", countermeasure: "", stasiun: "" });
   };
 
@@ -2649,12 +2651,29 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
 
   const fmtClock = (iso?: string | null) => {
     if (!iso) return "-";
-    return new Date(iso).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+    if (typeof iso === "string") {
+      const m = iso.match(/(?:[T ]|^)(\d{2}):(\d{2})/);
+      if (m) return `${m[1]}:${m[2]}`;
+    }
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "-";
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
   };
 
   const fmt = (iso?: string | null) => {
     if (!iso) return "-";
-    return new Date(iso).toLocaleString("id-ID", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    if (typeof iso === "string") {
+      const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+      if (m) {
+        const [, y, mo, d, h, mi] = m;
+        return `${d}/${mo}/${y}, ${h}.${mi}`;
+      }
+    }
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso);
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${p(d.getUTCDate())}/${p(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}, ${p(d.getUTCHours())}.${p(d.getUTCMinutes())}`;
   };
 
   const stdCtFor = (partNumber: string | null | undefined): number | null => {
@@ -3416,7 +3435,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
               </span>{" "}
               pada{" "}
               {riwayatDeleteTarget.waktu_awal
-                ? new Date(riwayatDeleteTarget.waktu_awal).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })
+                ? fmt(riwayatDeleteTarget.waktu_awal)
                 : "-"}.
               <br />
               <span className="text-red-400 text-xs mt-1 block">Tindakan ini tidak bisa dibatalkan.</span>
