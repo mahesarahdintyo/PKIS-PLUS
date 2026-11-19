@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import SQCDMPPanel from "@/components/produksi/SQCDMPPanel";
+import DashboardPerformanceTab from "@/components/admin/DashboardPerformanceTab";
 import { useThemeListener } from "@/hooks/produksi/useThemeListener";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -152,9 +153,11 @@ export default function DashboardClient() {
 
   // Per-hour GSPH from RPC, keyed by machine key
   const [hourlyData, setHourlyData] = useState<Record<string, { jam: number; gsph: number }[]>>({});
+  const [rawDowntimes, setRawDowntimes] = useState<any[]>([]);
+  const [rawProductionLogs, setRawProductionLogs] = useState<any[]>([]);
 
   const theme = useThemeListener();
-  const [vizMode, setVizMode] = useState<"umum" | "internal">("umum");
+  const [vizMode, setVizMode] = useState<"umum" | "internal" | "performance">("umum");
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const toggleFullscreen = () => {
@@ -930,7 +933,7 @@ export default function DashboardClient() {
       const prevStartIso = prevStart.toISOString();
       const prevEndIso = prevEnd.toISOString();
 
-      const [aggResults, topProbResults, byCatResults, settingsRes, prevAggResults] = await Promise.all([
+      const [aggResults, topProbResults, byCatResults, settingsRes, prevAggResults, rawDtRes, rawProdRes] = await Promise.all([
         Promise.all(MACHINES.map((m) =>
           rpcApi.call("prod_performance_aggregate", { p_mesin: m.key, p_stasiun_list: null, p_start: rangeStartIso, p_end: rangeEndIso })
         )),
@@ -944,6 +947,8 @@ export default function DashboardClient() {
         Promise.all(MACHINES.map((m) =>
           rpcApi.call("prod_performance_aggregate", { p_mesin: m.key, p_stasiun_list: null, p_start: prevStartIso, p_end: prevEndIso })
         )).catch(() => MACHINES.map(() => ({ data: [] }))),
+        downtimeApi.get({ startDate: rangeStartIso, endDate: rangeEndIso, is_active: true, limit: 2000 }).catch(() => ({ data: [] })),
+        productionLogsApi.get({ table: "production", startDate: rangeStartIso, endDate: rangeEndIso, is_active: true, limit: 2000 }).catch(() => ({ data: [] })),
       ]);
 
       const settingsMap: Record<string, { mode: string; fixed: number; targetAvailability: number }> = {};
@@ -1305,6 +1310,8 @@ export default function DashboardClient() {
       setDtByCategoryMap(dtByCat);
       setTotals((prev) => ({ ...totalsResult, peff: prev.peff, productivity: prev.productivity, gapMenit: prev.gapMenit }));
       setMachineDataMap(perMachineMap);
+      setRawDowntimes((rawDtRes?.data as any[]) || []);
+      setRawProductionLogs((rawProdRes?.data as any[]) || []);
     } catch (err: any) {
       console.error("Dashboard error:", err?.message || err);
     } finally {
@@ -2672,6 +2679,13 @@ export default function DashboardClient() {
           >
             Visualisasi Internal
           </button>
+          <button
+            type="button"
+            className={`viz-mode-btn ${vizMode === "performance" ? "viz-mode-active" : ""}`}
+            onClick={() => setVizMode("performance")}
+          >
+            Visualisasi Performance
+          </button>
         </div>
 
         {loading ? (
@@ -2712,7 +2726,25 @@ export default function DashboardClient() {
               />
             )}
 
-            {vizMode === "internal" ? (
+            {vizMode === "performance" ? (
+              <DashboardPerformanceTab
+                periodMode={periodMode}
+                tanggal={tanggal}
+                bulanPilih={bulanPilih}
+                tahunPilih={tahunPilih}
+                shiftFilter={shiftFilter}
+                machines={MACHINES}
+                totals={totals}
+                machineDataMap={machineDataMap}
+                worstPerMachine={worstPerMachine}
+                hourlyData={hourlyData}
+                lineTrend={lineTrend}
+                rawDowntimes={rawDowntimes}
+                rawProductionLogs={rawProductionLogs}
+                theme={theme}
+                fmtNum={fmtNum}
+              />
+            ) : vizMode === "internal" ? (
               /* ═══ Visualisasi Internal ═══ */
               <div className="internal-viz">
                 <div className="internal-viz-split">
@@ -3431,11 +3463,15 @@ function DashboardInternalSkeleton() {
   );
 }
 
-function DashboardSkeleton({ vizMode }: { vizMode: "umum" | "internal" }) {
+function DashboardSkeleton({ vizMode }: { vizMode: "umum" | "internal" | "performance" }) {
   return (
     <div className="space-y-4 animate-pulse select-none">
       {vizMode === "umum" && <DashboardKpiSkeleton />}
-      {vizMode === "umum" ? <DashboardTvSkeleton /> : <DashboardInternalSkeleton />}
+      {vizMode === "umum" ? (
+        <DashboardTvSkeleton />
+      ) : (
+        <DashboardInternalSkeleton />
+      )}
     </div>
   );
 }
