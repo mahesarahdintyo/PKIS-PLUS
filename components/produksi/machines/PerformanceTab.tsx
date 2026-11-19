@@ -55,9 +55,11 @@ export default function PerformanceTab({
 
   const categoryTablesData = useMemo(() => {
     const raw: any[] = perfData?.rawDowntimes || [];
-    const categories = ["MESIN", "DIES", "OTHER"] as const;
+    const categories: string[] = (config.kategoriOptions && config.kategoriOptions.length > 0
+      ? config.kategoriOptions
+      : ["MESIN", "DIES", "FINGER", "OTHER"]);
 
-    const result: Record<"MESIN" | "DIES" | "OTHER", {
+    const result: Record<string, {
       totalMenit: number;
       totalCount: number;
       problems: Array<{
@@ -66,24 +68,21 @@ export default function PerformanceTab({
         count: number;
         items: any[];
       }>;
-    }> = {
-      MESIN: { totalMenit: 0, totalCount: 0, problems: [] },
-      DIES: { totalMenit: 0, totalCount: 0, problems: [] },
-      OTHER: { totalMenit: 0, totalCount: 0, problems: [] },
-    };
+    }> = {};
 
-    const problemMaps: Record<"MESIN" | "DIES" | "OTHER", Record<string, { problem: string; totalMenit: number; count: number; items: any[] }>> = {
-      MESIN: {},
-      DIES: {},
-      OTHER: {},
-    };
+    const problemMaps: Record<string, Record<string, { problem: string; totalMenit: number; count: number; items: any[] }>> = {};
+
+    categories.forEach((cat) => {
+      result[cat] = { totalMenit: 0, totalCount: 0, problems: [] };
+      problemMaps[cat] = {};
+    });
 
     raw.forEach((d: any) => {
-      const rawCat = (d.kategori || "").toUpperCase().trim();
-      let targetCat: "MESIN" | "DIES" | "OTHER" = "OTHER";
-      if (rawCat === "MESIN") targetCat = "MESIN";
-      else if (rawCat === "DIES") targetCat = "DIES";
-      else targetCat = "OTHER";
+      let rawCat = (d.kategori || "").toUpperCase().trim();
+      if (rawCat === "FORKLIFT" || rawCat.includes("FORKLIFT")) {
+        rawCat = "OTHER";
+      }
+      const targetCat = categories.includes(rawCat) ? rawCat : "OTHER";
 
       let m = 0;
       if (d.waktu_awal && d.waktu_akhir) {
@@ -96,35 +95,41 @@ export default function PerformanceTab({
       const prob = (d.problem || d.deskripsi || "Tanpa Keterangan").trim();
       const pMap = problemMaps[targetCat];
 
-      if (!pMap[prob]) {
-        pMap[prob] = {
-          problem: prob,
-          totalMenit: 0,
-          count: 0,
-          items: [],
-        };
-      }
-      pMap[prob].totalMenit += m;
-      pMap[prob].count += 1;
-      pMap[prob].items.push({
-        ...d,
-        calcMenit: m,
-      });
+      if (pMap) {
+        if (!pMap[prob]) {
+          pMap[prob] = {
+            problem: prob,
+            totalMenit: 0,
+            count: 0,
+            items: [],
+          };
+        }
+        pMap[prob].totalMenit += m;
+        pMap[prob].count += 1;
+        pMap[prob].items.push({
+          ...d,
+          calcMenit: m,
+        });
 
-      result[targetCat].totalMenit += m;
-      result[targetCat].totalCount += 1;
+        if (result[targetCat]) {
+          result[targetCat].totalMenit += m;
+          result[targetCat].totalCount += 1;
+        }
+      }
     });
 
     categories.forEach((cat) => {
-      const sorted = Object.values(problemMaps[cat]).sort((a, b) => {
-        if (b.totalMenit !== a.totalMenit) return b.totalMenit - a.totalMenit;
-        return b.count - a.count;
-      });
-      result[cat].problems = sorted;
+      if (problemMaps[cat]) {
+        const sorted = Object.values(problemMaps[cat]).sort((a, b) => {
+          if (b.totalMenit !== a.totalMenit) return b.totalMenit - a.totalMenit;
+          return b.count - a.count;
+        });
+        result[cat].problems = sorted;
+      }
     });
 
-    return result;
-  }, [perfData?.rawDowntimes]);
+    return { result, categories };
+  }, [perfData?.rawDowntimes, config.kategoriOptions]);
   return (
     <div className="perf-fullwidth-container">
       {/* Performance Main Panel */}
@@ -321,14 +326,16 @@ export default function PerformanceTab({
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                    {(["MESIN", "DIES", "OTHER"] as const).map((cat) => {
-                      const catData = categoryTablesData[cat];
+                  <div className={`grid grid-cols-1 sm:grid-cols-2 ${categoryTablesData.categories.length === 4 ? "lg:grid-cols-4" : "md:grid-cols-3"} gap-2`}>
+                    {categoryTablesData.categories.map((cat) => {
+                      const catData = categoryTablesData.result[cat] || { totalMenit: 0, totalCount: 0, problems: [] };
                       const badgeColor =
                         cat === "MESIN"
                           ? "bg-sky-500/15 text-sky-500 border-sky-500/40 shadow-xs shadow-sky-500/20"
                           : cat === "DIES"
                           ? "bg-rose-500/15 text-rose-500 border-rose-500/40 shadow-xs shadow-rose-500/20"
+                          : cat === "FINGER"
+                          ? "bg-emerald-500/15 text-emerald-500 border-emerald-500/40 shadow-xs shadow-emerald-500/20"
                           : "bg-amber-500/15 text-amber-500 border-amber-500/40 shadow-xs shadow-amber-500/20";
 
                       const catCardClass =
@@ -336,6 +343,8 @@ export default function PerformanceTab({
                           ? "perf-cat-card perf-cat-card-mesin"
                           : cat === "DIES"
                           ? "perf-cat-card perf-cat-card-dies"
+                          : cat === "FINGER"
+                          ? "perf-cat-card perf-cat-card-finger"
                           : "perf-cat-card perf-cat-card-other";
 
                       const borderBottomColor =
@@ -343,6 +352,8 @@ export default function PerformanceTab({
                           ? "border-sky-500/30"
                           : cat === "DIES"
                           ? "border-rose-500/30"
+                          : cat === "FINGER"
+                          ? "border-emerald-500/30"
                           : "border-amber-500/30";
 
                       const hoverRowColor =
@@ -350,6 +361,8 @@ export default function PerformanceTab({
                           ? "hover:bg-sky-500/10"
                           : cat === "DIES"
                           ? "hover:bg-rose-500/10"
+                          : cat === "FINGER"
+                          ? "hover:bg-emerald-500/10"
                           : "hover:bg-amber-500/10";
 
                       const actionBtnHover =
@@ -357,6 +370,8 @@ export default function PerformanceTab({
                           ? "hover:bg-sky-500/20 hover:text-sky-500"
                           : cat === "DIES"
                           ? "hover:bg-rose-500/20 hover:text-rose-500"
+                          : cat === "FINGER"
+                          ? "hover:bg-emerald-500/20 hover:text-emerald-500"
                           : "hover:bg-amber-500/20 hover:text-amber-500";
 
                       const neonGlowClass =
@@ -364,6 +379,8 @@ export default function PerformanceTab({
                           ? "border-sky-500/60 shadow-[0_0_16px_-2px_rgba(14,165,233,0.4)]"
                           : cat === "DIES"
                           ? "border-rose-500/60 shadow-[0_0_16px_-2px_rgba(244,63,94,0.4)]"
+                          : cat === "FINGER"
+                          ? "border-emerald-500/60 shadow-[0_0_16px_-2px_rgba(16,185,129,0.4)]"
                           : "border-amber-500/60 shadow-[0_0_16px_-2px_rgba(245,158,11,0.4)]";
 
                       return (
@@ -484,7 +501,19 @@ export default function PerformanceTab({
                       {perfData.top5.length > 0 ? (
                         perfData.top5.map((row: any, idx: number) => (
                           <tr key={idx}>
-                            <td title={row.kategori}><span className="badge">{row.kategori}</span></td>
+                            <td title={row.kategori}>
+                              <span className={`badge ${
+                                row.kategori === "MESIN"
+                                  ? "bg-sky-500/15 text-sky-500 border border-sky-500/40"
+                                  : row.kategori === "DIES"
+                                  ? "bg-rose-500/15 text-rose-500 border border-rose-500/40"
+                                  : row.kategori === "FINGER"
+                                  ? "bg-emerald-500/15 text-emerald-500 border border-emerald-500/40"
+                                  : "bg-amber-500/15 text-amber-500 border border-amber-500/40"
+                              }`}>
+                                {row.kategori}
+                              </span>
+                            </td>
                             <td title={row.problem} style={{ minWidth: 100, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.problem}</td>
                             <td className="mono">{fmtNum(row.menit)}</td>
                           </tr>
@@ -534,6 +563,8 @@ export default function PerformanceTab({
                     ? "bg-sky-500/10 text-sky-500 border-sky-500/30"
                     : selectedProblemDetail?.kategori === "DIES"
                     ? "bg-rose-500/10 text-rose-500 border-rose-500/30"
+                    : selectedProblemDetail?.kategori === "FINGER"
+                    ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
                     : "bg-amber-500/10 text-amber-500 border-amber-500/30"
                 }`}
               >

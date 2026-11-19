@@ -2110,6 +2110,18 @@ table.table-compact .status-badge {
   box-shadow: 0 0 0 1.5px rgba(244, 63, 94, 0.45), 0 0 20px 1px rgba(244, 63, 94, 0.35);
 }
 
+/* FINGER: Neon Emerald / Green Glow */
+.perf-cat-card-finger {
+  border: 1px solid rgba(16, 185, 129, 0.45) !important;
+  border-top: 4px solid #10b981 !important;
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.2), 0 0 14px -2px rgba(16, 185, 129, 0.25);
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.07) 0%, rgba(16, 185, 129, 0.01) 35%, transparent 100%), var(--card);
+}
+.perf-cat-card-finger:hover {
+  border-color: rgba(16, 185, 129, 0.7) !important;
+  box-shadow: 0 0 0 1.5px rgba(16, 185, 129, 0.45), 0 0 20px 1px rgba(16, 185, 129, 0.35);
+}
+
 /* OTHER: Neon Amber / Yellow Glow */
 .perf-cat-card-other {
   border: 1px solid rgba(245, 158, 11, 0.45) !important;
@@ -2145,6 +2157,18 @@ table.table-compact .status-badge {
 [data-theme="dark"] .perf-cat-card-dies:hover {
   border-color: rgba(244, 63, 94, 0.85) !important;
   box-shadow: 0 0 0 1.5px rgba(244, 63, 94, 0.6), 0 0 26px 2px rgba(244, 63, 94, 0.55);
+}
+
+.dark .perf-cat-card-finger,
+[data-theme="dark"] .perf-cat-card-finger {
+  border-color: rgba(16, 185, 129, 0.6) !important;
+  border-top: 4px solid #10b981 !important;
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.4), 0 0 20px -2px rgba(16, 185, 129, 0.45);
+}
+.dark .perf-cat-card-finger:hover,
+[data-theme="dark"] .perf-cat-card-finger:hover {
+  border-color: rgba(16, 185, 129, 0.85) !important;
+  box-shadow: 0 0 0 1.5px rgba(16, 185, 129, 0.6), 0 0 26px 2px rgba(16, 185, 129, 0.55);
 }
 
 .dark .perf-cat-card-other,

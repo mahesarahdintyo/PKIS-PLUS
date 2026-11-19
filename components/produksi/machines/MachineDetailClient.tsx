@@ -2209,7 +2209,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
 
       const categories = config.kategoriOptions && config.kategoriOptions.length > 0
         ? config.kategoriOptions
-        : ["MESIN", "DIES", "OTHER"];
+        : ["MESIN", "DIES", "FINGER", "OTHER"];
 
       let byCategory: { kategori: string; menit: number }[] = [];
       const catMap: Record<string, number> = {};
@@ -2226,7 +2226,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       } else {
         normalizedRangeDowntimes.forEach((d: any) => {
           let k = (d.kategori || "MESIN").toUpperCase().trim();
-          if (!categories.includes(k)) {
+          if (k === "FORKLIFT" || k.includes("FORKLIFT") || !categories.includes(k)) {
             k = "OTHER";
           }
           let m = 0;
@@ -2399,7 +2399,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       if (perfChartInstancesRef.current.pie) perfChartInstancesRef.current.pie.destroy();
       const categories = config.kategoriOptions && config.kategoriOptions.length > 0
         ? config.kategoriOptions
-        : ["MESIN", "DIES", "OTHER"];
+        : ["MESIN", "DIES", "FINGER", "OTHER"];
 
       const data = perfData.byCategory || [];
       const totalsPerCat = categories.map((cat) => {

@@ -10,7 +10,7 @@ export const MACHINE_CONFIGS: Record<string, ProdMachineConfig> = {
       { key: "berat_coil", label: "Berat Coil (kg)", type: "number" },
     ],
     routingMax: 0,
-    kategoriOptions: ["MESIN", "DIES", "OTHER"],
+    kategoriOptions: ["MESIN", "DIES", "FINGER", "OTHER"],
     stationConfig: { mode: "none" },
   },
   pc200t: {
@@ -19,7 +19,7 @@ export const MACHINE_CONFIGS: Record<string, ProdMachineConfig> = {
     label: "PC200t",
     extraFields: [],
     routingMax: 0,
-    kategoriOptions: ["MESIN", "DIES", "OTHER"],
+    kategoriOptions: ["MESIN", "DIES", "FINGER", "OTHER"],
     stationConfig: { mode: "fixed", stations: ["PC-1", "PC-2"] },
   },
   tandem: {
@@ -28,7 +28,7 @@ export const MACHINE_CONFIGS: Record<string, ProdMachineConfig> = {
     label: "Tandem",
     extraFields: [],
     routingMax: 8,
-    kategoriOptions: ["MESIN", "DIES", "OTHER"],
+    kategoriOptions: ["MESIN", "DIES", "FINGER", "OTHER"],
     stationConfig: {
       mode: "variant",
       variants: {
@@ -62,19 +62,30 @@ export const MACHINE_CONFIGS: Record<string, ProdMachineConfig> = {
  * Dipakai sebagai fallback — tidak menggantikan 5 config yang sudah ada.
  */
 export function getMachineConfig(slug: string, label?: string): ProdMachineConfig {
-  if (MACHINE_CONFIGS[slug]) return MACHINE_CONFIGS[slug];
-  // Coba bentuk dashed → key-nya underscore (e.g. "my-line" → MACHINE_CONFIGS["my_line"])
-  const dashed = slug.replace(/_/g, "-");
+  const normSlug = (slug || "").toLowerCase().trim();
+  const dashed = normSlug.replace(/[_\s]+/g, "-");
   if (MACHINE_CONFIGS[dashed]) return MACHINE_CONFIGS[dashed];
+  if (MACHINE_CONFIGS[normSlug]) return MACHINE_CONFIGS[normSlug];
+
+  if (label) {
+    const normLabel = label.toLowerCase().trim().replace(/[_\s]+/g, "-");
+    if (MACHINE_CONFIGS[normLabel]) return MACHINE_CONFIGS[normLabel];
+    if (normLabel.includes("blanking")) return MACHINE_CONFIGS["blanking"];
+    if (normLabel.includes("pc200") || normLabel.includes("pc-200")) return MACHINE_CONFIGS["pc200t"];
+    if (normLabel.includes("tandem")) return MACHINE_CONFIGS["tandem"];
+    if (normLabel.includes("2000")) return MACHINE_CONFIGS["transfer-2000t"];
+    if (normLabel.includes("800")) return MACHINE_CONFIGS["transfer-800t"];
+  }
+
   // Fallback: konfigurasi standar generik
-  const key = slug.replace(/-/g, "_");
+  const key = normSlug.replace(/-/g, "_");
   return {
     slug,
     key,
     label: label ?? slug,
     extraFields: [],
     routingMax: 0,
-    kategoriOptions: ["MESIN", "DIES", "OTHER"],
+    kategoriOptions: ["MESIN", "DIES", "FINGER", "OTHER"],
     stationConfig: { mode: "none" },
   };
 }
