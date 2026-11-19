@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { User, Lock, Eye, EyeOff, Loader2, AlertCircle, Download } from "lucide-react";
 import Image from "next/image";
 
@@ -258,6 +259,19 @@ export function LoginForm() {
             )}
           </button>
         </form>
+
+        {/* Link ke Registrasi */}
+        <div className="mt-5 text-center">
+          <p className="text-xs text-slate-500 font-medium">
+            Belum memiliki akun?{" "}
+            <Link
+              href="/register"
+              className="text-blue-600 hover:text-blue-700 font-bold hover:underline transition-colors cursor-pointer"
+            >
+              Daftar akun baru
+            </Link>
+          </p>
+        </div>
 
         {/* PWA Install Button (Cleanly integrated inside login card) */}
         {(canInstall || isIos) && (

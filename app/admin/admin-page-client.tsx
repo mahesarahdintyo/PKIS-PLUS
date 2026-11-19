@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect, useCallback } from 'react'
-import { AlertTriangle, Bell, ChevronLeft, ChevronRight, Database, FileText, FolderKanban, History, LayoutDashboard, Menu, Shield, Trash2, Users, Wrench, X, Zap } from 'lucide-react'
+import { AlertTriangle, Bell, ChevronLeft, ChevronRight, Database, FileText, FolderKanban, History, LayoutDashboard, Menu, Shield, Trash2, Users, UserCog, Wrench, X, Zap } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -492,6 +492,10 @@ export default function Page({ initialLines = [] }: AdminPageProps) {
                 <SidebarLink href="/admin/master-data" icon={Database} label="Master Data Produksi" />
                 <SidebarLink href="/admin/downtime-log" icon={History} label="Downtime Log" />
               </div>
+              <div className="pt-2">
+                <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Pengaturan Sistem</p>
+                <SidebarLink href="/admin/users" icon={UserCog} label="Kelola User & Role" />
+              </div>
             </nav>
             <div className="mt-auto space-y-3 border-t border-border pt-4">
               <Link href="/admin/recycle-bin" className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground"><Trash2 className="h-5 w-5" />Tempat Sampah</Link>
@@ -531,6 +535,10 @@ export default function Page({ initialLines = [] }: AdminPageProps) {
             <SidebarLink href="/admin/laporan-produksi" icon={FileText} label="Laporan Produksi" />
             <SidebarLink href="/admin/master-data" icon={Database} label="Master Data Produksi" />
             <SidebarLink href="/admin/downtime-log" icon={History} label="Downtime Log" />
+          </div>
+          <div className="pt-2">
+            <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Pengaturan Sistem</p>
+            <SidebarLink href="/admin/users" icon={UserCog} label="Kelola User & Role" />
           </div>
         </nav>
         <div className="mt-auto space-y-3 border-t border-border pt-4">
