@@ -237,6 +237,16 @@ export interface ProdProductionLogRow {
   dandori_menit: number | null;
   downtime_menit: number | null;
   break_menit: number | null;
+  rout_pa_1?: number | null;
+  rout_pa_2?: number | null;
+  rout_pa_3?: number | null;
+  rout_pa_4?: number | null;
+  rout_pa_5?: number | null;
+  rout_pa_6?: number | null;
+  rout_pa_7?: number | null;
+  rout_pa_8?: number | null;
+  rout_pa_9?: number | null;
+  rout_pa_10?: number | null;
   extra: Record<string, any> | null;
   created_at?: string;
   _pending?: boolean;

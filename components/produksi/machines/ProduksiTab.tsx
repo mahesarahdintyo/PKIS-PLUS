@@ -614,6 +614,43 @@ export default function ProduksiTab({
                         ))}
                       </div>
 
+                      {/* Input Routing Stasiun khusus Tandem */}
+                      {config.key === "tandem" && (
+                        <div className="p-2.5 rounded-md bg-muted/40 border border-border/50 space-y-2">
+                          <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                            <span>Routing Stasiun ({tandemVariant === "baru" ? "PA-6 s/d PA-10" : "PA-1 s/d PA-5"})</span>
+                            <span className="text-[10px] text-muted-foreground font-normal">Isi nomor urutan proses (mis: 1, 2, dst)</span>
+                          </label>
+                          <div className="grid grid-cols-5 gap-2">
+                            {(tandemVariant === "baru" ? [6, 7, 8, 9, 10] : [1, 2, 3, 4, 5]).map((num) => {
+                              const fieldKey = `rout_pa_${num}`;
+                              return (
+                                <div key={fieldKey} className="space-y-1">
+                                  <label className="text-[10px] font-bold text-muted-foreground block text-center">
+                                    PA-{num}
+                                  </label>
+                                  <Input
+                                    type="number"
+                                    min="1"
+                                    max="10"
+                                    placeholder="-"
+                                    className="h-8 text-xs font-semibold text-center"
+                                    value={line.form[fieldKey] ?? ""}
+                                    onChange={(e) =>
+                                      linesHook.setFormField(
+                                        st.id,
+                                        fieldKey,
+                                        e.target.value === "" ? "" : Number(e.target.value)
+                                      )
+                                    }
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Pilihan & Input Break Istirahat */}
                       <div className="p-2.5 rounded-md bg-muted/40 border border-border/50 space-y-2">
                         <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -1105,7 +1142,15 @@ export default function ProduksiTab({
                 <th>Dandori</th>
                 <th>Downtime</th>
                 <th>Break</th>
-                {config.routingMax > 0 && <th className="col-hide-mobile">Routing</th>}
+                {config.key === "tandem" ? (
+                  (tandemVariant === "lama" ? [1, 2, 3, 4, 5] : [6, 7, 8, 9, 10]).map((num) => (
+                    <th key={num} className="col-hide-mobile text-center whitespace-nowrap">
+                      ROUT PA-{num}
+                    </th>
+                  ))
+                ) : config.routingMax > 0 ? (
+                  <th className="col-hide-mobile">Routing</th>
+                ) : null}
                 <th>Aksi</th>
               </tr>
             </thead>
@@ -1161,7 +1206,19 @@ export default function ProduksiTab({
                             ? `${fmtNum(data.break_menit)} mnt`
                             : "-")}
                     </td>
-                    {config.routingMax > 0 && <td className="col-hide-mobile">{row.jenis === "produksi" ? routing : "-"}</td>}
+                    {config.key === "tandem" ? (
+                      (tandemVariant === "lama" ? [1, 2, 3, 4, 5] : [6, 7, 8, 9, 10]).map((num) => (
+                        <td key={num} className="col-hide-mobile mono text-center font-semibold">
+                          {row.jenis === "produksi"
+                            ? (data[`rout_pa_${num}`] !== null && data[`rout_pa_${num}`] !== undefined && data[`rout_pa_${num}`] !== ""
+                                ? data[`rout_pa_${num}`]
+                                : "-")
+                            : "-"}
+                        </td>
+                      ))
+                    ) : config.routingMax > 0 ? (
+                      <td className="col-hide-mobile">{row.jenis === "produksi" ? routing : "-"}</td>
+                    ) : null}
                     <td>
                       <div className="flex gap-1.5">
                         {row.jenis === "produksi" && canEditRowPerm && (
@@ -1204,7 +1261,7 @@ export default function ProduksiTab({
               })}
               {riwayatHariIni.length === 0 && (
                 <tr>
-                  <td colSpan={config.stationConfig.mode !== "none" ? (config.routingMax > 0 ? 15 : 14) : (config.routingMax > 0 ? 14 : 13)} className="empty-state text-center py-6">
+                  <td colSpan={config.stationConfig.mode !== "none" ? (config.key === "tandem" ? 19 : (config.routingMax > 0 ? 15 : 14)) : (config.key === "tandem" ? 18 : (config.routingMax > 0 ? 14 : 13))} className="empty-state text-center py-6">
                     Belum ada data produksi hari ini.
                   </td>
                 </tr>

@@ -1103,6 +1103,16 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       ng: data.ng ?? "",
       dandori_menit: data.dandori_menit ?? "",
       break_menit: data.break_menit ?? "",
+      rout_pa_1: data.rout_pa_1 ?? "",
+      rout_pa_2: data.rout_pa_2 ?? "",
+      rout_pa_3: data.rout_pa_3 ?? "",
+      rout_pa_4: data.rout_pa_4 ?? "",
+      rout_pa_5: data.rout_pa_5 ?? "",
+      rout_pa_6: data.rout_pa_6 ?? "",
+      rout_pa_7: data.rout_pa_7 ?? "",
+      rout_pa_8: data.rout_pa_8 ?? "",
+      rout_pa_9: data.rout_pa_9 ?? "",
+      rout_pa_10: data.rout_pa_10 ?? "",
     };
     config.extraFields.forEach((f) => {
       editForm[f.key] = data.extra?.[f.key] ?? "";
@@ -1499,6 +1509,16 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       ng: f.ng === "" ? null : Number(f.ng),
       dandori_menit: f.dandori_menit === "" ? null : Number(f.dandori_menit),
       break_menit: f.break_menit === "" ? null : Number(f.break_menit),
+      rout_pa_1: f.rout_pa_1 === "" || f.rout_pa_1 === undefined ? null : Number(f.rout_pa_1),
+      rout_pa_2: f.rout_pa_2 === "" || f.rout_pa_2 === undefined ? null : Number(f.rout_pa_2),
+      rout_pa_3: f.rout_pa_3 === "" || f.rout_pa_3 === undefined ? null : Number(f.rout_pa_3),
+      rout_pa_4: f.rout_pa_4 === "" || f.rout_pa_4 === undefined ? null : Number(f.rout_pa_4),
+      rout_pa_5: f.rout_pa_5 === "" || f.rout_pa_5 === undefined ? null : Number(f.rout_pa_5),
+      rout_pa_6: f.rout_pa_6 === "" || f.rout_pa_6 === undefined ? null : Number(f.rout_pa_6),
+      rout_pa_7: f.rout_pa_7 === "" || f.rout_pa_7 === undefined ? null : Number(f.rout_pa_7),
+      rout_pa_8: f.rout_pa_8 === "" || f.rout_pa_8 === undefined ? null : Number(f.rout_pa_8),
+      rout_pa_9: f.rout_pa_9 === "" || f.rout_pa_9 === undefined ? null : Number(f.rout_pa_9),
+      rout_pa_10: f.rout_pa_10 === "" || f.rout_pa_10 === undefined ? null : Number(f.rout_pa_10),
       extra,
     };
 
@@ -2819,6 +2839,39 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
                 }
               />
             </div>
+            {config.key === "tandem" && (
+              <div className="field" style={{ gridColumn: "1 / -1" }}>
+                <label className="font-semibold block mb-1">
+                  Routing Stasiun ({tandemVariant === "baru" ? "PA-6 s/d PA-10" : "PA-1 s/d PA-5"})
+                </label>
+                <div className="grid grid-cols-5 gap-2">
+                  {(tandemVariant === "baru" ? [6, 7, 8, 9, 10] : [1, 2, 3, 4, 5]).map((num) => {
+                    const fieldKey = `rout_pa_${num}`;
+                    return (
+                      <div key={fieldKey} className="space-y-1">
+                        <label className="text-xs font-bold text-muted-foreground block text-center">
+                          PA-{num}
+                        </label>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="10"
+                          placeholder="-"
+                          className="h-9 text-xs font-semibold text-center"
+                          value={productionEditForm[fieldKey] ?? ""}
+                          onChange={(e) =>
+                            setProductionEditForm((prev) => ({
+                              ...prev,
+                              [fieldKey]: e.target.value === "" ? "" : Number(e.target.value),
+                            }))
+                          }
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             {config.extraFields.map((f) => (
               <div className="field" key={f.key}>
                 <label>{f.label}</label>
@@ -3229,6 +3282,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
 
               <RiwayatTab
                 config={config}
+                tandemVariant={tandemVariant}
                 masterParts={masterParts}
                 riwayatTanggalDari={riwayatTanggalDari}
                 setRiwayatTanggalDari={(v) => {

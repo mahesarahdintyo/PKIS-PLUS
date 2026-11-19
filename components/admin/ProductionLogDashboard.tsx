@@ -68,6 +68,16 @@ interface EditProductionForm {
   break_menit: string;
   routing_type: "WIP" | "FG" | "";
   routing_numbers: string;
+  rout_pa_1?: string;
+  rout_pa_2?: string;
+  rout_pa_3?: string;
+  rout_pa_4?: string;
+  rout_pa_5?: string;
+  rout_pa_6?: string;
+  rout_pa_7?: string;
+  rout_pa_8?: string;
+  rout_pa_9?: string;
+  rout_pa_10?: string;
 }
 
 interface EditNonProduksiForm {
@@ -97,6 +107,16 @@ const emptyProductionEdit = (): EditProductionForm => ({
   break_menit: "",
   routing_type: "",
   routing_numbers: "",
+  rout_pa_1: "",
+  rout_pa_2: "",
+  rout_pa_3: "",
+  rout_pa_4: "",
+  rout_pa_5: "",
+  rout_pa_6: "",
+  rout_pa_7: "",
+  rout_pa_8: "",
+  rout_pa_9: "",
+  rout_pa_10: "",
 });
 
 function toLocalInput(iso: string | null | undefined): string {
@@ -173,6 +193,8 @@ export default function ProductionLogDashboard() {
   const defaultRange = useMemo(() => getDefaultMonthRange(), []);
   const [selectedLineId, setSelectedLineId] = useState("all");
   const [selectedJenis, setSelectedJenis] = useState<"all" | "produksi" | "non_produksi">("all");
+  const activeLine = useMemo(() => lines.find((l) => l.id === selectedLineId), [lines, selectedLineId]);
+  const isTandemSelected = Boolean(activeLine && activeLine.name.toLowerCase().includes("tandem"));
   const [startDate, setStartDate] = useState(defaultRange.startDate);
   const [endDate, setEndDate] = useState(defaultRange.endDate);
   const [searchQuery, setSearchQuery] = useState("");
@@ -673,45 +695,107 @@ export default function ProductionLogDashboard() {
       }
 
       if (exportItems.length === 0) return;
-      const headers = [
-        "Kode",
-        "Jenis",
-        "Line",
-        "Stasiun",
-        "Waktu Awal",
-        "Waktu Akhir",
-        "Part Number / Keterangan",
-        "Qty",
-        "MP",
-        "Dandori (mnt)",
-        "DT (mnt)",
-        "Break (mnt)",
-        "Routing",
-      ];
+      const isExportTandem = isTandemSelected;
 
-      const rows = exportItems.map((row) => {
-        const data = row.data;
-        const isProd = row.jenis === "produksi";
-        const routing = isProd && data.extra?.routing_type
-          ? `${data.extra.routing_type}${data.extra.routing_numbers ? ` ${data.extra.routing_numbers.join(",")}` : ""}`
-          : "-";
+      let headers: string[];
+      let rows: string[];
 
-        return [
-          isProd ? (data.kode || "-") : "-",
-          isProd ? "Produksi" : "Non-Produksi",
-          row.line_name ?? row.mesin,
-          data.stasiun ?? "-",
-          fmt(row.waktu_awal),
-          fmt(row.waktu_akhir),
-          row.part_number ?? "-",
-          isProd ? (data.qty ?? 0) : "-",
-          isProd ? (data.manpower ?? "-") : "-",
-          isProd ? (data.dandori_menit ?? 0) : (data.dandori_menit ?? 0),
-          isProd ? (data.downtime_menit ?? 0) : "-",
-          isProd ? (data.break_menit ?? 0) : (data.break_menit ?? "-"),
-          routing,
-        ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
-      });
+      if (isExportTandem) {
+        headers = [
+          "WAKTU AWAL",
+          "WAKTU AKHIR",
+          "PART NUMBER",
+          "QTY",
+          "NG",
+          "KATEGORI NG",
+          "BREAK",
+          "ROUT PA-6",
+          "ROUT PA-7",
+          "ROUT PA-8",
+          "ROUT PA-9",
+          "ROUT PA-10",
+          "MAN POWER",
+        ];
+
+        rows = exportItems.map((row) => {
+          const data = row.data;
+          const isProd = row.jenis === "produksi";
+          const partCol = isProd
+            ? (row.part_number || "")
+            : (data.kategori || data.keterangan || data.part_ke || "DANDORI");
+
+          const fmtCsvDate = (iso?: string | null) => {
+            if (!iso) return "";
+            if (typeof iso === "string") {
+              const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/);
+              if (m) {
+                const [, y, mo, d, h, mi, s] = m;
+                return `${d}/${mo}/${y} ${h}.${mi}.${s || "00"}`;
+              }
+            }
+            const d = new Date(iso);
+            if (isNaN(d.getTime())) return "";
+            const p = (n: number) => String(n).padStart(2, "0");
+            return `${p(d.getUTCDate())}/${p(d.getUTCMonth() + 1)}/${d.getUTCFullYear()} ${p(d.getUTCHours())}.${p(d.getUTCMinutes())}.${p(d.getUTCSeconds())}`;
+          };
+
+          return [
+            fmtCsvDate(row.waktu_awal),
+            fmtCsvDate(row.waktu_akhir),
+            partCol,
+            isProd ? (data.qty ?? "") : "",
+            isProd ? (data.ng ?? "") : "",
+            isProd ? (data.kategori_ng ?? "") : "",
+            data.break_menit ?? "",
+            isProd ? (data.rout_pa_6 ?? "") : "",
+            isProd ? (data.rout_pa_7 ?? "") : "",
+            isProd ? (data.rout_pa_8 ?? "") : "",
+            isProd ? (data.rout_pa_9 ?? "") : "",
+            isProd ? (data.rout_pa_10 ?? "") : "",
+            data.manpower ?? "",
+          ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
+        });
+      } else {
+        headers = [
+          "Kode",
+          "Jenis",
+          "Line",
+          "Stasiun",
+          "Waktu Awal",
+          "Waktu Akhir",
+          "Part Number / Keterangan",
+          "Qty",
+          "MP",
+          "Dandori (mnt)",
+          "DT (mnt)",
+          "Break (mnt)",
+          "Routing",
+        ];
+
+        rows = exportItems.map((row) => {
+          const data = row.data;
+          const isProd = row.jenis === "produksi";
+          const routing = isProd && data.extra?.routing_type
+            ? `${data.extra.routing_type}${data.extra.routing_numbers ? ` ${data.extra.routing_numbers.join(",")}` : ""}`
+            : "-";
+
+          return [
+            isProd ? (data.kode || "-") : "-",
+            isProd ? "Produksi" : "Non-Produksi",
+            row.line_name ?? row.mesin,
+            data.stasiun ?? "-",
+            fmt(row.waktu_awal),
+            fmt(row.waktu_akhir),
+            row.part_number ?? "-",
+            isProd ? (data.qty ?? 0) : "-",
+            isProd ? (data.manpower ?? "-") : "-",
+            isProd ? (data.dandori_menit ?? 0) : (data.dandori_menit ?? 0),
+            isProd ? (data.downtime_menit ?? 0) : "-",
+            isProd ? (data.break_menit ?? 0) : (data.break_menit ?? "-"),
+            routing,
+          ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
+        });
+      }
 
       const csv = [headers.join(","), ...rows].join("\n");
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -748,6 +832,16 @@ export default function ProductionLogDashboard() {
         break_menit: data.break_menit !== null && data.break_menit !== undefined ? String(data.break_menit) : "",
         routing_type: (data.extra?.routing_type as "WIP" | "FG") ?? "",
         routing_numbers: data.extra?.routing_numbers ? data.extra.routing_numbers.join(",") : "",
+        rout_pa_1: data.rout_pa_1 !== null && data.rout_pa_1 !== undefined ? String(data.rout_pa_1) : "",
+        rout_pa_2: data.rout_pa_2 !== null && data.rout_pa_2 !== undefined ? String(data.rout_pa_2) : "",
+        rout_pa_3: data.rout_pa_3 !== null && data.rout_pa_3 !== undefined ? String(data.rout_pa_3) : "",
+        rout_pa_4: data.rout_pa_4 !== null && data.rout_pa_4 !== undefined ? String(data.rout_pa_4) : "",
+        rout_pa_5: data.rout_pa_5 !== null && data.rout_pa_5 !== undefined ? String(data.rout_pa_5) : "",
+        rout_pa_6: data.rout_pa_6 !== null && data.rout_pa_6 !== undefined ? String(data.rout_pa_6) : "",
+        rout_pa_7: data.rout_pa_7 !== null && data.rout_pa_7 !== undefined ? String(data.rout_pa_7) : "",
+        rout_pa_8: data.rout_pa_8 !== null && data.rout_pa_8 !== undefined ? String(data.rout_pa_8) : "",
+        rout_pa_9: data.rout_pa_9 !== null && data.rout_pa_9 !== undefined ? String(data.rout_pa_9) : "",
+        rout_pa_10: data.rout_pa_10 !== null && data.rout_pa_10 !== undefined ? String(data.rout_pa_10) : "",
       });
       void loadPartOptions(item.line_id ?? undefined);
     } else {
@@ -797,6 +891,16 @@ export default function ProductionLogDashboard() {
           dandori_menit: editProdForm.dandori_menit !== "" ? Number(editProdForm.dandori_menit) : null,
           downtime_menit: editProdForm.downtime_menit !== "" ? Number(editProdForm.downtime_menit) : null,
           break_menit: editProdForm.break_menit !== "" ? Number(editProdForm.break_menit) : null,
+          rout_pa_1: editProdForm.rout_pa_1 !== "" && editProdForm.rout_pa_1 !== undefined ? Number(editProdForm.rout_pa_1) : null,
+          rout_pa_2: editProdForm.rout_pa_2 !== "" && editProdForm.rout_pa_2 !== undefined ? Number(editProdForm.rout_pa_2) : null,
+          rout_pa_3: editProdForm.rout_pa_3 !== "" && editProdForm.rout_pa_3 !== undefined ? Number(editProdForm.rout_pa_3) : null,
+          rout_pa_4: editProdForm.rout_pa_4 !== "" && editProdForm.rout_pa_4 !== undefined ? Number(editProdForm.rout_pa_4) : null,
+          rout_pa_5: editProdForm.rout_pa_5 !== "" && editProdForm.rout_pa_5 !== undefined ? Number(editProdForm.rout_pa_5) : null,
+          rout_pa_6: editProdForm.rout_pa_6 !== "" && editProdForm.rout_pa_6 !== undefined ? Number(editProdForm.rout_pa_6) : null,
+          rout_pa_7: editProdForm.rout_pa_7 !== "" && editProdForm.rout_pa_7 !== undefined ? Number(editProdForm.rout_pa_7) : null,
+          rout_pa_8: editProdForm.rout_pa_8 !== "" && editProdForm.rout_pa_8 !== undefined ? Number(editProdForm.rout_pa_8) : null,
+          rout_pa_9: editProdForm.rout_pa_9 !== "" && editProdForm.rout_pa_9 !== undefined ? Number(editProdForm.rout_pa_9) : null,
+          rout_pa_10: editProdForm.rout_pa_10 !== "" && editProdForm.rout_pa_10 !== undefined ? Number(editProdForm.rout_pa_10) : null,
           extra,
         };
         if (editProdForm.waktu_awal) {
@@ -1328,7 +1432,15 @@ export default function ProductionLogDashboard() {
                     <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider text-right">Dandori</th>
                     <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider text-right">DT</th>
                     <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider text-right">Break</th>
-                    <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider text-center">Routing</th>
+                    {isTandemSelected ? (
+                      [6, 7, 8, 9, 10].map((num) => (
+                        <th key={num} className="py-4 px-2 font-bold text-xs uppercase tracking-wider text-center whitespace-nowrap">
+                          ROUT PA-{num}
+                        </th>
+                      ))
+                    ) : (
+                      <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider text-center">Routing</th>
+                    )}
                     <th className="py-4 px-3 font-bold text-xs uppercase tracking-wider text-center">Aksi</th>
                   </tr>
                 </thead>
@@ -1440,9 +1552,17 @@ export default function ProductionLogDashboard() {
                         </td>
 
                         {/* Routing */}
-                        <td className="py-3 px-3 text-center text-xs text-slate-600 whitespace-nowrap font-mono">
-                          {routing}
-                        </td>
+                        {isTandemSelected ? (
+                          [6, 7, 8, 9, 10].map((num) => (
+                            <td key={num} className="py-3 px-2 text-center text-xs font-semibold text-slate-700 whitespace-nowrap font-mono">
+                              {isProd ? (data[`rout_pa_${num}`] !== null && data[`rout_pa_${num}`] !== undefined && data[`rout_pa_${num}`] !== "" ? data[`rout_pa_${num}`] : "-") : "-"}
+                            </td>
+                          ))
+                        ) : (
+                          <td className="py-3 px-3 text-center text-xs text-slate-600 whitespace-nowrap font-mono">
+                            {routing}
+                          </td>
+                        )}
 
                         {/* Aksi */}
                         <td className="py-3 px-3 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
@@ -1703,6 +1823,33 @@ export default function ProductionLogDashboard() {
                       />
                     </Field>
                   </div>
+
+                  {editTarget.mesin === "tandem" && (
+                    <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                      <label className="text-xs font-bold text-slate-700 block">
+                        Routing Stasiun Tandem (PA-6 s/d PA-10)
+                      </label>
+                      <div className="grid grid-cols-5 gap-2">
+                        {[6, 7, 8, 9, 10].map((num) => {
+                          const k = `rout_pa_${num}` as keyof EditProductionForm;
+                          return (
+                            <div key={num} className="space-y-1">
+                              <span className="text-[10px] font-semibold text-slate-500 block text-center">PA-{num}</span>
+                              <input
+                                type="number"
+                                min={1}
+                                max={10}
+                                placeholder="-"
+                                value={editProdForm[k] || ""}
+                                onChange={(e) => setEditProdForm((p) => ({ ...p, [k]: e.target.value }))}
+                                className={`${inputCls} text-center font-bold`}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </>
               ) : (
                 <>

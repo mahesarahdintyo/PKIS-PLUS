@@ -19,6 +19,7 @@ import type { ProdMachineConfig, ProdMasterPart } from "@/types/produksi";
 
 interface RiwayatTabProps {
   config: ProdMachineConfig;
+  tandemVariant?: "lama" | "baru" | null;
   masterParts: ProdMasterPart[];
   riwayatTanggalDari: string;
   setRiwayatTanggalDari: (v: string) => void;
@@ -58,6 +59,7 @@ interface RiwayatTabProps {
 
 export default function RiwayatTab({
   config,
+  tandemVariant,
   masterParts,
   riwayatTanggalDari,
   setRiwayatTanggalDari,
@@ -107,12 +109,19 @@ export default function RiwayatTab({
     }
   }, [isIndeterminate]);
 
+  const tandemStations = tandemVariant === "lama" ? [1, 2, 3, 4, 5] : [6, 7, 8, 9, 10];
+  const isTandem = config.key === "tandem";
+
   // Compute total colspan for empty / loading state row
   const baseColspan =
     config.stationConfig.mode !== "none"
-      ? config.routingMax > 0
+      ? isTandem
+        ? 17
+        : config.routingMax > 0
         ? 13
         : 12
+      : isTandem
+      ? 16
       : config.routingMax > 0
       ? 12
       : 11;
@@ -248,7 +257,15 @@ export default function RiwayatTab({
               <th>Dandori</th>
               <th>DT</th>
               <th>Break</th>
-              {config.routingMax > 0 && <th className="col-hide-mobile">Routing</th>}
+              {isTandem ? (
+                tandemStations.map((num) => (
+                  <th key={num} className="col-hide-mobile text-center whitespace-nowrap">
+                    ROUT PA-{num}
+                  </th>
+                ))
+              ) : config.routingMax > 0 ? (
+                <th className="col-hide-mobile">Routing</th>
+              ) : null}
               <th>Aksi</th>
             </tr>
           </thead>
@@ -335,9 +352,19 @@ export default function RiwayatTab({
                       ? `${fmtNum(data.break_menit)} mnt`
                       : "-"}
                   </td>
-                  {config.routingMax > 0 && (
+                  {isTandem ? (
+                    tandemStations.map((num) => (
+                      <td key={num} className="col-hide-mobile mono text-center font-semibold">
+                        {row.jenis === "produksi"
+                          ? (data[`rout_pa_${num}`] !== null && data[`rout_pa_${num}`] !== undefined && data[`rout_pa_${num}`] !== ""
+                              ? data[`rout_pa_${num}`]
+                              : "-")
+                          : "-"}
+                      </td>
+                    ))
+                  ) : config.routingMax > 0 ? (
                     <td className="col-hide-mobile">{row.jenis === "produksi" ? routing : "-"}</td>
-                  )}
+                  ) : null}
                   <td>
                     <div className="flex gap-1.5">
                       {row.jenis === "produksi" && canEdit && (

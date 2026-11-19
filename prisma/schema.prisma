@@ -256,6 +256,16 @@ model ProdProductionLog {
   kategori_ng     String?
   break_menit     Int?
   stasiun         String?
+  rout_pa_1       Int?
+  rout_pa_2       Int?
+  rout_pa_3       Int?
+  rout_pa_4       Int?
+  rout_pa_5       Int?
+  rout_pa_6       Int?
+  rout_pa_7       Int?
+  rout_pa_8       Int?
+  rout_pa_9       Int?
+  rout_pa_10      Int?
   extra           Json      @default("{}")
   kode            String?   @unique
   dandori_menit   Decimal?  @default(0)

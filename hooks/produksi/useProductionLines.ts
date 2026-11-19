@@ -206,6 +206,16 @@ export interface CommitPayload {
   manpower: number | null;
   dandori_menit: number;
   break_menit: number;
+  rout_pa_1?: number | null;
+  rout_pa_2?: number | null;
+  rout_pa_3?: number | null;
+  rout_pa_4?: number | null;
+  rout_pa_5?: number | null;
+  rout_pa_6?: number | null;
+  rout_pa_7?: number | null;
+  rout_pa_8?: number | null;
+  rout_pa_9?: number | null;
+  rout_pa_10?: number | null;
   extra: Record<string, any>;
   planningId: string | null;
 }
@@ -220,6 +230,16 @@ export interface UpdatePayload {
   ng: number | null;
   dandori_menit: number | null;
   break_menit: number | null;
+  rout_pa_1?: number | null;
+  rout_pa_2?: number | null;
+  rout_pa_3?: number | null;
+  rout_pa_4?: number | null;
+  rout_pa_5?: number | null;
+  rout_pa_6?: number | null;
+  rout_pa_7?: number | null;
+  rout_pa_8?: number | null;
+  rout_pa_9?: number | null;
+  rout_pa_10?: number | null;
   extra: Record<string, any>;
 }
 
@@ -700,6 +720,16 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
         manpower: line.form.manpower === "" ? null : Number(line.form.manpower),
         dandori_menit: dandoriMenit,
         break_menit: breakMenit,
+        rout_pa_1: line.form.rout_pa_1 === "" || line.form.rout_pa_1 === undefined ? null : Number(line.form.rout_pa_1),
+        rout_pa_2: line.form.rout_pa_2 === "" || line.form.rout_pa_2 === undefined ? null : Number(line.form.rout_pa_2),
+        rout_pa_3: line.form.rout_pa_3 === "" || line.form.rout_pa_3 === undefined ? null : Number(line.form.rout_pa_3),
+        rout_pa_4: line.form.rout_pa_4 === "" || line.form.rout_pa_4 === undefined ? null : Number(line.form.rout_pa_4),
+        rout_pa_5: line.form.rout_pa_5 === "" || line.form.rout_pa_5 === undefined ? null : Number(line.form.rout_pa_5),
+        rout_pa_6: line.form.rout_pa_6 === "" || line.form.rout_pa_6 === undefined ? null : Number(line.form.rout_pa_6),
+        rout_pa_7: line.form.rout_pa_7 === "" || line.form.rout_pa_7 === undefined ? null : Number(line.form.rout_pa_7),
+        rout_pa_8: line.form.rout_pa_8 === "" || line.form.rout_pa_8 === undefined ? null : Number(line.form.rout_pa_8),
+        rout_pa_9: line.form.rout_pa_9 === "" || line.form.rout_pa_9 === undefined ? null : Number(line.form.rout_pa_9),
+        rout_pa_10: line.form.rout_pa_10 === "" || line.form.rout_pa_10 === undefined ? null : Number(line.form.rout_pa_10),
         extra,
         planningId: line.planningId,
       };
@@ -839,6 +869,16 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
         ng: f.ng === "" ? null : Number(f.ng),
         dandori_menit: f.dandori_menit === "" ? null : Number(f.dandori_menit),
         break_menit: f.break_menit === "" ? null : Number(f.break_menit),
+        rout_pa_1: f.rout_pa_1 === "" || f.rout_pa_1 === undefined ? null : Number(f.rout_pa_1),
+        rout_pa_2: f.rout_pa_2 === "" || f.rout_pa_2 === undefined ? null : Number(f.rout_pa_2),
+        rout_pa_3: f.rout_pa_3 === "" || f.rout_pa_3 === undefined ? null : Number(f.rout_pa_3),
+        rout_pa_4: f.rout_pa_4 === "" || f.rout_pa_4 === undefined ? null : Number(f.rout_pa_4),
+        rout_pa_5: f.rout_pa_5 === "" || f.rout_pa_5 === undefined ? null : Number(f.rout_pa_5),
+        rout_pa_6: f.rout_pa_6 === "" || f.rout_pa_6 === undefined ? null : Number(f.rout_pa_6),
+        rout_pa_7: f.rout_pa_7 === "" || f.rout_pa_7 === undefined ? null : Number(f.rout_pa_7),
+        rout_pa_8: f.rout_pa_8 === "" || f.rout_pa_8 === undefined ? null : Number(f.rout_pa_8),
+        rout_pa_9: f.rout_pa_9 === "" || f.rout_pa_9 === undefined ? null : Number(f.rout_pa_9),
+        rout_pa_10: f.rout_pa_10 === "" || f.rout_pa_10 === undefined ? null : Number(f.rout_pa_10),
         extra,
       };
 
