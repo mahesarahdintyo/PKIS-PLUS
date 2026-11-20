@@ -609,7 +609,7 @@ export default function DashboardPerformanceTab({
               color: () => getCssVar("--text") || "#f1f5f9",
               labelColor: () => getCssVar("--muted-foreground") || "#94a3b8",
             },
-            sliceLabels: { enabled: true, color: "#ffffff" },
+            sliceLabels: { enabled: false },
             tooltip: {
               backgroundColor: getCssVar("--panel") || "#1e293b",
               titleColor: getCssVar("--text") || "#f1f5f9",

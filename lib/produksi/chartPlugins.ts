@@ -113,11 +113,11 @@ const pieCenterText = {
     const mainColor = resolveColor(opts.color, "--text", "#f1f5f9");
     const labelColor = resolveColor(opts.labelColor, "--muted-foreground", "#94a3b8");
 
-    const fontSizeVal = Math.max(12, Math.min(18, Math.round(size * 0.16)));
-    const fontSizeLbl = Math.max(8, Math.min(10, Math.round(size * 0.08)));
+    const fontSizeVal = Math.max(14, Math.min(26, Math.round(size * 0.19)));
+    const fontSizeLbl = Math.max(9, Math.min(12, Math.round(size * 0.09)));
 
     ctx.fillStyle = mainColor;
-    ctx.font = `700 ${fontSizeVal}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+    ctx.font = `800 ${fontSizeVal}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
     ctx.fillText(String(opts.value).toUpperCase(), cx, cy - (opts.label ? (fontSizeLbl * 0.7) : 0));
     if (opts.label) {
       ctx.fillStyle = labelColor;
@@ -243,9 +243,33 @@ const barValueLabels = {
       const isLine = dataset.type === "line";
       const labelColor = dataset.valueLabelColor ? resolveColor(dataset.valueLabelColor, "--text", "#f1f5f9") : defaultLabelColor;
 
+      // Pada grafik garis dengan banyak titik (misal > 12 titik seperti pada mode bulanan 30 hari),
+      // mencetak label di setiap titik menyebabkan teks saling bertumpuk (overlap) secara horizontal.
+      // Solusi: Hanya tampilkan label pada titik puncak tertinggi (peak / max) dan titik terakhir untuk menjaga grafik tetap bersih dan terbaca jelas.
+      let maxIdx = -1;
+      let lastValIdx = -1;
+      if (isLine && meta.data.length > 12 && !opts.forceAll) {
+        let maxVal = -Infinity;
+        dataset.data.forEach((v: any, idx: number) => {
+          const num = Number(v);
+          if (v !== null && v !== undefined && !isNaN(num) && num > 0) {
+            lastValIdx = idx;
+            if (num > maxVal) {
+              maxVal = num;
+              maxIdx = idx;
+            }
+          }
+        });
+      }
+
       meta.data.forEach((el: any, i: number) => {
         const val = dataset.data[i];
         if (val === null || val === undefined || val === 0) return;
+
+        // Lewati label padat kecuali titik puncak tertinggi dan titik terakhir
+        if (isLine && meta.data.length > 12 && !opts.forceAll) {
+          if (i !== maxIdx && i !== lastValIdx) return;
+        }
 
         if (!isLine && isStacked) {
           const base = el.base !== undefined ? el.base : el.y;
