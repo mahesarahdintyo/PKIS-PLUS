@@ -2973,46 +2973,51 @@ table.perf-dialog-table th,
   letter-spacing: 0.04em;
 }
 
-/* ---------- Mode TV 55" & Layar Lebar ---------- */
+/* ---------- Mode TV 55" & Layar Lebar: Zero-Scroll 1080p Fit ---------- */
 @media (min-width: 1280px) and (min-aspect-ratio: 4/3) {
   body:has(.app-shell-dashboard) {
-    overflow-y: auto;
+    overflow: hidden;
+    height: 100vh;
   }
 
   .app-shell.app-shell-dashboard {
-    min-height: 100vh;
-    height: auto;
-    overflow-y: auto;
+    height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
 
   .main.main-dashboard {
-    --row-gap: 14px;
-    min-height: 100vh;
-    height: auto;
-    overflow-y: auto;
-    padding: 14px 20px 40px;
+    --row-gap: 8px;
+    height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 8px 14px 10px;
   }
 
   .dash-topbar {
     flex-shrink: 0;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
   }
   .dash-title-block h1 {
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 800;
   }
   .dash-title-block p {
-    font-size: 12px;
+    font-size: 11px;
   }
   .viz-mode-toggle {
     flex-shrink: 0;
     margin-top: 0;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
   .viz-mode-btn {
-    padding: 6px 18px;
-    font-size: 13px;
-    font-weight: 600;
+    padding: 5px 16px;
+    font-size: 12.5px;
+    font-weight: 700;
   }
 
   .dash-body {
@@ -3021,117 +3026,116 @@ table.perf-dialog-table th,
     display: flex;
     flex-direction: column;
     gap: var(--row-gap);
-    overflow: visible;
+    overflow: hidden;
   }
 
-  /* ═══ TV 55" Visualisasi Umum ═══ */
+  /* ═══ TV 55" Tab 1: Visualisasi Umum (Zero-Scroll) ═══ */
   .sqcpm-columns {
-    gap: 12px;
+    gap: 8px;
     flex-shrink: 0;
-    flex-grow: 0;
+    height: 110px;
+    margin-bottom: 2px;
   }
 
   .sqcpm-col {
-    padding: 12px 14px;
-    gap: 6px;
-    border-radius: 10px;
+    padding: 8px 10px;
+    gap: 4px;
+    border-radius: 8px;
   }
 
   .sqcpm-col-head {
-    padding-bottom: 6px;
+    padding-bottom: 4px;
   }
   .sqcpm-col-icon {
-    width: 32px;
-    height: 32px;
-    font-size: 16px;
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
   }
   .sqcpm-col-title {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 700;
   }
   .sqcpm-metric-value {
-    font-size: 28px;
+    font-size: 24px;
     font-weight: 800;
   }
   .attendance-dual-item .sqcpm-metric-value {
-    font-size: 22px;
+    font-size: 20px;
   }
   .attendance-dual-metric {
-    margin-bottom: 2px;
+    margin-bottom: 1px;
   }
   .sqcpm-chart {
-    height: 72px;
+    height: 50px;
     padding-top: 2px;
     flex-shrink: 0;
   }
   .sqcpm-chart-tall {
-    height: 72px;
+    height: 50px;
   }
   .sqcpm-chart-title {
     margin-top: auto;
-    font-size: 10px;
+    font-size: 9.5px;
   }
   .manpower-grid-5 .manpower-value {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
   }
   .sqcpm-mini-label {
-    font-size: 10px;
+    font-size: 9.5px;
     line-height: 1.2;
   }
   .sqcpm-bar {
-    height: 6px;
+    height: 5px;
   }
   .sqcpm-metric-label {
-    font-size: 11px;
+    font-size: 10px;
   }
 
   .tv-grid {
     flex: 1;
     min-height: 0;
     display: grid;
-    grid-template-rows: auto auto;
-    gap: var(--row-gap);
+    grid-template-rows: 1fr 1fr;
+    gap: 8px;
+    overflow: hidden;
   }
 
   .dash-main-grid,
   .dash-main-grid.tv-row-1,
   .dash-main-grid.tv-row-3 {
-    gap: 14px;
+    gap: 8px;
     min-height: 0;
+    height: 100%;
   }
 
   .dash-main-grid.tv-row-1 {
     grid-template-columns: 1.7fr 1fr 1.3fr;
   }
   .dash-main-grid.tv-row-3 {
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
   }
 
   .dash-panel {
-    padding: 14px 18px;
+    padding: 10px 14px;
     min-height: 0;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
   }
 
   .dash-panel-title {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     flex-shrink: 0;
   }
 
-  .dash-chart-sm {
-    height: 220px !important;
-    min-height: 200px !important;
-    position: relative;
-    width: 100%;
-  }
-
+  .dash-chart-sm,
   .dash-panel .perf-chart-wrap {
-    height: 220px !important;
-    min-height: 200px !important;
+    flex: 1;
+    min-height: 130px;
+    height: 100% !important;
     position: relative;
     width: 100%;
   }
@@ -3140,130 +3144,157 @@ table.perf-dialog-table th,
   .tv-row-3 .table-wrap,
   .tv-row-4 .table-wrap {
     flex: 1;
-    min-height: 180px;
+    min-height: 0;
     max-height: none;
     overflow-y: auto;
   }
 
   .pareto-row {
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     font-size: 12px;
     grid-template-columns: 110px 1fr 64px;
   }
 
   .pareto-bar-track {
-    height: 16px;
+    height: 14px;
   }
   .oee-donut-wrap {
-    width: 85px;
-    height: 85px;
-    margin-bottom: 4px;
+    width: 82px;
+    height: 82px;
+    margin-bottom: 2px;
   }
   .oee-donut-label {
     font-size: 11px;
+    font-weight: 600;
   }
   .oee-total-value {
-    font-size: 26px;
+    font-size: 24px;
     font-weight: 800;
+  }
+  .oee-total-big-value {
+    font-size: 24px;
+    font-weight: 800;
+  }
+  .oee-kesimpulan {
+    font-size: 11px;
+    line-height: 1.3;
+    margin-top: 4px;
   }
 
   table.table-compact th,
   table.table-compact td {
-    padding: 7px 10px;
-    font-size: 13px;
+    padding: 5px 8px;
+    font-size: 12px;
   }
   table.table-compact th {
     font-size: 11px;
     font-weight: 700;
   }
 
-  /* ═══ TV 55" Visualisasi Internal ═══ */
+  /* ═══ TV 55" Tab 2: Visualisasi Internal (Zero-Scroll) ═══ */
+  .dash-body > .internal-viz {
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+
   .internal-viz {
-    flex: none;
-    height: auto;
+    flex: 1;
+    height: 100%;
     min-height: 0;
     display: flex;
     flex-direction: column;
-    gap: var(--row-gap, 14px);
-    overflow: visible;
+    gap: 8px;
+    overflow: hidden;
   }
 
-  /* Split layout: 35% Sisi Kiri (Produktivitas) | 65% Sisi Kanan (Downtime) */
+  /* Split layout: 32% Sisi Kiri (Produktivitas) | 68% Sisi Kanan (Downtime) */
   .internal-viz-split {
-    flex: none;
-    height: auto;
+    flex: 1;
+    height: 100%;
     min-height: 0;
     display: grid;
-    grid-template-columns: 35fr 65fr;
-    gap: 16px;
-    align-items: start;
-    overflow: visible;
+    grid-template-columns: 32fr 68fr;
+    gap: 10px;
+    align-items: stretch;
+    overflow: hidden;
   }
 
-  .internal-col-left,
-  .internal-col-right {
+  .internal-col-left {
     min-height: 0;
+    height: 100%;
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    overflow: visible;
+    gap: 8px;
+    overflow: hidden;
   }
 
   .internal-left-grid-cards {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    overflow: visible;
+    flex: 1;
+    height: 100%;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: repeat(4, 1fr);
+    gap: 8px;
+    overflow: hidden;
   }
 
   .internal-left-grid-cards > * {
     min-height: 0;
   }
-  .internal-left-grid-cards > .card-bar-chart {
-    min-height: 240px;
+
+  .internal-left-grid-cards .dash-panel {
+    padding: 8px 12px;
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Sisi Kanan: 3 Baris Proporsional (1fr : 1fr : 2fr) */
+  .internal-col-right {
+    display: grid;
+    grid-template-rows: 1fr 1fr 2fr;
+    gap: 8px;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .internal-right-top-row {
     display: grid;
     grid-template-columns: 1fr 2.3fr;
-    gap: 14px;
-    flex: none;
-  }
-
-  .internal-right-top-row .dash-panel {
-    height: auto;
+    gap: 8px;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
   }
 
   .internal-right-downtime-row {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
-    gap: 14px;
-    flex: none;
+    gap: 8px;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
   }
 
   .internal-viz .dash-panel {
-    padding: 12px 16px;
+    padding: 8px 12px;
     min-height: 0;
+    height: 100%;
     display: flex;
     flex-direction: column;
-    overflow: visible;
-  }
-
-  .internal-right-top-row .dash-panel,
-  .internal-right-downtime-row .dash-panel,
-  .internal-left-grid-cards .dash-panel {
-    height: auto;
-  }
-
-  .internal-row-worst .dash-panel {
-    height: auto;
+    overflow: hidden;
   }
 
   .internal-viz .dash-panel-title {
-    font-size: 13.5px;
+    font-size: 12.5px;
     font-weight: 700;
-    margin: 0 0 5px;
-    line-height: 1.3;
+    margin: 0 0 2px;
+    line-height: 1.25;
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -3272,116 +3303,102 @@ table.perf-dialog-table th,
   }
 
   .internal-viz .hint {
-    font-size: 11px !important;
-    margin: 0 0 6px !important;
-    line-height: 1.3 !important;
+    font-size: 10.5px !important;
+    margin: 0 0 3px !important;
+    line-height: 1.2 !important;
     opacity: 0.85;
     flex-shrink: 0;
   }
 
-  /* Chart dimensions for TV: Besar, proporsional, dan nyaman di mata */
-  .internal-viz .dash-chart-sm {
-    height: 220px !important;
-    min-height: 200px !important;
-    position: relative;
-    width: 100%;
-  }
-
-  .internal-viz .dash-chart-bars {
-    height: 250px !important;
-    min-height: 220px !important;
-    position: relative;
-    width: 100%;
-  }
-
+  .internal-viz .dash-chart-sm,
+  .internal-viz .dash-chart-bars,
   .internal-viz .dash-chart-trend {
-    height: 180px !important;
-    min-height: 160px !important;
+    flex: 1;
+    min-height: 0;
+    height: 100% !important;
     position: relative;
     width: 100%;
   }
 
-  .internal-viz .internal-row-productivity .dash-chart-sm {
-    height: 230px !important;
-    min-height: 200px !important;
-    position: relative;
-    width: 100%;
+  /* Productivity Today (jika mode harian) */
+  .internal-col-left:has(.productivity-today) > .dash-panel:first-child {
+    flex-shrink: 0;
+    height: auto;
+    padding: 6px 10px;
   }
 
-  .internal-viz .internal-right-downtime-row-compact .dash-chart-sm {
-    height: 210px !important;
-    min-height: 190px !important;
-    position: relative;
-    width: 100%;
-  }
-
-  /* Productivity Today adjustments for TV */
   .internal-viz .productivity-today {
-    padding: 4px 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+    padding: 2px 0;
   }
 
   .internal-viz .productivity-today-main {
-    margin-bottom: 6px;
-    gap: 10px;
+    margin-bottom: 3px;
+    gap: 8px;
+    display: flex;
+    align-items: baseline;
   }
 
   .internal-viz .productivity-today-value {
-    font-size: 32px;
+    font-size: 24px;
     font-weight: 800;
     line-height: 1;
   }
 
   .internal-viz .productivity-today-grid {
     grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
+    gap: 6px;
   }
 
   .internal-viz .productivity-today-stat {
-    padding: 6px 8px;
-    border-radius: 8px;
+    padding: 4px 6px;
+    border-radius: 6px;
     gap: 2px;
   }
 
   .internal-viz .productivity-today-label {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
   }
 
   .internal-viz .productivity-today-num {
-    font-size: 15px;
+    font-size: 13px;
     font-weight: 700;
   }
 
-  /* Row Worst di TV: 3 kolom dengan ukuran teks yang terbaca jelas */
+  /* Row Worst di TV: 6 tabel dalam grid 3x2, mengisi tinggi 2fr secara sempurna */
   .internal-viz .internal-row-worst {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: auto auto;
-    gap: 12px;
-    flex: none;
+    grid-template-rows: 1fr 1fr;
+    gap: 8px;
     min-height: 0;
+    height: 100%;
+    overflow: hidden;
   }
 
   .internal-viz .internal-row-worst .dash-panel {
-    padding: 10px 14px;
-    height: auto;
+    padding: 6px 10px;
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
 
   .internal-viz .internal-row-worst .dash-panel-title {
-    font-size: 13px;
+    font-size: 11.5px;
     font-weight: 700;
-    margin: 0 0 6px;
+    margin: 0 0 3px;
     white-space: normal;
-    line-height: 1.3;
+    line-height: 1.2;
+    flex-shrink: 0;
   }
 
   .internal-viz .internal-row-worst .table-wrap {
-    min-height: 150px;
+    flex: 1;
+    min-height: 0;
     max-height: none;
-    overflow: visible;
+    overflow-y: auto;
   }
 
   .internal-viz .internal-row-worst table.table-compact {
@@ -3390,130 +3407,203 @@ table.perf-dialog-table th,
   }
 
   .internal-viz .internal-row-worst table.table-compact th {
-    padding: 6px 8px;
-    font-size: 11px;
+    padding: 3px 6px;
+    font-size: 10.5px;
     font-weight: 700;
     line-height: 1.2;
   }
 
   .internal-viz .internal-row-worst table.table-compact td {
-    padding: 6px 8px;
-    font-size: 13px;
+    padding: 3px 6px;
+    font-size: 11.5px;
     font-weight: 500;
-    line-height: 1.3;
+    line-height: 1.25;
   }
 
   .internal-viz .internal-row-worst .badge {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
-    padding: 2px 7px;
+    padding: 1px 5px;
     max-width: 100%;
   }
 
   .internal-viz .internal-row-worst .empty-state {
-    min-height: 150px;
+    flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0;
     margin: 0;
-    font-size: 12px;
+    font-size: 11px;
   }
 
-  /* ═══ TV 55" Visualisasi Performance (Tab 3) ═══ */
+  /* ═══ TV 55" Tab 3: Visualisasi Performance (Zero-Scroll) ═══ */
+  .dash-body > .perf-tab-admin-container,
   .perf-tab-admin-container {
-    width: 100%;
+    flex: 1;
+    height: 100%;
+    min-height: 0;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 8px;
+    overflow: hidden;
   }
 
   .perf-machine-bar {
-    padding: 10px 16px;
-    border-radius: 12px;
+    padding: 6px 12px;
+    border-radius: 10px;
+    flex-shrink: 0;
   }
 
   .perf-machine-bar button {
-    font-size: 13px !important;
-    padding: 6px 14px !important;
+    font-size: 12px !important;
+    padding: 5px 12px !important;
+  }
+
+  .perf-tab-admin-container > .dash-panel {
+    flex: 1;
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 8px 14px;
+  }
+
+  .perf-header {
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+    flex-shrink: 0;
   }
 
   .perf-top-grid {
-    grid-template-columns: 340px 1fr !important;
-    gap: 16px !important;
+    flex: 1.3;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 310px 1fr !important;
+    gap: 12px !important;
+    overflow: hidden;
   }
 
   .perf-cards-col {
-    gap: 10px !important;
+    gap: 6px !important;
+    height: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1.4fr repeat(4, 1fr);
   }
 
   .perf-cards-col .perf-card {
-    padding: 10px 14px !important;
-    border-radius: 10px;
+    padding: 6px 10px !important;
+    border-radius: 8px;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 
   .perf-cards-col .perf-card-oee {
-    padding: 12px 16px !important;
+    padding: 8px 12px !important;
   }
 
   .perf-cards-col .perf-card-oee .perf-label {
-    font-size: 13px !important;
+    font-size: 11.5px !important;
   }
 
   .perf-cards-col .perf-card-oee .perf-value-xl {
-    font-size: 34px !important;
+    font-size: 28px !important;
     font-weight: 800;
   }
 
   .perf-cards-col .perf-oee-breakdown {
-    font-size: 12px !important;
+    font-size: 11px !important;
   }
 
   .perf-cards-col .perf-label {
-    font-size: 11.5px !important;
+    font-size: 10.5px !important;
     font-weight: 600;
   }
 
   .perf-cards-col .perf-value {
-    font-size: 20px !important;
+    font-size: 16px !important;
     font-weight: 800;
+  }
+
+  .perf-chart-col {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow: hidden;
   }
 
   .dash-panel .perf-chart-wrap,
   .perf-chart-wrap {
-    height: 250px !important;
-    min-height: 220px !important;
+    flex: 1;
+    min-height: 140px;
+    height: 100% !important;
+    position: relative;
+    width: 100%;
   }
 
-  .perf-daily-split {
-    gap: 16px;
-  }
-
-  .perf-daily-split .table-wrap {
-    max-height: 250px !important;
+  .perf-cat-tables-compact {
+    flex-shrink: 0;
+    margin-top: 4px;
+    padding-top: 4px;
   }
 
   .perf-cat-tables-compact .table-wrap {
-    max-height: 250px !important;
+    max-height: 130px !important;
+    overflow-y: auto;
   }
 
   .perf-cat-card {
-    border-radius: 10px;
-    padding: 12px !important;
+    border-radius: 8px;
+    padding: 6px 8px !important;
+  }
+
+  .perf-cat-card table.table-compact th,
+  .perf-cat-card table.table-compact td {
+    padding: 2px 4px !important;
+    font-size: 11px !important;
   }
 
   .perf-lower-grid {
-    gap: 18px !important;
-    margin-top: 16px !important;
-    padding-top: 16px !important;
+    flex: 1;
+    min-height: 0;
+    gap: 12px !important;
+    margin-top: 6px !important;
+    padding-top: 6px !important;
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    overflow: hidden;
   }
 
-  .perf-pie-wrap {
-    height: 240px !important;
+  .perf-lower-col {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
 
   .perf-lower-col .table-wrap {
-    min-height: 180px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .perf-pie-wrap {
+    flex: 1;
+    min-height: 120px;
+    height: 100% !important;
+  }
+
+  .perf-pie-summary {
+    font-size: 11px !important;
+    margin-top: 2px !important;
+    flex-shrink: 0;
   }
 }
 
