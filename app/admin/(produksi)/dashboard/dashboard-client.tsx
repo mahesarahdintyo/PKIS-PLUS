@@ -1660,11 +1660,34 @@ export default function DashboardClient() {
       donutQual: { top: "#c084fc", bottom: "#7c3aed" },
     };
 
+    const getOrCreateDonutTooltip = () => {
+      let tooltipEl = document.getElementById("chartjs-donut-tooltip");
+      if (!tooltipEl) {
+        tooltipEl = document.createElement("div");
+        tooltipEl.id = "chartjs-donut-tooltip";
+        tooltipEl.style.position = "fixed";
+        tooltipEl.style.zIndex = "99999";
+        tooltipEl.style.pointerEvents = "none";
+        tooltipEl.style.transition = "opacity 0.15s ease, transform 0.1s ease";
+        tooltipEl.style.opacity = "0";
+        document.body.appendChild(tooltipEl);
+      }
+      return tooltipEl;
+    };
+
     const renderDonut = (canvas: HTMLCanvasElement | null, id: string, val: number, color: string, labelName: string = "") => {
       if (!canvas) return;
       if (chartInstances.current[id]) chartInstances.current[id].destroy();
       const v = Math.max(0, Math.min(100, val));
       destroyChartOnCanvas(canvas);
+      const pair = donutGrads[id] || { top: color, bottom: color };
+
+      // Pastikan tooltip disembunyikan saat kursor meninggalkan canvas
+      canvas.onmouseleave = () => {
+        const tip = document.getElementById("chartjs-donut-tooltip");
+        if (tip) tip.style.opacity = "0";
+      };
+
       chartInstances.current[id] = new Chart(canvas, {
         type: "doughnut",
         data: {
@@ -1674,7 +1697,6 @@ export default function DashboardClient() {
             backgroundColor: (context: any) => {
               const chart = context.chart;
               if (context.dataIndex === 0) {
-                const pair = donutGrads[id] || { top: color, bottom: color };
                 return createVerticalGradient(chart.ctx, chart.chartArea, pair.top, pair.bottom);
               }
               return getCssVar("--panel-2") || "rgba(255, 255, 255, 0.06)";
@@ -1686,26 +1708,81 @@ export default function DashboardClient() {
           }],
         },
         options: {
-          responsive: true, maintainAspectRatio: false,
+          responsive: true,
+          maintainAspectRatio: false,
           cutout: "68%",
+          onHover: (evt: any, elements: any[]) => {
+            if (evt.native?.target) {
+              evt.native.target.style.cursor = elements.length ? "pointer" : "default";
+            }
+          },
           plugins: {
             legend: { display: false },
             doughnut3DDepth: { enabled: false },
             tooltip: {
-              enabled: true,
-              backgroundColor: getCssVar("--panel") || "#1e293b",
-              titleColor: getCssVar("--text") || "#f1f5f9",
-              bodyColor: getCssVar("--text") || "#f1f5f9",
-              borderColor: getCssVar("--border") || "#334155",
-              borderWidth: 1,
-              padding: 8,
-              displayColors: false,
-              callbacks: {
-                title: () => "",
-                label: (ctx: any) => {
-                  if (ctx.dataIndex !== 0) return "";
-                  return `${labelName || "Capaian"}: ${fmtNum(v)}%`;
-                },
+              enabled: false, // Nonaktifkan render internal canvas agar tidak terpotong oleh batas canvas (84px)
+              external: (context: any) => {
+                const { chart, tooltip } = context;
+                const tooltipEl = getOrCreateDonutTooltip();
+
+                if (tooltip.opacity === 0) {
+                  tooltipEl.style.opacity = "0";
+                  return;
+                }
+
+                if (tooltip.body) {
+                  const activePoint = tooltip.dataPoints?.[0];
+                  const isCapaian = activePoint ? activePoint.dataIndex === 0 : true;
+                  const valCapaian = fmtNum(v);
+                  const valSisa = fmtNum(Math.max(0, 100 - v));
+
+                  tooltipEl.innerHTML = `
+                    <div style="
+                      background: rgba(15, 23, 42, 0.96);
+                      backdrop-filter: blur(8px);
+                      -webkit-backdrop-filter: blur(8px);
+                      border: 1px solid rgba(255, 255, 255, 0.16);
+                      border-left: 3.5px solid ${pair.top};
+                      border-radius: 8px;
+                      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 0 14px ${pair.top}40;
+                      padding: 8px 12px;
+                      color: #f1f5f9;
+                      font-family: var(--font-body, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+                      font-size: 12px;
+                      line-height: 1.4;
+                      min-width: 140px;
+                      pointer-events: none;
+                    ">
+                      <div style="font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: ${pair.top}; font-size: 11px; margin-bottom: 5px; display: flex; align-items: center; gap: 6px;">
+                        <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: ${pair.top}; box-shadow: 0 0 6px ${pair.top};"></span>
+                        ${labelName || "OEE Factor"}
+                      </div>
+                      <div style="display: flex; justify-content: space-between; align-items: center; gap: 14px; font-size: 12px; font-family: monospace; ${isCapaian ? 'font-weight: 700; color: #ffffff;' : 'color: #94a3b8;'}">
+                        <span>Capaian:</span>
+                        <span style="color: ${pair.top}; font-weight: 700;">${valCapaian}%</span>
+                      </div>
+                      <div style="display: flex; justify-content: space-between; align-items: center; gap: 14px; font-size: 12px; font-family: monospace; ${!isCapaian ? 'font-weight: 700; color: #ffffff;' : 'color: #64748b;'}">
+                        <span>Sisa:</span>
+                        <span>${valSisa}%</span>
+                      </div>
+                    </div>
+                  `;
+                }
+
+                const canvasRect = chart.canvas.getBoundingClientRect();
+                const left = canvasRect.left + tooltip.caretX;
+                const top = canvasRect.top + tooltip.caretY;
+
+                tooltipEl.style.opacity = "1";
+                tooltipEl.style.left = `${left}px`;
+                tooltipEl.style.top = `${top}px`;
+
+                // Posisi melayang rapi di atas kursor (atau di bawah jika mepet batas atas viewport)
+                if (canvasRect.top < 85) {
+                  tooltipEl.style.transform = "translate(-50%, 14px)";
+                } else {
+                  tooltipEl.style.transform = "translate(-50%, calc(-100% - 10px))";
+                }
               },
             },
           } as any,
@@ -1742,6 +1819,8 @@ export default function DashboardClient() {
       try { chartInstances.current.donutAvail?.destroy(); } catch { }
       try { chartInstances.current.donutPerf?.destroy(); } catch { }
       try { chartInstances.current.donutQual?.destroy(); } catch { }
+      const donutTip = document.getElementById("chartjs-donut-tooltip");
+      if (donutTip) donutTip.remove();
     };
   }, [loading, vizMode, totals, ngRatePct, dtByCategoryMap, hourlyData, lineTrend, periodMode, theme, openDowntimeDetail]);
 
