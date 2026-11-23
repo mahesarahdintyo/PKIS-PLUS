@@ -317,7 +317,7 @@ export default function SQCDMPPanel({
           </div>
         </div>
         <div className="sqcpm-metric-label">Total Biaya</div>
-        <div className="sqcpm-metric-value" style={{ fontSize: "22px" }}>
+        <div className="sqcpm-metric-value sqcpm-cost-value">
           {fmtRupiahShort(ngValueRp + scrapValueRp)}
         </div>
         <div className="cost-split">

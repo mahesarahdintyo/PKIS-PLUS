@@ -809,7 +809,7 @@ export default function DashboardPerformanceTab({
           {/* Chart Column */}
           <div className="perf-chart-col">
             {periodMode !== "harian" ? (
-              <div className="perf-chart-wrap" style={{ minHeight: 220 }}>
+              <div className="perf-chart-wrap">
                 <canvas ref={chartCanvasRef} />
               </div>
             ) : (
@@ -818,7 +818,7 @@ export default function DashboardPerformanceTab({
                   <p className="panel-subtitle font-bold text-sm mb-2 text-foreground">
                     GSPH Target vs Aktual (per Jam)
                   </p>
-                  <div style={{ height: 160, position: "relative" }}>
+                  <div className="perf-chart-wrap perf-chart-wrap-daily">
                     <canvas ref={chartCanvasRef} />
                   </div>
                 </div>
@@ -1125,7 +1125,7 @@ export default function DashboardPerformanceTab({
                 (MESIN / DIES / FINGER / OTHER)
               </span>
             </p>
-            <div className="perf-pie-wrap" style={{ height: 210 }}>
+            <div className="perf-pie-wrap">
               <canvas ref={pieCanvasRef} />
             </div>
             <p className="perf-pie-summary text-sm text-muted-foreground mt-2">
