@@ -3031,23 +3031,23 @@ table.perf-dialog-table th,
 
   /* ═══ TV 55" Tab 1: Visualisasi Umum (Besar, Sama Rata & Zero-Scroll) ═══ */
   .sqcpm-columns {
-    gap: 8px;
+    gap: 10px;
     flex-shrink: 0;
-    height: clamp(170px, 20vh, 215px);
+    height: clamp(235px, 28.5vh, 310px);
     margin-bottom: 8px;
-    overflow: hidden;
   }
 
   .sqcpm-col {
-    padding: 8px 12px;
+    padding: 10px 14px;
     gap: 3px;
     border-radius: 10px;
     height: 100%;
     min-height: 0;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    overflow: hidden;
+    justify-content: flex-start;
+    box-sizing: border-box;
+    position: relative;
   }
 
   .sqcpm-col-head {
@@ -3058,68 +3058,137 @@ table.perf-dialog-table th,
     flex-shrink: 0;
   }
   .sqcpm-col-icon {
-    width: 28px;
-    height: 28px;
-    font-size: 14px;
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
   }
   .sqcpm-col-title {
-    font-size: 12.5px;
+    font-size: clamp(13px, 1.6vh, 15px);
     font-weight: 800;
     letter-spacing: 0.03em;
   }
   .sqcpm-col-sub {
-    font-size: 9px;
+    font-size: clamp(9px, 1.1vh, 10.5px);
     font-weight: 600;
     opacity: 0.8;
   }
+  .sqcpm-metric-label {
+    font-size: clamp(10.5px, 1.3vh, 12px);
+    line-height: 1.2;
+    flex-shrink: 0;
+  }
   .sqcpm-metric-value {
-    font-size: clamp(22px, 2.8vh, 28px);
+    font-size: clamp(26px, 3.4vh, 34px);
+    font-weight: 800;
+    line-height: 1.05;
+    flex-shrink: 0;
+  }
+  .sqcpm-cost-value {
+    font-size: clamp(22px, 2.9vh, 28px);
+  }
+  .attendance-dual-metric {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    margin-bottom: 2px;
+    flex-shrink: 0;
+  }
+  .attendance-dual-item .sqcpm-metric-value {
+    font-size: clamp(20px, 2.6vh, 25px);
     font-weight: 800;
     line-height: 1.05;
   }
-  .sqcpm-cost-value {
-    font-size: clamp(20px, 2.5vh, 25px);
+  .attendance-dual-label {
+    font-size: clamp(8.5px, 1vh, 10px);
   }
-  .attendance-dual-item .sqcpm-metric-value {
-    font-size: clamp(18px, 2.3vh, 22px);
-    font-weight: 800;
+  .sqcpm-bar {
+    height: 6px;
+    flex-shrink: 0;
   }
-  .attendance-dual-metric {
+  .sqcpm-mini-label {
+    font-size: clamp(10px, 1.25vh, 11.5px);
+    line-height: 1.25;
+    flex-shrink: 0;
+  }
+  .cost-split {
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+  .cost-split-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 6px;
     margin-bottom: 2px;
+    font-size: clamp(10px, 1.25vh, 11.5px);
+  }
+  .cost-split-value {
+    font-size: clamp(11px, 1.35vh, 12.5px);
+    font-weight: 700;
+  }
+  .cost-split-bar {
+    height: 5px;
   }
   .sqcpm-chart {
-    height: clamp(48px, 6vh, 65px);
-    min-height: 36px;
+    height: clamp(55px, 7.5vh, 75px);
+    min-height: 48px;
     padding-top: 2px;
     flex-shrink: 0;
     margin-top: auto;
     position: relative;
+    width: 100%;
   }
   .sqcpm-chart-tall {
-    height: clamp(48px, 6vh, 65px);
+    height: clamp(55px, 7.5vh, 75px);
   }
   .sqcpm-chart-title {
     margin-top: auto;
-    font-size: 9.5px;
+    font-size: clamp(9px, 1.1vh, 10px);
+    font-weight: 700;
+    text-transform: uppercase;
+    flex-shrink: 0;
   }
   .manpower-grid-5 {
     margin-top: auto;
-    gap: 4px;
+    gap: 3px;
+    flex-shrink: 0;
+  }
+  .manpower-grid-5 .manpower-box {
+    padding: 4px 2px;
+    border-radius: 6px;
+    gap: 1px;
+  }
+  .manpower-grid-5 .manpower-icon {
+    font-size: clamp(10px, 1.2vh, 13px);
+  }
+  .manpower-grid-5 .manpower-label {
+    font-size: clamp(7.5px, 0.9vh, 8.5px);
   }
   .manpower-grid-5 .manpower-value {
-    font-size: 13px;
-    font-weight: 700;
+    font-size: clamp(13px, 1.6vh, 16px);
+    font-weight: 800;
+    line-height: 1.05;
   }
-  .sqcpm-mini-label {
-    font-size: 10px;
-    line-height: 1.25;
+  .manpower-grid-5 .manpower-unit {
+    font-size: clamp(7px, 0.85vh, 8px);
   }
-  .sqcpm-bar {
-    height: 5px;
+  .moral-summary {
+    margin-top: 3px;
+    padding-top: 0;
+    gap: 3px;
+    flex-shrink: 0;
   }
-  .sqcpm-metric-label {
-    font-size: 10.5px;
-    line-height: 1.2;
+  .moral-summary-item {
+    padding: 3px 4px;
+    border-radius: 5px;
+    gap: 1px;
+  }
+  .moral-summary-value {
+    font-size: clamp(12px, 1.5vh, 15px);
+    font-weight: 800;
+  }
+  .moral-summary-label {
+    font-size: clamp(7.5px, 0.9vh, 8.5px);
   }
 
   .tv-grid {
