@@ -113,16 +113,32 @@ const pieCenterText = {
     const mainColor = resolveColor(opts.color, "--text", "#f1f5f9");
     const labelColor = resolveColor(opts.labelColor, "--muted-foreground", "#94a3b8");
 
-    const fontSizeVal = Math.max(14, Math.min(26, Math.round(size * 0.19)));
-    const fontSizeLbl = Math.max(9, Math.min(12, Math.round(size * 0.09)));
+    const maxTextWidth = Math.max(20, innerR * 1.7);
+
+    let effectiveValFont = Math.max(12, Math.min(24, Math.round(size * 0.18)));
+    ctx.font = `800 ${effectiveValFont}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+    const valWidth = ctx.measureText(String(opts.value).toUpperCase()).width;
+    if (valWidth > maxTextWidth) {
+      effectiveValFont = Math.max(10, Math.floor(effectiveValFont * (maxTextWidth / valWidth)));
+      ctx.font = `800 ${effectiveValFont}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+    }
+
+    let effectiveLblFont = Math.max(8.5, Math.min(11, Math.round(size * 0.085)));
+    if (opts.label) {
+      ctx.font = `600 ${effectiveLblFont}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+      const lblWidth = ctx.measureText(String(opts.label).toUpperCase()).width;
+      if (lblWidth > maxTextWidth) {
+        effectiveLblFont = Math.max(7.5, Math.floor(effectiveLblFont * (maxTextWidth / lblWidth)));
+      }
+    }
 
     ctx.fillStyle = mainColor;
-    ctx.font = `800 ${fontSizeVal}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
-    ctx.fillText(String(opts.value).toUpperCase(), cx, cy - (opts.label ? (fontSizeLbl * 0.7) : 0));
+    ctx.font = `800 ${effectiveValFont}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+    ctx.fillText(String(opts.value).toUpperCase(), cx, cy - (opts.label ? (effectiveLblFont * 0.65) : 0));
     if (opts.label) {
       ctx.fillStyle = labelColor;
-      ctx.font = `600 ${fontSizeLbl}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
-      ctx.fillText(String(opts.label).toUpperCase(), cx, cy + (fontSizeVal * 0.6));
+      ctx.font = `600 ${effectiveLblFont}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+      ctx.fillText(String(opts.label).toUpperCase(), cx, cy + (effectiveValFont * 0.55));
     }
     ctx.restore();
   },

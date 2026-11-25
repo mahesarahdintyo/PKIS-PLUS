@@ -2379,7 +2379,7 @@ export default function DashboardClient() {
             },
             pieCenterText: {
               value: fmtNum(grandTotal),
-              label: "Menit Downtime",
+              label: "Menit DT",
               color: () => getCssVar("--text") || "#f1f5f9",
               labelColor: () => getCssVar("--muted-foreground") || "#94a3b8",
             },
@@ -2523,8 +2523,8 @@ export default function DashboardClient() {
             borderSkipped: false,
             borderWidth: 1,
             borderColor: "rgba(255, 255, 255, 0.15)",
-            barPercentage: 0.65,
-            categoryPercentage: 0.8,
+            barPercentage: 0.72,
+            categoryPercentage: 0.85,
           }],
         },
         options: {
