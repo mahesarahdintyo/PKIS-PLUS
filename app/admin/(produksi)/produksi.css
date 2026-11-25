@@ -1976,10 +1976,27 @@ table.table-compact .status-badge {
   flex: 1;
 }
 
-.perf-chart-wrap {
+.perf-chart-wrap,
+.perf-chart-wrap-daily {
   /* Tinggi adaptif seimbang: minimal 160px, ideal 22vh, maksimal 230px */
   height: clamp(160px, 22vh, 230px);
   position: relative;
+  overflow: hidden;
+  width: 100%;
+}
+
+/* ANTI INFINITE EXPANSION: Canvas diposisikan absolut agar 0px di flow layout sehingga mustahil memicu loop resize */
+.perf-chart-wrap canvas,
+.perf-chart-wrap-daily canvas,
+.perf-pie-wrap canvas {
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  display: block !important;
 }
 
 .perf-card-accent {
@@ -2209,10 +2226,10 @@ table.perf-dialog-table th,
 .perf-pie-wrap {
   height: clamp(185px, 23.5vh, 255px);
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 20px;
+  overflow: hidden;
+  width: 100%;
+  display: block;
+  margin-top: 14px;
   margin-bottom: 6px;
 }
 
@@ -3544,7 +3561,9 @@ table.perf-dialog-table th,
 
   /* ═══ TV 55" Tab 3: Visualisasi Performance (Zero-Scroll & Bebas Bug Memanjang) ═══ */
   .dash-body > .perf-tab-admin-container,
-  .perf-tab-admin-container {
+  .dash-body > .perf-fullwidth-container,
+  .perf-tab-admin-container,
+  .perf-fullwidth-container {
     flex: 1;
     height: 100%;
     min-height: 0;
@@ -3565,7 +3584,8 @@ table.perf-dialog-table th,
     padding: 4px 10px !important;
   }
 
-  .perf-tab-admin-container > .dash-panel {
+  .perf-tab-admin-container > .dash-panel,
+  .perf-fullwidth-container > .dash-panel {
     flex: 1;
     height: 100%;
     min-height: 0;
@@ -3655,10 +3675,16 @@ table.perf-dialog-table th,
   }
 
   .perf-chart-wrap canvas,
+  .perf-chart-wrap-daily canvas,
   .perf-pie-wrap canvas {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
     max-width: 100% !important;
     max-height: 100% !important;
-    display: block;
+    display: block !important;
   }
 
   .perf-daily-split {
@@ -3778,6 +3804,7 @@ table.perf-dialog-table th,
     position: relative;
     width: 100%;
     overflow: hidden;
+    display: block;
   }
 
   .perf-pie-summary {

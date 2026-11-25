@@ -655,9 +655,9 @@ export default function DashboardPerformanceTab({
   ]);
 
   return (
-    <div className="perf-fullwidth-container space-y-4">
+    <div className="perf-tab-admin-container perf-fullwidth-container space-y-4">
       {/* ── Toolbar Selector Mesin & Auto-Rotate TV ── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-card/70 backdrop-blur-md rounded-xl border border-border/50 shadow-xs">
+      <div className="perf-machine-bar flex flex-wrap items-center justify-between gap-3 p-3 bg-card/70 backdrop-blur-md rounded-xl border border-border/50 shadow-xs">
         <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
           <button
             type="button"
