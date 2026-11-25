@@ -1934,9 +1934,9 @@ table.table-compact .status-badge {
 
 .perf-top-grid {
   display: grid;
-  /* Sidebar kartu: minimal 260px, maksimal 380px; sisanya untuk chart */
-  grid-template-columns: clamp(260px, 28%, 380px) 1fr;
-  gap: clamp(10px, 2vw, 20px);
+  /* Sidebar kartu: minimal 320px, maksimal 380px; sisanya untuk chart */
+  grid-template-columns: clamp(320px, 22vw, 380px) 1fr;
+  gap: clamp(8px, 1.5vw, 16px);
   align-items: start;
   overflow: hidden;
 }
@@ -1945,7 +1945,7 @@ table.table-compact .status-badge {
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-auto-rows: auto;
-  gap: clamp(6px, 0.8vw, 10px);
+  gap: clamp(4px, 0.6vw, 8px);
   min-height: 0;
   min-width: 0;
   overflow: hidden;
@@ -1959,14 +1959,14 @@ table.table-compact .status-badge {
 }
 
 .perf-cards-col .perf-card {
-  padding: clamp(7px, 1vw, 10px) clamp(8px, 1.2vw, 12px);
+  padding: clamp(5px, 0.8vw, 8px) clamp(6px, 1vw, 10px);
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 
 .perf-cards-col .perf-value {
-  font-size: clamp(14px, 1.4vw, 18px);
+  font-size: clamp(13px, 1.3vw, 17px);
 }
 
 .perf-chart-col {
@@ -1978,8 +1978,8 @@ table.table-compact .status-badge {
 
 .perf-chart-wrap,
 .perf-chart-wrap-daily {
-  /* Tinggi adaptif seimbang: minimal 160px, ideal 22vh, maksimal 230px */
-  height: clamp(160px, 22vh, 230px);
+  /* Tinggi adaptif seimbang */
+  height: clamp(150px, 20vh, 220px);
   position: relative;
   overflow: hidden;
   width: 100%;
@@ -2007,11 +2007,11 @@ table.table-compact .status-badge {
 .perf-lower-grid {
   display: grid;
   /* Kolom kiri sedikit lebih lebar untuk tabel top-5 */
-  grid-template-columns: 1.3fr 1fr;
-  gap: clamp(12px, 2vw, 24px);
-  margin-top: clamp(12px, 2vh, 20px);
-  padding-top: clamp(12px, 2vh, 20px);
-  border-top: 2px dashed color-mix(in srgb, var(--foreground) 30%, transparent);
+  grid-template-columns: 1.25fr 1fr;
+  gap: clamp(8px, 1.5vw, 16px);
+  margin-top: clamp(8px, 1.2vh, 14px);
+  padding-top: clamp(8px, 1.2vh, 14px);
+  border-top: 1px dashed color-mix(in srgb, var(--foreground) 25%, transparent);
   align-items: stretch;
 }
 
@@ -2027,41 +2027,39 @@ table.table-compact .status-badge {
   min-height: 0;
 }
 
-/* Perbesar font dan padding baris tabel 5 Downtime Terburuk */
+/* Kompak dan proporsional untuk tabel 5 Downtime Terburuk */
 .perf-lower-col .table-compact th,
 .perf-lower-col .table-compact td {
-  padding: 12px 12px;
-  font-size: 14px;
+  padding: 5px 8px;
+  font-size: 12px;
 }
 
-/* Perkuat border garis thead / tbody di tabel 5 Downtime Terburuk */
+/* Garis thead / tbody di tabel 5 Downtime Terburuk */
 .perf-lower-col .table-wrap thead th {
-  border-bottom: 2px solid color-mix(in srgb, var(--foreground) 45%, transparent);
-  border-right: 2px solid color-mix(in srgb, var(--foreground) 45%, transparent);
+  border-bottom: 1.5px solid color-mix(in srgb, var(--foreground) 35%, transparent);
 }
 
 .perf-lower-col .table-wrap tbody td {
-  border-bottom: 1px solid color-mix(in srgb, var(--foreground) 30%, transparent);
-  border-right: 2px solid color-mix(in srgb, var(--foreground) 45%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--foreground) 20%, transparent);
 }
 
 .perf-lower-col .table-wrap tbody tr:last-child td {
-  border-bottom: 2px solid color-mix(in srgb, var(--foreground) 45%, transparent);
+  border-bottom: 1.5px solid color-mix(in srgb, var(--foreground) 35%, transparent);
 }
 
 .perf-lower-col .table-compact th {
-  font-size: 11px;
-  letter-spacing: 0.05em;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
 }
 
 .perf-lower-col .table-compact .badge {
-  font-size: 11px;
-  padding: 3px 8px;
+  font-size: 10px;
+  padding: 2px 6px;
 }
 
 /* Pembatas section: digunakan antara chart GSPH → Downtime per Kategori */
 .perf-section-divider {
-  border-top: 2px dashed color-mix(in srgb, var(--foreground) 30%, transparent);
+  border-top: 1px dashed color-mix(in srgb, var(--foreground) 25%, transparent);
 }
 
 /* Perbesar font dan padding isi tabel 3 kategori downtime (MESIN, DIES, OTHER) */
@@ -2224,21 +2222,21 @@ table.perf-dialog-table th,
 }
 
 .perf-pie-wrap {
-  height: clamp(185px, 23.5vh, 255px);
+  height: clamp(140px, 18vh, 210px);
   position: relative;
   overflow: hidden;
   width: 100%;
   display: block;
-  margin-top: 14px;
-  margin-bottom: 6px;
+  margin-top: 4px;
+  margin-bottom: 4px;
 }
 
 .perf-pie-summary {
   margin-top: auto;
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 11px;
+  line-height: 1.35;
   color: var(--muted-foreground);
-  padding: 10px 14px;
+  padding: 6px 10px;
   background: var(--panel-2);
   border-radius: 8px;
   border: 1px solid var(--border);
@@ -2248,9 +2246,9 @@ table.perf-dialog-table th,
 .perf-daily-split {
   display: grid;
   grid-template-columns: clamp(260px, 30%, 380px) 1fr;
-  gap: clamp(10px, 2vw, 20px);
-  margin-top: clamp(12px, 2vh, 20px);
-  padding-top: clamp(12px, 2vh, 20px);
+  gap: clamp(8px, 1.5vw, 16px);
+  margin-top: clamp(6px, 1vh, 12px);
+  padding-top: clamp(6px, 1vh, 12px);
   border-top: 1px dashed var(--border);
 }
 
@@ -3622,15 +3620,20 @@ table.perf-dialog-table th,
     overflow: hidden;
   }
 
+  .perf-tab-admin-container.space-y-4 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0 !important;
+  }
+
   .perf-machine-bar {
-    padding: 4px 10px;
+    padding: 3px 8px;
     border-radius: 8px;
     flex-shrink: 0;
+    gap: 6px;
   }
 
   .perf-machine-bar button {
-    font-size: 11.5px !important;
-    padding: 4px 10px !important;
+    font-size: 11px !important;
+    padding: 3px 8px !important;
   }
 
   .perf-tab-admin-container > .dash-panel,
@@ -3641,35 +3644,39 @@ table.perf-dialog-table th,
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    padding: 8px 12px;
+    padding: 6px 10px;
   }
 
   .perf-header {
-    margin-bottom: 4px;
-    padding-bottom: 4px;
+    margin-bottom: 2px !important;
+    padding-bottom: 2px !important;
     flex-shrink: 0;
   }
 
+  .perf-header .dash-panel-title {
+    font-size: 12.5px !important;
+  }
+
   .perf-top-grid {
-    flex: 1.15 1 0%;
+    flex: 1.08 1 0%;
     min-height: 0;
     display: grid;
-    grid-template-columns: 290px 1fr !important;
+    grid-template-columns: clamp(330px, 20vw, 380px) 1fr !important;
     gap: 8px !important;
     overflow: hidden;
   }
 
   .perf-cards-col {
-    gap: 4px !important;
+    gap: 3.5px !important;
     height: 100%;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1.3fr repeat(4, 1fr);
+    grid-template-rows: 1.25fr repeat(4, 1fr);
     overflow: hidden;
   }
 
   .perf-cards-col .perf-card {
-    padding: 4px 8px !important;
+    padding: 3px 7px !important;
     border-radius: 6px;
     min-height: 0;
     display: flex;
@@ -3679,30 +3686,34 @@ table.perf-dialog-table th,
   }
 
   .perf-cards-col .perf-card-oee {
-    padding: 6px 10px !important;
+    padding: 5px 8px !important;
   }
 
   .perf-cards-col .perf-card-oee .perf-label {
-    font-size: 11px !important;
+    font-size: 10.5px !important;
   }
 
   .perf-cards-col .perf-card-oee .perf-value-xl {
-    font-size: 24px !important;
+    font-size: 22px !important;
     font-weight: 800;
+    line-height: 1.1;
   }
 
   .perf-cards-col .perf-oee-breakdown {
-    font-size: 10px !important;
+    font-size: 9.5px !important;
+    margin-top: 1px !important;
   }
 
   .perf-cards-col .perf-label {
-    font-size: 10px !important;
+    font-size: 9.5px !important;
     font-weight: 600;
+    line-height: 1.1;
   }
 
   .perf-cards-col .perf-value {
-    font-size: 15px !important;
+    font-size: 14px !important;
     font-weight: 800;
+    line-height: 1.1;
   }
 
   .perf-chart-col {
@@ -3743,6 +3754,9 @@ table.perf-dialog-table th,
     display: grid;
     grid-template-columns: 1fr 1fr;
     overflow: hidden;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    border-top: none !important;
   }
 
   .perf-daily-chart {
@@ -3753,7 +3767,11 @@ table.perf-dialog-table th,
     overflow: hidden;
   }
 
-  .perf-daily-chart > .panel-subtitle {
+  .perf-daily-chart > .panel-subtitle,
+  .perf-daily-list > .panel-subtitle {
+    font-size: 11px !important;
+    font-weight: 700;
+    margin-bottom: 2px !important;
     flex-shrink: 0;
   }
 
@@ -3773,10 +3791,6 @@ table.perf-dialog-table th,
     overflow: hidden;
   }
 
-  .perf-daily-list > .panel-subtitle {
-    flex-shrink: 0;
-  }
-
   .perf-daily-list .table-wrap {
     flex: 1 1 0%;
     min-height: 0;
@@ -3784,36 +3798,49 @@ table.perf-dialog-table th,
     overflow-y: auto;
   }
 
+  .perf-daily-list table.table-compact th,
+  .perf-daily-list table.table-compact td {
+    padding: 2.5px 5px !important;
+    font-size: 10px !important;
+  }
+
   .perf-cat-tables-compact {
     flex-shrink: 0;
-    margin-top: 2px;
-    padding-top: 2px;
+    margin-top: 3px !important;
+    padding-top: 3px !important;
+    border-top: 1px dashed rgba(255, 255, 255, 0.1) !important;
+  }
+
+  .perf-cat-tables-compact .panel-subtitle {
+    font-size: 10px !important;
+    margin-bottom: 2px !important;
   }
 
   .perf-cat-tables-compact .table-wrap {
-    max-height: 85px !important;
+    max-height: 75px !important;
     overflow-y: auto;
   }
 
   .perf-cat-card {
     border-radius: 6px;
-    padding: 4px 6px !important;
+    padding: 3px 6px !important;
   }
 
   .perf-cat-card table.table-compact th,
   .perf-cat-card table.table-compact td {
-    padding: 2px 4px !important;
-    font-size: 10px !important;
+    padding: 1.5px 3px !important;
+    font-size: 9.5px !important;
   }
 
   .perf-lower-grid {
-    flex: 0.85 1 0%;
+    flex: 0.95 1 0%;
     min-height: 0;
     gap: 8px !important;
-    margin-top: 4px !important;
-    padding-top: 4px !important;
+    margin-top: 3px !important;
+    padding-top: 3px !important;
+    border-top: 1px dashed rgba(255, 255, 255, 0.1) !important;
     display: grid;
-    grid-template-columns: 1.3fr 1fr;
+    grid-template-columns: 1.25fr 1fr;
     overflow: hidden;
   }
 
@@ -3826,6 +3853,9 @@ table.perf-dialog-table th,
   }
 
   .perf-lower-col > .panel-subtitle {
+    font-size: 11px !important;
+    font-weight: 700;
+    margin-bottom: 2px !important;
     flex-shrink: 0;
   }
 
@@ -3833,6 +3863,59 @@ table.perf-dialog-table th,
     flex: 1 1 0%;
     min-height: 0;
     overflow-y: auto;
+  }
+
+  .perf-lower-col table.table-compact {
+    table-layout: fixed;
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .perf-lower-col table.table-compact th:first-child,
+  .perf-lower-col table.table-compact td:first-child {
+    width: 25%;
+  }
+
+  .perf-lower-col table.table-compact th:nth-child(2),
+  .perf-lower-col table.table-compact td:nth-child(2) {
+    width: 55%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .perf-lower-col table.table-compact th:last-child,
+  .perf-lower-col table.table-compact td:last-child {
+    width: 20%;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .perf-lower-col table.table-compact th {
+    padding: 2.5px 4px !important;
+    font-size: 9.5px !important;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--muted-foreground, #94a3b8);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .perf-lower-col table.table-compact td {
+    padding: 2.5px 4px !important;
+    font-size: 10px !important;
+    font-weight: 500;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  }
+
+  .perf-lower-col .badge {
+    font-size: 9px !important;
+    font-weight: 700;
+    padding: 1px 4px !important;
+    border-radius: 3px;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .perf-pie-col {
@@ -3844,20 +3927,29 @@ table.perf-dialog-table th,
   }
 
   .perf-pie-col > .panel-subtitle {
+    font-size: 11px !important;
+    font-weight: 700;
+    margin-bottom: 2px !important;
     flex-shrink: 0;
   }
 
   .perf-pie-wrap {
     flex: 1 1 0%;
-    min-height: 0;
+    min-height: 120px;
     position: relative;
     width: 100%;
     overflow: hidden;
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 !important;
   }
 
   .perf-pie-summary {
-    font-size: 10px !important;
+    font-size: 9.5px !important;
+    line-height: 1.3 !important;
+    padding: 3px 6px !important;
+    border-radius: 5px;
     margin-top: 1px !important;
     flex-shrink: 0;
   }

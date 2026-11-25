@@ -567,7 +567,7 @@ export default function DashboardPerformanceTab({
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          layout: { padding: { top: 4, right: 6, bottom: 4, left: 6 } },
+          layout: { padding: { top: 2, right: 4, bottom: 2, left: 4 } },
           onHover: (evt: any, elements: any[]) => {
             if (evt.native?.target) evt.native.target.style.cursor = elements.length ? "pointer" : "default";
           },
@@ -576,12 +576,12 @@ export default function DashboardPerformanceTab({
               position: "bottom",
               labels: {
                 color: getCssVar("--muted-foreground") || "#94a3b8",
-                boxWidth: 8,
-                boxHeight: 8,
+                boxWidth: 7,
+                boxHeight: 7,
                 usePointStyle: true,
                 pointStyle: "circle",
-                font: { size: 10 },
-                padding: 10,
+                font: { size: 9.5 },
+                padding: 6,
                 generateLabels: (chart: any) => {
                   const dataset = chart.data.datasets[0];
                   const total = (dataset.data as number[]).reduce((a: number, b: number) => a + b, 0);
