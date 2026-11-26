@@ -3508,7 +3508,7 @@ table.perf-dialog-table th,
 
   .internal-viz .dash-panel-title {
     font-size: 10px;
-    font-weight: 700;
+    font-weight: 600;
     margin: 0 0 1px;
     line-height: 1.2;
     flex-shrink: 0;
@@ -3518,11 +3518,30 @@ table.perf-dialog-table th,
     width: 100%;
   }
 
+  .internal-viz .dash-panel-title .count {
+    font-size: 8.5px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    opacity: 0.85;
+  }
+
+  .internal-viz .dash-chart-legend {
+    font-size: 8px;
+    font-weight: 500;
+    gap: 6px;
+  }
+
+  .internal-viz .dash-chart-legend-btn {
+    font-size: 8px;
+    font-weight: 500;
+  }
+
   .internal-viz .hint {
-    font-size: 8px !important;
+    font-size: 7.5px !important;
+    font-weight: 500 !important;
     margin: 0 0 1px !important;
     line-height: 1.15 !important;
-    opacity: 0.85;
+    opacity: 0.8;
     flex-shrink: 0;
   }
 
@@ -3565,7 +3584,7 @@ table.perf-dialog-table th,
 
   .internal-viz .productivity-today-value {
     font-size: 16px;
-    font-weight: 800;
+    font-weight: 700;
     line-height: 1;
   }
 
@@ -3582,12 +3601,12 @@ table.perf-dialog-table th,
 
   .internal-viz .productivity-today-label {
     font-size: 7.5px;
-    font-weight: 600;
+    font-weight: 500;
   }
 
   .internal-viz .productivity-today-num {
     font-size: 10px;
-    font-weight: 700;
+    font-weight: 600;
   }
 
   /* Row Worst di TV: 6 tabel dalam grid 3x2, mengisi tinggi 1.6fr secara presisi */
@@ -3611,8 +3630,8 @@ table.perf-dialog-table th,
   }
 
   .internal-viz .internal-row-worst .dash-panel-title {
-    font-size: 9.5px;
-    font-weight: 700;
+    font-size: 9px;
+    font-weight: 600;
     margin: 0 0 1px;
     white-space: normal;
     line-height: 1.15;
@@ -3654,8 +3673,8 @@ table.perf-dialog-table th,
 
   .internal-viz .internal-row-worst table.table-compact th {
     padding: 2px 3.5px;
-    font-size: 8.5px;
-    font-weight: 700;
+    font-size: 8px;
+    font-weight: 600;
     line-height: 1.15;
     text-transform: uppercase;
     letter-spacing: 0.03em;
@@ -3665,14 +3684,14 @@ table.perf-dialog-table th,
 
   .internal-viz .internal-row-worst table.table-compact td {
     padding: 2px 3.5px;
-    font-size: 9px;
+    font-size: 8.5px;
     font-weight: 500;
     line-height: 1.2;
     border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   }
 
   .internal-viz .internal-row-worst .badge {
-    font-size: 8px;
+    font-size: 7.5px;
     font-weight: 600;
     padding: 1px 3px;
     border-radius: 3px;

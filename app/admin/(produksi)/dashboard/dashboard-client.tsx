@@ -45,11 +45,11 @@ const CAT_GRAD_COLORS: Record<string, { top: string; bottom: string }> = {
 const ENABLE_REALTIME = process.env.NEXT_PUBLIC_ENABLE_REALTIME === "true";
 
 const MACHINES = [
-  { key: "tandem", label: "TANDEM", shortLabel: "TANDEM", slug: "tandem" },
-  { key: "blanking", label: "BLANKING", shortLabel: "BLANKING", slug: "blanking" },
-  { key: "transfer_2000t", label: "TRANSFER 2000T", shortLabel: "TR 2000T", slug: "transfer-2000t" },
-  { key: "transfer_800t", label: "TRANSFER 800T", shortLabel: "TR 800T", slug: "transfer-800t" },
-  { key: "pc200t", label: "PC200T", shortLabel: "PC200T", slug: "pc200t" },
+  { key: "tandem", label: "TANDEM", shortLabel: "TANDEM", codeLabel: "PA", slug: "tandem" },
+  { key: "blanking", label: "BLANKING", shortLabel: "BLANKING", codeLabel: "BL", slug: "blanking" },
+  { key: "transfer_2000t", label: "TRANSFER 2000T", shortLabel: "TR 2000T", codeLabel: "2000T", slug: "transfer-2000t" },
+  { key: "transfer_800t", label: "TRANSFER 800T", shortLabel: "TR 800T", codeLabel: "800T", slug: "transfer-800t" },
+  { key: "pc200t", label: "PC200T", shortLabel: "PC200T", codeLabel: "PC200T", slug: "pc200t" },
 ];
 
 if (typeof window !== "undefined") {
@@ -1111,8 +1111,12 @@ export default function DashboardClient() {
           const rawKat = (r.kategori || "MESIN").toUpperCase().trim();
           const kat = (rawKat === "FORKLIFT" || rawKat.includes("FORKLIFT")) ? "OTHER" : (r.kategori || "MESIN");
           return {
-            mesin: m.key, mesinLabel: m.label,
-            kategori: kat, problem: r.problem || "-",
+            mesin: m.key,
+            mesinLabel: m.label,
+            mesinShort: m.shortLabel,
+            mesinCode: m.codeLabel || m.shortLabel,
+            kategori: kat,
+            problem: r.problem || "-",
             menit: Math.round(Number(r.total_menit) || 0),
           };
         })
@@ -1465,7 +1469,7 @@ export default function DashboardClient() {
       chartInstances.current.fleet = new Chart(fleetCanvasRef.current, {
         type: "bar",
         data: {
-          labels: MACHINES.map((m) => m.shortLabel || m.label),
+          labels: MACHINES.map((m) => m.codeLabel || m.shortLabel || m.label),
           datasets: categories.map((cat) => ({
             label: cat,
             data: MACHINES.map((m) => (dtByCategoryMap[m.key]?.[cat] || 0)),
@@ -1899,7 +1903,7 @@ export default function DashboardClient() {
           } as any,
           scales: {
             x: {
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8.5, weight: 600 }, maxRotation: 0, minRotation: 0, autoSkip: true, maxTicksLimit: 16 },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8, weight: 500 }, maxRotation: 0, minRotation: 0, autoSkip: true, maxTicksLimit: 16 },
               grid: { display: false },
               border: { display: false },
             },
@@ -1989,7 +1993,7 @@ export default function DashboardClient() {
           } as any,
           scales: {
             x: {
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8.5, weight: 600 }, maxRotation: 0, minRotation: 0, autoSkip: true, maxTicksLimit: 16 },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8, weight: 500 }, maxRotation: 0, minRotation: 0, autoSkip: true, maxTicksLimit: 16 },
               grid: { display: false },
               border: { display: false },
             },
@@ -2014,7 +2018,7 @@ export default function DashboardClient() {
       if (chartInstances.current.internalAvailability) {
         chartInstances.current.internalAvailability.destroy();
       }
-      const labels = MACHINES.map((m) => m.label);
+      const labels = MACHINES.map((m) => m.shortLabel || m.label);
       const prevActual = MACHINES.map((m) => Number((machineDataMap[m.key]?.prevAvailability || 0).toFixed(1)));
       const actual = MACHINES.map((m) => Number((machineDataMap[m.key]?.availability || 0).toFixed(1)));
       const target = MACHINES.map((m) => machineDataMap[m.key]?.targetAvailability || null);
@@ -2122,7 +2126,7 @@ export default function DashboardClient() {
       if (chartInstances.current.internalGsph) {
         chartInstances.current.internalGsph.destroy();
       }
-      const labels = MACHINES.map((m) => m.label);
+      const labels = MACHINES.map((m) => m.shortLabel || m.label);
       const prevActual = MACHINES.map((m) => Number((machineDataMap[m.key]?.prevGsph || 0).toFixed(0)));
       const actual = MACHINES.map((m) => Number((machineDataMap[m.key]?.gsph || 0).toFixed(0)));
       const target = MACHINES.map((m) => machineDataMap[m.key]?.targetGsph || null);
@@ -2208,11 +2212,12 @@ export default function DashboardClient() {
               border: { display: false },
             },
             y: {
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8 }, maxTicksLimit: 5 },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8 }, stepSize: 500, maxTicksLimit: 6 },
               grid: { color: getCssVar("--chart-grid") || "#334155", drawTicks: false },
               border: { display: false },
               beginAtZero: true,
-              suggestedMax: (() => { const mx = Math.max(...actual.filter(Boolean), ...prevActual.filter(Boolean), ...target.filter(Boolean) as number[]); return mx > 0 ? Math.ceil(mx * 1.08) : 10; })(),
+              max: 2500,
+              suggestedMax: 2500,
             },
           },
         },
@@ -2234,7 +2239,7 @@ export default function DashboardClient() {
       chartInstances.current.internalDowntimeLine = new Chart(internalDowntimeLineRef.current, {
         type: "bar",
         data: {
-          labels: MACHINES.map((m) => m.shortLabel || m.label),
+          labels: MACHINES.map((m) => m.codeLabel || m.shortLabel || m.label),
           datasets: [
             {
               label: "DOWNTIME",
@@ -2284,15 +2289,12 @@ export default function DashboardClient() {
               border: { display: false },
             },
             y: {
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8 }, maxTicksLimit: 5 },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8 }, stepSize: 3000, maxTicksLimit: 5 },
               grid: { color: getCssVar("--chart-grid") || "#334155", drawTicks: false },
               border: { display: false },
               beginAtZero: true,
-              suggestedMax: (() => {
-                const dtVals = MACHINES.map((m) => machineDataMap[m.key]?.downtime || 0);
-                const mx = Math.max(...dtVals, 1);
-                return Math.ceil(mx * 1.08);
-              })(),
+              max: 12000,
+              suggestedMax: 12000,
             },
           },
         },
@@ -2411,7 +2413,7 @@ export default function DashboardClient() {
       chartInstances.current.internalCategoryLine = new Chart(internalCategoryLineRef.current, {
         type: "bar",
         data: {
-          labels: MACHINES.map((m) => m.shortLabel || m.label),
+          labels: MACHINES.map((m) => m.codeLabel || m.shortLabel || m.label),
           datasets: categories.map((cat) => ({
             label: cat,
             data: MACHINES.map((m) => dtByCategoryMap[m.key]?.[cat] || 0),
@@ -2473,17 +2475,12 @@ export default function DashboardClient() {
             },
             y: {
               stacked: true,
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8 }, maxTicksLimit: 5 },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8 }, stepSize: 3000, maxTicksLimit: 5 },
               grid: { color: getCssVar("--chart-grid") || "#334155", drawTicks: false },
               border: { display: false },
               beginAtZero: true,
-              suggestedMax: (() => {
-                const maxStackTotal = Math.max(
-                  ...MACHINES.map((m) => categories.reduce((sum, cat) => sum + (dtByCategoryMap[m.key]?.[cat] || 0), 0)),
-                  0
-                );
-                return maxStackTotal > 0 ? Math.ceil(maxStackTotal * 1.15) : 100;
-              })(),
+              max: 12000,
+              suggestedMax: 12000,
             },
           },
         },
@@ -3132,7 +3129,7 @@ export default function DashboardClient() {
                                         >
                                           <td title={r.mesinLabel}>
                                             <span className="badge">
-                                              {r.mesinLabel}
+                                              {r.mesinCode || r.mesinShort || r.mesinLabel}
                                             </span>
                                           </td>
                                           <td title={r.problem} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -3366,7 +3363,7 @@ export default function DashboardClient() {
                                 className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
                                 style={{ animationDelay: `${idx * 30}ms` }}
                               >
-                                <td title={row.mesinLabel}><span className="badge">{row.mesinLabel}</span></td>
+                                <td title={row.mesinLabel}><span className="badge">{row.mesinShort || row.mesinLabel}</span></td>
                                 <td title={row.kategori}>{row.kategori}</td>
                                 <td title={row.problem} style={{ minWidth: 100, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.problem}</td>
                                 <td className="mono" style={{ textAlign: "right", fontWeight: 700 }}>{fmtNum(row.menit)}</td>

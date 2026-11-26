@@ -116,16 +116,16 @@ const pieCenterText = {
     const maxTextWidth = Math.max(16, innerR * 1.6);
 
     let effectiveValFont = Math.max(10, Math.min(18, Math.round(size * 0.14)));
-    ctx.font = `700 ${effectiveValFont}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+    ctx.font = `600 ${effectiveValFont}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
     const valWidth = ctx.measureText(String(opts.value).toUpperCase()).width;
     if (valWidth > maxTextWidth) {
       effectiveValFont = Math.max(8.5, Math.floor(effectiveValFont * (maxTextWidth / valWidth)));
-      ctx.font = `700 ${effectiveValFont}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+      ctx.font = `600 ${effectiveValFont}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
     }
 
     let effectiveLblFont = Math.max(7, Math.min(9, Math.round(size * 0.07)));
     if (opts.label) {
-      ctx.font = `600 ${effectiveLblFont}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+      ctx.font = `500 ${effectiveLblFont}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
       const lblWidth = ctx.measureText(String(opts.label).toUpperCase()).width;
       if (lblWidth > maxTextWidth) {
         effectiveLblFont = Math.max(6.5, Math.floor(effectiveLblFont * (maxTextWidth / lblWidth)));
@@ -133,11 +133,11 @@ const pieCenterText = {
     }
 
     ctx.fillStyle = mainColor;
-    ctx.font = `700 ${effectiveValFont}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+    ctx.font = `600 ${effectiveValFont}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
     ctx.fillText(String(opts.value).toUpperCase(), cx, cy - (opts.label ? (effectiveLblFont * 0.6) : 0));
     if (opts.label) {
       ctx.fillStyle = labelColor;
-      ctx.font = `600 ${effectiveLblFont}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+      ctx.font = `500 ${effectiveLblFont}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
       ctx.fillText(String(opts.label).toUpperCase(), cx, cy + (effectiveValFont * 0.52));
     }
     ctx.restore();
@@ -170,12 +170,12 @@ const sliceLabels = {
       const sliceColor = perSliceColors ? (perSliceColors[i] || fallbackColor) : fallbackColor;
       ctx.save();
       ctx.fillStyle = sliceColor;
-      ctx.font = "600 8.5px " + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+      ctx.font = "600 7.5px " + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       // Thin dark stroke for legibility on light/coloured backgrounds
-      ctx.strokeStyle = "rgba(0,0,0,0.65)";
-      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = "rgba(0,0,0,0.45)";
+      ctx.lineWidth = 1.5;
       ctx.lineJoin = "round";
       ctx.strokeText(pct + "%", pos.x, pos.y);
       ctx.fillText(pct + "%", pos.x, pos.y);
@@ -214,10 +214,19 @@ const varianceArrows = {
       const labelY = Math.min(barTopY, targetY) - 15;
       ctx.save();
       ctx.textAlign = "center";
-      ctx.font = "600 8px " + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+      ctx.font = "500 7.5px " + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+      const isDarkTheme = typeof document !== "undefined" && (
+        document.documentElement.classList.contains("dark") ||
+        document.documentElement.getAttribute("data-theme") === "dark"
+      );
+      const haloStroke = isDarkTheme ? "rgba(15, 23, 42, 0.85)" : "rgba(255, 255, 255, 0.95)";
       ctx.fillStyle = color;
       const sign = variance > 0 ? "+" : "";
       const text = sign + (opts.fmt ? opts.fmt(variance) : Math.round(variance));
+      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = haloStroke;
+      ctx.lineJoin = "round";
+      ctx.strokeText(String(text).toUpperCase(), x, labelY);
       ctx.fillText(String(text).toUpperCase(), x, labelY);
       const y1 = labelY + 3, y2 = labelY + 11;
       ctx.strokeStyle = color;
@@ -252,6 +261,11 @@ const barValueLabels = {
     const scales = chart.options.scales as any;
     const isStacked = scales?.x?.stacked || scales?.y?.stacked;
     const defaultLabelColor = resolveColor(opts.color, "--text", "#f1f5f9");
+    const isDarkTheme = typeof document !== "undefined" && (
+      document.documentElement.classList.contains("dark") ||
+      document.documentElement.getAttribute("data-theme") === "dark"
+    );
+    const haloStrokeColor = isDarkTheme ? "rgba(15, 23, 42, 0.85)" : "rgba(255, 255, 255, 0.95)";
 
     const n = chart.data.labels?.length || 1;
     const slot = chartArea && n ? chartArea.width / n : 30;
@@ -291,7 +305,8 @@ const barValueLabels = {
 
         const textStr = String(fmt(val)).toUpperCase();
         let effectiveFs = baseFs;
-        ctx.font = `600 ${baseFs}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+        const fw = opts.fontWeight || (effectiveFs <= 8 ? "500" : "600");
+        ctx.font = `${fw} ${baseFs}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
         const tw = ctx.measureText(textStr).width;
         if (tw + 4 > slot && slot > 0) {
           effectiveFs = Math.max(5, Math.floor(baseFs * (slot / (tw + 4))));
@@ -304,7 +319,7 @@ const barValueLabels = {
 
           const centerY = (el.y + base) / 2;
           ctx.save();
-          ctx.font = `600 ${effectiveFs}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+          ctx.font = `${fw} ${effectiveFs}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
           ctx.fillStyle = labelColor;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
@@ -315,15 +330,15 @@ const barValueLabels = {
 
         const pos = el.tooltipPosition ? el.tooltipPosition() : { x: el.x, y: el.y };
         ctx.save();
-        ctx.font = `600 ${effectiveFs}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+        ctx.font = `${fw} ${effectiveFs}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
         ctx.fillStyle = labelColor;
         ctx.textAlign = "center";
         ctx.textBaseline = "bottom";
         const offsetY = isLine ? -6 : -2;
 
-        // Subtle stroke halo for maximum crispness
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = "rgba(15, 23, 42, 0.7)";
+        // Clean stroke halo for maximum crispness
+        ctx.lineWidth = 1.2;
+        ctx.strokeStyle = haloStrokeColor;
         ctx.lineJoin = "round";
         ctx.strokeText(textStr, pos.x, pos.y + offsetY);
         ctx.fillText(textStr, pos.x, pos.y + offsetY);
@@ -356,16 +371,21 @@ const barValueLabels = {
         if (tot <= 0 || colTopY[i] === undefined || colX[i] === undefined) return;
         const totStr = String(fmt(tot)).toUpperCase();
         let effectiveFs = baseFs;
-        ctx.font = `600 ${baseFs}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+        const fw = opts.fontWeight || (effectiveFs <= 8 ? "500" : "600");
+        ctx.font = `${fw} ${baseFs}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
         const tw = ctx.measureText(totStr).width;
         if (tw + 4 > slot && slot > 0) {
           effectiveFs = Math.max(5, Math.floor(baseFs * (slot / (tw + 4))));
         }
         ctx.save();
-        ctx.font = `600 ${effectiveFs}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+        ctx.font = `${fw} ${effectiveFs}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
         ctx.fillStyle = defaultLabelColor;
         ctx.textAlign = "center";
         ctx.textBaseline = "bottom";
+        ctx.lineWidth = 1.2;
+        ctx.strokeStyle = haloStrokeColor;
+        ctx.lineJoin = "round";
+        ctx.strokeText(totStr, colX[i], colTopY[i] - 2);
         ctx.fillText(totStr, colX[i], colTopY[i] - 2);
         ctx.restore();
       });
