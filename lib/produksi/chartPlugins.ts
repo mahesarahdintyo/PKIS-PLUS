@@ -113,32 +113,32 @@ const pieCenterText = {
     const mainColor = resolveColor(opts.color, "--text", "#f1f5f9");
     const labelColor = resolveColor(opts.labelColor, "--muted-foreground", "#94a3b8");
 
-    const maxTextWidth = Math.max(20, innerR * 1.7);
+    const maxTextWidth = Math.max(16, innerR * 1.6);
 
-    let effectiveValFont = Math.max(12, Math.min(24, Math.round(size * 0.18)));
-    ctx.font = `800 ${effectiveValFont}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+    let effectiveValFont = Math.max(10, Math.min(18, Math.round(size * 0.14)));
+    ctx.font = `700 ${effectiveValFont}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
     const valWidth = ctx.measureText(String(opts.value).toUpperCase()).width;
     if (valWidth > maxTextWidth) {
-      effectiveValFont = Math.max(10, Math.floor(effectiveValFont * (maxTextWidth / valWidth)));
-      ctx.font = `800 ${effectiveValFont}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+      effectiveValFont = Math.max(8.5, Math.floor(effectiveValFont * (maxTextWidth / valWidth)));
+      ctx.font = `700 ${effectiveValFont}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
     }
 
-    let effectiveLblFont = Math.max(8.5, Math.min(11, Math.round(size * 0.085)));
+    let effectiveLblFont = Math.max(7, Math.min(9, Math.round(size * 0.07)));
     if (opts.label) {
       ctx.font = `600 ${effectiveLblFont}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
       const lblWidth = ctx.measureText(String(opts.label).toUpperCase()).width;
       if (lblWidth > maxTextWidth) {
-        effectiveLblFont = Math.max(7.5, Math.floor(effectiveLblFont * (maxTextWidth / lblWidth)));
+        effectiveLblFont = Math.max(6.5, Math.floor(effectiveLblFont * (maxTextWidth / lblWidth)));
       }
     }
 
     ctx.fillStyle = mainColor;
-    ctx.font = `800 ${effectiveValFont}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
-    ctx.fillText(String(opts.value).toUpperCase(), cx, cy - (opts.label ? (effectiveLblFont * 0.65) : 0));
+    ctx.font = `700 ${effectiveValFont}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+    ctx.fillText(String(opts.value).toUpperCase(), cx, cy - (opts.label ? (effectiveLblFont * 0.6) : 0));
     if (opts.label) {
       ctx.fillStyle = labelColor;
       ctx.font = `600 ${effectiveLblFont}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
-      ctx.fillText(String(opts.label).toUpperCase(), cx, cy + (effectiveValFont * 0.55));
+      ctx.fillText(String(opts.label).toUpperCase(), cx, cy + (effectiveValFont * 0.52));
     }
     ctx.restore();
   },
@@ -163,17 +163,17 @@ const sliceLabels = {
       const val = Number((dataset.data as number[])[i]) || 0;
       if (val <= 0) return;
       const pct = Math.round((val / total) * 100);
-      if (pct < 10) return;
+      if (pct < 12) return;
       const pos = arc.tooltipPosition();
       const sliceColor = perSliceColors ? (perSliceColors[i] || fallbackColor) : fallbackColor;
       ctx.save();
       ctx.fillStyle = sliceColor;
-      ctx.font = "bold 11px " + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+      ctx.font = "600 8.5px " + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       // Thin dark stroke for legibility on light/coloured backgrounds
-      ctx.strokeStyle = "rgba(0,0,0,0.55)";
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = "rgba(0,0,0,0.65)";
+      ctx.lineWidth = 2.5;
       ctx.lineJoin = "round";
       ctx.strokeText(pct + "%", pos.x, pos.y);
       ctx.fillText(pct + "%", pos.x, pos.y);
@@ -209,28 +209,28 @@ const varianceArrows = {
       const x = bar.x;
       const barTopY = bar.y;
       const targetY = (scales as any).y.getPixelForValue(target);
-      const labelY = Math.min(barTopY, targetY) - 24;
+      const labelY = Math.min(barTopY, targetY) - 15;
       ctx.save();
       ctx.textAlign = "center";
-      ctx.font = "700 11px " + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+      ctx.font = "600 8px " + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
       ctx.fillStyle = color;
       const sign = variance > 0 ? "+" : "";
       const text = sign + (opts.fmt ? opts.fmt(variance) : Math.round(variance));
       ctx.fillText(String(text).toUpperCase(), x, labelY);
-      const y1 = labelY + 7, y2 = labelY + 19;
+      const y1 = labelY + 3, y2 = labelY + 11;
       ctx.strokeStyle = color;
       ctx.fillStyle = color;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(x, isUp ? y2 : y1);
-      ctx.lineTo(x, isUp ? y1 + 4 : y2 - 4);
+      ctx.lineTo(x, isUp ? y1 + 3 : y2 - 3);
       ctx.stroke();
       const headY = isUp ? y1 : y2;
       const dir = isUp ? 1 : -1;
       ctx.beginPath();
-      ctx.moveTo(x - 4, headY + dir * 5);
+      ctx.moveTo(x - 3, headY + dir * 3.5);
       ctx.lineTo(x, headY);
-      ctx.lineTo(x + 4, headY + dir * 5);
+      ctx.lineTo(x + 3, headY + dir * 3.5);
       ctx.closePath();
       ctx.fill();
       ctx.restore();
@@ -238,18 +238,22 @@ const varianceArrows = {
   },
 };
 
-// Label angka (bold) di atas/tengah tiap bar.
+// Label angka (bold/crisp) di atas/tengah tiap bar dengan auto-scale cegah tabrakan.
 const barValueLabels = {
   id: "barValueLabels",
   afterDatasetsDraw(chart: Chart, _args: unknown, opts: any) {
     if (!opts || !opts.enabled) return;
-    const { ctx } = chart;
+    const { ctx, chartArea } = chart;
     const fmt = opts.fmt || ((v: number) => Math.round(v));
-    const minHeight = opts.minHeight !== undefined ? opts.minHeight : 20;
+    const minHeight = opts.minHeight !== undefined ? opts.minHeight : 14;
 
     const scales = chart.options.scales as any;
     const isStacked = scales?.x?.stacked || scales?.y?.stacked;
     const defaultLabelColor = resolveColor(opts.color, "--text", "#f1f5f9");
+
+    const n = chart.data.labels?.length || 1;
+    const slot = chartArea && n ? chartArea.width / n : 30;
+    const baseFs = slot < 18 ? 6 : slot < 28 ? 7 : slot < 42 ? 7.5 : 8.5;
 
     chart.data.datasets.forEach((dataset: any, di: number) => {
       if (dataset.skipLabel) return;
@@ -259,9 +263,6 @@ const barValueLabels = {
       const isLine = dataset.type === "line";
       const labelColor = dataset.valueLabelColor ? resolveColor(dataset.valueLabelColor, "--text", "#f1f5f9") : defaultLabelColor;
 
-      // Pada grafik garis dengan banyak titik (misal > 12 titik seperti pada mode bulanan 30 hari),
-      // mencetak label di setiap titik menyebabkan teks saling bertumpuk (overlap) secara horizontal.
-      // Solusi: Hanya tampilkan label pada titik puncak tertinggi (peak / max) dan titik terakhir untuk menjaga grafik tetap bersih dan terbaca jelas.
       let maxIdx = -1;
       let lastValIdx = -1;
       if (isLine && meta.data.length > 12 && !opts.forceAll) {
@@ -282,9 +283,16 @@ const barValueLabels = {
         const val = dataset.data[i];
         if (val === null || val === undefined || val === 0) return;
 
-        // Lewati label padat kecuali titik puncak tertinggi dan titik terakhir
         if (isLine && meta.data.length > 12 && !opts.forceAll) {
           if (i !== maxIdx && i !== lastValIdx) return;
+        }
+
+        const textStr = String(fmt(val)).toUpperCase();
+        let effectiveFs = baseFs;
+        ctx.font = `600 ${baseFs}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+        const tw = ctx.measureText(textStr).width;
+        if (tw + 4 > slot && slot > 0) {
+          effectiveFs = Math.max(5, Math.floor(baseFs * (slot / (tw + 4))));
         }
 
         if (!isLine && isStacked) {
@@ -294,23 +302,29 @@ const barValueLabels = {
 
           const centerY = (el.y + base) / 2;
           ctx.save();
-          ctx.font = "700 10px 'Aptos', 'Aptos Display', sans-serif";
+          ctx.font = `600 ${effectiveFs}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
           ctx.fillStyle = labelColor;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.fillText(String(fmt(val)).toUpperCase(), el.x, centerY);
+          ctx.fillText(textStr, el.x, centerY);
           ctx.restore();
           return;
         }
 
         const pos = el.tooltipPosition ? el.tooltipPosition() : { x: el.x, y: el.y };
         ctx.save();
-        ctx.font = "700 10px 'Aptos', 'Aptos Display', sans-serif";
+        ctx.font = `600 ${effectiveFs}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
         ctx.fillStyle = labelColor;
         ctx.textAlign = "center";
         ctx.textBaseline = "bottom";
-        const offsetY = isLine ? -8 : -4;
-        ctx.fillText(String(fmt(val)).toUpperCase(), pos.x, pos.y + offsetY);
+        const offsetY = isLine ? -6 : -2;
+
+        // Subtle stroke halo for maximum crispness
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "rgba(15, 23, 42, 0.7)";
+        ctx.lineJoin = "round";
+        ctx.strokeText(textStr, pos.x, pos.y + offsetY);
+        ctx.fillText(textStr, pos.x, pos.y + offsetY);
         ctx.restore();
       });
     });
@@ -338,12 +352,19 @@ const barValueLabels = {
 
       colTotals.forEach((tot, i) => {
         if (tot <= 0 || colTopY[i] === undefined || colX[i] === undefined) return;
+        const totStr = String(fmt(tot)).toUpperCase();
+        let effectiveFs = baseFs;
+        ctx.font = `600 ${baseFs}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+        const tw = ctx.measureText(totStr).width;
+        if (tw + 4 > slot && slot > 0) {
+          effectiveFs = Math.max(5, Math.floor(baseFs * (slot / (tw + 4))));
+        }
         ctx.save();
-        ctx.font = "700 10px 'Aptos', 'Aptos Display', sans-serif";
+        ctx.font = `600 ${effectiveFs}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
         ctx.fillStyle = defaultLabelColor;
         ctx.textAlign = "center";
         ctx.textBaseline = "bottom";
-        ctx.fillText(String(fmt(tot)).toUpperCase(), colX[i], colTopY[i] - 3);
+        ctx.fillText(totStr, colX[i], colTopY[i] - 2);
         ctx.restore();
       });
     }

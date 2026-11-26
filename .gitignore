@@ -20,3 +20,4 @@ supabase/.temp/
 _migrate-source/
 tsconfig.tsbuildinfo
 .env
+reference-exhaust/

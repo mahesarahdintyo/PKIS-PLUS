@@ -3046,16 +3046,16 @@ table.perf-dialog-table th,
 
   /* ═══ TV 55" Tab 1: Visualisasi Umum (Presisi & Seimbang Ala Dashboard Exhaust) ═══ */
   .sqcpm-columns {
-    gap: 8px;
+    gap: 7px;
     flex-shrink: 0;
-    height: clamp(185px, 22.5vh, 230px);
-    margin-bottom: 8px;
+    height: clamp(160px, 19vh, 195px);
+    margin-bottom: 6px;
   }
 
   .sqcpm-col {
-    padding: 8px 12px;
+    padding: 7px 10px;
     gap: 2px;
-    border-radius: 8px;
+    border-radius: 7px;
     height: 100%;
     min-height: 0;
     display: flex;
@@ -3066,63 +3066,63 @@ table.perf-dialog-table th,
   }
 
   .sqcpm-col-head {
-    padding-bottom: 3px;
+    padding-bottom: 2px;
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: 6px;
     flex-shrink: 0;
   }
   .sqcpm-col-icon {
-    width: 26px;
-    height: 26px;
-    font-size: 13px;
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
   }
   .sqcpm-col-title {
-    font-size: clamp(11.5px, 1.4vh, 13px);
-    font-weight: 800;
-    letter-spacing: 0.03em;
+    font-size: clamp(10.5px, 1.25vh, 12px);
+    font-weight: 700;
+    letter-spacing: 0.02em;
   }
   .sqcpm-col-sub {
-    font-size: clamp(8px, 1vh, 9.5px);
+    font-size: clamp(7.5px, 0.9vh, 8.5px);
     font-weight: 600;
     opacity: 0.8;
   }
   .sqcpm-metric-label {
-    font-size: clamp(9.5px, 1.15vh, 11px);
+    font-size: clamp(8.5px, 1.05vh, 9.5px);
     line-height: 1.15;
     flex-shrink: 0;
   }
   .sqcpm-metric-value {
-    font-size: clamp(22px, 2.7vh, 28px);
+    font-size: clamp(18px, 2.2vh, 22px);
     font-weight: 800;
     line-height: 1;
     flex-shrink: 0;
   }
   .sqcpm-cost-value {
-    font-size: clamp(19px, 2.3vh, 24px);
+    font-size: clamp(16px, 1.9vh, 19px);
   }
   .attendance-dual-metric {
     display: flex;
     align-items: flex-end;
-    gap: 10px;
+    gap: 8px;
     margin-bottom: 1px;
     flex-shrink: 0;
   }
   .attendance-dual-item .sqcpm-metric-value {
-    font-size: clamp(17px, 2.1vh, 21px);
+    font-size: clamp(15px, 1.8vh, 18px);
     font-weight: 800;
     line-height: 1;
   }
   .attendance-dual-label {
-    font-size: clamp(7.5px, 0.9vh, 9px);
+    font-size: clamp(7px, 0.85vh, 8px);
   }
   .sqcpm-bar {
-    height: 4px;
+    height: 3.5px;
     flex-shrink: 0;
     margin: 1px 0;
   }
   .sqcpm-mini-label {
-    font-size: clamp(9px, 1.1vh, 10.5px);
+    font-size: clamp(8px, 0.95vh, 9px);
     line-height: 1.2;
     flex-shrink: 0;
   }
@@ -3134,21 +3134,21 @@ table.perf-dialog-table th,
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    gap: 6px;
+    gap: 5px;
     margin-bottom: 1px;
-    font-size: clamp(9px, 1.1vh, 10.5px);
+    font-size: clamp(8px, 0.95vh, 9px);
   }
   .cost-split-value {
-    font-size: clamp(10px, 1.2vh, 11.5px);
+    font-size: clamp(8.5px, 1vh, 9.5px);
     font-weight: 700;
   }
   .cost-split-bar {
-    height: 4px;
+    height: 3.5px;
   }
   .sqcpm-chart {
     flex: 1 1 0%;
-    height: clamp(48px, 6vh, 65px);
-    min-height: 40px;
+    height: clamp(40px, 5vh, 55px);
+    min-height: 35px;
     padding-top: 2px;
     flex-shrink: 0;
     margin-top: auto;
@@ -3156,57 +3156,57 @@ table.perf-dialog-table th,
     width: 100%;
   }
   .sqcpm-chart-tall {
-    height: clamp(48px, 6vh, 65px);
+    height: clamp(40px, 5vh, 55px);
   }
   .sqcpm-chart-title {
     margin-top: auto;
-    font-size: clamp(8.5px, 1vh, 9.5px);
+    font-size: clamp(8px, 0.95vh, 9px);
     font-weight: 700;
     text-transform: uppercase;
     flex-shrink: 0;
   }
   .manpower-grid-5 {
     margin-top: auto;
-    gap: 3px;
+    gap: 2.5px;
     flex-shrink: 0;
   }
   .manpower-grid-5 .manpower-box {
-    padding: 3px 2px;
-    border-radius: 5px;
+    padding: 2.5px 2px;
+    border-radius: 4px;
     gap: 1px;
   }
   .manpower-grid-5 .manpower-icon {
-    font-size: clamp(9.5px, 1.1vh, 11.5px);
+    font-size: clamp(8.5px, 1vh, 10px);
   }
   .manpower-grid-5 .manpower-label {
-    font-size: clamp(7px, 0.85vh, 8px);
+    font-size: clamp(6.5px, 0.8vh, 7.5px);
   }
   .manpower-grid-5 .manpower-value {
-    font-size: clamp(12px, 1.45vh, 14.5px);
+    font-size: clamp(10px, 1.2vh, 12px);
     font-weight: 800;
     line-height: 1;
   }
   .manpower-grid-5 .manpower-unit {
-    font-size: clamp(6.5px, 0.8vh, 7.5px);
+    font-size: clamp(6px, 0.75vh, 7px);
   }
   .moral-summary {
     margin-top: 2px;
     padding-top: 0;
-    gap: 3px;
+    gap: 2.5px;
     flex-shrink: 0;
   }
   .moral-summary-item {
-    padding: 2px 3px;
-    border-radius: 4px;
+    padding: 1.5px 2.5px;
+    border-radius: 3px;
     gap: 1px;
   }
   .moral-summary-value {
-    font-size: clamp(11px, 1.3vh, 13px);
+    font-size: clamp(9.5px, 1.1vh, 11px);
     font-weight: 800;
     line-height: 1;
   }
   .moral-summary-label {
-    font-size: clamp(7px, 0.85vh, 8px);
+    font-size: clamp(6.5px, 0.8vh, 7.5px);
   }
 
   .tv-grid {
@@ -3245,9 +3245,9 @@ table.perf-dialog-table th,
   }
 
   .dash-panel-title {
-    font-size: 12.5px;
+    font-size: 10.5px;
     font-weight: 700;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
     flex-shrink: 0;
   }
 
@@ -3269,58 +3269,58 @@ table.perf-dialog-table th,
   }
 
   .pareto-row {
-    margin-bottom: 4px;
-    font-size: 11.5px;
+    margin-bottom: 2px;
+    font-size: 9.5px;
     grid-template-columns: 135px 1fr 52px;
   }
 
   .pareto-bar-track {
-    height: 15px;
-    border-radius: 4px;
+    height: 11px;
+    border-radius: 3px;
   }
   .oee-donut-wrap {
-    width: 76px;
-    height: 76px;
+    width: 58px;
+    height: 58px;
     margin-bottom: 2px;
   }
   .oee-donut-label {
-    font-size: 11px;
+    font-size: 8.5px;
     font-weight: 600;
   }
   .oee-total-value {
-    font-size: 24px;
+    font-size: 18px;
     font-weight: 800;
   }
   .oee-total-big {
-    margin-top: 2px;
-    padding-top: 2px;
+    margin-top: 1px;
+    padding-top: 1px;
   }
   .oee-total-big-value {
-    font-size: 25px;
+    font-size: 19px;
     font-weight: 800;
   }
   .oee-kesimpulan {
-    font-size: 10.5px;
-    line-height: 1.35;
-    margin-top: 3px;
+    font-size: 9px;
+    line-height: 1.25;
+    margin-top: 2px;
   }
 
   table.table-compact th,
   table.table-compact td {
-    padding: 5px 6px;
-    font-size: 11.5px;
+    padding: 3px 5px;
+    font-size: 9.5px;
   }
   table.table-compact th {
-    font-size: 11px;
+    font-size: 9px;
     font-weight: 700;
   }
   .tv-row-1 table.table-compact th,
   .tv-row-1 table.table-compact td {
-    padding: 7px 8px;
-    font-size: 12px;
+    padding: 3.5px 5px;
+    font-size: 9.5px;
   }
   .tv-row-1 table.table-compact th {
-    font-size: 11.5px;
+    font-size: 9px;
     font-weight: 700;
   }
 
@@ -3424,7 +3424,7 @@ table.perf-dialog-table th,
   }
 
   .internal-viz .dash-panel-title {
-    font-size: 11.5px;
+    font-size: 10px;
     font-weight: 700;
     margin: 0 0 1px;
     line-height: 1.2;
@@ -3436,8 +3436,8 @@ table.perf-dialog-table th,
   }
 
   .internal-viz .hint {
-    font-size: 9px !important;
-    margin: 0 0 2px !important;
+    font-size: 8px !important;
+    margin: 0 0 1px !important;
     line-height: 1.15 !important;
     opacity: 0.85;
     flex-shrink: 0;
@@ -3466,7 +3466,7 @@ table.perf-dialog-table th,
   .internal-col-left:has(.productivity-today) > .dash-panel:first-child {
     flex-shrink: 0;
     height: auto;
-    padding: 5px 8px;
+    padding: 4px 7px;
   }
 
   .internal-viz .productivity-today {
@@ -3475,35 +3475,35 @@ table.perf-dialog-table th,
 
   .internal-viz .productivity-today-main {
     margin-bottom: 2px;
-    gap: 6px;
+    gap: 5px;
     display: flex;
     align-items: baseline;
   }
 
   .internal-viz .productivity-today-value {
-    font-size: 19px;
+    font-size: 16px;
     font-weight: 800;
     line-height: 1;
   }
 
   .internal-viz .productivity-today-grid {
     grid-template-columns: repeat(4, 1fr);
-    gap: 4px;
+    gap: 3px;
   }
 
   .internal-viz .productivity-today-stat {
-    padding: 2.5px 5px;
+    padding: 2px 4px;
     border-radius: 4px;
     gap: 1px;
   }
 
   .internal-viz .productivity-today-label {
-    font-size: 8.5px;
+    font-size: 7.5px;
     font-weight: 600;
   }
 
   .internal-viz .productivity-today-num {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
   }
 
@@ -3512,14 +3512,14 @@ table.perf-dialog-table th,
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     grid-template-rows: 1fr 1fr;
-    gap: 6px;
+    gap: 5px;
     min-height: 0;
     height: 100%;
     overflow: hidden;
   }
 
   .internal-viz .internal-row-worst .dash-panel {
-    padding: 4px 7px;
+    padding: 3px 6px;
     height: 100%;
     min-height: 0;
     display: flex;
@@ -3528,9 +3528,9 @@ table.perf-dialog-table th,
   }
 
   .internal-viz .internal-row-worst .dash-panel-title {
-    font-size: 11px;
+    font-size: 9.5px;
     font-weight: 700;
-    margin: 0 0 2px;
+    margin: 0 0 1px;
     white-space: normal;
     line-height: 1.15;
     flex-shrink: 0;
@@ -3570,8 +3570,8 @@ table.perf-dialog-table th,
   }
 
   .internal-viz .internal-row-worst table.table-compact th {
-    padding: 2.5px 4px;
-    font-size: 9.5px;
+    padding: 2px 3.5px;
+    font-size: 8.5px;
     font-weight: 700;
     line-height: 1.15;
     text-transform: uppercase;
@@ -3581,17 +3581,17 @@ table.perf-dialog-table th,
   }
 
   .internal-viz .internal-row-worst table.table-compact td {
-    padding: 2.5px 4px;
-    font-size: 10px;
+    padding: 2px 3.5px;
+    font-size: 9px;
     font-weight: 500;
     line-height: 1.2;
     border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   }
 
   .internal-viz .internal-row-worst .badge {
-    font-size: 9px;
+    font-size: 8px;
     font-weight: 600;
-    padding: 1px 4px;
+    padding: 1px 3px;
     border-radius: 3px;
     max-width: 100%;
   }
@@ -3654,7 +3654,7 @@ table.perf-dialog-table th,
   }
 
   .perf-header .dash-panel-title {
-    font-size: 12.5px !important;
+    font-size: 10.5px !important;
   }
 
   .perf-top-grid {
@@ -3667,17 +3667,17 @@ table.perf-dialog-table th,
   }
 
   .perf-cards-col {
-    gap: 3.5px !important;
+    gap: 3px !important;
     height: 100%;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1.25fr repeat(4, 1fr);
+    grid-template-rows: 1.2fr repeat(4, 1fr);
     overflow: hidden;
   }
 
   .perf-cards-col .perf-card {
-    padding: 3px 7px !important;
-    border-radius: 6px;
+    padding: 2.5px 6px !important;
+    border-radius: 5px;
     min-height: 0;
     display: flex;
     flex-direction: column;
@@ -3686,32 +3686,32 @@ table.perf-dialog-table th,
   }
 
   .perf-cards-col .perf-card-oee {
-    padding: 5px 8px !important;
+    padding: 4px 7px !important;
   }
 
   .perf-cards-col .perf-card-oee .perf-label {
-    font-size: 10.5px !important;
+    font-size: 9px !important;
   }
 
   .perf-cards-col .perf-card-oee .perf-value-xl {
-    font-size: 22px !important;
+    font-size: 18px !important;
     font-weight: 800;
     line-height: 1.1;
   }
 
   .perf-cards-col .perf-oee-breakdown {
-    font-size: 9.5px !important;
+    font-size: 8px !important;
     margin-top: 1px !important;
   }
 
   .perf-cards-col .perf-label {
-    font-size: 9.5px !important;
+    font-size: 8px !important;
     font-weight: 600;
     line-height: 1.1;
   }
 
   .perf-cards-col .perf-value {
-    font-size: 14px !important;
+    font-size: 12px !important;
     font-weight: 800;
     line-height: 1.1;
   }
@@ -3769,7 +3769,7 @@ table.perf-dialog-table th,
 
   .perf-daily-chart > .panel-subtitle,
   .perf-daily-list > .panel-subtitle {
-    font-size: 11px !important;
+    font-size: 9.5px !important;
     font-weight: 700;
     margin-bottom: 2px !important;
     flex-shrink: 0;
@@ -3800,8 +3800,8 @@ table.perf-dialog-table th,
 
   .perf-daily-list table.table-compact th,
   .perf-daily-list table.table-compact td {
-    padding: 2.5px 5px !important;
-    font-size: 10px !important;
+    padding: 2px 4px !important;
+    font-size: 8.5px !important;
   }
 
   .perf-cat-tables-compact {
@@ -3812,7 +3812,7 @@ table.perf-dialog-table th,
   }
 
   .perf-cat-tables-compact .panel-subtitle {
-    font-size: 10px !important;
+    font-size: 9px !important;
     margin-bottom: 2px !important;
   }
 
@@ -3822,14 +3822,14 @@ table.perf-dialog-table th,
   }
 
   .perf-cat-card {
-    border-radius: 6px;
-    padding: 3px 6px !important;
+    border-radius: 5px;
+    padding: 2.5px 5px !important;
   }
 
   .perf-cat-card table.table-compact th,
   .perf-cat-card table.table-compact td {
-    padding: 1.5px 3px !important;
-    font-size: 9.5px !important;
+    padding: 1px 3px !important;
+    font-size: 8px !important;
   }
 
   .perf-lower-grid {
@@ -3853,7 +3853,7 @@ table.perf-dialog-table th,
   }
 
   .perf-lower-col > .panel-subtitle {
-    font-size: 11px !important;
+    font-size: 9.5px !important;
     font-weight: 700;
     margin-bottom: 2px !important;
     flex-shrink: 0;
@@ -3892,8 +3892,8 @@ table.perf-dialog-table th,
   }
 
   .perf-lower-col table.table-compact th {
-    padding: 2.5px 4px !important;
-    font-size: 9.5px !important;
+    padding: 2px 4px !important;
+    font-size: 8.5px !important;
     font-weight: 700;
     text-transform: uppercase;
     color: var(--muted-foreground, #94a3b8);
@@ -3901,16 +3901,16 @@ table.perf-dialog-table th,
   }
 
   .perf-lower-col table.table-compact td {
-    padding: 2.5px 4px !important;
-    font-size: 10px !important;
+    padding: 2px 4px !important;
+    font-size: 8.5px !important;
     font-weight: 500;
     border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   }
 
   .perf-lower-col .badge {
-    font-size: 9px !important;
+    font-size: 8px !important;
     font-weight: 700;
-    padding: 1px 4px !important;
+    padding: 1px 3px !important;
     border-radius: 3px;
     max-width: 100%;
     white-space: nowrap;
@@ -3927,7 +3927,7 @@ table.perf-dialog-table th,
   }
 
   .perf-pie-col > .panel-subtitle {
-    font-size: 11px !important;
+    font-size: 9.5px !important;
     font-weight: 700;
     margin-bottom: 2px !important;
     flex-shrink: 0;
@@ -3935,7 +3935,7 @@ table.perf-dialog-table th,
 
   .perf-pie-wrap {
     flex: 1 1 0%;
-    min-height: 120px;
+    min-height: 110px;
     position: relative;
     width: 100%;
     overflow: hidden;
@@ -3946,10 +3946,10 @@ table.perf-dialog-table th,
   }
 
   .perf-pie-summary {
-    font-size: 9.5px !important;
-    line-height: 1.3 !important;
-    padding: 3px 6px !important;
-    border-radius: 5px;
+    font-size: 8.5px !important;
+    line-height: 1.25 !important;
+    padding: 2px 5px !important;
+    border-radius: 4px;
     margin-top: 1px !important;
     flex-shrink: 0;
   }

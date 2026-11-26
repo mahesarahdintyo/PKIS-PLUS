@@ -38,6 +38,7 @@
   "exclude": [
     "node_modules",
     "_migrate-source",
-    "supabase"
+    "supabase",
+    "reference-exhaust"
   ]
 }

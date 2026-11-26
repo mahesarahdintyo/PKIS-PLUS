@@ -425,6 +425,8 @@ export default function DashboardPerformanceTab({
             },
             borderRadius: 4,
             borderWidth: 0,
+            barPercentage: 0.55,
+            categoryPercentage: 0.72,
             order: 2,
           },
           ...(tg > 0
@@ -507,9 +509,9 @@ export default function DashboardPerformanceTab({
               position: "top",
               labels: {
                 color: getCssVar("--muted-foreground") || "#94a3b8",
-                boxWidth: 10,
-                boxHeight: 10,
-                font: { size: 10.5, weight: 600 },
+                boxWidth: 8,
+                boxHeight: 8,
+                font: { size: 8.5, weight: 600 },
               },
             },
             tooltip: {
@@ -524,11 +526,11 @@ export default function DashboardPerformanceTab({
           scales: {
             x: {
               grid: { display: false },
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 10 } },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8 } },
             },
             y: {
               grid: { color: getCssVar("--chart-grid") || "#334155", drawTicks: false },
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 10 } },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8 } },
               beginAtZero: true,
             },
           },
@@ -558,7 +560,7 @@ export default function DashboardPerformanceTab({
                 return createVerticalGradient(chart.ctx, chart.chartArea, pair.top, pair.bottom);
               },
               spacing: 4,
-              borderRadius: 6,
+              borderRadius: 5,
               borderWidth: 1.5,
               borderColor: "rgba(255, 255, 255, 0.12)",
             },
@@ -567,7 +569,7 @@ export default function DashboardPerformanceTab({
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          layout: { padding: { top: 2, right: 4, bottom: 2, left: 4 } },
+          layout: { padding: { top: 6, right: 8, bottom: 6, left: 8 } },
           onHover: (evt: any, elements: any[]) => {
             if (evt.native?.target) evt.native.target.style.cursor = elements.length ? "pointer" : "default";
           },
@@ -580,7 +582,7 @@ export default function DashboardPerformanceTab({
                 boxHeight: 7,
                 usePointStyle: true,
                 pointStyle: "circle",
-                font: { size: 9.5 },
+                font: { size: 8 },
                 padding: 6,
                 generateLabels: (chart: any) => {
                   const dataset = chart.data.datasets[0];
@@ -628,7 +630,7 @@ export default function DashboardPerformanceTab({
               },
             },
           } as any,
-          ...(({ cutout: "68%" } as any)),
+          ...(({ cutout: "72%" } as any)),
         },
       });
     }

@@ -1445,13 +1445,13 @@ export default function DashboardClient() {
           plugins: {
             legend: {
               display: true, position: "top", align: "end",
-              labels: { color: getCssVar("--muted-foreground") || "#94a3b8", boxWidth: 6, boxHeight: 6, usePointStyle: true, pointStyle: "circle", font: { size: 9 }, padding: 6 },
+              labels: { color: getCssVar("--muted-foreground") || "#94a3b8", boxWidth: 6, boxHeight: 6, usePointStyle: true, pointStyle: "circle", font: { size: 8 }, padding: 6 },
             },
             tooltip: { backgroundColor: getCssVar("--panel") || "#1e293b", titleColor: getCssVar("--text") || "#f1f5f9", bodyColor: getCssVar("--text") || "#f1f5f9", borderColor: getCssVar("--border") || "#334155", borderWidth: 1, padding: 8, displayColors: false },
           },
           scales: {
-            x: { ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9 }, maxRotation: 0, autoSkip: true }, grid: { display: false }, border: { display: false } },
-            y: { ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9 }, maxTicksLimit: 4 }, grid: { color: getCssVar("--chart-grid") || "#334155" }, border: { display: false }, beginAtZero: true },
+            x: { ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8 }, maxRotation: 0, autoSkip: true }, grid: { display: false }, border: { display: false } },
+            y: { ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8 }, maxTicksLimit: 4 }, grid: { color: getCssVar("--chart-grid") || "#334155" }, border: { display: false }, beginAtZero: true },
           },
         },
       });
@@ -1478,8 +1478,8 @@ export default function DashboardClient() {
             borderSkipped: false,
             borderWidth: 1.5,
             borderColor: "rgba(255, 255, 255, 0.22)",
-            barPercentage: 0.82,
-            categoryPercentage: 0.85,
+            barPercentage: 0.55,
+            categoryPercentage: 0.75,
           })),
         },
         options: {
@@ -1521,13 +1521,13 @@ export default function DashboardClient() {
           scales: {
             x: {
               stacked: true,
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9.5, weight: 600 }, maxRotation: 0, minRotation: 0, autoSkip: false },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8.5, weight: 600 }, maxRotation: 0, minRotation: 0, autoSkip: false },
               grid: { display: false },
               border: { display: false },
             },
             y: {
               stacked: true,
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9 }, maxTicksLimit: 4 },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8 }, maxTicksLimit: 4 },
               grid: { color: getCssVar("--chart-grid") || "#334155" },
               border: { display: false },
               beginAtZero: true,
@@ -1574,15 +1574,15 @@ export default function DashboardClient() {
               const pair = CAT_GRAD_COLORS[c] || { top: "#38bdf8", bottom: "#0284c7" };
               return createVerticalGradient(chart.ctx, chart.chartArea, pair.top, pair.bottom);
             },
-            spacing: 5,
-            borderRadius: 6,
+            spacing: 4,
+            borderRadius: 5,
             borderWidth: 1.5,
             borderColor: "rgba(255, 255, 255, 0.12)",
           }],
         },
         options: {
           responsive: true, maintainAspectRatio: false,
-          layout: { padding: { top: 4, right: 6, bottom: 4, left: 6 } },
+          layout: { padding: { top: 6, right: 8, bottom: 6, left: 8 } },
           onClick: (evt: any, elements: any[]) => {
             if (!elements.length) return;
             const cat = categories[elements[0].index];
@@ -1596,12 +1596,12 @@ export default function DashboardClient() {
               position: "bottom",
               labels: {
                 color: getCssVar("--muted-foreground") || "#94a3b8",
-                boxWidth: 8,
-                boxHeight: 8,
+                boxWidth: 7,
+                boxHeight: 7,
                 usePointStyle: true,
                 pointStyle: "circle",
-                font: { size: 9 },
-                padding: 8,
+                font: { size: 8 },
+                padding: 6,
                 generateLabels: (chart: any) => {
                   const dataset = chart.data.datasets[0];
                   const total = (dataset.data as number[]).reduce((a: number, b: number) => a + b, 0);
@@ -1648,7 +1648,7 @@ export default function DashboardClient() {
               },
             },
           } as any,
-          ...(({ cutout: "68%" } as any)),
+          ...(({ cutout: "72%" } as any)),
         },
       });
     }
@@ -1710,7 +1710,7 @@ export default function DashboardClient() {
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          cutout: "68%",
+          cutout: "72%",
           onHover: (evt: any, elements: any[]) => {
             if (evt.native?.target) {
               evt.native.target.style.cursor = elements.length ? "pointer" : "default";
@@ -1904,12 +1904,12 @@ export default function DashboardClient() {
           } as any,
           scales: {
             x: {
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9.5, weight: 600 }, maxRotation: 0, minRotation: 0, autoSkip: true, maxTicksLimit: 16 },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8.5, weight: 600 }, maxRotation: 0, minRotation: 0, autoSkip: true, maxTicksLimit: 16 },
               grid: { display: false },
               border: { display: false },
             },
             y: {
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 10 }, maxTicksLimit: 5, callback: (v: any) => v + "%" },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8 }, maxTicksLimit: 5, callback: (v: any) => v + "%" },
               grid: { color: getCssVar("--chart-grid") || "#334155", drawTicks: false },
               border: { display: false },
               suggestedMax: (() => { const vals = (productivityTrend?.values || []).filter((v) => v !== null) as number[]; const mx = vals.length ? Math.max(...vals, 100) : 100; return Math.ceil(mx * 1.12); })(),
@@ -1994,12 +1994,12 @@ export default function DashboardClient() {
           } as any,
           scales: {
             x: {
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9.5, weight: 600 }, maxRotation: 0, minRotation: 0, autoSkip: true, maxTicksLimit: 16 },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8.5, weight: 600 }, maxRotation: 0, minRotation: 0, autoSkip: true, maxTicksLimit: 16 },
               grid: { display: false },
               border: { display: false },
             },
             y: {
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 10 }, maxTicksLimit: 5, callback: (v: any) => v + "%" },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8 }, maxTicksLimit: 5, callback: (v: any) => v + "%" },
               grid: { color: getCssVar("--chart-grid") || "#334155", drawTicks: false },
               border: { display: false },
               suggestedMax: (() => { const vals = (productivityTrend?.cumValues || []).filter((v) => v !== null) as number[]; const mx = vals.length ? Math.max(...vals, 100) : 100; return Math.ceil(mx * 1.12); })(),
@@ -2040,8 +2040,8 @@ export default function DashboardClient() {
               borderSkipped: false,
               borderWidth: 1,
               borderColor: "rgba(255, 255, 255, 0.1)",
-              barPercentage: 0.82,
-              categoryPercentage: 0.74,
+              barPercentage: 0.55,
+              categoryPercentage: 0.72,
               order: 3,
               valueLabelColor: getCssVar("--muted-foreground") || "#94a3b8",
             } as any,
@@ -2057,8 +2057,8 @@ export default function DashboardClient() {
               borderSkipped: false,
               borderWidth: 1,
               borderColor: "rgba(255, 255, 255, 0.2)",
-              barPercentage: 0.82,
-              categoryPercentage: 0.74,
+              barPercentage: 0.55,
+              categoryPercentage: 0.72,
               order: 2,
             },
             {
@@ -2067,7 +2067,7 @@ export default function DashboardClient() {
               data: target,
               showLine: false,
               pointStyle: "rectRot",
-              pointRadius: 7,
+              pointRadius: 5,
               pointBorderWidth: 1.5,
               borderColor: "#ffffff",
               backgroundColor: "#f59e0b",
@@ -2100,12 +2100,12 @@ export default function DashboardClient() {
           } as any,
           scales: {
             x: {
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 10 } },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8.5, weight: 600 } },
               grid: { display: false },
               border: { display: false },
             },
             y: {
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 10 }, maxTicksLimit: 5, callback: (v: any) => v + "%" },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8 }, maxTicksLimit: 5, callback: (v: any) => v + "%" },
               grid: { color: getCssVar("--chart-grid") || "#334155", drawTicks: false },
               border: { display: false },
               beginAtZero: true,
@@ -2148,8 +2148,8 @@ export default function DashboardClient() {
               borderSkipped: false,
               borderWidth: 1,
               borderColor: "rgba(255, 255, 255, 0.1)",
-              barPercentage: 0.82,
-              categoryPercentage: 0.74,
+              barPercentage: 0.55,
+              categoryPercentage: 0.72,
               order: 3,
               valueLabelColor: getCssVar("--muted-foreground") || "#94a3b8",
             } as any,
@@ -2165,8 +2165,8 @@ export default function DashboardClient() {
               borderSkipped: false,
               borderWidth: 1,
               borderColor: "rgba(255, 255, 255, 0.2)",
-              barPercentage: 0.82,
-              categoryPercentage: 0.74,
+              barPercentage: 0.55,
+              categoryPercentage: 0.72,
               order: 2,
             },
             {
@@ -2175,7 +2175,7 @@ export default function DashboardClient() {
               data: target,
               showLine: false,
               pointStyle: "rectRot",
-              pointRadius: 7,
+              pointRadius: 5,
               pointBorderWidth: 1.5,
               borderColor: "#ffffff",
               backgroundColor: "#f59e0b",
@@ -2208,12 +2208,12 @@ export default function DashboardClient() {
           } as any,
           scales: {
             x: {
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 10 } },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8.5, weight: 600 } },
               grid: { display: false },
               border: { display: false },
             },
             y: {
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 10 }, maxTicksLimit: 5 },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8 }, maxTicksLimit: 5 },
               grid: { color: getCssVar("--chart-grid") || "#334155", drawTicks: false },
               border: { display: false },
               beginAtZero: true,
@@ -2252,8 +2252,8 @@ export default function DashboardClient() {
               borderSkipped: false,
               borderWidth: 1.5,
               borderColor: "rgba(255, 255, 255, 0.22)",
-              barPercentage: 0.82,
-              categoryPercentage: 0.85,
+              barPercentage: 0.55,
+              categoryPercentage: 0.72,
             },
           ],
         },
@@ -2284,12 +2284,12 @@ export default function DashboardClient() {
           } as any,
           scales: {
             x: {
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9.5, weight: 600 }, maxRotation: 0, minRotation: 0, autoSkip: false },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8.5, weight: 600 }, maxRotation: 0, minRotation: 0, autoSkip: false },
               grid: { display: false },
               border: { display: false },
             },
             y: {
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9 }, maxTicksLimit: 5 },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8 }, maxTicksLimit: 5 },
               grid: { color: getCssVar("--chart-grid") || "#334155", drawTicks: false },
               border: { display: false },
               beginAtZero: true,
@@ -2336,7 +2336,7 @@ export default function DashboardClient() {
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          layout: { padding: { top: 4, right: 6, bottom: 4, left: 6 } },
+          layout: { padding: { top: 6, right: 8, bottom: 6, left: 8 } },
           onClick: (evt: any, elements: any[]) => {
             if (!elements.length) return;
             const cat = categories[elements[0].index];
@@ -2350,12 +2350,12 @@ export default function DashboardClient() {
               position: "bottom",
               labels: {
                 color: getCssVar("--muted-foreground") || "#94a3b8",
-                boxWidth: 8,
-                boxHeight: 8,
+                boxWidth: 7,
+                boxHeight: 7,
                 usePointStyle: true,
                 pointStyle: "circle",
-                font: { size: 10 },
-                padding: 10,
+                font: { size: 8 },
+                padding: 6,
                 generateLabels: (chart: any) => {
                   const dataset = chart.data.datasets[0];
                   const total = (dataset.data as number[]).reduce((a: number, b: number) => a + b, 0);
@@ -2402,7 +2402,7 @@ export default function DashboardClient() {
               },
             },
           } as any,
-          ...(({ cutout: "68%" } as any)),
+          ...(({ cutout: "72%" } as any)),
         },
       });
     }
@@ -2429,8 +2429,8 @@ export default function DashboardClient() {
             borderSkipped: false,
             borderWidth: 1.5,
             borderColor: "rgba(255, 255, 255, 0.22)",
-            barPercentage: 0.82,
-            categoryPercentage: 0.85,
+            barPercentage: 0.55,
+            categoryPercentage: 0.75,
           })),
         },
         options: {
@@ -2472,13 +2472,13 @@ export default function DashboardClient() {
           scales: {
             x: {
               stacked: true,
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9.5, weight: 600 }, maxRotation: 0, minRotation: 0, autoSkip: false },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8.5, weight: 600 }, maxRotation: 0, minRotation: 0, autoSkip: false },
               grid: { display: false },
               border: { display: false },
             },
             y: {
               stacked: true,
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 10 }, maxTicksLimit: 5 },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8 }, maxTicksLimit: 5 },
               grid: { color: getCssVar("--chart-grid") || "#334155", drawTicks: false },
               border: { display: false },
               beginAtZero: true,
@@ -2523,8 +2523,8 @@ export default function DashboardClient() {
             borderSkipped: false,
             borderWidth: 1,
             borderColor: "rgba(255, 255, 255, 0.15)",
-            barPercentage: 0.72,
-            categoryPercentage: 0.85,
+            barPercentage: 0.52,
+            categoryPercentage: 0.70,
           }],
         },
         options: {
@@ -2552,12 +2552,12 @@ export default function DashboardClient() {
           } as any,
           scales: {
             x: {
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9 } },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8 } },
               grid: { display: false },
               border: { display: false },
             },
             y: {
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9 }, maxTicksLimit: 4 },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8 }, maxTicksLimit: 4 },
               grid: { color: getCssVar("--chart-grid") || "#334155", drawTicks: false },
               border: { display: false },
               beginAtZero: true,
@@ -2621,7 +2621,7 @@ export default function DashboardClient() {
             x: {
               ticks: {
                 color: getCssVar("--chart-tick") || "#64748b",
-                font: { size: 8.5 },
+                font: { size: 8 },
                 autoSkip: false,
                 maxRotation: 0,
                 minRotation: 0,
@@ -2630,7 +2630,7 @@ export default function DashboardClient() {
               border: { display: false },
             },
             y: {
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 9 }, maxTicksLimit: 4 },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8 }, maxTicksLimit: 4 },
               grid: { color: getCssVar("--chart-grid") || "#334155", drawTicks: false },
               border: { display: false },
               beginAtZero: true,
