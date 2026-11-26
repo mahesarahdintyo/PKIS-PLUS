@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Eye, Tv, RefreshCw } from "lucide-react";
 import Chart from "chart.js/auto";
+import { rpcApi } from "@/lib/api-client";
 import {
   registerInternalVizPlugins,
   createVerticalGradient,
@@ -23,6 +24,7 @@ interface MachineMeta {
   key: string;
   label: string;
   shortLabel: string;
+  codeLabel?: string;
   slug: string;
 }
 
@@ -85,8 +87,108 @@ export default function DashboardPerformanceTab({
   } | null>(null);
 
   const chartCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const downtimeChartCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const pieCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstancesRef = useRef<Record<string, any>>({});
+
+  // Riwayat GSPH & Downtime 2 Tahun Sebelumnya (misal 2024 & 2025 untuk tahun 2026)
+  const [historyData, setHistoryData] = useState<{
+    years: number[];
+    gsphPerYear: Record<number, { factory: number; perMachine: Record<string, number> }>;
+    dtPerYear: Record<number, { factory: number; perMachine: Record<string, number> }>;
+  }>({
+    years: [],
+    gsphPerYear: {},
+    dtPerYear: {},
+  });
+
+  useEffect(() => {
+    if (periodMode !== "tahunan") return;
+    let cancelled = false;
+
+    async function fetchHistorical() {
+      const y1 = tahunPilih - 2;
+      const y2 = tahunPilih - 1;
+      const targetYears = [y1, y2];
+
+      try {
+        const results = await Promise.all(
+          targetYears.map(async (y) => {
+            const startIso = new Date(y, 0, 1).toISOString();
+            const endIso = new Date(y + 1, 0, 1).toISOString();
+
+            const machineRes = await Promise.all(
+              machines.map((m) =>
+                rpcApi
+                  .call("prod_performance_aggregate", {
+                    p_mesin: m.key,
+                    p_stasiun_list: null,
+                    p_start: startIso,
+                    p_end: endIso,
+                  })
+                  .catch(() => ({ data: [] }))
+              )
+            );
+
+            let totalStroke = 0;
+            let totalWhJam = 0;
+            let totalDt = 0;
+            const perMachineGsph: Record<string, number> = {};
+            const perMachineDt: Record<string, number> = {};
+
+            machines.forEach((m, idx) => {
+              const row = (machineRes[idx]?.data && machineRes[idx]?.data[0]) || {};
+              const stroke = Number(row.stroke) || 0;
+              const whJam = (Number(row.wh_menit) || 0) / 60;
+              const dt = Number(row.downtime_menit) || 0;
+              const gsph = whJam > 0 ? stroke / whJam : 0;
+
+              perMachineGsph[m.key] = Number(gsph.toFixed(1));
+              perMachineDt[m.key] = Math.round(dt);
+
+              totalStroke += stroke;
+              totalWhJam += whJam;
+              totalDt += dt;
+            });
+
+            const factoryGsph = totalWhJam > 0 ? Number((totalStroke / totalWhJam).toFixed(1)) : 0;
+
+            return {
+              year: y,
+              factoryGsph,
+              factoryDt: Math.round(totalDt),
+              perMachineGsph,
+              perMachineDt,
+            };
+          })
+        );
+
+        if (cancelled) return;
+
+        const gsphMap: Record<number, { factory: number; perMachine: Record<string, number> }> = {};
+        const dtMap: Record<number, { factory: number; perMachine: Record<string, number> }> = {};
+
+        results.forEach((r) => {
+          gsphMap[r.year] = { factory: r.factoryGsph, perMachine: r.perMachineGsph };
+          dtMap[r.year] = { factory: r.factoryDt, perMachine: r.perMachineDt };
+        });
+
+        setHistoryData({
+          years: targetYears,
+          gsphPerYear: gsphMap,
+          dtPerYear: dtMap,
+        });
+      } catch (err) {
+        console.warn("Error fetching historical performance:", err);
+      }
+    }
+
+    fetchHistorical();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [periodMode, tahunPilih, machines]);
 
   // Auto-Rotate TV Cycle
   useEffect(() => {
@@ -448,53 +550,121 @@ export default function DashboardPerformanceTab({
       } else {
         // Trend Bulanan atau Tahunan
         const lt = lineTrend || { labels: [], perLine: [] };
-        labels = lt.labels;
 
-        if (selectedMachine === "all") {
-          // Average across all lines
-          const avgValues = labels.map((_, i) => {
-            const valid = (lt.perLine || [])
-              .map((pl) => pl.values[i])
-              .filter((v): v is number => v !== null && v !== undefined && v > 0);
-            if (valid.length === 0) return null;
-            return Number((valid.reduce((a, b) => a + b, 0) / valid.length).toFixed(1));
-          });
+        if (periodMode === "tahunan") {
+          const y1 = tahunPilih - 2;
+          const y2 = tahunPilih - 1;
+          labels = [String(y1), String(y2), "", ...(lt.labels || [])];
 
-          datasets = [
-            {
-              type: "line",
-              label: "GSPH Rata-rata Pabrik",
-              data: avgValues,
-              borderColor: "#38bdf8",
-              backgroundColor: (ctx: any) =>
-                createAreaGradient(ctx.chart.ctx, ctx.chart.chartArea, "#38bdf8", 0.25, 0.05, 0.0),
-              fill: true,
-              tension: 0.35,
-              borderWidth: 2.5,
-              pointRadius: 3,
-            },
-          ];
-        } else {
-          const pl = (lt.perLine || []).find(
-            (p) =>
-              p.label.toLowerCase().includes(selectedMachine.toLowerCase()) ||
-              p.label.toLowerCase().includes(activeMachineObj?.slug.toLowerCase() || "")
+          let monthlyValues: (number | null)[] = [];
+          let valY1: number | null = null;
+          let valY2: number | null = null;
+
+          if (selectedMachine === "all") {
+            valY1 = historyData.gsphPerYear[y1]?.factory || null;
+            valY2 = historyData.gsphPerYear[y2]?.factory || null;
+            monthlyValues = (lt.labels || []).map((_, i) => {
+              const valid = (lt.perLine || [])
+                .map((pl) => pl.values[i])
+                .filter((v): v is number => v !== null && v !== undefined && v > 0);
+              if (valid.length === 0) return null;
+              return Number((valid.reduce((a, b) => a + b, 0) / valid.length).toFixed(1));
+            });
+          } else {
+            valY1 = historyData.gsphPerYear[y1]?.perMachine[selectedMachine] || null;
+            valY2 = historyData.gsphPerYear[y2]?.perMachine[selectedMachine] || null;
+            const pl = (lt.perLine || []).find(
+              (p) =>
+                p.label.toLowerCase().includes(selectedMachine.toLowerCase()) ||
+                p.label.toLowerCase().includes(activeMachineObj?.slug.toLowerCase() || "")
+            );
+            monthlyValues = pl?.values || [];
+          }
+
+          const gsphData = [valY1, valY2, null, ...monthlyValues];
+          const barColors = gsphData.map((_, idx) =>
+            idx === 0 || idx === 1
+              ? getCssVar("--chart-3") || "#a78bfa"
+              : getCssVar("--chart-1") || "#38bdf8"
           );
 
           datasets = [
             {
-              type: "line",
-              label: pl?.label || currentSummary.label,
-              data: pl?.values || [],
-              borderColor: "#38bdf8",
-              backgroundColor: (ctx: any) =>
-                createAreaGradient(ctx.chart.ctx, ctx.chart.chartArea, "#38bdf8", 0.25, 0.05, 0.0),
-              fill: true,
-              tension: 0.35,
-              borderWidth: 2.5,
-              pointRadius: 3,
+              type: "bar",
+              label: selectedMachine === "all" ? "GSPH (Aktual)" : `GSPH ${currentSummary.label} (Aktual)`,
+              data: gsphData,
+              backgroundColor: barColors,
+              borderRadius: 4,
+              barPercentage: 0.7,
+              categoryPercentage: 0.85,
+              order: 2,
             },
+            ...(currentSummary.targetGsph > 0
+              ? [
+                  {
+                    type: "line",
+                    label: `Target (${fmtNum(currentSummary.targetGsph)})`,
+                    data: gsphData.map(() => currentSummary.targetGsph),
+                    borderColor: getCssVar("--chart-5") || "#fb7185",
+                    borderWidth: 1.5,
+                    borderDash: [5, 4],
+                    pointRadius: 0,
+                    fill: false,
+                    spanGaps: true,
+                    order: 1,
+                  },
+                ]
+              : []),
           ];
+        } else {
+          // Trend Bulanan
+          labels = lt.labels;
+
+          if (selectedMachine === "all") {
+            const avgValues = labels.map((_, i) => {
+              const valid = (lt.perLine || [])
+                .map((pl) => pl.values[i])
+                .filter((v): v is number => v !== null && v !== undefined && v > 0);
+              if (valid.length === 0) return null;
+              return Number((valid.reduce((a, b) => a + b, 0) / valid.length).toFixed(1));
+            });
+
+            datasets = [
+              {
+                type: "line",
+                label: "GSPH Rata-rata Pabrik",
+                data: avgValues,
+                borderColor: "#38bdf8",
+                backgroundColor: (ctx: any) =>
+                  createAreaGradient(ctx.chart.ctx, ctx.chart.chartArea, "#38bdf8", 0.25, 0.05, 0.0),
+                fill: true,
+                tension: 0.35,
+                borderWidth: 2.5,
+                pointRadius: 3,
+              },
+            ];
+          } else {
+            const pl = (lt.perLine || []).find(
+              (p) =>
+                p.label.toLowerCase().includes(selectedMachine.toLowerCase()) ||
+                p.label.toLowerCase().includes(activeMachineObj?.slug.toLowerCase() || "")
+            );
+
+            datasets = [
+              {
+                type: "line",
+                label: pl?.label || currentSummary.label,
+                data: pl?.values || [],
+                borderColor: "#38bdf8",
+                backgroundColor: (ctx: any) =>
+                  createAreaGradient(ctx.chart.ctx, ctx.chart.chartArea, "#38bdf8", 0.25, 0.05, 0.0),
+                fill: true,
+                tension: 0.35,
+                borderWidth: 2.5,
+                pointRadius: 3,
+              },
+            ];
+          }
         }
       }
 
@@ -504,6 +674,7 @@ export default function DashboardPerformanceTab({
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          layout: { padding: { top: 16, right: 6 } },
           plugins: {
             legend: {
               position: "top",
@@ -522,7 +693,12 @@ export default function DashboardPerformanceTab({
               borderWidth: 1,
               padding: 8,
             },
-          },
+            barValueLabels: {
+              enabled: true,
+              fmt: (v: any) => (v && v > 0 ? fmtNum(v) : ""),
+              color: () => getCssVar("--text") || "#f1f5f9",
+            },
+          } as any,
           scales: {
             x: {
               grid: { display: false },
@@ -530,7 +706,150 @@ export default function DashboardPerformanceTab({
             },
             y: {
               grid: { color: getCssVar("--chart-grid") || "#334155", drawTicks: false },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8 }, maxTicksLimit: 4 },
+              beginAtZero: true,
+            },
+          },
+        },
+      });
+    }
+
+    // 1b. Chart Downtime per Line (Tahunan / Bulanan)
+    if (downtimeChartCanvasRef.current && periodMode !== "harian") {
+      if (chartInstancesRef.current.downtimeChart) {
+        chartInstancesRef.current.downtimeChart.destroy();
+      }
+
+      let dtLabels: string[] = [];
+      let dtDatasets: any[] = [];
+
+      if (periodMode === "tahunan") {
+        const y1 = tahunPilih - 2;
+        const y2 = tahunPilih - 1;
+
+        if (selectedMachine === "all") {
+          dtLabels = machines.map((m) => m.codeLabel || m.shortLabel || m.label);
+          dtDatasets = [
+            {
+              type: "bar",
+              label: String(y1),
+              data: machines.map((m) => historyData.dtPerYear[y1]?.perMachine[m.key] || 0),
+              backgroundColor: (context: any) =>
+                createVerticalGradient(context.chart.ctx, context.chart.chartArea, "#c084fc", "#7c3aed"),
+              borderRadius: 3,
+              borderWidth: 1,
+              borderColor: "rgba(255, 255, 255, 0.15)",
+              barPercentage: 0.78,
+              categoryPercentage: 0.78,
+            },
+            {
+              type: "bar",
+              label: String(y2),
+              data: machines.map((m) => historyData.dtPerYear[y2]?.perMachine[m.key] || 0),
+              backgroundColor: (context: any) =>
+                createVerticalGradient(context.chart.ctx, context.chart.chartArea, "#fb923c", "#c2410c"),
+              borderRadius: 3,
+              borderWidth: 1,
+              borderColor: "rgba(255, 255, 255, 0.15)",
+              barPercentage: 0.78,
+              categoryPercentage: 0.78,
+            },
+            {
+              type: "bar",
+              label: String(tahunPilih),
+              data: machines.map((m) => machineDataMap[m.key]?.downtime || 0),
+              backgroundColor: (context: any) =>
+                createVerticalGradient(context.chart.ctx, context.chart.chartArea, "#38bdf8", "#0284c7"),
+              borderRadius: 3,
+              borderWidth: 1,
+              borderColor: "rgba(255, 255, 255, 0.15)",
+              barPercentage: 0.78,
+              categoryPercentage: 0.78,
+            },
+          ];
+        } else {
+          dtLabels = [String(y1), String(y2), String(tahunPilih)];
+          const vals = [
+            historyData.dtPerYear[y1]?.perMachine[selectedMachine] || 0,
+            historyData.dtPerYear[y2]?.perMachine[selectedMachine] || 0,
+            machineDataMap[selectedMachine]?.downtime || 0,
+          ];
+          dtDatasets = [
+            {
+              type: "bar",
+              label: `Downtime ${currentSummary.label} (Menit)`,
+              data: vals,
+              backgroundColor: ["#a78bfa", "#fb923c", "#38bdf8"],
+              borderRadius: 4,
+              borderWidth: 1,
+              borderColor: "rgba(255, 255, 255, 0.15)",
+              barPercentage: 0.6,
+            },
+          ];
+        }
+      } else {
+        // Mode bulanan: downtime per line di bulan terpilih
+        dtLabels = machines.map((m) => m.codeLabel || m.shortLabel || m.label);
+        dtDatasets = [
+          {
+            type: "bar",
+            label: "Downtime (Menit)",
+            data: machines.map((m) => machineDataMap[m.key]?.downtime || 0),
+            backgroundColor: (context: any) =>
+              createVerticalGradient(context.chart.ctx, context.chart.chartArea, "#38bdf8", "#0284c7"),
+            borderRadius: 4,
+            barPercentage: 0.6,
+          },
+        ];
+      }
+
+      chartInstancesRef.current.downtimeChart = new Chart(downtimeChartCanvasRef.current, {
+        type: "bar",
+        data: { labels: dtLabels, datasets: dtDatasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { top: 16, right: 6 } },
+          plugins: {
+            legend: {
+              display: periodMode === "tahunan" && selectedMachine === "all",
+              position: "top",
+              align: "end",
+              labels: {
+                color: getCssVar("--muted-foreground") || "#94a3b8",
+                boxWidth: 7,
+                boxHeight: 7,
+                usePointStyle: true,
+                pointStyle: "circle",
+                font: { size: 8, weight: 600 },
+                padding: 4,
+              },
+            },
+            tooltip: {
+              backgroundColor: getCssVar("--panel") || "#1e293b",
+              titleColor: getCssVar("--text") || "#f1f5f9",
+              bodyColor: getCssVar("--text") || "#f1f5f9",
+              borderColor: getCssVar("--border") || "#334155",
+              borderWidth: 1,
+              padding: 8,
+              callbacks: {
+                label: (ctx: any) => `${ctx.dataset.label}: ${fmtNum(ctx.parsed.y)} menit`,
+              },
+            },
+            barValueLabels: {
+              enabled: true,
+              fmt: (v: any) => (v && v > 0 ? fmtNum(v) : ""),
+              color: () => getCssVar("--text") || "#f1f5f9",
+            },
+          } as any,
+          scales: {
+            x: {
+              grid: { display: false },
               ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8 } },
+            },
+            y: {
+              grid: { color: getCssVar("--chart-grid") || "#334155", drawTicks: false },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8 }, maxTicksLimit: 4 },
               beginAtZero: true,
             },
           },
@@ -569,7 +888,7 @@ export default function DashboardPerformanceTab({
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          layout: { padding: { top: 6, right: 8, bottom: 6, left: 8 } },
+          layout: { padding: { top: 4, right: 6, bottom: 4, left: 6 } },
           onHover: (evt: any, elements: any[]) => {
             if (evt.native?.target) evt.native.target.style.cursor = elements.length ? "pointer" : "default";
           },
@@ -611,7 +930,7 @@ export default function DashboardPerformanceTab({
               color: () => getCssVar("--text") || "#f1f5f9",
               labelColor: () => getCssVar("--muted-foreground") || "#94a3b8",
             },
-            sliceLabels: { enabled: false },
+            sliceLabels: { enabled: true, color: "#ffffff", minPct: 4 },
             tooltip: {
               backgroundColor: getCssVar("--panel") || "#1e293b",
               titleColor: getCssVar("--text") || "#f1f5f9",
@@ -630,7 +949,7 @@ export default function DashboardPerformanceTab({
               },
             },
           } as any,
-          ...(({ cutout: "72%" } as any)),
+          ...(({ cutout: "68%" } as any)),
         },
       });
     }
@@ -652,6 +971,7 @@ export default function DashboardPerformanceTab({
     categoryTablesData,
     machines,
     activeMachineObj,
+    historyData,
     theme,
     fmtNum,
   ]);
@@ -811,8 +1131,25 @@ export default function DashboardPerformanceTab({
           {/* Chart Column */}
           <div className="perf-chart-col">
             {periodMode !== "harian" ? (
-              <div className="perf-chart-wrap">
-                <canvas ref={chartCanvasRef} />
+              <div className="perf-charts-dual-row">
+                <div className="perf-chart-box">
+                  <p className="panel-subtitle font-bold text-xs mb-1 text-foreground flex-shrink-0">
+                    GSPH {selectedMachine === "all" ? "Rata-rata Pabrik" : currentSummary.label}
+                    {periodMode === "tahunan" ? " — 2 Thn Lalu & Bulanan" : ""}
+                  </p>
+                  <div className="perf-chart-wrap">
+                    <canvas ref={chartCanvasRef} />
+                  </div>
+                </div>
+                <div className="perf-chart-box">
+                  <p className="panel-subtitle font-bold text-xs mb-1 text-foreground flex-shrink-0">
+                    Downtime {selectedMachine === "all" ? "per Line" : currentSummary.label}
+                    {periodMode === "tahunan" ? " — Perbandingan 3 Tahun" : ""}
+                  </p>
+                  <div className="perf-chart-wrap">
+                    <canvas ref={downtimeChartCanvasRef} />
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="perf-daily-split grid grid-cols-1 md:grid-cols-2 gap-4">

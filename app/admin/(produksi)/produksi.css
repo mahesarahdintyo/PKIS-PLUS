@@ -1985,6 +1985,28 @@ table.table-compact .status-badge {
   width: 100%;
 }
 
+.perf-charts-dual-row {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 10px;
+  min-height: 200px;
+  width: 100%;
+}
+
+.perf-chart-box {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+@media (max-width: 900px) {
+  .perf-charts-dual-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ANTI INFINITE EXPANSION: Canvas diposisikan absolut agar 0px di flow layout sehingga mustahil memicu loop resize */
 .perf-chart-wrap canvas,
 .perf-chart-wrap-daily canvas,
@@ -3760,11 +3782,11 @@ table.perf-dialog-table th,
   }
 
   .perf-top-grid {
-    flex: 1.08 1 0%;
+    flex: 1.45 1 0% !important;
     min-height: 0;
     display: grid;
     grid-template-columns: clamp(330px, 20vw, 380px) 1fr !important;
-    gap: 8px !important;
+    gap: 6px !important;
     overflow: hidden;
   }
 
@@ -3773,12 +3795,12 @@ table.perf-dialog-table th,
     height: 100%;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1.2fr repeat(4, 1fr);
+    grid-template-rows: 1.15fr repeat(4, 1fr);
     overflow: hidden;
   }
 
   .perf-cards-col .perf-card {
-    padding: 2.5px 6px !important;
+    padding: 3.5px 6px !important;
     border-radius: 5px;
     min-height: 0;
     display: flex;
@@ -3834,6 +3856,33 @@ table.perf-dialog-table th,
     position: relative;
     width: 100%;
     overflow: hidden;
+  }
+
+  .perf-charts-dual-row {
+    flex: 1 1 0%;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    gap: 6px;
+    overflow: hidden;
+  }
+
+  .perf-chart-box {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .perf-chart-box > .panel-subtitle {
+    font-size: 8px !important;
+    font-weight: 600;
+    margin-bottom: 2px !important;
+    flex-shrink: 0;
+    color: var(--muted-foreground);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
   }
 
   .perf-chart-wrap canvas,
@@ -3919,7 +3968,7 @@ table.perf-dialog-table th,
   }
 
   .perf-cat-tables-compact .table-wrap {
-    max-height: 75px !important;
+    max-height: 115px !important;
     overflow-y: auto;
   }
 
@@ -3935,14 +3984,14 @@ table.perf-dialog-table th,
   }
 
   .perf-lower-grid {
-    flex: 0.95 1 0%;
+    flex: 0.75 1 0% !important;
     min-height: 0;
-    gap: 8px !important;
-    margin-top: 3px !important;
-    padding-top: 3px !important;
+    gap: 6px !important;
+    margin-top: 2px !important;
+    padding-top: 2px !important;
     border-top: 1px dashed rgba(255, 255, 255, 0.1) !important;
     display: grid;
-    grid-template-columns: 1.25fr 1fr;
+    grid-template-columns: 1.2fr 1fr;
     overflow: hidden;
   }
 
@@ -4037,7 +4086,8 @@ table.perf-dialog-table th,
 
   .perf-pie-wrap {
     flex: 1 1 0%;
-    min-height: 110px;
+    min-height: 65px !important;
+    max-height: 100px !important;
     position: relative;
     width: 100%;
     overflow: hidden;
