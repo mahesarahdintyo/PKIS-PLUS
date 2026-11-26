@@ -159,11 +159,13 @@ const sliceLabels = {
     // opts.colors: optional array of per-slice colors (matching category colors)
     const perSliceColors: string[] | undefined = Array.isArray(opts.colors) ? opts.colors : undefined;
 
+    const minPct = typeof opts.minPct === "number" ? opts.minPct : 5;
+
     meta.data.forEach((arc: any, i: number) => {
       const val = Number((dataset.data as number[])[i]) || 0;
       if (val <= 0) return;
       const pct = Math.round((val / total) * 100);
-      if (pct < 12) return;
+      if (pct < minPct) return;
       const pos = arc.tooltipPosition();
       const sliceColor = perSliceColors ? (perSliceColors[i] || fallbackColor) : fallbackColor;
       ctx.save();

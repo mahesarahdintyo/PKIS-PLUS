@@ -389,31 +389,31 @@ export default function SQCDMPPanel({
         {/* Manpower grid */}
         <div className="manpower-grid manpower-grid-5">
           <div className="manpower-box">
-            <span className="manpower-icon"><Users size={16} /></span>
+            <span className="manpower-icon"><Users size={12} /></span>
             <span className="manpower-label">Total</span>
             <span className="manpower-value">{fmtNum(attendance.total_orang)}</span>
             <span className="manpower-unit">{unitLabel}</span>
           </div>
           <div className="manpower-box manpower-hadir">
-            <span className="manpower-icon"><User size={16} /></span>
+            <span className="manpower-icon"><User size={12} /></span>
             <span className="manpower-label">Hadir</span>
             <span className="manpower-value">{fmtNum(attendance.hadir)}</span>
             <span className="manpower-unit">{unitLabel}</span>
           </div>
           <div className="manpower-box">
-            <span className="manpower-icon"><Palmtree size={16} /></span>
+            <span className="manpower-icon"><Palmtree size={12} /></span>
             <span className="manpower-label">Cuti</span>
             <span className="manpower-value">{fmtNum(attendance.cuti)}</span>
             <span className="manpower-unit">{unitLabel}</span>
           </div>
           <div className="manpower-box">
-            <span className="manpower-icon"><UserX size={16} /></span>
+            <span className="manpower-icon"><UserX size={12} /></span>
             <span className="manpower-label">Absen</span>
             <span className="manpower-value">{fmtNum(attendance.absen)}</span>
             <span className="manpower-unit">{unitLabel}</span>
           </div>
           <div className="manpower-box">
-            <span className="manpower-icon"><Clock size={16} /></span>
+            <span className="manpower-icon"><Clock size={12} /></span>
             <span className="manpower-label">O.T</span>
             <span className="manpower-value">{fmtNum(attendance.overtime_jam)}</span>
             <span className="manpower-unit">Jam</span>

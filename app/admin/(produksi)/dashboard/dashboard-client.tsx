@@ -1527,17 +1527,12 @@ export default function DashboardClient() {
             },
             y: {
               stacked: true,
-              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8 }, maxTicksLimit: 4 },
+              ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8 }, stepSize: 3000, maxTicksLimit: 5 },
               grid: { color: getCssVar("--chart-grid") || "#334155" },
               border: { display: false },
               beginAtZero: true,
-              suggestedMax: (() => {
-                const maxStackTotal = Math.max(
-                  ...MACHINES.map((m) => categories.reduce((sum, cat) => sum + (dtByCategoryMap[m.key]?.[cat] || 0), 0)),
-                  0
-                );
-                return maxStackTotal > 0 ? Math.ceil(maxStackTotal * 1.15) : 100;
-              })(),
+              max: 12000,
+              suggestedMax: 12000,
             },
           },
         },
@@ -1629,7 +1624,7 @@ export default function DashboardClient() {
               color: () => getCssVar("--text") || "#f1f5f9",
               labelColor: () => getCssVar("--muted-foreground") || "#94a3b8",
             },
-            sliceLabels: { enabled: false },
+            sliceLabels: { enabled: true, color: "#ffffff", minPct: 5 },
             tooltip: {
               backgroundColor: getCssVar("--panel") || "#1e293b",
               titleColor: getCssVar("--text") || "#f1f5f9",
@@ -3250,19 +3245,19 @@ export default function DashboardClient() {
                   </Card>
 
                   {/* Line Status */}
-                  <Card className="dash-panel card-glow-info">
+                  <Card className="dash-panel card-glow-info" style={{ display: "flex", flexDirection: "column" }}>
                     <p className="dash-panel-title">LINE STATUS</p>
-                    <div className="table-wrap">
-                      <table className="table-compact">
+                    <div className="table-wrap" style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                      <table className="table-compact table-line-status" style={{ width: "100%", height: "100%" }}>
                         <thead>
                           <tr>
-                            <th>LINE</th>
-                            <th>STROKE</th>
-                            <th>TARGET</th>
-                            <th>ACTUAL</th>
-                            <th>PERF</th>
-                            <th>OEE</th>
-                            <th>DT</th>
+                            <th style={{ textAlign: "left" }}>LINE</th>
+                            <th style={{ textAlign: "right" }}>STROKE</th>
+                            <th style={{ textAlign: "right" }}>TARGET</th>
+                            <th style={{ textAlign: "right" }}>ACTUAL</th>
+                            <th style={{ textAlign: "center" }}>PERF</th>
+                            <th style={{ textAlign: "center" }}>OEE</th>
+                            <th style={{ textAlign: "right" }}>DT (MNT)</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -3271,6 +3266,8 @@ export default function DashboardClient() {
                               stroke: 0, gsph: 0, ng: 0, downtime: 0, status: "OFFLINE",
                               targetGsph: 0, performanceFactor: 0, oee: 0,
                             };
+                            const perfClass = d.performanceFactor >= 85 ? "status-pill-good" : d.performanceFactor >= 60 ? "status-pill-warn" : "status-pill-bad";
+                            const oeeClass = d.oee >= 80 ? "status-pill-good" : d.oee >= 60 ? "status-pill-warn" : "status-pill-bad";
                             return (
                               <tr
                                 key={m.key}
@@ -3282,12 +3279,18 @@ export default function DashboardClient() {
                                     {m.shortLabel}
                                   </span>
                                 </td>
-                                <td className="mono">{fmtNum(d.stroke)}</td>
-                                <td className="mono">{fmtNum(d.targetGsph)}</td>
-                                <td className="mono">{fmtNum(d.gsph)}</td>
-                                <td className="mono">{fmtNum(d.performanceFactor)}%</td>
-                                <td className="mono">{fmtNum(d.oee)}%</td>
-                                <td className="mono">{fmtNum(d.downtime)}</td>
+                                <td className="mono" style={{ textAlign: "right" }}>{fmtNum(d.stroke)}</td>
+                                <td className="mono" style={{ textAlign: "right" }}>{fmtNum(d.targetGsph)}</td>
+                                <td className="mono" style={{ textAlign: "right" }}>{fmtNum(d.gsph)}</td>
+                                <td style={{ textAlign: "center" }}>
+                                  <span className={`status-pill ${perfClass}`}>{fmtNum(d.performanceFactor)}%</span>
+                                </td>
+                                <td style={{ textAlign: "center" }}>
+                                  <span className={`status-pill ${oeeClass}`}>{fmtNum(d.oee)}%</span>
+                                </td>
+                                <td className="mono" style={{ textAlign: "right", color: d.downtime > 0 ? "var(--amber, #f59e0b)" : "var(--muted-foreground)" }}>
+                                  {fmtNum(d.downtime)}
+                                </td>
                               </tr>
                             );
                           })}
@@ -3349,10 +3352,10 @@ export default function DashboardClient() {
                       <table className="table-compact" style={{ width: "100%" }}>
                         <thead>
                           <tr>
-                            <th style={{ width: "22%" }}>LINE</th>
-                            <th style={{ width: "25%" }}>KATEGORI</th>
-                            <th style={{ width: "38%" }}>PROBLEM</th>
-                            <th style={{ width: "15%" }}>MENIT</th>
+                            <th style={{ width: "20%", textAlign: "left" }}>LINE</th>
+                            <th style={{ width: "20%", textAlign: "left" }}>KATEGORI</th>
+                            <th style={{ width: "42%", textAlign: "left" }}>PROBLEM</th>
+                            <th style={{ width: "18%", textAlign: "right", whiteSpace: "nowrap" }}>MENIT</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -3365,8 +3368,8 @@ export default function DashboardClient() {
                               >
                                 <td title={row.mesinLabel}><span className="badge">{row.mesinLabel}</span></td>
                                 <td title={row.kategori}>{row.kategori}</td>
-                                <td title={row.problem} style={{ minWidth: 120, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.problem}</td>
-                                <td className="mono">{fmtNum(row.menit)}</td>
+                                <td title={row.problem} style={{ minWidth: 100, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.problem}</td>
+                                <td className="mono" style={{ textAlign: "right", fontWeight: 700 }}>{fmtNum(row.menit)}</td>
                               </tr>
                             ))
                           ) : (
