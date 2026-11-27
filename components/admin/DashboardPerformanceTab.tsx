@@ -1063,7 +1063,7 @@ export default function DashboardPerformanceTab({
         </div>
 
         {/* ── Top Grid (9 Cards KPI di Kiri & Chart di Kanan) ── */}
-        <div className="perf-top-grid">
+        <div className="perf-top-grid flex-[1.4] min-h-[280px]">
           {/* Cards Column */}
           <div className="perf-cards-col">
             <Card
@@ -1142,22 +1142,22 @@ export default function DashboardPerformanceTab({
           {/* Chart Column */}
           <div className="perf-chart-col">
             {periodMode !== "harian" ? (
-              <div className="perf-charts-dual-row">
-                <div className="perf-chart-box">
+              <div className="perf-charts-dual-row min-h-[140px] flex-1">
+                <div className="perf-chart-box min-h-[140px]">
                   <p className="panel-subtitle font-bold text-xs mb-1 text-foreground flex-shrink-0">
                     GSPH {selectedMachine === "all" ? "Rata-rata Pabrik" : currentSummary.label}
                     {periodMode === "tahunan" ? " — Perbandingan 3 Tahun & Bulanan" : ""}
                   </p>
-                  <div className="perf-chart-wrap">
+                  <div className="perf-chart-wrap min-h-[120px] flex-1">
                     <canvas ref={chartCanvasRef} />
                   </div>
                 </div>
-                <div className="perf-chart-box">
+                <div className="perf-chart-box min-h-[140px]">
                   <p className="panel-subtitle font-bold text-xs mb-1 text-foreground flex-shrink-0">
                     Downtime {selectedMachine === "all" ? "per Line" : currentSummary.label}
                     {periodMode === "tahunan" ? " — Perbandingan 3 Tahun" : ""}
                   </p>
-                  <div className="perf-chart-wrap">
+                  <div className="perf-chart-wrap min-h-[120px] flex-1">
                     <canvas ref={downtimeChartCanvasRef} />
                   </div>
                 </div>
@@ -1237,7 +1237,7 @@ export default function DashboardPerformanceTab({
             )}
 
             {/* ── 4 Downtime Tables per Category (MESIN, DIES, FINGER, OTHER) ── */}
-            <div className="perf-cat-tables-compact mt-4 pt-3 perf-section-divider">
+            <div className="perf-cat-tables-compact mt-2 pt-2 perf-section-divider">
               <div className="flex items-center justify-between mb-2">
                 <p className="panel-subtitle font-bold text-xs uppercase tracking-wider text-muted-foreground m-0">
                   Downtime per Kategori
@@ -1410,7 +1410,7 @@ export default function DashboardPerformanceTab({
         </div>
 
         {/* ── Lower Grid (5 Downtime Terburuk di Kiri & Donut Pie Chart di Kanan) ── */}
-        <div className="perf-lower-grid flex-1 min-h-0 mt-3 pt-2 perf-section-divider">
+        <div className="perf-lower-grid flex-1 min-h-[180px] mt-2 pt-2 perf-section-divider">
           <div className="perf-lower-col">
             <p className="panel-subtitle font-bold text-sm mb-2 text-foreground">5 Downtime Terburuk</p>
             <div className="table-wrap">

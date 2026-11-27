@@ -3809,7 +3809,7 @@ table.perf-dialog-table th,
 
   .perf-top-grid {
     flex: 1.45 1 0% !important;
-    min-height: 0;
+    min-height: 280px !important;
     display: grid;
     grid-template-columns: clamp(330px, 20vw, 380px) 1fr !important;
     gap: 6px !important;
@@ -3868,9 +3868,10 @@ table.perf-dialog-table th,
 
   .perf-chart-col {
     height: 100%;
-    min-height: 0;
+    min-height: 280px !important;
     display: flex;
     flex-direction: column;
+    justify-content: space-between;
     gap: 4px;
     overflow: hidden;
   }
@@ -3878,7 +3879,7 @@ table.perf-dialog-table th,
   .dash-panel .perf-chart-wrap,
   .perf-chart-wrap {
     flex: 1 1 0%;
-    min-height: 0;
+    min-height: 120px !important;
     position: relative;
     width: 100%;
     overflow: hidden;
@@ -3886,7 +3887,7 @@ table.perf-dialog-table th,
 
   .perf-charts-dual-row {
     flex: 1 1 0%;
-    min-height: 0;
+    min-height: 140px !important;
     display: grid;
     grid-template-columns: 1.15fr 1fr;
     gap: 6px;
@@ -3895,7 +3896,7 @@ table.perf-dialog-table th,
 
   .perf-chart-box {
     height: 100%;
-    min-height: 0;
+    min-height: 140px !important;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -3994,7 +3995,7 @@ table.perf-dialog-table th,
   }
 
   .perf-cat-tables-compact .table-wrap {
-    max-height: 115px !important;
+    max-height: 105px !important;
     overflow-y: auto;
   }
 
@@ -4010,11 +4011,11 @@ table.perf-dialog-table th,
   }
 
   .perf-lower-grid {
-    flex: 1.25 1 0% !important;
-    min-height: 0;
+    flex: 1 1 0% !important;
+    min-height: 180px !important;
     gap: 8px !important;
-    margin-top: 2px !important;
-    padding-top: 2px !important;
+    margin-top: 3px !important;
+    padding-top: 3px !important;
     border-top: 1px dashed rgba(255, 255, 255, 0.1) !important;
     display: grid;
     grid-template-columns: 1.2fr 1fr;
@@ -4024,7 +4025,7 @@ table.perf-dialog-table th,
 
   .perf-lower-col {
     height: 100%;
-    min-height: 0;
+    min-height: 170px !important;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -4119,7 +4120,7 @@ table.perf-dialog-table th,
   .perf-pie-wrap {
     flex: 1 1 0%;
     min-height: 90px !important;
-    max-height: 170px !important;
+    max-height: 145px !important;
     position: relative;
     width: 100%;
     overflow: hidden;
