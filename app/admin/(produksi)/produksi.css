@@ -3070,12 +3070,12 @@ table.perf-dialog-table th,
   .sqcpm-columns {
     gap: 7px;
     flex-shrink: 0;
-    height: clamp(180px, 21.5vh, 215px);
+    height: clamp(175px, 20.5vh, 205px);
     margin-bottom: 6px;
   }
 
   .sqcpm-col {
-    padding: 6px 10px;
+    padding: 6px 9px;
     gap: 2px;
     border-radius: 7px;
     height: 100%;
@@ -3095,34 +3095,39 @@ table.perf-dialog-table th,
     gap: 6px;
     flex-shrink: 0;
   }
+  .sqcpm-col-head img {
+    width: 24px !important;
+    height: 24px !important;
+  }
   .sqcpm-col-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 12px;
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
   }
   .sqcpm-col-title {
-    font-size: clamp(10.5px, 1.25vh, 12px);
+    font-size: clamp(10px, 1.15vh, 11.5px);
     font-weight: 700;
     letter-spacing: 0.02em;
   }
   .sqcpm-col-sub {
-    font-size: clamp(7.5px, 0.9vh, 8.5px);
+    font-size: clamp(7px, 0.8vh, 8px);
     font-weight: 600;
     opacity: 0.8;
   }
   .sqcpm-metric-label {
-    font-size: clamp(8.5px, 1.05vh, 9.5px);
+    font-size: clamp(8px, 0.95vh, 9px);
+    font-weight: 600;
     line-height: 1.15;
     flex-shrink: 0;
   }
   .sqcpm-metric-value {
-    font-size: clamp(18px, 2.2vh, 22px);
+    font-size: clamp(15.5px, 1.8vh, 18px);
     font-weight: 800;
     line-height: 1;
     flex-shrink: 0;
   }
   .sqcpm-cost-value {
-    font-size: clamp(16px, 1.9vh, 19px);
+    font-size: clamp(14px, 1.65vh, 16.5px);
   }
   .attendance-dual-metric {
     display: flex;
@@ -3132,20 +3137,21 @@ table.perf-dialog-table th,
     flex-shrink: 0;
   }
   .attendance-dual-item .sqcpm-metric-value {
-    font-size: clamp(15px, 1.8vh, 18px);
+    font-size: clamp(13.5px, 1.55vh, 16px);
     font-weight: 800;
     line-height: 1;
   }
   .attendance-dual-label {
-    font-size: clamp(7px, 0.85vh, 8px);
+    font-size: clamp(7.5px, 0.85vh, 8.5px);
+    font-weight: 600;
   }
   .sqcpm-bar {
     height: 3.5px;
     flex-shrink: 0;
-    margin: 1px 0;
+    margin: 1px 0 2px;
   }
   .sqcpm-mini-label {
-    font-size: clamp(8px, 0.95vh, 9px);
+    font-size: clamp(7.5px, 0.85vh, 8.5px);
     line-height: 1.2;
     flex-shrink: 0;
   }
@@ -3159,72 +3165,75 @@ table.perf-dialog-table th,
     align-items: baseline;
     gap: 5px;
     margin-bottom: 1px;
-    font-size: clamp(8px, 0.95vh, 9px);
+    font-size: clamp(7.5px, 0.85vh, 8.5px);
+    font-weight: 600;
   }
   .cost-split-value {
-    font-size: clamp(8.5px, 1vh, 9.5px);
+    font-size: clamp(8px, 0.9vh, 9px);
     font-weight: 700;
   }
   .cost-split-bar {
-    height: 3.5px;
+    height: 3px;
   }
   .sqcpm-chart {
     flex: 1 1 0%;
-    height: clamp(40px, 5vh, 55px);
-    min-height: 35px;
-    padding-top: 2px;
+    height: clamp(44px, 5.2vh, 52px);
+    min-height: 38px;
+    padding-top: 1px;
     flex-shrink: 0;
     margin-top: auto;
     position: relative;
     width: 100%;
   }
   .sqcpm-chart-tall {
-    height: clamp(40px, 5vh, 55px);
+    height: clamp(44px, 5.2vh, 52px);
   }
   .sqcpm-chart-title {
     margin-top: auto;
-    font-size: clamp(8px, 0.95vh, 9px);
+    margin-bottom: 1px;
+    font-size: clamp(7.5px, 0.85vh, 8.5px);
     font-weight: 700;
     text-transform: uppercase;
     flex-shrink: 0;
   }
   .manpower-grid-5 {
     margin-top: auto;
-    gap: 2px;
+    gap: 2.5px;
     flex-shrink: 0;
   }
   .manpower-grid-5 .manpower-box {
-    padding: 2px 1.5px;
+    padding: 2.5px 1.5px;
     border-radius: 4px;
     gap: 0px;
     min-height: 0;
   }
   .manpower-grid-5 .manpower-icon {
-    font-size: 10px;
+    font-size: 9px;
     line-height: 1;
     margin-bottom: 1px;
   }
   .manpower-grid-5 .manpower-label {
-    font-size: clamp(6.5px, 0.8vh, 7.5px);
+    font-size: clamp(7px, 0.8vh, 8px);
+    font-weight: 600;
     line-height: 1;
   }
   .manpower-grid-5 .manpower-value {
-    font-size: clamp(9.5px, 1.1vh, 11.5px);
+    font-size: clamp(9.5px, 1.1vh, 11px);
     font-weight: 800;
     line-height: 1;
   }
   .manpower-grid-5 .manpower-unit {
-    font-size: clamp(5.5px, 0.7vh, 6.5px);
+    font-size: clamp(6.5px, 0.75vh, 7.5px);
     line-height: 1;
   }
   .moral-summary {
     margin-top: 2px;
     padding-top: 0;
-    gap: 2px;
+    gap: 2.5px;
     flex-shrink: 0;
   }
   .moral-summary-item {
-    padding: 2px 2px;
+    padding: 2.5px 2px;
     border-radius: 3px;
     gap: 0;
     min-height: 0;
@@ -3235,7 +3244,8 @@ table.perf-dialog-table th,
     line-height: 1;
   }
   .moral-summary-label {
-    font-size: clamp(6px, 0.75vh, 7px);
+    font-size: clamp(7px, 0.8vh, 8px);
+    font-weight: 600;
     line-height: 1;
     white-space: nowrap;
   }
@@ -3278,7 +3288,8 @@ table.perf-dialog-table th,
   .tv-row-1 .dash-panel:nth-child(2) {
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: flex-start;
+    gap: 3px;
   }
 
   .dash-panel-title {
@@ -3321,54 +3332,55 @@ table.perf-dialog-table th,
     border-radius: 3px;
   }
   .oee-donut-wrap {
-    width: clamp(62px, 7.2vh, 70px);
-    height: clamp(62px, 7.2vh, 70px);
+    width: clamp(48px, 5.5vh, 56px);
+    height: clamp(48px, 5.5vh, 56px);
     margin-bottom: 2px;
   }
   .oee-donut-row {
-    margin: 4px 0 6px;
-    gap: 8px;
+    margin: 2px 0 4px;
+    gap: 6px;
   }
   .oee-donut-label {
-    font-size: 8.5px;
+    font-size: 8px;
     font-weight: 600;
   }
   .oee-total-value {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 800;
   }
   .oee-total-big {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    padding: 5px 12px;
-    border-radius: 6px;
+    gap: 6px;
+    padding: 3px 8px;
+    border-radius: 5px;
     background: rgba(56, 189, 248, 0.06);
     border: 1px solid rgba(56, 189, 248, 0.2);
-    margin: 3px 0;
+    margin: 2px 0;
   }
   .oee-total-big-value {
-    font-size: 20px;
+    font-size: 17px;
     font-weight: 800;
     color: var(--primary, #38bdf8);
     line-height: 1;
   }
   .oee-total-big-label {
-    font-size: 9.5px;
+    font-size: 8.5px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--muted-foreground, #94a3b8);
   }
   .oee-kesimpulan {
-    font-size: 8.5px;
-    line-height: 1.3;
-    margin: 0;
-    padding: 4px 8px;
+    font-size: 8px;
+    line-height: 1.25;
+    margin: 2px 0 0;
+    padding: 3px 6px;
     border-radius: 4px;
     background: rgba(255, 255, 255, 0.03);
     border-left: 3px solid var(--primary, #38bdf8);
+    flex-shrink: 0;
   }
 
   table.table-compact th,

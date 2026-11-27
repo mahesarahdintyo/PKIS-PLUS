@@ -155,7 +155,14 @@ const sliceLabels = {
     const total = ((dataset?.data as number[]) || []).reduce((a, b) => a + (Number(b) || 0), 0);
     if (total <= 0) return;
 
-    const fallbackColor = resolveColor(opts.color, "--slice-label-text", "#ffffff");
+    const isDarkTheme = typeof document !== "undefined" && (
+      document.documentElement.classList.contains("dark") ||
+      document.documentElement.getAttribute("data-theme") === "dark" ||
+      (typeof localStorage !== "undefined" && localStorage.getItem("futaba.theme") === "dark")
+    );
+
+    const defaultThemeColor = isDarkTheme ? "#f8fafc" : "#0f172a";
+    const fallbackColor = resolveColor(opts.color, "--text", defaultThemeColor);
     // opts.colors: optional array of per-slice colors (matching category colors)
     const perSliceColors: string[] | undefined = Array.isArray(opts.colors) ? opts.colors : undefined;
 
@@ -170,12 +177,12 @@ const sliceLabels = {
       const sliceColor = perSliceColors ? (perSliceColors[i] || fallbackColor) : fallbackColor;
       ctx.save();
       ctx.fillStyle = sliceColor;
-      ctx.font = "600 7.5px " + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+      ctx.font = "700 8.5px " + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      // Thin dark stroke for legibility on light/coloured backgrounds
-      ctx.strokeStyle = "rgba(0,0,0,0.45)";
-      ctx.lineWidth = 1.5;
+      // Dynamic halo stroke for ultra-crisp contrast across both light and dark themes
+      ctx.strokeStyle = isDarkTheme ? "rgba(15, 23, 42, 0.85)" : "rgba(255, 255, 255, 0.95)";
+      ctx.lineWidth = 2;
       ctx.lineJoin = "round";
       ctx.strokeText(pct + "%", pos.x, pos.y);
       ctx.fillText(pct + "%", pos.x, pos.y);

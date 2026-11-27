@@ -168,37 +168,54 @@ export default function SQCDMPPanel({
             {
               data,
               borderColor: color,
-              backgroundColor: isBar ? color : "transparent",
-              borderWidth: 2.5,
-              tension: 0.4,
+              backgroundColor: isBar
+                ? color
+                : (ctx: any) => {
+                    const chart = ctx.chart;
+                    const { ctx: c, chartArea } = chart;
+                    if (!chartArea) return "transparent";
+                    const grad = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                    grad.addColorStop(0, color.startsWith("#") ? `${color}40` : "rgba(56, 189, 248, 0.25)");
+                    grad.addColorStop(1, "rgba(0, 0, 0, 0)");
+                    return grad;
+                  },
+              fill: !isBar,
+              borderWidth: 2,
+              tension: 0.35,
               pointRadius: 0,
-              pointHoverRadius: 4,
+              pointHoverRadius: 3,
               borderRadius: isBar ? 3 : 0,
-              barPercentage: 0.6,
-              categoryPercentage: 0.7,
+              barPercentage: 0.65,
+              categoryPercentage: 0.75,
             } as any,
           ],
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          layout: { padding: { top: 6, right: 6, bottom: 8, left: 2 } },
+          layout: { padding: { top: 4, right: 4, bottom: 2, left: 4 } },
           plugins: {
             legend: { display: false },
             tooltip: { enabled: true },
           },
           scales: {
             x: {
-              ticks: { color: cv("--chart-tick") || "#64748b", font: { size: 8 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 4, padding: 2 },
+              ticks: {
+                color: cv("--chart-tick") || "#64748b",
+                font: { size: 7.5 },
+                maxRotation: 0,
+                autoSkip: true,
+                maxTicksLimit: 3,
+                padding: 1,
+              },
               grid: { display: false },
               border: { display: false },
             },
             y: {
-              ticks: { color: cv("--chart-tick") || "#64748b", font: { size: 8 }, maxTicksLimit: 3 },
-              grid: { color: cv("--chart-grid") || "#334155", drawTicks: false },
+              display: false,
+              grid: { display: false },
               border: { display: false },
               beginAtZero: true,
-              suggestedMax: 1,
             },
           },
         },
