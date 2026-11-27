@@ -191,12 +191,12 @@ const sliceLabels = {
   },
 };
 
-// Panah + angka variance di atas tiap bar (Actual vs Target).
+// Panah + angka variance di atas tiap bar (Actual vs Target) - Compact Pill Tag tanpa tabrakan garis panah
 const varianceArrows = {
   id: "varianceArrows",
   afterDatasetsDraw(chart: Chart, _args: unknown, opts: any) {
     if (!opts || !opts.enabled) return;
-    const { ctx, scales } = chart;
+    const { ctx, scales, chartArea } = chart;
     const actualIdx = opts.actualIndex !== undefined ? opts.actualIndex : 0;
     const targetIdx = opts.targetIndex !== undefined ? opts.targetIndex : 1;
     const actualData = (chart.data.datasets[actualIdx]?.data || []) as number[];
@@ -206,51 +206,86 @@ const varianceArrows = {
     }
     const meta = chart.getDatasetMeta(actualIdx);
     if (!meta) return;
-    const upColor = resolveColor(opts.upColor, "--status-good", "#16a34a");
-    const downColor = resolveColor(opts.downColor, "--status-bad", "#dc2626");
+
+    const isDarkTheme = typeof document !== "undefined" && (
+      document.documentElement.classList.contains("dark") ||
+      document.documentElement.getAttribute("data-theme") === "dark" ||
+      (typeof localStorage !== "undefined" && localStorage.getItem("futaba.theme") === "dark")
+    );
+
+    const upColor = resolveColor(opts.upColor, "--status-good", isDarkTheme ? "#4ade80" : "#16a34a");
+    const downColor = resolveColor(opts.downColor, "--status-bad", isDarkTheme ? "#f87171" : "#dc2626");
+    const neutralColor = isDarkTheme ? "#94a3b8" : "#64748b";
+
     meta.data.forEach((bar: any, i: number) => {
       const actual = Number(actualData[i]);
       const target = Number(targetData[i]);
       if (!isFinite(actual) || !isFinite(target) || !target) return;
       const variance = actual - target;
-      const isUp = variance >= 0;
-      const color = isUp ? upColor : downColor;
+      const absVal = Math.abs(variance);
+      const isUp = variance > 0.0001;
+      const isDown = variance < -0.0001;
+      const color = isUp ? upColor : isDown ? downColor : neutralColor;
       const x = bar.x;
       const barTopY = bar.y;
       const targetY = (scales as any).y.getPixelForValue(target);
-      const labelY = Math.min(barTopY, targetY) - 15;
+
+      // Simbol arah inline (▲ / ▼ / =) tanpa garis panah fisik agar tidak menimpa angka di bawahnya
+      const arrowSymbol = isUp ? "▲ " : isDown ? "▼ " : "= ";
+      const sign = isUp ? "+" : isDown ? "-" : "";
+      const formattedVal = opts.fmt ? opts.fmt(absVal) : Math.round(absVal);
+      const text = `${arrowSymbol}${sign}${formattedVal}`;
+
       ctx.save();
-      ctx.textAlign = "center";
-      ctx.font = "500 7.5px " + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
-      const isDarkTheme = typeof document !== "undefined" && (
-        document.documentElement.classList.contains("dark") ||
-        document.documentElement.getAttribute("data-theme") === "dark"
-      );
-      const haloStroke = isDarkTheme ? "rgba(15, 23, 42, 0.85)" : "rgba(255, 255, 255, 0.95)";
-      ctx.fillStyle = color;
-      const sign = variance > 0 ? "+" : "";
-      const text = sign + (opts.fmt ? opts.fmt(variance) : Math.round(variance));
-      ctx.lineWidth = 1.2;
-      ctx.strokeStyle = haloStroke;
-      ctx.lineJoin = "round";
-      ctx.strokeText(String(text).toUpperCase(), x, labelY);
-      ctx.fillText(String(text).toUpperCase(), x, labelY);
-      const y1 = labelY + 3, y2 = labelY + 11;
-      ctx.strokeStyle = color;
-      ctx.fillStyle = color;
-      ctx.lineWidth = 1.5;
+      ctx.font = "700 7.5px " + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
+      const tw = ctx.measureText(text).width;
+      const pw = tw + 6;
+      const ph = 11;
+
+      // Jarak aman di atas elemen tertinggi (bar value label atau target marker)
+      // Bar value label ada di barTopY - 2, dengan tinggi ~9px, jadi bagian atasnya ada di barTopY - 11.
+      // Target diamond ada di targetY +- 5px.
+      const highestPointY = Math.min(barTopY - 11, targetY - 6);
+      const badgeBottomY = highestPointY - 4;
+      let badgeTopY = badgeBottomY - ph;
+
+      // Pastikan tidak tembus batas atas canvas
+      if (chartArea && badgeTopY < chartArea.top + 2) {
+        badgeTopY = chartArea.top + 2;
+      }
+
+      const px = x - (pw / 2);
+
+      // Background pill semi-transparan + border halus
+      const pillBg = isUp
+        ? (isDarkTheme ? "rgba(34, 197, 94, 0.18)" : "rgba(22, 163, 74, 0.12)")
+        : isDown
+        ? (isDarkTheme ? "rgba(239, 68, 68, 0.18)" : "rgba(220, 38, 38, 0.12)")
+        : (isDarkTheme ? "rgba(100, 116, 139, 0.18)" : "rgba(100, 116, 139, 0.12)");
+
+      const pillBorder = isUp
+        ? (isDarkTheme ? "rgba(34, 197, 94, 0.45)" : "rgba(22, 163, 74, 0.35)")
+        : isDown
+        ? (isDarkTheme ? "rgba(239, 68, 68, 0.45)" : "rgba(220, 38, 38, 0.35)")
+        : (isDarkTheme ? "rgba(100, 116, 139, 0.4)" : "rgba(100, 116, 139, 0.3)");
+
+      ctx.fillStyle = pillBg;
+      ctx.strokeStyle = pillBorder;
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(x, isUp ? y2 : y1);
-      ctx.lineTo(x, isUp ? y1 + 3 : y2 - 3);
-      ctx.stroke();
-      const headY = isUp ? y1 : y2;
-      const dir = isUp ? 1 : -1;
-      ctx.beginPath();
-      ctx.moveTo(x - 3, headY + dir * 3.5);
-      ctx.lineTo(x, headY);
-      ctx.lineTo(x + 3, headY + dir * 3.5);
-      ctx.closePath();
+      if (typeof ctx.roundRect === "function") {
+        ctx.roundRect(px, badgeTopY, pw, ph, 3);
+      } else {
+        ctx.rect(px, badgeTopY, pw, ph);
+      }
       ctx.fill();
+      ctx.stroke();
+
+      // Render teks persis di tengah pill
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = color;
+      ctx.fillText(text, x, badgeTopY + (ph / 2) + 0.5);
       ctx.restore();
     });
   },

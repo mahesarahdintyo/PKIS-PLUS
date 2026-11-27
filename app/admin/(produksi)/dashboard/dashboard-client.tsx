@@ -2045,7 +2045,7 @@ export default function DashboardClient() {
               borderColor: "rgba(255, 255, 255, 0.1)",
               barPercentage: 0.55,
               categoryPercentage: 0.72,
-              order: 3,
+              order: 2,
               valueLabelColor: getCssVar("--muted-foreground") || "#94a3b8",
             } as any,
             {
@@ -2062,7 +2062,7 @@ export default function DashboardClient() {
               borderColor: "rgba(255, 255, 255, 0.2)",
               barPercentage: 0.55,
               categoryPercentage: 0.72,
-              order: 2,
+              order: 3,
             },
             {
               type: "line",
@@ -2082,7 +2082,7 @@ export default function DashboardClient() {
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          layout: { padding: { top: 22, right: 8 } },
+          layout: { padding: { top: 26, right: 8 } },
           plugins: {
             legend: {
               display: false,
@@ -2112,7 +2112,7 @@ export default function DashboardClient() {
               grid: { color: getCssVar("--chart-grid") || "#334155", drawTicks: false },
               border: { display: false },
               beginAtZero: true,
-              suggestedMax: (() => { const mx = Math.max(...actual.filter(Boolean), ...prevActual.filter(Boolean), ...target.filter(Boolean) as number[]); return mx > 0 ? Math.ceil(mx * 1.08) : 105; })(),
+              suggestedMax: (() => { const mx = Math.max(...actual.filter(Boolean), ...prevActual.filter(Boolean), ...target.filter(Boolean) as number[]); return mx > 0 ? Math.ceil(mx * 1.15) : 115; })(),
             },
           },
         },
@@ -2153,7 +2153,7 @@ export default function DashboardClient() {
               borderColor: "rgba(255, 255, 255, 0.1)",
               barPercentage: 0.55,
               categoryPercentage: 0.72,
-              order: 3,
+              order: 2,
               valueLabelColor: getCssVar("--muted-foreground") || "#94a3b8",
             } as any,
             {
@@ -2170,7 +2170,7 @@ export default function DashboardClient() {
               borderColor: "rgba(255, 255, 255, 0.2)",
               barPercentage: 0.55,
               categoryPercentage: 0.72,
-              order: 2,
+              order: 3,
             },
             {
               type: "line",
@@ -2190,7 +2190,7 @@ export default function DashboardClient() {
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          layout: { padding: { top: 22, right: 8 } },
+          layout: { padding: { top: 26, right: 8 } },
           plugins: {
             legend: {
               display: false,
@@ -2958,21 +2958,21 @@ export default function DashboardClient() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => toggleAvailDataset(1, "actual")}
-                              className={`dash-chart-legend-item dash-chart-legend-btn ${availHidden.actual ? "is-hidden" : ""}`}
-                              title="Klik untuk menyembunyikan / menampilkan Actual"
-                            >
-                              <span className="legend-marker legend-marker-actual-avail" />
-                              ACTUAL
-                            </button>
-                            <button
-                              type="button"
                               onClick={() => toggleAvailDataset(0, "prev")}
                               className={`dash-chart-legend-item dash-chart-legend-btn ${availHidden.prev ? "is-hidden" : ""}`}
                               title="Klik untuk menyembunyikan / menampilkan Thn Lalu"
                             >
                               <span className="legend-marker legend-marker-prev" />
                               THN LALU
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => toggleAvailDataset(1, "actual")}
+                              className={`dash-chart-legend-item dash-chart-legend-btn ${availHidden.actual ? "is-hidden" : ""}`}
+                              title="Klik untuk menyembunyikan / menampilkan Actual"
+                            >
+                              <span className="legend-marker legend-marker-actual-avail" />
+                              ACTUAL
                             </button>
                           </span>
                         </p>
@@ -2996,21 +2996,21 @@ export default function DashboardClient() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => toggleGsphDataset(1, "actual")}
-                              className={`dash-chart-legend-item dash-chart-legend-btn ${gsphHidden.actual ? "is-hidden" : ""}`}
-                              title="Klik untuk menyembunyikan / menampilkan Actual"
-                            >
-                              <span className="legend-marker legend-marker-actual-gsph" />
-                              ACTUAL
-                            </button>
-                            <button
-                              type="button"
                               onClick={() => toggleGsphDataset(0, "prev")}
                               className={`dash-chart-legend-item dash-chart-legend-btn ${gsphHidden.prev ? "is-hidden" : ""}`}
                               title="Klik untuk menyembunyikan / menampilkan Thn Lalu"
                             >
                               <span className="legend-marker legend-marker-prev" />
                               THN LALU
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => toggleGsphDataset(1, "actual")}
+                              className={`dash-chart-legend-item dash-chart-legend-btn ${gsphHidden.actual ? "is-hidden" : ""}`}
+                              title="Klik untuk menyembunyikan / menampilkan Actual"
+                            >
+                              <span className="legend-marker legend-marker-actual-gsph" />
+                              ACTUAL
                             </button>
                           </span>
                         </p>
