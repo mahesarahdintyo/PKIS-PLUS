@@ -554,15 +554,18 @@ export default function DashboardPerformanceTab({
         if (periodMode === "tahunan") {
           const y1 = tahunPilih - 2;
           const y2 = tahunPilih - 1;
-          labels = [String(y1), String(y2), "", ...(lt.labels || [])];
+          const y3 = tahunPilih;
+          labels = [String(y1), String(y2), String(y3), "", ...(lt.labels || [])];
 
           let monthlyValues: (number | null)[] = [];
           let valY1: number | null = null;
           let valY2: number | null = null;
+          let valY3: number | null = null;
 
           if (selectedMachine === "all") {
             valY1 = historyData.gsphPerYear[y1]?.factory || null;
             valY2 = historyData.gsphPerYear[y2]?.factory || null;
+            valY3 = currentSummary.gsph > 0 ? Number(currentSummary.gsph.toFixed(1)) : null;
             monthlyValues = (lt.labels || []).map((_, i) => {
               const valid = (lt.perLine || [])
                 .map((pl) => pl.values[i])
@@ -573,6 +576,7 @@ export default function DashboardPerformanceTab({
           } else {
             valY1 = historyData.gsphPerYear[y1]?.perMachine[selectedMachine] || null;
             valY2 = historyData.gsphPerYear[y2]?.perMachine[selectedMachine] || null;
+            valY3 = currentSummary.gsph > 0 ? Number(currentSummary.gsph.toFixed(1)) : null;
             const pl = (lt.perLine || []).find(
               (p) =>
                 p.label.toLowerCase().includes(selectedMachine.toLowerCase()) ||
@@ -581,9 +585,9 @@ export default function DashboardPerformanceTab({
             monthlyValues = pl?.values || [];
           }
 
-          const gsphData = [valY1, valY2, null, ...monthlyValues];
+          const gsphData = [valY1, valY2, valY3, null, ...monthlyValues];
           const barColors = gsphData.map((_, idx) =>
-            idx === 0 || idx === 1
+            idx === 0 || idx === 1 || idx === 2
               ? getCssVar("--chart-3") || "#a78bfa"
               : getCssVar("--chart-1") || "#38bdf8"
           );
@@ -595,7 +599,7 @@ export default function DashboardPerformanceTab({
               data: gsphData,
               backgroundColor: barColors,
               borderRadius: 4,
-              barPercentage: 0.7,
+              barPercentage: 0.72,
               categoryPercentage: 0.85,
               order: 2,
             },
@@ -739,8 +743,10 @@ export default function DashboardPerformanceTab({
               borderRadius: 3,
               borderWidth: 1,
               borderColor: "rgba(255, 255, 255, 0.15)",
-              barPercentage: 0.78,
-              categoryPercentage: 0.78,
+              barPercentage: 0.85,
+              categoryPercentage: 0.82,
+              valueLabelColor: "#c084fc",
+              labelOffsetY: -2,
             },
             {
               type: "bar",
@@ -751,8 +757,10 @@ export default function DashboardPerformanceTab({
               borderRadius: 3,
               borderWidth: 1,
               borderColor: "rgba(255, 255, 255, 0.15)",
-              barPercentage: 0.78,
-              categoryPercentage: 0.78,
+              barPercentage: 0.85,
+              categoryPercentage: 0.82,
+              valueLabelColor: "#fb923c",
+              labelOffsetY: -13,
             },
             {
               type: "bar",
@@ -763,8 +771,10 @@ export default function DashboardPerformanceTab({
               borderRadius: 3,
               borderWidth: 1,
               borderColor: "rgba(255, 255, 255, 0.15)",
-              barPercentage: 0.78,
-              categoryPercentage: 0.78,
+              barPercentage: 0.85,
+              categoryPercentage: 0.82,
+              valueLabelColor: "#38bdf8",
+              labelOffsetY: -2,
             },
           ];
         } else {
@@ -809,7 +819,7 @@ export default function DashboardPerformanceTab({
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          layout: { padding: { top: 16, right: 6 } },
+          layout: { padding: { top: 22, right: 6 } },
           plugins: {
             legend: {
               display: periodMode === "tahunan" && selectedMachine === "all",
@@ -850,6 +860,7 @@ export default function DashboardPerformanceTab({
             y: {
               grid: { color: getCssVar("--chart-grid") || "#334155", drawTicks: false },
               ticks: { color: getCssVar("--chart-tick") || "#64748b", font: { size: 8 }, maxTicksLimit: 4 },
+              grace: "18%",
               beginAtZero: true,
             },
           },
@@ -977,7 +988,7 @@ export default function DashboardPerformanceTab({
   ]);
 
   return (
-    <div className="perf-tab-admin-container perf-fullwidth-container space-y-4">
+    <div className="perf-tab-admin-container perf-fullwidth-container flex flex-col flex-1 h-full min-h-0 space-y-2">
       {/* ── Toolbar Selector Mesin & Auto-Rotate TV ── */}
       <div className="perf-machine-bar flex flex-wrap items-center justify-between gap-3 p-3 bg-card/70 backdrop-blur-md rounded-xl border border-border/50 shadow-xs">
         <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
@@ -1030,7 +1041,7 @@ export default function DashboardPerformanceTab({
       </div>
 
       {/* ── Performance Main Panel (Gaya 100% Persis PerformanceTab Operator) ── */}
-      <Card className="dash-panel card-glow-info p-4 sm:p-5">
+      <Card className="dash-panel card-glow-info flex flex-col flex-1 h-full min-h-0 p-3 sm:p-4">
         <div className="perf-header flex flex-wrap justify-between items-center gap-3 mb-4 pb-2 border-b border-border/40">
           <div className="flex items-center gap-3">
             <p className="dash-panel-title font-bold text-lg m-0 uppercase tracking-wider text-foreground">
@@ -1135,7 +1146,7 @@ export default function DashboardPerformanceTab({
                 <div className="perf-chart-box">
                   <p className="panel-subtitle font-bold text-xs mb-1 text-foreground flex-shrink-0">
                     GSPH {selectedMachine === "all" ? "Rata-rata Pabrik" : currentSummary.label}
-                    {periodMode === "tahunan" ? " — 2 Thn Lalu & Bulanan" : ""}
+                    {periodMode === "tahunan" ? " — Perbandingan 3 Tahun & Bulanan" : ""}
                   </p>
                   <div className="perf-chart-wrap">
                     <canvas ref={chartCanvasRef} />
@@ -1399,7 +1410,7 @@ export default function DashboardPerformanceTab({
         </div>
 
         {/* ── Lower Grid (5 Downtime Terburuk di Kiri & Donut Pie Chart di Kanan) ── */}
-        <div className="perf-lower-grid mt-4 pt-3 perf-section-divider">
+        <div className="perf-lower-grid flex-1 min-h-0 mt-3 pt-2 perf-section-divider">
           <div className="perf-lower-col">
             <p className="panel-subtitle font-bold text-sm mb-2 text-foreground">5 Downtime Terburuk</p>
             <div className="table-wrap">

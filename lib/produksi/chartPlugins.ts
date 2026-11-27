@@ -311,7 +311,17 @@ const barValueLabels = {
 
     const n = chart.data.labels?.length || 1;
     const slot = chartArea && n ? chartArea.width / n : 30;
-    const baseFs = slot < 18 ? 6 : slot < 28 ? 7 : slot < 42 ? 7.5 : 8.5;
+
+    // Hitung slot aktual per bar jika ada multiple dataset (non-stacked clustered bars)
+    const visibleBarDatasets = chart.data.datasets.filter((ds: any, di: number) => {
+      if (ds.type === "line" || ds.skipLabel) return false;
+      if (typeof chart.isDatasetVisible === "function" && !chart.isDatasetVisible(di)) return false;
+      const meta = chart.getDatasetMeta(di);
+      return !meta?.hidden;
+    }).length || 1;
+
+    const barSlot = !isStacked && visibleBarDatasets > 1 ? (slot / visibleBarDatasets) : slot;
+    const baseFs = barSlot < 16 ? 5.5 : barSlot < 22 ? 6.5 : barSlot < 32 ? 7 : barSlot < 42 ? 7.5 : 8.5;
 
     chart.data.datasets.forEach((dataset: any, di: number) => {
       if (dataset.skipLabel) return;
@@ -347,11 +357,11 @@ const barValueLabels = {
 
         const textStr = String(fmt(val)).toUpperCase();
         let effectiveFs = baseFs;
-        const fw = opts.fontWeight || (effectiveFs <= 8 ? "500" : "600");
+        const fw = opts.fontWeight || (effectiveFs <= 7 ? "600" : "600");
         ctx.font = `${fw} ${baseFs}px ` + (opts.fontFamily || "'Aptos', 'Aptos Display', sans-serif");
         const tw = ctx.measureText(textStr).width;
-        if (tw + 4 > slot && slot > 0) {
-          effectiveFs = Math.max(5, Math.floor(baseFs * (slot / (tw + 4))));
+        if (tw + 2 > barSlot && barSlot > 0) {
+          effectiveFs = Math.max(5, Math.floor(baseFs * (barSlot / (tw + 2))));
         }
 
         if (!isLine && isStacked) {
@@ -376,7 +386,8 @@ const barValueLabels = {
         ctx.fillStyle = labelColor;
         ctx.textAlign = "center";
         ctx.textBaseline = "bottom";
-        const offsetY = isLine ? -6 : -2;
+        const defaultOffset = isLine ? -6 : -2;
+        const offsetY = dataset.labelOffsetY !== undefined ? dataset.labelOffsetY : defaultOffset;
 
         // Clean stroke halo for maximum crispness
         ctx.lineWidth = 1.2;

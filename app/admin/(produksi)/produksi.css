@@ -1926,10 +1926,24 @@ table.table-compact .status-badge {
    Menggunakan fluid sizing agar menyesuaikan layar
    ========================================================= */
 
-/* Wrapper utama — escape dari container max-w induk */
-.perf-fullwidth-container {
+/* Wrapper utama — escape dari container max-w induk & isi tinggi penuh */
+.perf-fullwidth-container,
+.perf-tab-admin-container {
   width: 100%;
-  /* Tidak ada max-width, biarkan melebar penuh */
+  flex: 1;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.perf-tab-admin-container > .dash-panel,
+.perf-fullwidth-container > .dash-panel {
+  flex: 1;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .perf-top-grid {
@@ -3996,15 +4010,16 @@ table.perf-dialog-table th,
   }
 
   .perf-lower-grid {
-    flex: 0.75 1 0% !important;
+    flex: 1.25 1 0% !important;
     min-height: 0;
-    gap: 6px !important;
+    gap: 8px !important;
     margin-top: 2px !important;
     padding-top: 2px !important;
     border-top: 1px dashed rgba(255, 255, 255, 0.1) !important;
     display: grid;
     grid-template-columns: 1.2fr 1fr;
     overflow: hidden;
+    align-items: stretch;
   }
 
   .perf-lower-col {
@@ -4012,13 +4027,14 @@ table.perf-dialog-table th,
     min-height: 0;
     display: flex;
     flex-direction: column;
+    justify-content: space-between;
     overflow: hidden;
   }
 
   .perf-lower-col > .panel-subtitle {
     font-size: 9.5px !important;
     font-weight: 700;
-    margin-bottom: 2px !important;
+    margin-bottom: 3px !important;
     flex-shrink: 0;
   }
 
@@ -4026,11 +4042,14 @@ table.perf-dialog-table th,
     flex: 1 1 0%;
     min-height: 0;
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
   }
 
   .perf-lower-col table.table-compact {
     table-layout: fixed;
     width: 100%;
+    height: 100%;
     border-collapse: collapse;
   }
 
@@ -4055,8 +4074,8 @@ table.perf-dialog-table th,
   }
 
   .perf-lower-col table.table-compact th {
-    padding: 2px 4px !important;
-    font-size: 8.5px !important;
+    padding: 3px 6px !important;
+    font-size: 9px !important;
     font-weight: 700;
     text-transform: uppercase;
     color: var(--muted-foreground, #94a3b8);
@@ -4064,17 +4083,17 @@ table.perf-dialog-table th,
   }
 
   .perf-lower-col table.table-compact td {
-    padding: 2px 4px !important;
-    font-size: 8.5px !important;
+    padding: 3.5px 6px !important;
+    font-size: 9.5px !important;
     font-weight: 500;
     border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   }
 
   .perf-lower-col .badge {
-    font-size: 8px !important;
+    font-size: 8.5px !important;
     font-weight: 700;
-    padding: 1px 3px !important;
-    border-radius: 3px;
+    padding: 1.5px 5px !important;
+    border-radius: 4px;
     max-width: 100%;
     white-space: nowrap;
     overflow: hidden;
@@ -4086,6 +4105,7 @@ table.perf-dialog-table th,
     min-height: 0;
     display: flex;
     flex-direction: column;
+    justify-content: space-between;
     overflow: hidden;
   }
 
@@ -4098,8 +4118,8 @@ table.perf-dialog-table th,
 
   .perf-pie-wrap {
     flex: 1 1 0%;
-    min-height: 65px !important;
-    max-height: 100px !important;
+    min-height: 90px !important;
+    max-height: 170px !important;
     position: relative;
     width: 100%;
     overflow: hidden;
@@ -4110,11 +4130,11 @@ table.perf-dialog-table th,
   }
 
   .perf-pie-summary {
-    font-size: 8.5px !important;
-    line-height: 1.25 !important;
-    padding: 2px 5px !important;
-    border-radius: 4px;
-    margin-top: 1px !important;
+    font-size: 9.5px !important;
+    line-height: 1.3 !important;
+    padding: 4px 8px !important;
+    border-radius: 6px;
+    margin-top: auto !important;
     flex-shrink: 0;
   }
 }
