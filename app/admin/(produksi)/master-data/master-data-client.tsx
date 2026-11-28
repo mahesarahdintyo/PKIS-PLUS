@@ -215,6 +215,22 @@ export default function MasterDataClient() {
 
   useEffect(() => {
     loadData();
+
+    const unsubNp = subscribeToSocketEvent("prod_nonproduksi_types", "*", () => {
+      loadData();
+    });
+    const unsubProblems = subscribeToSocketEvent("prod_downtime_problems", "*", () => {
+      loadData();
+    });
+    const unsubParts = subscribeToSocketEvent("prod_part_numbers", "*", () => {
+      loadData();
+    });
+
+    return () => {
+      unsubNp();
+      unsubProblems();
+      unsubParts();
+    };
   }, [loadData]);
 
   // Target Settings Handler
@@ -321,8 +337,17 @@ export default function MasterDataClient() {
     const v = newNonProduksiTypeValue.trim();
     if (!v) return;
     try {
-      const { error } = await masterDataApi.post("nonproduksi", { mesin: currentConfig.key, nama: v });
+      const { data, error } = await masterDataApi.post("nonproduksi", { mesin: currentConfig.key, nama: v });
       if (error) throw new Error(error);
+      if (data) {
+        setNonProduksiTypes((prev) => {
+          const exists = prev.some((x) => x.id === data.id || x.nama.toLowerCase() === v.toLowerCase());
+          if (exists) {
+            return prev.map((x) => (x.id === data.id || x.nama.toLowerCase() === v.toLowerCase() ? (data as ProdNonProduksiType) : x));
+          }
+          return [...prev, data as ProdNonProduksiType].sort((a, b) => a.nama.localeCompare(b.nama));
+        });
+      }
       setNewNonProduksiTypeValue("");
       toast.success("Jenis non-produksi berhasil ditambahkan!");
       loadData();
@@ -336,6 +361,7 @@ export default function MasterDataClient() {
     try {
       const { error } = await masterDataApi.delete("nonproduksi", id);
       if (error) throw new Error(error);
+      setNonProduksiTypes((prev) => prev.filter((t) => t.id !== id));
       toast.success("Jenis non-produksi berhasil dihapus!");
       loadData();
     } catch (err: any) {

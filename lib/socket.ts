@@ -19,7 +19,7 @@ export function getSocketUrl(): string {
   if (typeof window !== "undefined" && window.location?.origin) {
     return window.location.origin;
   }
-  return process.env.NEXT_PUBLIC_SOCKET_URL || "http://0.0.0.0:3000";
+  return process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3000";
 }
 
 let _clientSocket: any = null;

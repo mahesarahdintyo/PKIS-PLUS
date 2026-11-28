@@ -1,6 +1,7 @@
 // app/api/produksi/master-data/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { broadcastDbChange } from "@/lib/socket";
 
 function normalizeType(t: string | null): string {
   if (!t) return "all";
@@ -16,13 +17,20 @@ export async function GET(request: Request) {
     const mesin = searchParams.get("mesin");
     const lineId = searchParams.get("line_id");
 
-    const where: any = {};
-    if (mesin && mesin !== "all") where.mesin = mesin;
-    if (lineId && lineId !== "all") where.line_id = lineId;
+    let resolvedMesin = mesin && mesin !== "all" ? mesin : null;
+    if (!resolvedMesin && lineId && lineId !== "all") {
+      const lineData = await prisma.line.findUnique({
+        where: { id: lineId },
+        select: { machine_type: true },
+      });
+      if (lineData?.machine_type) {
+        resolvedMesin = lineData.machine_type.replace(/-/g, "_");
+      }
+    }
 
     if (type === "settings") {
       const settingsWhere: any = {};
-      if (mesin && mesin !== "all") settingsWhere.mesin = mesin;
+      if (resolvedMesin) settingsWhere.mesin = resolvedMesin;
       const data = await prisma.prodMesinSettings.findMany({
         where: settingsWhere,
         orderBy: { mesin: "asc" },
@@ -32,35 +40,64 @@ export async function GET(request: Request) {
         gsph_target_fixed: s.gsph_target_fixed != null ? Number(s.gsph_target_fixed) : 0,
         target_availability: s.target_availability != null ? Number(s.target_availability) : null,
       }));
-      if (mesin && mesin !== "all") {
+      if (resolvedMesin) {
         return NextResponse.json({ data: mapped[0] || null, error: null });
       }
       return NextResponse.json({ data: mapped, error: null });
     }
 
+    const itemWhere: any = { is_active: true };
+    if (resolvedMesin && lineId && lineId !== "all") {
+      itemWhere.OR = [
+        { mesin: resolvedMesin },
+        { line_id: lineId },
+      ];
+    } else if (resolvedMesin) {
+      itemWhere.mesin = resolvedMesin;
+    } else if (lineId && lineId !== "all") {
+      itemWhere.OR = [
+        { line_id: lineId },
+        { line_id: null },
+      ];
+    }
+
     if (type === "downtime-problems") {
       const data = await prisma.prodDowntimeProblem.findMany({
-        where: { ...where, is_active: true },
+        where: itemWhere,
         orderBy: { value: "asc" },
       });
-      return NextResponse.json({ data, error: null });
+      const seen = new Set<string>();
+      const deduped = data.filter((item) => {
+        const key = item.value.trim().toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      return NextResponse.json({ data: deduped, error: null });
     }
 
     if (type === "nonproduksi-types") {
       const data = await prisma.prodNonproduksiType.findMany({
-        where: { ...where, is_active: true },
+        where: itemWhere,
         orderBy: { nama: "asc" },
       });
-      return NextResponse.json({ data, error: null });
+      const seen = new Set<string>();
+      const deduped = data.filter((item) => {
+        const key = item.nama.trim().toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      return NextResponse.json({ data: deduped, error: null });
     }
 
     // Default: return all 3
     const settingsWhere: any = {};
-    if (mesin && mesin !== "all") settingsWhere.mesin = mesin;
-    const [rawSettings, downtimeProblems, nonproduksiTypes] = await Promise.all([
+    if (resolvedMesin) settingsWhere.mesin = resolvedMesin;
+    const [rawSettings, rawProblems, rawNonproduksi] = await Promise.all([
       prisma.prodMesinSettings.findMany({ where: settingsWhere, orderBy: { mesin: "asc" } }),
-      prisma.prodDowntimeProblem.findMany({ where: { ...where, is_active: true }, orderBy: { value: "asc" } }),
-      prisma.prodNonproduksiType.findMany({ where: { ...where, is_active: true }, orderBy: { nama: "asc" } }),
+      prisma.prodDowntimeProblem.findMany({ where: itemWhere, orderBy: { value: "asc" } }),
+      prisma.prodNonproduksiType.findMany({ where: itemWhere, orderBy: { nama: "asc" } }),
     ]);
 
     const settings = rawSettings.map((s) => ({
@@ -68,6 +105,22 @@ export async function GET(request: Request) {
       gsph_target_fixed: s.gsph_target_fixed != null ? Number(s.gsph_target_fixed) : 0,
       target_availability: s.target_availability != null ? Number(s.target_availability) : null,
     }));
+
+    const seenProbs = new Set<string>();
+    const downtimeProblems = rawProblems.filter((p) => {
+      const key = p.value.trim().toLowerCase();
+      if (seenProbs.has(key)) return false;
+      seenProbs.add(key);
+      return true;
+    });
+
+    const seenNp = new Set<string>();
+    const nonproduksiTypes = rawNonproduksi.filter((np) => {
+      const key = np.nama.trim().toLowerCase();
+      if (seenNp.has(key)) return false;
+      seenNp.add(key);
+      return true;
+    });
 
     return NextResponse.json({
       data: { settings, downtimeProblems, nonproduksiTypes },
@@ -110,27 +163,51 @@ export async function POST(request: Request) {
 
     if (type === "downtime-problems") {
       const { mesin, line_id, value } = data;
-      const res = await prisma.prodDowntimeProblem.create({
-        data: {
+      const cleanValue = (value || "").trim();
+      const res = await prisma.prodDowntimeProblem.upsert({
+        where: {
+          mesin_value: {
+            mesin,
+            value: cleanValue,
+          },
+        },
+        update: {
+          is_active: true,
+          ...(line_id !== undefined ? { line_id: line_id ?? null } : {}),
+        },
+        create: {
           mesin,
           line_id: line_id ?? null,
-          value: value.trim(),
+          value: cleanValue,
           is_active: true,
         },
       });
+      broadcastDbChange("prod_downtime_problems", "INSERT", { eventType: "INSERT", new: res });
       return NextResponse.json({ data: res, error: null });
     }
 
     if (type === "nonproduksi-types") {
       const { mesin, line_id, nama } = data;
-      const res = await prisma.prodNonproduksiType.create({
-        data: {
+      const cleanNama = (nama || "").trim();
+      const res = await prisma.prodNonproduksiType.upsert({
+        where: {
+          mesin_nama: {
+            mesin,
+            nama: cleanNama,
+          },
+        },
+        update: {
+          is_active: true,
+          ...(line_id !== undefined ? { line_id: line_id ?? null } : {}),
+        },
+        create: {
           mesin,
           line_id: line_id ?? null,
-          nama: (nama || "").trim(),
+          nama: cleanNama,
           is_active: true,
         },
       });
+      broadcastDbChange("prod_nonproduksi_types", "INSERT", { eventType: "INSERT", new: res });
       return NextResponse.json({ data: res, error: null });
     }
 
@@ -156,6 +233,7 @@ export async function PATCH(request: Request) {
         where: { id },
         data,
       });
+      broadcastDbChange("prod_downtime_problems", "UPDATE", { eventType: "UPDATE", new: res });
       return NextResponse.json({ data: res, error: null });
     }
 
@@ -164,6 +242,7 @@ export async function PATCH(request: Request) {
         where: { id },
         data,
       });
+      broadcastDbChange("prod_nonproduksi_types", "UPDATE", { eventType: "UPDATE", new: res });
       return NextResponse.json({ data: res, error: null });
     }
 
@@ -205,6 +284,7 @@ export async function DELETE(request: Request) {
         where: { id },
         data: { is_active: false },
       });
+      broadcastDbChange("prod_downtime_problems", "DELETE", { eventType: "DELETE", old: { id } });
       return NextResponse.json({ data: res, error: null });
     }
 
@@ -213,6 +293,7 @@ export async function DELETE(request: Request) {
         where: { id },
         data: { is_active: false },
       });
+      broadcastDbChange("prod_nonproduksi_types", "DELETE", { eventType: "DELETE", old: { id } });
       return NextResponse.json({ data: res, error: null });
     }
 

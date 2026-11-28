@@ -508,7 +508,10 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const lineOrMesinParam = lineId ? { line_id: lineId } : { mesin: config.key };
+      const lineOrMesinParam = {
+        mesin: config.key,
+        ...(lineId ? { line_id: lineId } : {}),
+      };
 
       const [
         { data: settingsRes },
@@ -1321,12 +1324,20 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
     const unsubDt = subscribeToSocketEvent("prod_downtime_log", "*", handleRealtimeChange);
     const unsubDandori = subscribeToSocketEvent("prod_dandori_log", "*", handleRealtimeChange);
     const unsubPlan = subscribeToSocketEvent("prod_production_planning", "*", handlePlanningChange);
+    const unsubNp = subscribeToSocketEvent("prod_nonproduksi_types", "*", () => {
+      loadData();
+    });
+    const unsubProblems = subscribeToSocketEvent("prod_downtime_problems", "*", () => {
+      loadData();
+    });
 
     return () => {
       unsubProd();
       unsubDt();
       unsubDandori();
       unsubPlan();
+      unsubNp();
+      unsubProblems();
     };
   }, [lineId, config.key, activeTab, fetchRiwayatHariIniData, fetchRiwayatGabungan]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1696,8 +1707,21 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
     const v = newNonProduksiTypeValue.trim();
     if (!v) return;
     try {
-      const { error } = await masterDataApi.post("nonproduksi", { mesin: config.key, nama: v });
+      const { data, error } = await masterDataApi.post("nonproduksi", {
+        mesin: config.key,
+        line_id: lineId || null,
+        nama: v,
+      });
       if (error) throw new Error(error);
+      if (data) {
+        setNonProduksiTypes((prev) => {
+          const exists = prev.some((x) => x.id === data.id || x.nama.toLowerCase() === v.toLowerCase());
+          if (exists) {
+            return prev.map((x) => (x.id === data.id || x.nama.toLowerCase() === v.toLowerCase() ? (data as ProdNonProduksiType) : x));
+          }
+          return [...prev, data as ProdNonProduksiType].sort((a, b) => a.nama.localeCompare(b.nama));
+        });
+      }
       setNewNonProduksiTypeValue("");
       loadData();
     } catch (err: any) {
@@ -1710,6 +1734,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
     try {
       const { error } = await masterDataApi.delete("nonproduksi", id);
       if (error) throw error;
+      setNonProduksiTypes((prev) => prev.filter((t) => t.id !== id));
       loadData();
     } catch (err: any) {
       flash("Gagal hapus jenis non-produksi: " + (err?.message || JSON.stringify(err)), true);
@@ -1721,10 +1746,23 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
     const v = newProblemValue.trim();
     if (!v) return;
     try {
-      const { data, error } = await masterDataApi.post("problems", { mesin: config.key, value: v });
+      const { data, error } = await masterDataApi.post("problems", {
+        mesin: config.key,
+        line_id: lineId || null,
+        value: v,
+      });
       if (error) throw new Error(error);
-      setProblemList((prev) => [...prev, data as ProdDowntimeProblem].sort((a, b) => a.value.localeCompare(b.value)));
+      if (data) {
+        setProblemList((prev) => {
+          const exists = prev.some((x) => x.id === data.id || x.value.toLowerCase() === v.toLowerCase());
+          if (exists) {
+            return prev.map((x) => (x.id === data.id || x.value.toLowerCase() === v.toLowerCase() ? (data as ProdDowntimeProblem) : x));
+          }
+          return [...prev, data as ProdDowntimeProblem].sort((a, b) => a.value.localeCompare(b.value));
+        });
+      }
       setNewProblemValue("");
+      loadData();
     } catch (err: any) {
       flash("Gagal tambah problem: " + (err?.message || JSON.stringify(err)), true);
     }
