@@ -34,6 +34,16 @@ export default function DisplayPage() {
   }, []);
 
   useEffect(() => {
+    // Jika ada query param lineId atau landId, langsung arahkan ke /display/[lineId]
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const targetLine = params.get("lineId") ?? params.get("landId");
+      if (targetLine) {
+        router.replace(`/display/${targetLine}`);
+        return;
+      }
+    }
+
     let isMounted = true;
     let timerId: NodeJS.Timeout;
 

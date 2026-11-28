@@ -68,7 +68,9 @@ app.prepare().then(() => {
   });
 
   httpServer.listen(port, hostname, () => {
-    console.log(`\n✅ PKIS-PLUS server ready at http://${hostname}:${port}`);
+    console.log(`\n✅ PKIS-PLUS server ready at:`);
+    console.log(`   - Local:   http://localhost:${port}`);
+    console.log(`   - Network: http://127.0.0.1:${port}`);
     console.log(`   Socket.io listening on path: /api/socket`);
     console.log(`   Mode: ${dev ? "development" : "production"}\n`);
   });

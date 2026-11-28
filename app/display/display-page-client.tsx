@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { AlertCircle, ArrowLeft, Clock, FileText, Loader2, Maximize, Minimize, Monitor, Tv } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
+import { getSocket } from '@/lib/api-client'
 
 const DISPLAY_DOCUMENT_STORAGE_KEY = 'futaba.display.document'
 
@@ -340,12 +341,60 @@ export default function DisplayPageClient({ lineId: routeLineId }: DisplayPageCl
       setDocument(readDisplayDocument(lineId))
     }
 
+    // ─── Socket.io Realtime Listener ────────────────────────────────────
+    const socket = getSocket()
+    let handleSocketDocChange: ((payload: any) => void) | null = null
+    let handleSocketDocClear: ((payload: any) => void) | null = null
+
+    if (socket) {
+      if (lineId) {
+        socket.emit('join:line', lineId)
+      }
+
+      handleSocketDocChange = (payload: DisplayDocument | null) => {
+        if (!payload) return
+        const incomingLineId = payload.lineId ? String(payload.lineId).trim().toLowerCase() : ''
+        const targetLineId = lineId ? String(lineId).trim().toLowerCase() : ''
+
+        if (!targetLineId || !incomingLineId || incomingLineId === targetLineId) {
+          setDocument((currentDocument) => {
+            if (isSameDisplayDocument(currentDocument, payload)) {
+              return currentDocument
+            }
+            window.localStorage.setItem(
+              getDisplayDocumentStorageKey(lineId),
+              JSON.stringify(payload)
+            )
+            return payload
+          })
+        }
+      }
+
+      handleSocketDocClear = (payload?: { lineId?: string }) => {
+        const clearedLineId = payload?.lineId ? String(payload.lineId).trim().toLowerCase() : ''
+        const targetLineId = lineId ? String(lineId).trim().toLowerCase() : ''
+
+        if (!targetLineId || !clearedLineId || clearedLineId === targetLineId) {
+          window.localStorage.removeItem(DISPLAY_DOCUMENT_STORAGE_KEY)
+          window.localStorage.removeItem(getDisplayDocumentStorageKey(lineId))
+          setDocument(null)
+        }
+      }
+
+      socket.on('display:document:change', handleSocketDocChange)
+      socket.on('display:document:clear', handleSocketDocClear)
+    }
+
     window.addEventListener('storage', handleStorage)
     window.addEventListener('futaba-display-document-change', handleLocalChange)
 
     loadServerDisplayDocument()
 
     return () => {
+      if (socket) {
+        if (handleSocketDocChange) socket.off('display:document:change', handleSocketDocChange)
+        if (handleSocketDocClear) socket.off('display:document:clear', handleSocketDocClear)
+      }
       window.removeEventListener('storage', handleStorage)
       window.removeEventListener('futaba-display-document-change', handleLocalChange)
       window.clearTimeout(pollingTimeoutId)

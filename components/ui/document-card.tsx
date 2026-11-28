@@ -529,13 +529,14 @@ export function DocumentCard({
     try {
       setIsDisplaying(true)
 
+      const cleanLineId = lineId ? String(lineId).trim() : undefined
       const displayDocument = {
         id,
-        lineId,
+        lineId: cleanLineId,
         title: currentTitle,
         description,
         category,
-        type,
+        type: type || 'application/pdf',
         file,
         targetTime: currentTargetTime,
         updatedAt: Date.now(),
@@ -566,6 +567,8 @@ export function DocumentCard({
           detail: nextDisplayDocument,
         })
       )
+
+      toast.success(`Dokumen "${currentTitle}" berhasil ditampilkan di Display TV`)
     } catch (error) {
       console.error('Display error:', error)
       toast.error(error instanceof Error ? error.message : 'Gagal menampilkan dokumen di display')

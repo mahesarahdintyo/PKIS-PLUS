@@ -15,9 +15,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Bersihkan path dari traversal
+    // Bersihkan path dari traversal dan hindari duplikasi prefix uploads/
     const safePath = filePath.replace(/^[/\\]+/, "").replace(/\.\./g, "");
-    const publicUrl = `/uploads/${safePath}`;
+    const cleanPath = safePath.toLowerCase().startsWith("uploads/") ? safePath.slice(8) : safePath;
+    const publicUrl = `/uploads/${cleanPath}`;
 
     return NextResponse.json({
       success: true,

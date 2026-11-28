@@ -536,7 +536,7 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
           return;
         }
 
-        const targetLineId = lineId || docData.line_id || undefined;
+        const targetLineId = (lineId || docData.line_id || undefined)?.toString().trim();
         const now = Date.now();
         const payload = {
           id: docData.id,
@@ -548,9 +548,9 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
           file: {
             name: docData.file_name,
             path: docData.file_path,
-            size: docData.file_size,
+            size: docData.file_size ? Number(docData.file_size) : undefined,
           },
-          targetTime: docData.target_time || null,
+          targetTime: docData.target_time ? new Date(docData.target_time).toISOString() : null,
           updatedAt: now,
         };
 
@@ -654,17 +654,20 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
     [mutateLine]
   );
 
-  /** Konfirmasi produksi mulai → pindah ke fase running */
+  /** Konfirmasi produksi mulai → pindah ke fase running & tampilkan dokumen SOP di TV Display */
   const confirmActualStart = useCallback(
     (stId: string) => {
       const line = getLine(stId);
       if (!line.form.part_number) { onError("Pilih Part Number dulu."); return; }
+      if (line.form.part_number) {
+        pushDocumentToDisplay(line.form.part_number);
+      }
       mutateLine(stId, {
         phase: "running",
         actualStartConfirmedAt: nowToDbIso(),
       });
     },
-    [lines, onError, mutateLine]
+    [lines, onError, mutateLine, pushDocumentToDisplay]
   );
 
   /** Hentikan produksi */
