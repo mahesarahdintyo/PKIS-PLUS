@@ -2516,7 +2516,8 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
             },
             sliceLabels: {
               enabled: true,
-              color: "#ffffff",
+              color: () => getCssVar("--text") || (theme === "dark" ? "#f8fafc" : "#0f172a"),
+              minPct: 5,
             },
             tooltip: {
               backgroundColor: getCssVar("--panel") || "#1e293b",
