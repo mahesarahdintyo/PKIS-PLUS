@@ -1,6 +1,7 @@
 // app/api/produksi/planning/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { broadcastDbChange } from "@/lib/socket";
 
 export async function GET(request: Request) {
   try {
@@ -12,8 +13,47 @@ export async function GET(request: Request) {
 
     const where: any = {};
     if (isActiveStr !== "all") where.is_active = isActive;
-    if (mesin && mesin !== "all") where.mesin = mesin;
-    if (lineId && lineId !== "all") where.line_id = lineId;
+
+    const mesinVariants: string[] = [];
+    if (mesin && mesin !== "all") {
+      mesinVariants.push(mesin);
+      if (mesin.includes("-")) mesinVariants.push(mesin.replace(/-/g, "_"));
+      if (mesin.includes("_")) mesinVariants.push(mesin.replace(/_/g, "-"));
+    }
+
+    if (lineId && lineId !== "all") {
+      const resolvedMesins = [...mesinVariants];
+      if (resolvedMesins.length === 0) {
+        const lineData = await prisma.line.findUnique({
+          where: { id: lineId },
+          select: { machine_type: true },
+        });
+        if (lineData?.machine_type) {
+          const mk = lineData.machine_type;
+          resolvedMesins.push(mk, mk.replace(/-/g, "_"), mk.replace(/_/g, "-"));
+        }
+      }
+
+      const uniqueMesins = Array.from(new Set(resolvedMesins));
+      if (uniqueMesins.length > 0) {
+        where.AND = [
+          { mesin: { in: uniqueMesins } },
+          {
+            OR: [
+              { line_id: lineId },
+              { line_id: null },
+            ],
+          },
+        ];
+      } else {
+        where.OR = [
+          { line_id: lineId },
+          { line_id: null },
+        ];
+      }
+    } else if (mesinVariants.length > 0) {
+      where.mesin = { in: Array.from(new Set(mesinVariants)) };
+    }
 
     const data = await prisma.prodProductionPlanning.findMany({
       where,
@@ -58,6 +98,8 @@ export async function POST(request: Request) {
       },
     });
 
+    broadcastDbChange("prod_production_planning", "INSERT", { eventType: "INSERT", new: res });
+
     return NextResponse.json({ data: res, error: null });
   } catch (e: any) {
     console.error("[POST /api/produksi/planning]", e);
@@ -89,6 +131,7 @@ export async function PATCH(request: Request) {
         where: { id: { in: ids } },
         data: cleanData,
       });
+      broadcastDbChange("prod_production_planning", "UPDATE", { eventType: "UPDATE", new: { ids, cleanData } });
       return NextResponse.json({ data: res, error: null });
     }
 
@@ -96,6 +139,8 @@ export async function PATCH(request: Request) {
       where: { id },
       data: cleanData,
     });
+
+    broadcastDbChange("prod_production_planning", "UPDATE", { eventType: "UPDATE", new: res });
 
     return NextResponse.json({ data: res, error: null });
   } catch (e: any) {
@@ -119,6 +164,8 @@ export async function DELETE(request: Request) {
       where: { id: { in: ids } },
       data: { is_active: false },
     });
+
+    broadcastDbChange("prod_production_planning", "DELETE", { eventType: "DELETE", old: { ids } });
 
     return NextResponse.json({ data: res, count: res.count, error: null });
   } catch (e: any) {

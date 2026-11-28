@@ -1330,6 +1330,9 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
     const unsubProblems = subscribeToSocketEvent("prod_downtime_problems", "*", () => {
       loadData();
     });
+    const unsubParts = subscribeToSocketEvent("prod_part_numbers", "*", () => {
+      loadData();
+    });
 
     return () => {
       unsubProd();
@@ -1338,6 +1341,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
       unsubPlan();
       unsubNp();
       unsubProblems();
+      unsubParts();
     };
   }, [lineId, config.key, activeTab, fetchRiwayatHariIniData, fetchRiwayatGabungan]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1639,6 +1643,7 @@ export default function MachineDetailClient({ lineId, lineName, machineType, use
     try {
       const payload = {
         mesin: config.key,
+        line_id: lineId || null,
         value: newPartKode.trim(),
         std_ct: newPartStdCt === "" ? null : Number(newPartStdCt),
         harga_pcs: newPartHarga === "" ? null : Number(newPartHarga),

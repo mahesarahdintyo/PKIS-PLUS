@@ -511,7 +511,7 @@ export function useProductionLines(stationIds: string[], opts: UseProductionLine
           const { data: partRows } = await partNumbersApi.get({
             search: partNumber.trim(),
             line_id: lineId || undefined,
-            mesin: !lineId ? config.key : undefined,
+            mesin: config.key,
             is_active: true,
           });
           const partRow = (partRows || []).find(

@@ -1,6 +1,7 @@
 // app/api/produksi/part-numbers/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { broadcastDbChange } from "@/lib/socket";
 
 export async function GET(request: Request) {
   try {
@@ -20,21 +21,35 @@ export async function GET(request: Request) {
       where.value = { contains: search, mode: "insensitive" };
     }
 
-    if (lineId && mesin) {
-      where.OR = [{ line_id: lineId }, { mesin: mesin }];
-    } else if (lineId) {
-      const lineData = await prisma.line.findUnique({
-        where: { id: lineId },
-        select: { machine_type: true },
-      });
-      const mesinKey = lineData?.machine_type ? lineData.machine_type.replace(/-/g, "_") : null;
-      if (mesinKey) {
-        where.OR = [{ line_id: lineId }, { mesin: mesinKey }];
+    const mesinVariants: string[] = [];
+    if (mesin && mesin !== "all") {
+      mesinVariants.push(mesin);
+      if (mesin.includes("-")) mesinVariants.push(mesin.replace(/-/g, "_"));
+      if (mesin.includes("_")) mesinVariants.push(mesin.replace(/_/g, "-"));
+    }
+
+    if (lineId && lineId !== "all") {
+      const resolvedMesins = [...mesinVariants];
+      if (resolvedMesins.length === 0) {
+        const lineData = await prisma.line.findUnique({
+          where: { id: lineId },
+          select: { machine_type: true, name: true },
+        });
+        if (lineData?.machine_type) {
+          const mk = lineData.machine_type;
+          resolvedMesins.push(mk, mk.replace(/-/g, "_"), mk.replace(/_/g, "-"));
+        }
+      }
+      if (resolvedMesins.length > 0) {
+        where.OR = [
+          { line_id: lineId },
+          { mesin: { in: Array.from(new Set(resolvedMesins)) } },
+        ];
       } else {
         where.line_id = lineId;
       }
-    } else if (mesin) {
-      where.mesin = mesin;
+    } else if (mesinVariants.length > 0) {
+      where.mesin = { in: Array.from(new Set(mesinVariants)) };
     }
 
     const data = await prisma.prodPartNumber.findMany({
@@ -82,11 +97,30 @@ export async function POST(request: Request) {
       );
     }
 
-    const data = await prisma.prodPartNumber.create({
-      data: {
+    const cleanValue = value.trim();
+
+    const data = await prisma.prodPartNumber.upsert({
+      where: {
+        mesin_value: {
+          mesin,
+          value: cleanValue,
+        },
+      },
+      update: {
+        line_id: line_id !== undefined ? (line_id ?? null) : undefined,
+        next_processes: next_processes ?? undefined,
+        output_ratio: output_ratio !== undefined ? output_ratio : undefined,
+        stroke_ratio: stroke_ratio !== undefined ? stroke_ratio : undefined,
+        std_mp: std_mp !== undefined ? std_mp : undefined,
+        std_ct: std_ct !== undefined ? std_ct : undefined,
+        harga_pcs: harga_pcs !== undefined ? harga_pcs : undefined,
+        document_id: document_id !== undefined ? (document_id ?? null) : undefined,
+        is_active: is_active !== undefined ? is_active : true,
+      },
+      create: {
         mesin,
         line_id: line_id ?? null,
-        value: value.trim(),
+        value: cleanValue,
         next_processes: next_processes ?? [],
         output_ratio: output_ratio !== undefined ? output_ratio : 1,
         stroke_ratio: stroke_ratio !== undefined ? stroke_ratio : null,
@@ -97,6 +131,8 @@ export async function POST(request: Request) {
         is_active: is_active !== undefined ? is_active : true,
       },
     });
+
+    broadcastDbChange("prod_part_numbers", "INSERT", { eventType: "INSERT", new: data });
 
     return NextResponse.json({ data, error: null });
   } catch (e: any) {
@@ -119,6 +155,8 @@ export async function PATCH(request: Request) {
       data: updateFields,
     });
 
+    broadcastDbChange("prod_part_numbers", "UPDATE", { eventType: "UPDATE", new: data });
+
     return NextResponse.json({ data, error: null });
   } catch (e: any) {
     console.error("[PATCH /api/produksi/part-numbers]", e);
@@ -140,6 +178,8 @@ export async function DELETE(request: Request) {
       where: { id },
       data: { is_active: false },
     });
+
+    broadcastDbChange("prod_part_numbers", "DELETE", { eventType: "DELETE", old: { id } });
 
     return NextResponse.json({ data, error: null });
   } catch (e: any) {

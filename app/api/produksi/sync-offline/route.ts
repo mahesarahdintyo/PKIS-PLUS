@@ -47,12 +47,31 @@ export async function POST(request: Request) {
         return NextResponse.json({ data: res });
       }
       case "prod_scrap_top_end": {
-        const res = await prisma.prodScrapTopEnd.create({ data: payload });
+        const res = await prisma.prodScrapTopEnd.upsert({
+          where: {
+            tahun_bulan: {
+              tahun: Number(payload.tahun),
+              bulan: Number(payload.bulan),
+            },
+          },
+          update: payload,
+          create: payload,
+        });
         return NextResponse.json({ data: res });
       }
       case "prod_attendance_log": {
-        if (payload.tanggal) payload.tanggal = new Date(payload.tanggal);
-        const res = await prisma.prodAttendanceLog.create({ data: payload });
+        const targetDate = payload.tanggal ? new Date(payload.tanggal) : new Date();
+        const targetShift = String(payload.shift || "1");
+        const res = await prisma.prodAttendanceLog.upsert({
+          where: {
+            tanggal_shift: {
+              tanggal: targetDate,
+              shift: targetShift,
+            },
+          },
+          update: { ...payload, tanggal: targetDate, shift: targetShift },
+          create: { ...payload, tanggal: targetDate, shift: targetShift },
+        });
         return NextResponse.json({ data: res });
       }
       default:

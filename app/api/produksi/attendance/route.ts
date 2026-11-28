@@ -48,16 +48,36 @@ export async function POST(request: Request) {
     const total_orang = Number(data.total_orang ?? (hadir + absen + cuti));
     const overtime_jam = Number(data.overtime_jam ?? 0);
 
-    const res = await prisma.prodAttendanceLog.create({
-      data: {
-        tanggal: new Date(data.tanggal),
-        shift: String(data.shift || "1"),
+    const targetDate = new Date(data.tanggal);
+    const targetShift = String(data.shift || "1");
+
+    const res = await prisma.prodAttendanceLog.upsert({
+      where: {
+        tanggal_shift: {
+          tanggal: targetDate,
+          shift: targetShift,
+        },
+      },
+      update: {
         total_orang,
         hadir,
         absen,
         cuti,
         overtime_jam,
         is_active: data.is_active !== undefined ? data.is_active : true,
+        updated_by: data.updated_by ?? null,
+      },
+      create: {
+        tanggal: targetDate,
+        shift: targetShift,
+        total_orang,
+        hadir,
+        absen,
+        cuti,
+        overtime_jam,
+        is_active: data.is_active !== undefined ? data.is_active : true,
+        created_by: data.created_by ?? null,
+        updated_by: data.updated_by ?? null,
       },
     });
 
