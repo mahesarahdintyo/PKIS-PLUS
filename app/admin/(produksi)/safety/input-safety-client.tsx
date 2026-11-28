@@ -244,7 +244,7 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
 
   const innerContent = (
     <div className="space-y-6 pb-16">
-      <Card className="dash-panel card-glow-info p-5">
+      <Card className="dash-panel card-glow-info p-5 !h-auto">
         <p className="dash-panel-title font-bold text-base mb-1">Pencatatan Insiden Safety</p>
         <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
           Catat insiden keselamatan kerja (Near Miss, Accident, First Aid). Jika tidak ada insiden, sistem otomatis mencatat zero accident.
@@ -279,7 +279,7 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
         </div>
       </Card>
 
-      <Card className="dash-panel card-glow-info p-5">
+      <Card className="dash-panel card-glow-info p-5 !h-auto">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <p className="dash-panel-title font-bold text-base flex items-center gap-2">
             <span>Riwayat Insiden Safety</span>
@@ -611,7 +611,7 @@ export default function InputSafetyClient({ embedded }: { embedded?: boolean }) 
 
   return (
     <div className="app-shell">
-      <main className="main max-w-5xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-500">
+      <main className="main max-w-6xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-500">
         <Link
           href="/admin"
           className="inline-flex items-center gap-1.5 self-start min-h-[40px] px-3 py-2 mb-4 text-xs font-semibold rounded-lg border border-border bg-card text-foreground hover:bg-muted transition-colors touch-manipulation shadow-xs"

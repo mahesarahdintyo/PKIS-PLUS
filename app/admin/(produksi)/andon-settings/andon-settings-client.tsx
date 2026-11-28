@@ -563,7 +563,7 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
           {/* Row 1: Notifikasi HP & Line yang Saya Lead (2 Kolom berdampingan) */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
             {/* Card 1: Notifikasi HP */}
-            <Card className="dash-panel card-glow-info p-5 flex flex-col justify-between">
+            <Card className="dash-panel card-glow-info p-5 flex flex-col justify-between !h-auto">
               <div>
                 <p className="dash-panel-title font-bold text-base mb-1">1. Aktifkan Notifikasi di HP ini</p>
                 <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
@@ -585,7 +585,7 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
             </Card>
 
             {/* Card 2: Line yang Saya Lead */}
-            <Card className="dash-panel card-glow-info p-5 flex flex-col">
+            <Card className="dash-panel card-glow-info p-5 flex flex-col !h-auto">
               <p className="dash-panel-title font-bold text-base mb-1">2. Line yang Saya Lead</p>
               <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
                 Pilih line yang Anda tanggung jawab. <strong>Tier 1</strong> = dipanggil pertama kali.
@@ -663,7 +663,7 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
           </div>
 
           {/* Card 3: Panggilan Aktif */}
-          <Card className={`dash-panel card-glow-info p-5 transition-all ${activeCalls.length > 0 ? "border-rose-500 ring-2 ring-rose-500/60 shadow-xl shadow-rose-500/20" : ""}`}>
+          <Card className={`dash-panel card-glow-info p-5 !h-auto transition-all ${activeCalls.length > 0 ? "border-rose-500 ring-2 ring-rose-500/60 shadow-xl shadow-rose-500/20" : ""}`}>
             <div className="flex items-center justify-between mb-3">
               <p className="dash-panel-title font-bold text-base flex items-center gap-2">
                 <span>Panggilan Aktif Saat Ini</span>
@@ -727,7 +727,7 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
           </Card>
 
           {/* Card 4: Riwayat Panggilan dengan Filter, Search & Bulk Actions */}
-          <Card className="dash-panel card-glow-info p-5">
+          <Card className="dash-panel card-glow-info p-5 !h-auto">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <p className="dash-panel-title font-bold text-base flex items-center gap-2">
                 <span>Riwayat Panggilan Andon</span>
@@ -1205,7 +1205,7 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
 
   return (
     <div className="app-shell">
-      <main className="main max-w-5xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-500 pb-16">
+      <main className="main max-w-6xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-500 pb-16">
         <Link
           href={role === "leader" ? "/operator" : "/admin"}
           className="inline-flex items-center gap-1.5 self-start min-h-[40px] px-3 py-2 mb-4 text-xs font-semibold rounded-lg border border-border bg-card text-foreground hover:bg-muted transition-colors touch-manipulation shadow-xs"
