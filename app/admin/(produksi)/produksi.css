@@ -4561,4 +4561,28 @@ table.perf-dialog-table th,
   animation: andonEmergencyBannerPulse 1s ease-in-out infinite;
 }
 
+/* ---------- Dashboard card finish ---------- */
+/* Keep the existing dashboard grids and card content while toning down
+   competing status-colored outlines and glow effects. */
+.app-shell-dashboard .dash-panel,
+.app-shell-dashboard .sqcpm-col,
+.app-shell-dashboard .perf-card,
+.app-shell-dashboard .perf-card-oee,
+.app-shell-dashboard .perf-cat-card {
+  border-color: color-mix(in srgb, var(--border) 88%, var(--text) 12%) !important;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.07) !important;
+}
+
+.app-shell-dashboard .sqcpm-col,
+.app-shell-dashboard .perf-card-oee {
+  border-top-width: 1px;
+}
+
+.app-shell-dashboard .dash-panel:hover,
+.app-shell-dashboard .sqcpm-col:hover,
+.app-shell-dashboard .perf-card:hover {
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.09) !important;
+}
+
 
