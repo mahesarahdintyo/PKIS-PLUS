@@ -560,100 +560,107 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
 
       {isLeaderOrAdmin && (
         <div className="space-y-6">
-          {/* Card 1: Notifikasi HP */}
-          <Card className="dash-panel card-glow-info p-5">
-            <p className="dash-panel-title font-bold text-base mb-1">1. Aktifkan Notifikasi di HP ini</p>
-            <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-              Wajib dilakukan di TIAP HP yang mau menerima panggilan Andon (getar + bunyi walau app tertutup).
-              Kalau ganti HP, ulangi langkah ini di HP yang baru.
-            </p>
-            <Button
-              type="button"
-              onClick={handleDaftarkanHp}
-              disabled={loadingPush}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold"
-            >
-              <Bell className="h-4 w-4 mr-1.5" />
-              {loadingPush ? "Mendaftarkan..." : "Aktifkan Notifikasi di HP ini"}
-            </Button>
-          </Card>
-
-          {/* Card 2: Line yang Saya Lead */}
-          <Card className="dash-panel card-glow-info p-5">
-            <p className="dash-panel-title font-bold text-base mb-1">2. Line yang Saya Lead</p>
-            <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-              Pilih line yang Anda tanggung jawab. <strong>Tier 1</strong> = dipanggil pertama kali.
-              <strong> Tier 2</strong> = eskalasi, dipanggil kalau tier 1 tidak merespon dalam 5 menit.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-              <div className="field min-w-0">
-                <label className="text-xs font-semibold block mb-1">Line / Mesin</label>
-                <Select
-                  value={leaderForm.mesin}
-                  onChange={(e) => setLeaderForm((f) => ({ ...f, mesin: e.target.value }))}
-                >
-                  {MESIN_OPTIONS.map(([key, label]) => (
-                    <option key={key} value={key}>{label}</option>
-                  ))}
-                </Select>
+          {/* Row 1: Notifikasi HP & Line yang Saya Lead (2 Kolom berdampingan) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+            {/* Card 1: Notifikasi HP */}
+            <Card className="dash-panel card-glow-info p-5 flex flex-col justify-between">
+              <div>
+                <p className="dash-panel-title font-bold text-base mb-1">1. Aktifkan Notifikasi di HP ini</p>
+                <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+                  Wajib dilakukan di TIAP HP yang mau menerima panggilan Andon (getar + bunyi walau app tertutup).
+                  Kalau ganti HP, ulangi langkah ini di HP yang baru.
+                </p>
               </div>
-              <div className="field min-w-0">
-                <label className="text-xs font-semibold block mb-1">Tier Panggilan</label>
-                <Select
-                  value={leaderForm.tier}
-                  onChange={(e) => setLeaderForm((f) => ({ ...f, tier: Number(e.target.value) as 1 | 2 }))}
+              <div className="pt-2">
+                <Button
+                  type="button"
+                  onClick={handleDaftarkanHp}
+                  disabled={loadingPush}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold w-full sm:w-auto"
                 >
-                  <option value={1}>Tier 1 (Utama)</option>
-                  <option value={2}>Tier 2 (Eskalasi)</option>
-                </Select>
+                  <Bell className="h-4 w-4 mr-1.5" />
+                  {loadingPush ? "Mendaftarkan..." : "Aktifkan Notifikasi di HP ini"}
+                </Button>
               </div>
-            </div>
-            <div>
-              <Button type="button" onClick={handleDaftarLeader} className="font-bold">
-                <Plus className="h-4 w-4 mr-1" /> Tambah Pendaftaran
-              </Button>
-            </div>
+            </Card>
 
-            <div className="table-wrap mt-4 overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs sm:text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-muted/50 font-semibold text-muted-foreground">
-                    <th className="p-3">Line</th>
-                    <th className="p-3">Tier</th>
-                    <th className="p-3 text-right">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {myLeaders.map((r, rIdx) => (
-                    <tr
-                      key={r.id}
-                      className="hover:bg-muted/30 transition-colors animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
-                      style={{ animationDelay: `${Math.min(rIdx * 25, 300)}ms` }}
-                    >
-                      <td className="p-3 font-semibold text-foreground">{MESIN_LABELS[r.mesin] || r.mesin}</td>
-                      <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${r.tier === 1 ? "bg-blue-50 text-blue-700 border border-blue-200" : "bg-purple-50 text-purple-700 border border-purple-200"}`}>
-                          Tier {r.tier}
-                        </span>
-                      </td>
-                      <td className="p-3 text-right">
-                        <Button variant="destructive" size="sm" onClick={() => hapusLeader(r.id)} className="h-8">
-                          Hapus
-                        </Button>
-                      </td>
+            {/* Card 2: Line yang Saya Lead */}
+            <Card className="dash-panel card-glow-info p-5 flex flex-col">
+              <p className="dash-panel-title font-bold text-base mb-1">2. Line yang Saya Lead</p>
+              <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+                Pilih line yang Anda tanggung jawab. <strong>Tier 1</strong> = dipanggil pertama kali.
+                <strong> Tier 2</strong> = eskalasi, dipanggil kalau tier 1 tidak merespon dalam 5 menit.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                <div className="field min-w-0">
+                  <label className="text-xs font-semibold block mb-1">Line / Mesin</label>
+                  <Select
+                    value={leaderForm.mesin}
+                    onChange={(e) => setLeaderForm((f) => ({ ...f, mesin: e.target.value }))}
+                  >
+                    {MESIN_OPTIONS.map(([key, label]) => (
+                      <option key={key} value={key}>{label}</option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="field min-w-0">
+                  <label className="text-xs font-semibold block mb-1">Tier Panggilan</label>
+                  <Select
+                    value={leaderForm.tier}
+                    onChange={(e) => setLeaderForm((f) => ({ ...f, tier: Number(e.target.value) as 1 | 2 }))}
+                  >
+                    <option value={1}>Tier 1 (Utama)</option>
+                    <option value={2}>Tier 2 (Eskalasi)</option>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <Button type="button" onClick={handleDaftarLeader} className="font-bold">
+                  <Plus className="h-4 w-4 mr-1" /> Tambah Pendaftaran
+                </Button>
+              </div>
+
+              <div className="table-wrap mt-4 overflow-x-auto max-h-[220px] overflow-y-auto border border-border/60 rounded-lg">
+                <table className="w-full text-left border-collapse text-xs sm:text-sm">
+                  <thead className="sticky top-0 bg-card z-10 shadow-xs">
+                    <tr className="border-b border-border bg-muted/80 backdrop-blur-xs font-semibold text-muted-foreground">
+                      <th className="p-3">Line</th>
+                      <th className="p-3">Tier</th>
+                      <th className="p-3 text-right">Aksi</th>
                     </tr>
-                  ))}
-                  {myLeaders.length === 0 && (
-                    <tr>
-                      <td colSpan={3} className="p-6 text-center text-muted-foreground">
-                        Belum terdaftar sebagai leader line manapun.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {myLeaders.map((r, rIdx) => (
+                      <tr
+                        key={r.id}
+                        className="hover:bg-muted/30 transition-colors animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+                        style={{ animationDelay: `${Math.min(rIdx * 25, 300)}ms` }}
+                      >
+                        <td className="p-3 font-semibold text-foreground">{MESIN_LABELS[r.mesin] || r.mesin}</td>
+                        <td className="p-3">
+                          <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${r.tier === 1 ? "bg-blue-50 text-blue-700 border border-blue-200" : "bg-purple-50 text-purple-700 border border-purple-200"}`}>
+                            Tier {r.tier}
+                          </span>
+                        </td>
+                        <td className="p-3 text-right">
+                          <Button variant="destructive" size="sm" onClick={() => hapusLeader(r.id)} className="h-8">
+                            Hapus
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                    {myLeaders.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="p-6 text-center text-muted-foreground">
+                          Belum terdaftar sebagai leader line manapun.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
 
           {/* Card 3: Panggilan Aktif */}
           <Card className={`dash-panel card-glow-info p-5 transition-all ${activeCalls.length > 0 ? "border-rose-500 ring-2 ring-rose-500/60 shadow-xl shadow-rose-500/20" : ""}`}>
@@ -668,10 +675,10 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
             <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
               Notifikasi berulang (alarm, getaran, layar berkedip) beroperasi otomatis sampai tombol <strong>Terima Panggilan</strong> ditekan.
             </p>
-            <div className="table-wrap overflow-x-auto">
+            <div className="table-wrap overflow-x-auto max-h-[300px] overflow-y-auto border border-border/60 rounded-lg">
               <table className="w-full text-left border-collapse text-xs sm:text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-muted/50 font-semibold text-muted-foreground">
+                <thead className="sticky top-0 bg-card z-10 shadow-xs">
+                  <tr className="border-b border-border bg-muted/80 backdrop-blur-xs font-semibold text-muted-foreground">
                     <th className="p-3">Waktu</th>
                     <th className="p-3">Line / Mesin</th>
                     <th className="p-3">Stasiun</th>
@@ -812,10 +819,10 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
               </div>
             )}
 
-            <div className="table-wrap overflow-x-auto">
+            <div className="table-wrap overflow-x-auto max-h-[460px] overflow-y-auto border border-border/60 rounded-lg">
               <table className="w-full text-left border-collapse text-xs sm:text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-muted/50 font-semibold text-muted-foreground select-none">
+                <thead className="sticky top-0 bg-card z-10 shadow-xs">
+                  <tr className="border-b border-border bg-muted/80 backdrop-blur-xs font-semibold text-muted-foreground select-none">
                     <th className="p-2 sm:p-3 w-8 sm:w-10 text-center">
                       <input
                         type="checkbox"
@@ -1198,7 +1205,7 @@ export default function AndonSettingsClient({ userId, role, embedded }: Props) {
 
   return (
     <div className="app-shell">
-      <main className="main max-w-6xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-500 pb-16">
+      <main className="main max-w-5xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-500 pb-16">
         <Link
           href={role === "leader" ? "/operator" : "/admin"}
           className="inline-flex items-center gap-1.5 self-start min-h-[40px] px-3 py-2 mb-4 text-xs font-semibold rounded-lg border border-border bg-card text-foreground hover:bg-muted transition-colors touch-manipulation shadow-xs"

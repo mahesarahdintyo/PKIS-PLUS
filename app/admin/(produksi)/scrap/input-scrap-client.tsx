@@ -387,10 +387,10 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
           </div>
         )}
 
-        <div className="table-wrap overflow-x-auto">
+        <div className="table-wrap overflow-x-auto max-h-[460px] overflow-y-auto border border-border/60 rounded-lg">
           <table className="w-full text-left border-collapse text-xs sm:text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/50 font-semibold text-muted-foreground select-none">
+            <thead className="sticky top-0 bg-card z-10 shadow-xs">
+              <tr className="border-b border-border bg-muted/80 backdrop-blur-xs font-semibold text-muted-foreground select-none">
                 <th className="p-3 w-10 text-center">
                   <input
                     type="checkbox"
@@ -668,7 +668,7 @@ export default function InputScrapClient({ embedded }: { embedded?: boolean }) {
 
   return (
     <div className="app-shell">
-      <main className="main max-w-6xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-500">
+      <main className="main max-w-5xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-500">
         <Link
           href="/admin"
           className="inline-flex items-center gap-1.5 self-start min-h-[40px] px-3 py-2 mb-4 text-xs font-semibold rounded-lg border border-border bg-card text-foreground hover:bg-muted transition-colors touch-manipulation shadow-xs"
